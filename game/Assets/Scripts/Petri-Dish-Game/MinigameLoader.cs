@@ -1,11 +1,10 @@
-using System;
 using System.Collections;
 using UnityEngine;
 
-public class MicroscopeGameController : MonoBehaviour
+public class MinigameLoader : MonoBehaviour
 {
     [SerializeField] private GameObject mainGame;
-    [SerializeField] private GameObject microscopeMinigame;
+    [SerializeField] private GameObject minigame;
     [SerializeField] private GameObject fadeInOverlay;
     [SerializeField] private ScreenFade screenFadeIn;
     [SerializeField] private GameObject fadeOutOverlay;
@@ -18,44 +17,43 @@ public class MicroscopeGameController : MonoBehaviour
         fadeOutOverlay.SetActive(false);
     }
 
-    public void OpenMicroscope()
+    public void BeginningLoadingScreen()
     {
         fadeInOverlay.SetActive(true);
         StartCoroutine(screenFadeIn.FadeToBlack(0.5f));
         mainGame.SetActive(false);
     }
 
-    public void buttonOpenClick()
+    public void BeginButtonClick()
     {
-        StartCoroutine(OpenMicroscopeGame());
+        StartCoroutine(BeginMinigame());
     }
 
-    public IEnumerator OpenMicroscopeGame()
+    public IEnumerator BeginMinigame()
     {
-        microscopeMinigame.SetActive(true);
-        
+        minigame.SetActive(true);
+
         yield return StartCoroutine(screenFadeIn.FadeFromBlack(0.5f));
-        
+
         fadeInOverlay.SetActive(false);
     }
 
-    public void CloseMicroscope()
+    public void CompletedLoadingScreen()
     {
         fadeOutOverlay.SetActive(true);
         StartCoroutine(screenFadeOut.FadeToBlack(0.5f));
-        microscopeMinigame.SetActive(false);
+        minigame.SetActive(false);
     }
 
-    public void buttonCloseClick()
+    public void CompletedButtonClick()
     {
-        StartCoroutine(CloseMicroscopeGame());
+        StartCoroutine(CloseMinigame());
     }
 
-    public IEnumerator CloseMicroscopeGame()
+    public IEnumerator CloseMinigame()
     {
-        
         mainGame.SetActive(true);
-
+        
         yield return StartCoroutine(screenFadeOut.FadeFromBlack(0.5f));
 
         fadeOutOverlay.SetActive(false);

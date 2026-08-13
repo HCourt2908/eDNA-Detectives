@@ -74,8 +74,8 @@ public class Interactable : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     public void OnPointerClick(PointerEventData eventData)
     {
         if (!interactable) return;
+        SetGlow(0f);
         onInteract.Invoke();
-        Debug.Log("Clicked");
     }
 
 

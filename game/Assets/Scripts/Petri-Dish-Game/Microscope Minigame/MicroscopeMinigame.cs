@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
-using Unity.VisualScripting;
 
 public class MicroscopeMinigame : MonoBehaviour
 {
@@ -15,10 +14,10 @@ public class MicroscopeMinigame : MonoBehaviour
     [SerializeField] private float focusTimeRequired = 2f;
     [SerializeField] private Slider focusProgressBar;
     [SerializeField] private CanvasGroup focusProgressGroup;
-    [SerializeField] private MicroscopeGameController microscopeGameController;
+    [SerializeField] private MinigameLoader minigameLoader;
 
     private float focusTimer = 0f;
-    private bool completed = false;
+    //private bool completed = false;
 
     private float targetMagnification;
     private bool inFocus;
@@ -103,7 +102,7 @@ public class MicroscopeMinigame : MonoBehaviour
 
     private void CompleteMinigame()
     {
-        completed = true;
-        microscopeGameController.CloseMicroscope();
+        //completed = true;
+        minigameLoader.CompletedLoadingScreen();
     }
 }
