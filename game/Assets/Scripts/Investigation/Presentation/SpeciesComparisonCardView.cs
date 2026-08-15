@@ -33,6 +33,7 @@ namespace EDNA.Investigation
         [SerializeField] private Text findingStateText;
         [SerializeField] private Outline stateOutline;
         [SerializeField] private InvestigationGlyphGraphic portraitGlyph;
+        [SerializeField] private InvestigationAttentionPulse attentionPulse;
 
         [Header("Pending classification pulse")]
         [SerializeField] private Color pendingPulseBackground = new Color32(38, 93, 106, 255);
@@ -45,6 +46,7 @@ namespace EDNA.Investigation
         private bool hasFocus;
 
         public bool IsAwaitingSelection => pendingAttention;
+        public bool IsSelected => selected;
         public Color ActionBackgroundColor => actionBackground == null ? Color.clear : actionBackground.color;
         public string TraitsLabel => traitsText == null ? string.Empty : traitsText.text;
 
@@ -60,7 +62,8 @@ namespace EDNA.Investigation
             Text findingStateReference,
             Image traitsBackgroundReference = null,
             Outline outlineReference = null,
-            InvestigationGlyphGraphic portraitGlyphReference = null)
+            InvestigationGlyphGraphic portraitGlyphReference = null,
+            InvestigationAttentionPulse attentionPulseReference = null)
         {
             button = buttonReference;
             background = backgroundReference;
@@ -74,6 +77,7 @@ namespace EDNA.Investigation
             traitsBackground = traitsBackgroundReference;
             stateOutline = outlineReference;
             portraitGlyph = portraitGlyphReference;
+            attentionPulse = attentionPulseReference;
         }
 
         public void Bind(
@@ -142,29 +146,19 @@ namespace EDNA.Investigation
             button.interactable = isInteractive;
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(() => onSelected?.Invoke());
+            if (attentionPulse != null)
+            {
+                attentionPulse.Configure(
+                    findingStateText,
+                    actionBackground,
+                    findingStateText.color,
+                    pendingPulseText,
+                    actionBackground == null ? PendingAction : actionBackground.color,
+                    pendingPulseBackground,
+                    pendingPulseSpeed);
+                attentionPulse.SetPulsing(pendingAttention && !InvestigationMotionSettings.ReducedMotion);
+            }
             UpdateOutline();
-        }
-
-        private void Update()
-        {
-            if (!pendingAttention || background == null || findingStateText == null)
-            {
-                return;
-            }
-
-            float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * pendingPulseSpeed * Mathf.PI * 2f);
-            findingStateText.color = Color.Lerp(PendingText, pendingPulseText, pulse);
-            if (actionBackground != null)
-            {
-                actionBackground.color = Color.Lerp(PendingAction, pendingPulseBackground, pulse);
-            }
-            if (stateOutline != null && !hasFocus)
-            {
-                stateOutline.effectColor = Color.Lerp(
-                    InvestigationTheme.WithAlpha(InvestigationTheme.Warning, 0.45f),
-                    InvestigationTheme.WithAlpha(InvestigationTheme.Warning, 0.92f),
-                    pulse);
-            }
         }
 
         public void OnSelect(BaseEventData eventData)

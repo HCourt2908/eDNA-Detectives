@@ -11,6 +11,21 @@ namespace EDNA.Investigation.Tests
 {
     public sealed class InvestigationSceneSmokeTests
     {
+        private bool originalReducedMotion;
+
+        [SetUp]
+        public void SetUp()
+        {
+            originalReducedMotion = InvestigationMotionSettings.ReducedMotion;
+            InvestigationMotionSettings.SetReducedMotion(false);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            InvestigationMotionSettings.SetReducedMotion(originalReducedMotion);
+        }
+
         [Test]
         public void InvestigationDisplayNames_UsePlayerFacingEvidenceLabelsWithoutDuplicates()
         {
@@ -52,6 +67,10 @@ namespace EDNA.Investigation.Tests
                 Has.Some.Matches<EvidenceRecord>(evidence => evidence.EvidenceType == EvidenceType.ContaminationWarning));
             Assert.That(controller.State.IdentifiedEvidenceIds, Is.Empty);
             Assert.That(canvas, Is.Not.Null);
+            CanvasScaler canvasScaler = canvas.GetComponent<CanvasScaler>();
+            Assert.That(canvasScaler, Is.Not.Null);
+            Assert.That(canvasScaler.uiScaleMode, Is.EqualTo(CanvasScaler.ScaleMode.ConstantPixelSize));
+            Assert.That(canvasScaler.scaleFactor, Is.EqualTo(1f));
 
             InvestigationStatusBannerView statusBanner = Object.FindAnyObjectByType<InvestigationStatusBannerView>();
             Assert.That(statusBanner, Is.Not.Null);
@@ -64,6 +83,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(labels, Has.Some.Matches<Text>(label => label.text.Contains("CASE FILES")));
             Assert.That(labels, Has.Some.Matches<Text>(label => label.text.Contains("The Shifting Seamount")));
 
+            Canvas.ForceUpdateCanvases();
             Button[] buttons = Object.FindObjectsByType<Button>();
             Assert.That(buttons.Length, Is.GreaterThanOrEqualTo(8));
             for (int index = 0; index < buttons.Length; index++)
@@ -74,6 +94,10 @@ namespace EDNA.Investigation.Tests
                     string.IsNullOrWhiteSpace(buttonLabel.text),
                     Is.False,
                     $"Button {buttons[index].name} must display its label.");
+                Assert.That(
+                    buttons[index].GetComponent<RectTransform>().rect.height,
+                    Is.GreaterThanOrEqualTo(44f),
+                    $"Button {buttons[index].name} must remain readable and touch friendly at the default WebGL scale.");
             }
 
             Text caseContent = FindText("The Shifting Seamount");
@@ -100,6 +124,9 @@ namespace EDNA.Investigation.Tests
             FindButton("3  BUILD HYPOTHESIS").onClick.Invoke();
             yield return null;
             Canvas.ForceUpdateCanvases();
+
+            Assert.That(FindButtonView("1  CASE FILES").IsCompletedNavigation, Is.False);
+            Assert.That(FindButtonView("2  COMPARE DATA").IsCompletedNavigation, Is.False);
 
             InvestigationStepperView theoryBeforeFinding = FindStepper("THEORY");
             InvestigationStepperView emptyFinding = FindStepper("FINDING");
@@ -203,6 +230,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindText("IDENTIFIED: EXPECTED BUT MISSING"), Is.Not.Null);
             Assert.That(statusBanner.CurrentLabel, Is.EqualTo("FINDING IDENTIFIED"));
             Assert.That(statusBanner.CurrentTone, Is.EqualTo(InvestigationStatusTone.Success));
+            Assert.That(FindButtonView("2  COMPARE DATA").IsCompletedNavigation, Is.True);
 
             FindButton("3  BUILD HYPOTHESIS").onClick.Invoke();
             yield return null;
@@ -233,6 +261,7 @@ namespace EDNA.Investigation.Tests
 
             InvestigationSamplePlannerPanelView plannerPanel = Object.FindAnyObjectByType<InvestigationSamplePlannerPanelView>();
             Assert.That(plannerPanel, Is.Not.Null);
+            Assert.That(FindButtonView("3  BUILD HYPOTHESIS").IsCompletedNavigation, Is.True);
             Assert.That(FindStepper("SITE"), Is.Not.Null);
             Assert.That(FindStepper("DEPTH"), Is.Not.Null);
             Assert.That(FindStepper("TEST TARGET"), Is.Not.Null);
@@ -243,6 +272,7 @@ namespace EDNA.Investigation.Tests
 
             FindButton("COLLECT SAMPLE  >").onClick.Invoke();
             yield return null;
+            Assert.That(FindButtonView("4  PLAN SAMPLE").IsCompletedNavigation, Is.True);
             FindButton("4  PLAN SAMPLE").onClick.Invoke();
             yield return null;
             FindButton("COLLECT SAMPLE  >").onClick.Invoke();
@@ -262,6 +292,8 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindButtonView("PLAN SAMPLE"), Is.Null);
             Assert.That(FindButtonView("RESTART CASE").transform.GetSiblingIndex(), Is.EqualTo(2));
             Assert.That(FindButtonView("RESTART CASE").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Destructive));
+            Assert.That(FindButtonView("RESTART CASE").BackgroundColor.a, Is.EqualTo(1f), "Destructive actions need an opaque surface so their outline cannot cover the label.");
+            Assert.That(FindButtonView("RESTART CASE").BackgroundColor, Is.Not.EqualTo(FindButtonView("RESTART CASE").LabelColor));
             Assert.That(FindButtonView("SUBMIT CONCLUSION  >").transform.GetSiblingIndex(), Is.EqualTo(3));
             Assert.That(FindButtonView("SUBMIT CONCLUSION  >").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
             Assert.That(FindButton("SUBMIT CONCLUSION  >").interactable, Is.False, "Submission stays disabled until every checklist gate passes.");
@@ -307,7 +339,10 @@ namespace EDNA.Investigation.Tests
 
             SpeciesComparisonCardView coldFishCard = FindCard("Cold-water Fish A");
             Assert.That(coldFishCard, Is.Not.Null);
+            EventSystem.current.SetSelectedGameObject(null);
+            EventSystem.current.SetSelectedGameObject(coldFishCard.gameObject);
             coldFishCard.GetComponent<Button>().onClick.Invoke();
+            yield return null;
             yield return null;
 
             SpeciesComparisonCardView selectedCard = FindCard("Cold-water Fish A");
@@ -315,14 +350,13 @@ namespace EDNA.Investigation.Tests
             Assert.That(selectedCard.IsAwaitingSelection, Is.False);
             Assert.That(selectedCard.enabled, Is.True, "Selected cards must stay enabled to receive keyboard focus events.");
             Assert.That(selectedOutline, Is.Not.Null);
-            EventSystem.current.SetSelectedGameObject(null);
-            EventSystem.current.SetSelectedGameObject(selectedCard.gameObject);
-            yield return null;
+            Assert.That(EventSystem.current.currentSelectedGameObject, Is.EqualTo(selectedCard.gameObject), "Focus should follow the selected card when the comparison board is rebuilt.");
 
             Assert.That(selectedOutline.effectDistance, Is.EqualTo(new Vector2(2f, -2f)));
             Assert.That(selectedOutline.effectColor, Is.EqualTo(InvestigationTheme.Sand));
 
             FindButton("EXPECTED BUT MISSING").onClick.Invoke();
+            yield return null;
             yield return null;
 
             SpeciesComparisonCardView identifiedCard = FindCard("Cold-water Fish A");
@@ -330,9 +364,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(identifiedCard.IsAwaitingSelection, Is.False);
             Assert.That(identifiedCard.enabled, Is.True, "Identified cards must stay enabled to receive keyboard focus events.");
             Assert.That(identifiedOutline, Is.Not.Null);
-            EventSystem.current.SetSelectedGameObject(null);
-            EventSystem.current.SetSelectedGameObject(identifiedCard.gameObject);
-            yield return null;
+            Assert.That(EventSystem.current.currentSelectedGameObject, Is.EqualTo(identifiedCard.gameObject), "Focus should remain on the identified card after classification refreshes the board.");
 
             Assert.That(identifiedOutline.effectDistance, Is.EqualTo(new Vector2(2f, -2f)));
             Assert.That(identifiedOutline.effectColor, Is.EqualTo(InvestigationTheme.Sand));
@@ -350,11 +382,35 @@ namespace EDNA.Investigation.Tests
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
             Assert.That(controller, Is.Not.Null);
 
+            FindButton("START COMPARISON").onClick.Invoke();
+            yield return null;
+            Assert.That(FindButtonView("1  CASE FILES").IsCompletedNavigation, Is.True);
+
             FindButton("5  CONCLUSION").onClick.Invoke();
             yield return null;
             Assert.That(FindButtonView("5  CONCLUSION").IsCurrentNavigation, Is.True);
+            InvestigationState stateBeforeRestartRequest = controller.State;
 
             FindButton("RESTART CASE").onClick.Invoke();
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            Assert.That(controller.State, Is.SameAs(stateBeforeRestartRequest), "Requesting restart must not discard progress before confirmation.");
+            Assert.That(FindNamedText("Title").text, Does.EndWith("CONCLUSION"));
+            Assert.That(FindButton("CONFIRM RESTART"), Is.Not.Null);
+            Assert.That(FindButton("CANCEL RESTART"), Is.Not.Null);
+            Assert.That(FindButtonView("CONFIRM RESTART").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Destructive));
+            Assert.That(Object.FindAnyObjectByType<InvestigationStatusBannerView>().CurrentTone, Is.EqualTo(InvestigationStatusTone.Warning));
+
+            FindButton("CANCEL RESTART").onClick.Invoke();
+            yield return null;
+            Assert.That(FindButton("RESTART CASE"), Is.Not.Null);
+            Assert.That(FindButton("CONFIRM RESTART"), Is.Null);
+            Assert.That(FindNamedText("Title").text, Does.EndWith("CONCLUSION"));
+
+            FindButton("RESTART CASE").onClick.Invoke();
+            yield return null;
+            FindButton("CONFIRM RESTART").onClick.Invoke();
             yield return null;
             Canvas.ForceUpdateCanvases();
 
@@ -363,7 +419,40 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindNamedText("Title").text, Does.EndWith("CASE FILES"));
             Assert.That(FindButtonView("1  CASE FILES").IsCurrentNavigation, Is.True);
             Assert.That(FindButtonView("5  CONCLUSION").IsCurrentNavigation, Is.False);
+            Assert.That(FindButtonView("1  CASE FILES").IsCompletedNavigation, Is.False);
             Assert.That(FindButtonView("3  BUILD HYPOTHESIS").IsCompletedNavigation, Is.False);
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest]
+        public IEnumerator InvestigationScene_ReducedMotionToggleStopsDecorativeAnimation()
+        {
+            AsyncOperation loadOperation = SceneManager.LoadSceneAsync("InvestigationScene", LoadSceneMode.Single);
+            Assert.That(loadOperation, Is.Not.Null);
+            yield return loadOperation;
+            yield return null;
+
+            FindButton("2  COMPARE DATA").onClick.Invoke();
+            yield return null;
+
+            InvestigationAttentionPulse[] activePulses = Object.FindObjectsByType<InvestigationAttentionPulse>();
+            Assert.That(activePulses, Has.Some.Matches<InvestigationAttentionPulse>(pulse => pulse.IsPulsing));
+            Assert.That(FindButton("MOTION: FULL"), Is.Not.Null);
+
+            FindButton("MOTION: FULL").onClick.Invoke();
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            Assert.That(InvestigationMotionSettings.ReducedMotion, Is.True);
+            Assert.That(FindButton("MOTION: REDUCED"), Is.Not.Null);
+            InvestigationAttentionPulse[] reducedPulses = Object.FindObjectsByType<InvestigationAttentionPulse>();
+            Assert.That(reducedPulses, Has.None.Matches<InvestigationAttentionPulse>(pulse => pulse.IsPulsing));
+            Assert.That(Object.FindAnyObjectByType<InvestigationStatusBannerView>().enabled, Is.False);
+
+            FindButton("MOTION: REDUCED").onClick.Invoke();
+            yield return null;
+            Assert.That(InvestigationMotionSettings.ReducedMotion, Is.False);
+            Assert.That(Object.FindObjectsByType<InvestigationAttentionPulse>(), Has.Some.Matches<InvestigationAttentionPulse>(pulse => pulse.IsPulsing));
             LogAssert.NoUnexpectedReceived();
         }
 

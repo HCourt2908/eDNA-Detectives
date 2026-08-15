@@ -10,6 +10,12 @@ namespace EDNA.Investigation
     {
         [SerializeField, Min(48f)] private float minimumCellWidth = 220f;
 
+        public void Configure(float minimumWidth)
+        {
+            minimumCellWidth = Mathf.Max(48f, minimumWidth);
+            ApplyNow();
+        }
+
         public void ApplyNow()
         {
             RectTransform rect = (RectTransform)transform;

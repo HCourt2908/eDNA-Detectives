@@ -84,7 +84,10 @@ namespace EDNA.Investigation
                 backgroundImage.color = GetBackgroundColor(tone);
             }
 
-            if (canvasGroup == null || !Application.isPlaying || !contentChanged)
+            if (canvasGroup == null
+                || !Application.isPlaying
+                || !contentChanged
+                || InvestigationMotionSettings.ReducedMotion)
             {
                 if (canvasGroup != null) canvasGroup.alpha = 1f;
                 enabled = false;

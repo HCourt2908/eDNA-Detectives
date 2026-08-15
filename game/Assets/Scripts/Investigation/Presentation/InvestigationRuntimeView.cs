@@ -15,6 +15,24 @@ namespace EDNA.Investigation
     {
         private enum Page { CaseFiles, CompareData, BuildHypothesis, PlanSample, Conclusion }
 
+        private readonly struct FocusSnapshot
+        {
+            public FocusSnapshot(bool hadFocus, string label, string objectName, bool wasComparisonCard, bool wasMotionToggle)
+            {
+                HadFocus = hadFocus;
+                Label = label;
+                ObjectName = objectName;
+                WasComparisonCard = wasComparisonCard;
+                WasMotionToggle = wasMotionToggle;
+            }
+
+            public bool HadFocus { get; }
+            public string Label { get; }
+            public string ObjectName { get; }
+            public bool WasComparisonCard { get; }
+            public bool WasMotionToggle { get; }
+        }
+
         private static readonly Color Muted = InvestigationTheme.TextSecondary;
         private static readonly Color Warning = InvestigationTheme.Warning;
         private static readonly Color Success = InvestigationTheme.Success;
@@ -63,10 +81,13 @@ namespace EDNA.Investigation
         private int renderedResultCount;
         private int actionSlotCount;
         private bool navigationBuilt;
+        private bool caseBriefingReviewed;
+        private bool restartConfirmationPending;
         private bool preserveScrollOnNextRefresh;
         private bool comparisonActionMode;
-        private int highestVisitedPage;
         private readonly List<InvestigationButtonView> navigationButtons = new List<InvestigationButtonView>();
+        private InvestigationButtonView motionToggleButton;
+        private Coroutine focusRestoreCoroutine;
         private SampleComparisonBoardView comparisonBoardInstance;
         private InvestigationCaseFilesPanelView caseFilesPanelInstance;
         private InvestigationHypothesisPanelView hypothesisPanelInstance;
@@ -124,6 +145,7 @@ namespace EDNA.Investigation
             restartCase = onRestartCase;
             EnsureEventSystem();
             BuildNavigation();
+            BuildMotionToggle();
         }
 
         public void Refresh(InvestigationState investigationState, string message)
@@ -156,7 +178,8 @@ namespace EDNA.Investigation
         private void ResetViewState()
         {
             currentPage = Page.CaseFiles;
-            highestVisitedPage = 0;
+            caseBriefingReviewed = false;
+            restartConfirmationPending = false;
             speciesIndex = 0;
             hypothesisIndex = 0;
             evidenceIndex = 0;
@@ -196,15 +219,39 @@ namespace EDNA.Investigation
             navigationButtons.Add(AddButton(navigationRoot, "5  CONCLUSION", () => ChangePage(Page.Conclusion), InvestigationButtonStyle.Navigation));
         }
 
+        private void BuildMotionToggle()
+        {
+            if (motionToggleButton != null || progressText == null || buttonPrefab == null) return;
+            motionToggleButton = Instantiate(buttonPrefab, progressText.transform.parent);
+            motionToggleButton.name = "Motion Preference";
+            RectTransform rect = motionToggleButton.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 0.5f);
+            rect.anchorMax = new Vector2(1f, 0.5f);
+            rect.pivot = new Vector2(1f, 0.5f);
+            rect.sizeDelta = new Vector2(152f, 44f);
+            rect.anchoredPosition = new Vector2(-14f, 0f);
+            BindMotionToggle();
+        }
+
+        private void BindMotionToggle()
+        {
+            if (motionToggleButton == null) return;
+            motionToggleButton.Bind(
+                InvestigationMotionSettings.ReducedMotion ? "MOTION: REDUCED" : "MOTION: FULL",
+                ToggleReducedMotion,
+                InvestigationButtonStyle.Browse);
+        }
+
         private void RenderCurrentPage(bool preserveContentPosition = false)
         {
             if (titleText == null || state == null || caseDefinition == null) return;
+            FocusSnapshot focusSnapshot = CaptureFocus();
             float previousScrollPosition = preserveContentPosition && contentScrollRect != null
                 ? contentScrollRect.verticalNormalizedPosition
                 : 1f;
             titleText.text = $"eDNA DETECTIVES  /  {GetPageTitle()}";
-            progressText.text = $"R{state.CurrentRound}    SAMPLES {state.AvailableSampleSlots}    FOUND {state.IdentifiedEvidenceIds.Count}/{state.UnlockedEvidence.Count}    MISSTEPS {state.MisclassificationCount}";
-            highestVisitedPage = Mathf.Max(highestVisitedPage, (int)currentPage);
+            progressText.text = $"ROUND {state.CurrentRound}    SAMPLES {state.AvailableSampleSlots}\nFOUND {state.IdentifiedEvidenceIds.Count}/{state.UnlockedEvidence.Count}    MISSTEPS {state.MisclassificationCount}";
+            BindMotionToggle();
             RefreshNavigationState();
             RenderStatus();
             ClearActions();
@@ -225,6 +272,7 @@ namespace EDNA.Investigation
                 contentScrollRect.StopMovement();
                 contentScrollRect.verticalNormalizedPosition = previousScrollPosition;
             }
+            ScheduleFocusRestore(focusSnapshot);
         }
 
         private void RenderCaseFiles()
@@ -253,7 +301,7 @@ namespace EDNA.Investigation
             LayoutRebuilder.ForceRebuildLayoutImmediate(caseFilesPanelInstance.GetComponent<RectTransform>());
             AddBrowseButton("PREVIOUS SPECIES", () => ChangeSpecies(-1));
             AddBrowseButton("NEXT SPECIES", () => ChangeSpecies(1));
-            AddStageForwardButton("START COMPARISON", () => ChangePage(Page.CompareData));
+            AddStageForwardButton("START COMPARISON", StartComparison);
         }
 
         private void RenderCompareData()
@@ -521,8 +569,17 @@ namespace EDNA.Investigation
                 $"Case record: {state.MisclassificationCount} misclassification(s)    " +
                 $"Submission: {InvestigationDisplayNames.ConclusionStatus(state.ConclusionStatus)}");
             bodyText.text = text.ToString();
-            PadActionsToColumn(2);
-            AddDestructiveButton("RESTART CASE", () => restartCase?.Invoke());
+            if (restartConfirmationPending)
+            {
+                AddBrowseButton("CANCEL RESTART", CancelRestartConfirmation);
+                PadActionsToColumn(2);
+                AddDestructiveButton("CONFIRM RESTART", ConfirmRestart);
+            }
+            else
+            {
+                PadActionsToColumn(2);
+                AddDestructiveButton("RESTART CASE", RequestRestartConfirmation);
+            }
             AddCommitButton("SUBMIT CONCLUSION  >", () => submitConclusion?.Invoke(), readiness.CanSubmit);
         }
 
@@ -831,7 +888,19 @@ namespace EDNA.Investigation
             return button;
         }
 
-        private void ChangePage(Page page) { currentPage = page; highestVisitedPage = Mathf.Max(highestVisitedPage, (int)page); statusMessage = string.Empty; RenderCurrentPage(); }
+        private void StartComparison()
+        {
+            caseBriefingReviewed = true;
+            ChangePage(Page.CompareData);
+        }
+
+        private void ChangePage(Page page)
+        {
+            currentPage = page;
+            restartConfirmationPending = false;
+            statusMessage = string.Empty;
+            RenderCurrentPage();
+        }
 
         private void RefreshNavigationState()
         {
@@ -841,8 +910,30 @@ namespace EDNA.Investigation
                 if (button == null) continue;
                 button.SetNavigationState(
                     index == (int)currentPage,
-                    index < highestVisitedPage,
+                    IsPageComplete((Page)index),
                     GetNavigationGlyph(index));
+            }
+        }
+
+        private bool IsPageComplete(Page page)
+        {
+            if (state == null) return false;
+            switch (page)
+            {
+                case Page.CaseFiles:
+                    return caseBriefingReviewed;
+                case Page.CompareData:
+                    return state.IdentifiedEvidenceIds.Count > 0;
+                case Page.BuildHypothesis:
+                    return !string.IsNullOrEmpty(state.SelectedHypothesisId);
+                case Page.PlanSample:
+                    return !caseDefinition.RequireFollowUpSample
+                        ? !string.IsNullOrEmpty(state.SelectedHypothesisId)
+                        : state.CompletedSampleCount > 0;
+                case Page.Conclusion:
+                    return state.ConclusionStatus == ConclusionStatus.Correct;
+                default:
+                    return false;
             }
         }
 
@@ -877,6 +968,36 @@ namespace EDNA.Investigation
             selectedComparisonEvidenceId = evidenceId;
             statusMessage = "Comparison selected. Choose the classification that best describes the change.";
             RenderCurrentPage(true);
+        }
+
+        private void ToggleReducedMotion()
+        {
+            bool reducedMotion = !InvestigationMotionSettings.ReducedMotion;
+            InvestigationMotionSettings.SetReducedMotion(reducedMotion);
+            statusMessage = reducedMotion
+                ? "Reduced motion enabled. Pulsing and banner fades are now paused."
+                : "Full motion enabled. Subtle guidance animation is active.";
+            RenderCurrentPage(currentPage == Page.CompareData);
+        }
+
+        private void RequestRestartConfirmation()
+        {
+            restartConfirmationPending = true;
+            statusMessage = "Restarting will discard all findings, samples, and conclusion progress. Confirm only if you want to begin again.";
+            RenderCurrentPage();
+        }
+
+        private void CancelRestartConfirmation()
+        {
+            restartConfirmationPending = false;
+            statusMessage = "Restart cancelled. Your investigation progress is unchanged.";
+            RenderCurrentPage();
+        }
+
+        private void ConfirmRestart()
+        {
+            restartConfirmationPending = false;
+            restartCase?.Invoke();
         }
 
         private void ClassifySelected(AnomalyClaimType claimType)
@@ -1133,7 +1254,153 @@ namespace EDNA.Investigation
                 || message.IndexOf("does not", StringComparison.OrdinalIgnoreCase) >= 0
                 || message.IndexOf("incorrect", StringComparison.OrdinalIgnoreCase) >= 0
                 || message.IndexOf("ruled out", StringComparison.OrdinalIgnoreCase) >= 0
+                || message.IndexOf("discard", StringComparison.OrdinalIgnoreCase) >= 0
                 || message.IndexOf("before", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private FocusSnapshot CaptureFocus()
+        {
+            if (EventSystem.current == null || EventSystem.current.currentSelectedGameObject == null)
+            {
+                return default;
+            }
+
+            GameObject selectedObject = EventSystem.current.currentSelectedGameObject;
+            InvestigationButtonView selectedButton = selectedObject.GetComponent<InvestigationButtonView>();
+            return new FocusSnapshot(
+                true,
+                selectedButton == null ? string.Empty : selectedButton.Label,
+                selectedObject.name,
+                selectedObject.GetComponent<SpeciesComparisonCardView>() != null,
+                selectedButton != null && selectedButton == motionToggleButton);
+        }
+
+        private void ScheduleFocusRestore(FocusSnapshot snapshot)
+        {
+            if (!snapshot.HadFocus || !Application.isPlaying) return;
+            if (focusRestoreCoroutine != null)
+            {
+                StopCoroutine(focusRestoreCoroutine);
+            }
+            focusRestoreCoroutine = StartCoroutine(RestoreFocusNextFrame(snapshot));
+        }
+
+        private System.Collections.IEnumerator RestoreFocusNextFrame(FocusSnapshot snapshot)
+        {
+            yield return null;
+            focusRestoreCoroutine = null;
+            if (EventSystem.current == null) yield break;
+
+            GameObject target = null;
+            if (snapshot.WasMotionToggle && IsInteractable(motionToggleButton))
+            {
+                target = motionToggleButton.gameObject;
+            }
+
+            if (target == null && !string.IsNullOrEmpty(snapshot.Label))
+            {
+                InvestigationButtonView[] buttons = GetComponentsInChildren<InvestigationButtonView>(true);
+                for (int index = 0; index < buttons.Length; index++)
+                {
+                    if (buttons[index].gameObject.activeInHierarchy
+                        && string.Equals(buttons[index].Label, snapshot.Label, StringComparison.Ordinal)
+                        && IsInteractable(buttons[index]))
+                    {
+                        target = buttons[index].gameObject;
+                        break;
+                    }
+                }
+            }
+
+            if (target == null && snapshot.WasComparisonCard)
+            {
+                target = FindPreferredComparisonCard();
+            }
+
+            if (target == null && !string.IsNullOrEmpty(snapshot.ObjectName))
+            {
+                Button[] contentButtons = contentViewport == null
+                    ? Array.Empty<Button>()
+                    : contentViewport.GetComponentsInChildren<Button>(true);
+                for (int index = 0; index < contentButtons.Length; index++)
+                {
+                    if (contentButtons[index].gameObject.activeInHierarchy
+                        && contentButtons[index].interactable
+                        && string.Equals(contentButtons[index].name, snapshot.ObjectName, StringComparison.Ordinal))
+                    {
+                        target = contentButtons[index].gameObject;
+                        break;
+                    }
+                }
+            }
+
+            if (target == null && currentPage == Page.CompareData)
+            {
+                target = FindPreferredComparisonCard();
+            }
+
+            if (target == null)
+            {
+                target = FindFirstInteractableButton(contentViewport);
+            }
+
+            if (target == null)
+            {
+                target = FindFirstInteractableButton(ActiveActionRoot);
+            }
+
+            if (target == null && navigationButtons.Count > (int)currentPage)
+            {
+                InvestigationButtonView navigationButton = navigationButtons[(int)currentPage];
+                if (IsInteractable(navigationButton)) target = navigationButton.gameObject;
+            }
+
+            if (target == null) yield break;
+            EventSystem.current.SetSelectedGameObject(null);
+            EventSystem.current.SetSelectedGameObject(target);
+        }
+
+        private GameObject FindPreferredComparisonCard()
+        {
+            if (contentViewport == null) return null;
+            SpeciesComparisonCardView[] cards = contentViewport.GetComponentsInChildren<SpeciesComparisonCardView>(true);
+            GameObject firstInteractable = null;
+            for (int index = 0; index < cards.Length; index++)
+            {
+                Button button = cards[index].GetComponent<Button>();
+                if (!cards[index].gameObject.activeInHierarchy || button == null || !button.interactable) continue;
+                if (cards[index].IsSelected) return cards[index].gameObject;
+                if (firstInteractable == null) firstInteractable = cards[index].gameObject;
+            }
+            return firstInteractable;
+        }
+
+        private static GameObject FindFirstInteractableButton(Transform root)
+        {
+            if (root == null) return null;
+            Button[] buttons = root.GetComponentsInChildren<Button>(true);
+            for (int index = 0; index < buttons.Length; index++)
+            {
+                if (buttons[index].gameObject.activeInHierarchy && buttons[index].interactable)
+                {
+                    return buttons[index].gameObject;
+                }
+            }
+            return null;
+        }
+
+        private static bool IsInteractable(InvestigationButtonView buttonView)
+        {
+            if (buttonView == null || !buttonView.gameObject.activeInHierarchy) return false;
+            Button button = buttonView.GetComponent<Button>();
+            return button != null && button.interactable;
+        }
+
+        private void OnDisable()
+        {
+            if (focusRestoreCoroutine == null) return;
+            StopCoroutine(focusRestoreCoroutine);
+            focusRestoreCoroutine = null;
         }
 
         private static bool IsIdentifiedMessage(string message)

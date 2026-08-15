@@ -107,6 +107,8 @@ public static class InvestigationUiPrefabBuilder
         traitGrid.cellSize = new Vector2(635f, 54f);
         traitGrid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         traitGrid.constraintCount = 2;
+        InvestigationResponsiveGridLayout responsiveTraitGrid = traitGridObject.AddComponent<InvestigationResponsiveGridLayout>();
+        responsiveTraitGrid.Configure(200f);
         Text depth = CreateTraitChip(traitGridObject.transform, "Depth Trait", "DEPTH RANGE\nShallow, Mid");
         Text temperature = CreateTraitChip(traitGridObject.transform, "Temperature Trait", "TEMPERATURE\nCold water");
         Text habitat = CreateTraitChip(traitGridObject.transform, "Habitat Trait", "HABITAT\nRocky reef");
@@ -487,6 +489,9 @@ public static class InvestigationUiPrefabBuilder
                 outline,
                 indicator,
                 glyph);
+            SerializedObject serializedButton = new SerializedObject(root.GetComponent<InvestigationButtonView>());
+            serializedButton.FindProperty("destructiveBackground").colorValue = InvestigationTheme.SurfaceWarning;
+            serializedButton.ApplyModifiedPropertiesWithoutUndo();
             PrefabUtility.SaveAsPrefabAsset(root, ButtonPrefabPath);
         }
         finally
@@ -498,9 +503,9 @@ public static class InvestigationUiPrefabBuilder
     private static void ApplyRuntimeShell(GameObject root)
     {
         CanvasScaler scaler = root.GetComponent<CanvasScaler>();
-        scaler.referenceResolution = new Vector2(1600f, 900f);
-        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-        scaler.matchWidthOrHeight = 0.5f;
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
+        scaler.scaleFactor = 1f;
+        scaler.referencePixelsPerUnit = 100f;
 
         Transform background = FindChild(root.transform, "Ocean Background");
         Transform header = FindChild(root.transform, "Header");
@@ -527,34 +532,34 @@ public static class InvestigationUiPrefabBuilder
         backdrop.raycastTarget = false;
         Stretch(backdrop.rectTransform, 0f, 0f, 0f, 0f);
 
-        SetOffsets(header.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), 16f, -98f, -16f, -12f);
-        SetOffsets(navigation.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), 16f, -160f, -16f, -104f);
-        SetOffsets(content.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(1f, 1f), 16f, 176f, -16f, -226f);
-        SetOffsets(actions.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(1f, 0f), 16f, 16f, -16f, 164f);
+        SetOffsets(header.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), 12f, -76f, -12f, -8f);
+        SetOffsets(navigation.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), 12f, -132f, -12f, -80f);
+        SetOffsets(content.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(1f, 1f), 12f, 164f, -12f, -192f);
+        SetOffsets(actions.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(1f, 0f), 12f, 8f, -12f, 156f);
 
         if (status != null)
         {
             status.SetParent(background, false);
-            SetOffsets(status.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), 16f, -218f, -16f, -166f);
+            SetOffsets(status.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), 12f, -184f, -12f, -136f);
         }
 
         Text title = FindChild(header, "Title").GetComponent<Text>();
-        title.fontSize = 26;
+        title.fontSize = 23;
         title.color = Sand;
         title.alignment = TextAnchor.LowerLeft;
-        SetOffsets(title.rectTransform, new Vector2(0f, 0f), new Vector2(0.64f, 0.72f), 22f, 8f, -8f, -2f);
+        SetOffsets(title.rectTransform, new Vector2(0f, 0f), new Vector2(0.58f, 0.72f), 18f, 6f, -8f, -2f);
 
         Text progress = FindChild(header, "Progress").GetComponent<Text>();
         progress.fontSize = 14;
         progress.fontStyle = FontStyle.Bold;
         progress.color = Cyan;
         progress.alignment = TextAnchor.MiddleRight;
-        SetOffsets(progress.rectTransform, new Vector2(0.58f, 0.15f), new Vector2(1f, 0.78f), 14f, 0f, -20f, 0f);
+        SetOffsets(progress.rectTransform, new Vector2(0.56f, 0.15f), new Vector2(1f, 0.78f), 8f, 0f, -178f, 0f);
 
         Transform existingEyebrow = FindDirectChild(header, "Header Eyebrow");
         if (existingEyebrow != null) Object.DestroyImmediate(existingEyebrow.gameObject);
         Text eyebrow = CreateOverlayText(header, "Header Eyebrow", "MARINE eDNA INVESTIGATION // FIELD CONSOLE", 11, FontStyle.Bold, Metadata, TextAnchor.UpperLeft);
-        SetOffsets(eyebrow.rectTransform, new Vector2(0f, 0.72f), new Vector2(0.58f, 1f), 22f, 0f, -8f, -7f);
+        SetOffsets(eyebrow.rectTransform, new Vector2(0f, 0.72f), new Vector2(0.58f, 1f), 18f, 0f, -8f, -6f);
 
         Transform existingLine = FindDirectChild(header, "Header Accent Line");
         if (existingLine != null) Object.DestroyImmediate(existingLine.gameObject);
@@ -669,11 +674,11 @@ public static class InvestigationUiPrefabBuilder
         GridLayoutGroup grid = standard.GetComponent<GridLayoutGroup>();
         grid.padding = new RectOffset(12, 12, 12, 12);
         grid.cellSize = new Vector2(300f, 49f);
-        grid.spacing = new Vector2(30f, 10f);
+        grid.spacing = new Vector2(16f, 10f);
         grid.childAlignment = TextAnchor.MiddleCenter;
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 4;
-        standard.GetComponent<InvestigationResponsiveGridLayout>().ApplyNow();
+        standard.GetComponent<InvestigationResponsiveGridLayout>().Configure(120f);
         return rect;
     }
 
@@ -795,11 +800,11 @@ public static class InvestigationUiPrefabBuilder
         GridLayoutGroup grid = navigation.GetComponent<GridLayoutGroup>();
         grid.padding = new RectOffset(0, 0, 0, 0);
         grid.cellSize = new Vector2(300f, 49f);
-        grid.spacing = new Vector2(30f, 0f);
+        grid.spacing = new Vector2(16f, 0f);
         grid.childAlignment = TextAnchor.MiddleCenter;
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 4;
-        navigation.GetComponent<InvestigationResponsiveGridLayout>().ApplyNow();
+        navigation.GetComponent<InvestigationResponsiveGridLayout>().Configure(120f);
         return rect;
     }
 
@@ -938,11 +943,15 @@ public static class InvestigationUiPrefabBuilder
             actionRect.SetSiblingIndex(findingRect.GetSiblingIndex());
 
             SpeciesComparisonCardView card = root.GetComponent<SpeciesComparisonCardView>();
+            InvestigationAttentionPulse attentionPulse = root.GetComponent<InvestigationAttentionPulse>();
+            if (attentionPulse == null) attentionPulse = root.AddComponent<InvestigationAttentionPulse>();
+            attentionPulse.enabled = false;
             SerializedObject serializedCard = new SerializedObject(card);
             serializedCard.FindProperty("actionBackground").objectReferenceValue = actionImage;
             serializedCard.FindProperty("traitsBackground").objectReferenceValue = traitImage;
             serializedCard.FindProperty("stateOutline").objectReferenceValue = cardOutline;
             serializedCard.FindProperty("portraitGlyph").objectReferenceValue = portraitGlyph;
+            serializedCard.FindProperty("attentionPulse").objectReferenceValue = attentionPulse;
             serializedCard.ApplyModifiedPropertiesWithoutUndo();
             PrefabUtility.SaveAsPrefabAsset(root, CardPrefabPath);
         }

@@ -49,7 +49,7 @@ namespace EDNA.Investigation
         [SerializeField] private Color challengeText = new Color32(255, 208, 128, 255);
 
         [Header("Destructive action")]
-        [SerializeField] private Color destructiveBackground = new Color32(13, 43, 58, 0);
+        [SerializeField] private Color destructiveBackground = new Color32(61, 47, 27, 255);
         [SerializeField] private Color destructiveText = new Color32(255, 190, 90, 255);
         [SerializeField] private Color destructiveOutline = new Color32(255, 190, 90, 255);
 
@@ -182,12 +182,14 @@ namespace EDNA.Investigation
             RectTransform rect = labelText.rectTransform;
             if (style == InvestigationButtonStyle.Navigation)
             {
+                labelText.fontSize = 13;
                 labelText.alignment = TextAnchor.MiddleLeft;
-                rect.offsetMin = new Vector2(46f, 4f);
-                rect.offsetMax = new Vector2(-10f, -4f);
+                rect.offsetMin = new Vector2(40f, 4f);
+                rect.offsetMax = new Vector2(-6f, -4f);
             }
             else
             {
+                labelText.fontSize = 14;
                 labelText.alignment = TextAnchor.MiddleCenter;
                 rect.offsetMin = new Vector2(10f, 4f);
                 rect.offsetMax = new Vector2(-10f, -4f);
