@@ -67,6 +67,22 @@ namespace EDNA.Investigation.Tests
             Canvas.ForceUpdateCanvases();
             Assert.That(caseContent.rectTransform.rect.height, Is.GreaterThan(1f), "Case content must have a visible layout height.");
 
+            InvestigationButtonView previousSpecies = FindButtonView("<  PREVIOUS SPECIES");
+            InvestigationButtonView nextSpecies = FindButtonView("NEXT SPECIES  >");
+            InvestigationButtonView startComparison = FindButtonView("START COMPARISON");
+            Assert.That(previousSpecies, Is.Not.Null);
+            Assert.That(nextSpecies, Is.Not.Null);
+            Assert.That(startComparison, Is.Not.Null);
+            Assert.That(previousSpecies.CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Browse));
+            Assert.That(nextSpecies.CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Browse));
+            Assert.That(startComparison.CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Primary));
+            Assert.That(previousSpecies.BackgroundColor, Is.Not.EqualTo(startComparison.BackgroundColor));
+            Assert.That(previousSpecies.LabelColor, Is.Not.EqualTo(startComparison.LabelColor));
+            Assert.That(previousSpecies.transform.GetSiblingIndex(), Is.EqualTo(0));
+            Assert.That(nextSpecies.transform.GetSiblingIndex(), Is.EqualTo(1));
+            Assert.That(startComparison.transform.GetSiblingIndex(), Is.EqualTo(3), "Forward-stage actions belong in the rightmost column.");
+            Assert.That(startComparison.transform.position.x, Is.GreaterThan(nextSpecies.transform.position.x + nextSpecies.GetComponent<RectTransform>().rect.width));
+
             FindButton("2  COMPARE DATA").onClick.Invoke();
             yield return null;
             Canvas.ForceUpdateCanvases();
@@ -80,6 +96,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindButton("EXPECTED BUT MISSING"), Is.Not.Null);
             Assert.That(FindButton("EXPECTED BUT MISSING").interactable, Is.False, "Classification choices stay disabled until a card is selected.");
             Assert.That(FindButton("MATCHES BASELINE"), Is.Not.Null);
+            Assert.That(FindButtonView("BUILD HYPOTHESIS").transform.GetSiblingIndex() % 4, Is.EqualTo(3));
             Assert.That(statusBanner.CurrentLabel, Is.EqualTo("NEXT STEP"));
             Assert.That(statusBanner.CurrentMessage, Does.Contain("Select a comparison card"));
 
@@ -132,9 +149,16 @@ namespace EDNA.Investigation.Tests
             Assert.That(statusBanner.CurrentLabel, Is.EqualTo("FINDING IDENTIFIED"));
             Assert.That(statusBanner.CurrentTone, Is.EqualTo(InvestigationStatusTone.Success));
 
+            FindButton("3  BUILD HYPOTHESIS").onClick.Invoke();
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            Assert.That(FindButtonView("COMPARE DATA").transform.GetSiblingIndex(), Is.EqualTo(0), "Back-stage actions belong in the leftmost column.");
+
             FindButton("5  CONCLUSION").onClick.Invoke();
             yield return null;
             Assert.That(FindText("Misclassifications recorded: 1"), Is.Not.Null);
+            Assert.That(FindButtonView("PLAN SAMPLE").transform.GetSiblingIndex(), Is.EqualTo(0));
+            Assert.That(FindButtonView("SUBMIT CONCLUSION").transform.GetSiblingIndex() % 4, Is.EqualTo(3));
 
             LogAssert.NoUnexpectedReceived();
         }
@@ -162,6 +186,20 @@ namespace EDNA.Investigation.Tests
                 if (labels[index].text.Contains(value))
                 {
                     return labels[index];
+                }
+            }
+
+            return null;
+        }
+
+        private static InvestigationButtonView FindButtonView(string label)
+        {
+            InvestigationButtonView[] buttons = Object.FindObjectsByType<InvestigationButtonView>();
+            for (int index = 0; index < buttons.Length; index++)
+            {
+                if (buttons[index].Label == label)
+                {
+                    return buttons[index];
                 }
             }
 

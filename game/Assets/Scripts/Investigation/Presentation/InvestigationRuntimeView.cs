@@ -15,8 +15,6 @@ namespace EDNA.Investigation
     {
         private enum Page { CaseFiles, CompareData, BuildHypothesis, PlanSample, Conclusion }
 
-        private static readonly Color ButtonColor = new Color32(23, 104, 115, 255);
-        private static readonly Color NavigationColor = new Color32(24, 75, 91, 255);
         private static readonly Color Muted = new Color32(169, 201, 207, 255);
         private static readonly Color Warning = new Color32(255, 190, 90, 255);
         private static readonly Color Success = new Color32(92, 214, 157, 255);
@@ -54,6 +52,7 @@ namespace EDNA.Investigation
         private int siteIndex;
         private int depthIndex;
         private int resultIndex;
+        private int actionSlotCount;
         private bool navigationBuilt;
         private bool preserveScrollOnNextRefresh;
         private SampleComparisonBoardView comparisonBoardInstance;
@@ -152,11 +151,11 @@ namespace EDNA.Investigation
         {
             if (navigationBuilt || navigationRoot == null || buttonPrefab == null) return;
             navigationBuilt = true;
-            AddButton(navigationRoot, "1  CASE FILES", () => ChangePage(Page.CaseFiles), NavigationColor);
-            AddButton(navigationRoot, "2  COMPARE DATA", () => ChangePage(Page.CompareData), NavigationColor);
-            AddButton(navigationRoot, "3  BUILD HYPOTHESIS", () => ChangePage(Page.BuildHypothesis), NavigationColor);
-            AddButton(navigationRoot, "4  PLAN SAMPLE", () => ChangePage(Page.PlanSample), NavigationColor);
-            AddButton(navigationRoot, "5  CONCLUSION", () => ChangePage(Page.Conclusion), NavigationColor);
+            AddButton(navigationRoot, "1  CASE FILES", () => ChangePage(Page.CaseFiles), InvestigationButtonStyle.Navigation);
+            AddButton(navigationRoot, "2  COMPARE DATA", () => ChangePage(Page.CompareData), InvestigationButtonStyle.Navigation);
+            AddButton(navigationRoot, "3  BUILD HYPOTHESIS", () => ChangePage(Page.BuildHypothesis), InvestigationButtonStyle.Navigation);
+            AddButton(navigationRoot, "4  PLAN SAMPLE", () => ChangePage(Page.PlanSample), InvestigationButtonStyle.Navigation);
+            AddButton(navigationRoot, "5  CONCLUSION", () => ChangePage(Page.Conclusion), InvestigationButtonStyle.Navigation);
         }
 
         private void RenderCurrentPage(bool preserveContentPosition = false)
@@ -210,9 +209,9 @@ namespace EDNA.Investigation
             text.AppendLine("MISSION");
             text.AppendLine("Inspect one present-day sample at a time. Compare each species with records from 20 years ago, select a card, and classify what changed. Correct findings can then be used to build and test a hypothesis.");
             bodyText.text = text.ToString();
-            AddActionButton("PREVIOUS SPECIES", () => ChangeSpecies(-1));
-            AddActionButton("NEXT SPECIES", () => ChangeSpecies(1));
-            AddActionButton("START COMPARISON", () => ChangePage(Page.CompareData));
+            AddBrowseButton("PREVIOUS SPECIES", () => ChangeSpecies(-1));
+            AddBrowseButton("NEXT SPECIES", () => ChangeSpecies(1));
+            AddStageForwardButton("START COMPARISON", () => ChangePage(Page.CompareData));
         }
 
         private void RenderCompareData()
@@ -237,14 +236,14 @@ namespace EDNA.Investigation
             AddWarningCards(sourceId);
             LayoutRebuilder.ForceRebuildLayoutImmediate(comparisonBoardInstance.GetComponent<RectTransform>());
 
-            AddActionButton("PREVIOUS SAMPLE", () => ChangeResult(-1));
-            AddActionButton("NEXT SAMPLE", () => ChangeResult(1));
+            AddBrowseButton("PREVIOUS SAMPLE", () => ChangeResult(-1));
+            AddBrowseButton("NEXT SAMPLE", () => ChangeResult(1));
             AddClassificationButton("NEW ARRIVAL", AnomalyClaimType.NewArrival);
             AddClassificationButton("EXPECTED BUT MISSING", AnomalyClaimType.ExpectedButMissing);
             AddClassificationButton("DIFFERENT DEPTH", AnomalyClaimType.DifferentDepth);
             AddClassificationButton("RESULT WARNING", AnomalyClaimType.ResultWarning);
             AddClassificationButton("MATCHES BASELINE", AnomalyClaimType.MatchesBaseline);
-            AddActionButton("BUILD HYPOTHESIS", () => ChangePage(Page.BuildHypothesis));
+            AddStageForwardButton("BUILD HYPOTHESIS", () => ChangePage(Page.BuildHypothesis));
         }
 
         private void AddSpeciesComparisonCard(EDNAResultData result, string sourceId, string speciesId)
@@ -334,11 +333,11 @@ namespace EDNA.Investigation
             text.AppendLine("Assigning a finding records whether it supports or challenges the selected explanation. It never changes the raw eDNA result.");
             bodyText.text = text.ToString();
 
-            AddActionButton("COMPARE DATA", () => ChangePage(Page.CompareData));
-            AddActionButton("PREVIOUS THEORY", () => ChangeHypothesis(-1));
-            AddActionButton("NEXT THEORY", () => ChangeHypothesis(1));
-            AddActionButton("PREVIOUS FINDING", () => ChangeEvidence(-1));
-            AddActionButton("NEXT FINDING", () => ChangeEvidence(1));
+            AddStageBackButton("COMPARE DATA", () => ChangePage(Page.CompareData));
+            AddBrowseButton("PREVIOUS THEORY", () => ChangeHypothesis(-1));
+            AddBrowseButton("NEXT THEORY", () => ChangeHypothesis(1));
+            AddBrowseButton("PREVIOUS FINDING", () => ChangeEvidence(-1));
+            AddBrowseButton("NEXT FINDING", () => ChangeEvidence(1));
             AddActionButton("ASSIGN SUPPORT", () => AssignSelected(EvidenceAssignmentKind.Supports));
             AddActionButton("ASSIGN CHALLENGE", () => AssignSelected(EvidenceAssignmentKind.Opposes));
             AddActionButton("SELECT THEORY", SelectCurrentHypothesis);
@@ -368,14 +367,14 @@ namespace EDNA.Investigation
             text.AppendLine($"Follow-up samples available: {state.AvailableSampleSlots}");
             if (state.PendingSampleCount > 0) text.AppendLine($"Samples awaiting results: {state.PendingSampleCount}");
             bodyText.text = text.ToString();
-            AddActionButton("PREVIOUS SITE", () => ChangeSite(-1));
-            AddActionButton("NEXT SITE", () => ChangeSite(1));
-            AddActionButton("PREVIOUS DEPTH", () => ChangeDepth(-1));
-            AddActionButton("NEXT DEPTH", () => ChangeDepth(1));
-            AddActionButton("PREVIOUS REASON", () => ChangeEvidence(-1));
-            AddActionButton("NEXT REASON", () => ChangeEvidence(1));
+            AddStageBackButton("COMPARE RESULTS", () => ChangePage(Page.CompareData));
+            AddBrowseButton("PREVIOUS SITE", () => ChangeSite(-1));
+            AddBrowseButton("NEXT SITE", () => ChangeSite(1));
+            AddBrowseButton("PREVIOUS DEPTH", () => ChangeDepth(-1));
+            AddBrowseButton("NEXT DEPTH", () => ChangeDepth(1));
+            AddBrowseButton("PREVIOUS REASON", () => ChangeEvidence(-1));
+            AddBrowseButton("NEXT REASON", () => ChangeEvidence(1));
             AddActionButton("COLLECT MOCK SAMPLE", RequestSelectedSample);
-            AddActionButton("COMPARE RESULTS", () => ChangePage(Page.CompareData));
         }
 
         private void RenderConclusion()
@@ -405,10 +404,10 @@ namespace EDNA.Investigation
             text.AppendLine();
             text.AppendLine("A defensible conclusion needs a supported hypothesis, at least one targeted follow-up sample, and at least one challenging or uncertain finding.");
             bodyText.text = text.ToString();
-            AddActionButton("COMPARE DATA", () => ChangePage(Page.CompareData));
+            AddStageBackButton("PLAN SAMPLE", () => ChangePage(Page.PlanSample));
             AddActionButton("BUILD HYPOTHESIS", () => ChangePage(Page.BuildHypothesis));
-            AddActionButton("PLAN SAMPLE", () => ChangePage(Page.PlanSample));
-            AddActionButton("SUBMIT CONCLUSION", () => submitConclusion?.Invoke());
+            AddActionButton("COMPARE DATA", () => ChangePage(Page.CompareData));
+            AddStageForwardButton("SUBMIT CONCLUSION", () => submitConclusion?.Invoke());
             AddActionButton("RESTART CASE", () => restartCase?.Invoke());
         }
 
@@ -502,20 +501,74 @@ namespace EDNA.Investigation
 
         private void AddActionButton(string label, Action action, bool isInteractable = true)
         {
-            AddButton(actionRoot, label, action, ButtonColor, isInteractable);
+            AddActionSlotButton(label, action, InvestigationButtonStyle.Primary, isInteractable);
+        }
+
+        private void AddBrowseButton(string label, Action action, bool isInteractable = true)
+        {
+            string directionalLabel = label.StartsWith("PREVIOUS", StringComparison.Ordinal)
+                ? $"<  {label}"
+                : label.StartsWith("NEXT", StringComparison.Ordinal)
+                    ? $"{label}  >"
+                    : label;
+            AddActionSlotButton(directionalLabel, action, InvestigationButtonStyle.Browse, isInteractable);
+        }
+
+        private void AddStageBackButton(string label, Action action, bool isInteractable = true)
+        {
+            PadActionsToColumn(0);
+            AddActionSlotButton(label, action, InvestigationButtonStyle.Primary, isInteractable);
+        }
+
+        private void AddStageForwardButton(string label, Action action, bool isInteractable = true)
+        {
+            PadActionsToColumn(GetActionColumnCount() - 1);
+            AddActionSlotButton(label, action, InvestigationButtonStyle.Primary, isInteractable);
+        }
+
+        private void AddActionSlotButton(
+            string label,
+            Action action,
+            InvestigationButtonStyle style,
+            bool isInteractable)
+        {
+            AddButton(actionRoot, label, action, style, isInteractable);
+            actionSlotCount++;
+        }
+
+        private void PadActionsToColumn(int targetColumn)
+        {
+            int columnCount = GetActionColumnCount();
+            int safeTarget = Mathf.Clamp(targetColumn, 0, columnCount - 1);
+            while (actionSlotCount % columnCount != safeTarget)
+            {
+                GameObject spacer = new GameObject("Action Spacer", typeof(RectTransform));
+                spacer.transform.SetParent(actionRoot, false);
+                actionSlotCount++;
+            }
+        }
+
+        private int GetActionColumnCount()
+        {
+            if (actionRoot == null) return 1;
+            GridLayoutGroup grid = actionRoot.GetComponent<GridLayoutGroup>();
+            return grid != null
+                && grid.constraint == GridLayoutGroup.Constraint.FixedColumnCount
+                ? Mathf.Max(1, grid.constraintCount)
+                : 1;
         }
 
         private void AddButton(
             Transform parent,
             string label,
             Action action,
-            Color color,
+            InvestigationButtonStyle style,
             bool isInteractable = true)
         {
             if (parent == null || buttonPrefab == null) return;
             InvestigationButtonView button = Instantiate(buttonPrefab, parent);
             button.name = label;
-            button.Bind(label, action, color, isInteractable);
+            button.Bind(label, action, style, isInteractable);
         }
 
         private void ChangePage(Page page) { currentPage = page; statusMessage = string.Empty; RenderCurrentPage(); }
@@ -696,6 +749,7 @@ namespace EDNA.Investigation
         private void ClearActions()
         {
             if (actionRoot == null) return;
+            actionSlotCount = 0;
             for (int index = actionRoot.childCount - 1; index >= 0; index--)
             {
                 GameObject child = actionRoot.GetChild(index).gameObject;
