@@ -15,6 +15,7 @@ namespace EDNA.Investigation.Domain
             }
 
             ValidateUniqueAssetIds(caseDefinition, errors);
+            ValidateHypothesisEvidenceTags(caseDefinition, errors);
             ValidateHistoricalRecords(caseDefinition, errors);
             ValidateInitialResults(caseDefinition, errors);
             ValidateMockOutcomes(caseDefinition, errors);
@@ -97,6 +98,58 @@ namespace EDNA.Investigation.Domain
                 {
                     errors.Add($"Historical record uses an unavailable depth at site: {record.siteId}");
                 }
+            }
+        }
+
+        private static void ValidateHypothesisEvidenceTags(
+            InvestigationCaseDefinition caseDefinition,
+            ICollection<string> errors)
+        {
+            HashSet<string> producibleTags = new HashSet<string>(StringComparer.Ordinal);
+            foreach (EvidenceType evidenceType in Enum.GetValues(typeof(EvidenceType)))
+            {
+                producibleTags.Add(evidenceType.ToString());
+            }
+
+            for (int speciesIndex = 0; speciesIndex < caseDefinition.Species.Count; speciesIndex++)
+            {
+                SpeciesDefinition species = caseDefinition.Species[speciesIndex];
+                if (species == null) continue;
+
+                if (!string.IsNullOrEmpty(species.SpeciesId))
+                {
+                    producibleTags.Add($"species:{species.SpeciesId}");
+                }
+
+                for (int tagIndex = 0; tagIndex < species.SensitivityTags.Count; tagIndex++)
+                {
+                    string tag = species.SensitivityTags[tagIndex];
+                    if (!string.IsNullOrEmpty(tag)) producibleTags.Add(tag);
+                }
+            }
+
+            for (int hypothesisIndex = 0; hypothesisIndex < caseDefinition.Hypotheses.Count; hypothesisIndex++)
+            {
+                HypothesisDefinition hypothesis = caseDefinition.Hypotheses[hypothesisIndex];
+                if (hypothesis == null) continue;
+
+                ValidateEvidenceTagList(hypothesis, hypothesis.RequiredEvidenceTags, producibleTags, errors);
+                ValidateEvidenceTagList(hypothesis, hypothesis.ContradictingEvidenceTags, producibleTags, errors);
+            }
+        }
+
+        private static void ValidateEvidenceTagList(
+            HypothesisDefinition hypothesis,
+            IReadOnlyList<string> evidenceTags,
+            ISet<string> producibleTags,
+            ICollection<string> errors)
+        {
+            for (int tagIndex = 0; tagIndex < evidenceTags.Count; tagIndex++)
+            {
+                string tag = evidenceTags[tagIndex];
+                if (string.IsNullOrEmpty(tag) || producibleTags.Contains(tag)) continue;
+
+                errors.Add($"Hypothesis {hypothesis.HypothesisId} uses an evidence tag that cannot be produced: {tag}");
             }
         }
 

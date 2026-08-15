@@ -2,6 +2,7 @@ using System.Collections;
 using EDNA.Investigation.Domain;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
@@ -10,6 +11,19 @@ namespace EDNA.Investigation.Tests
 {
     public sealed class InvestigationSceneSmokeTests
     {
+        [Test]
+        public void InvestigationDisplayNames_UsePlayerFacingEvidenceLabelsWithoutDuplicates()
+        {
+            Assert.That(
+                InvestigationDisplayNames.EvidencePatterns(
+                    new[] { nameof(EvidenceType.ContaminationWarning), nameof(EvidenceType.LowQualityResult) }),
+                Is.EqualTo("Result warning"));
+            Assert.That(
+                InvestigationDisplayNames.EvidencePatterns(
+                    new[] { nameof(EvidenceType.RepeatedNonDetection), "FoodWeb" }),
+                Is.EqualTo("Expected but missing, Food-web species"));
+        }
+
         [UnityTest]
         public IEnumerator InvestigationScene_BootstrapsCompleteEnglishWorkflow()
         {
@@ -48,7 +62,7 @@ namespace EDNA.Investigation.Tests
 
             Text[] labels = Object.FindObjectsByType<Text>();
             Assert.That(labels, Has.Some.Matches<Text>(label => label.text.Contains("CASE FILES")));
-            Assert.That(labels, Has.Some.Matches<Text>(label => label.text.Contains("THE SHIFTING SEAMOUNT")));
+            Assert.That(labels, Has.Some.Matches<Text>(label => label.text.Contains("The Shifting Seamount")));
 
             Button[] buttons = Object.FindObjectsByType<Button>();
             Assert.That(buttons.Length, Is.GreaterThanOrEqualTo(8));
@@ -62,7 +76,7 @@ namespace EDNA.Investigation.Tests
                     $"Button {buttons[index].name} must display its label.");
             }
 
-            Text caseContent = FindText("THE SHIFTING SEAMOUNT");
+            Text caseContent = FindText("The Shifting Seamount");
             Assert.That(caseContent, Is.Not.Null);
             Canvas.ForceUpdateCanvases();
             Assert.That(caseContent.rectTransform.rect.height, Is.GreaterThan(1f), "Case content must have a visible layout height.");
@@ -83,6 +97,20 @@ namespace EDNA.Investigation.Tests
             Assert.That(startComparison.transform.GetSiblingIndex(), Is.EqualTo(3), "Forward-stage actions belong in the rightmost column.");
             Assert.That(startComparison.transform.position.x, Is.GreaterThan(nextSpecies.transform.position.x + nextSpecies.GetComponent<RectTransform>().rect.width));
 
+            FindButton("3  BUILD HYPOTHESIS").onClick.Invoke();
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            InvestigationStepperView theoryBeforeFinding = FindStepper("THEORY");
+            InvestigationStepperView emptyFinding = FindStepper("FINDING");
+            Assert.That(theoryBeforeFinding, Is.Not.Null);
+            Assert.That(emptyFinding, Is.Not.Null);
+            Assert.That(emptyFinding.ValueLabel, Is.EqualTo("No identified finding yet"));
+            Assert.That(FindButton("ASSIGN SUPPORT").interactable, Is.False);
+            Assert.That(FindButton("ASSIGN CHALLENGE").interactable, Is.False);
+            Assert.That(FindButtonView("SELECT THEORY  >").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
+            Assert.That(FindButtonView("<  PREVIOUS THEORY"), Is.Null, "Theory browsing belongs inside the content panel.");
+
             FindButton("2  COMPARE DATA").onClick.Invoke();
             yield return null;
             Canvas.ForceUpdateCanvases();
@@ -91,11 +119,33 @@ namespace EDNA.Investigation.Tests
             SpeciesComparisonCardView[] cards = Object.FindObjectsByType<SpeciesComparisonCardView>();
             Assert.That(board, Is.Not.Null);
             Assert.That(cards.Length, Is.GreaterThanOrEqualTo(4));
-            Assert.That(FindText("FISH\nSILHOUETTE"), Is.Not.Null);
+            Assert.That(FindText("eDNA\nDETECTED"), Is.Not.Null);
+            Assert.That(FindText("FISH\nSILHOUETTE"), Is.Null, "Detected cards must display the marker supplied by the runtime view.");
             Assert.That(FindText("SELECT THIS CARD TO CLASSIFY"), Is.Not.Null);
             Assert.That(FindButton("EXPECTED BUT MISSING"), Is.Not.Null);
             Assert.That(FindButton("EXPECTED BUT MISSING").interactable, Is.False, "Classification choices stay disabled until a card is selected.");
             Assert.That(FindButton("MATCHES BASELINE"), Is.Not.Null);
+            Text classificationPrompt = FindNamedText("Classification Prompt");
+            Assert.That(classificationPrompt, Is.Not.Null);
+            Assert.That(classificationPrompt.gameObject.activeInHierarchy, Is.True);
+            Assert.That(classificationPrompt.text, Is.EqualTo("CLASSIFY THIS CARD"));
+            Transform classificationParent = FindButton("NEW ARRIVAL").transform.parent;
+            Assert.That(FindButton("EXPECTED BUT MISSING").transform.parent, Is.EqualTo(classificationParent));
+            Assert.That(FindButton("DIFFERENT DEPTH").transform.parent, Is.EqualTo(classificationParent));
+            Assert.That(FindButton("RESULT WARNING").transform.parent, Is.EqualTo(classificationParent));
+            Assert.That(FindButton("MATCHES BASELINE").transform.parent, Is.EqualTo(classificationParent));
+            Assert.That(classificationParent.childCount, Is.EqualTo(5), "All five classification choices must occupy one dedicated row.");
+            Assert.That(classificationParent.GetComponent<HorizontalLayoutGroup>(), Is.Not.Null, "The classification row must resize its five choices to the available width.");
+            float classificationWidth = 0f;
+            for (int index = 0; index < classificationParent.childCount; index++)
+            {
+                classificationWidth += classificationParent.GetChild(index).GetComponent<RectTransform>().rect.width;
+            }
+            classificationWidth += 4f * classificationParent.GetComponent<HorizontalLayoutGroup>().spacing;
+            Assert.That(
+                classificationWidth,
+                Is.LessThanOrEqualTo(classificationParent.GetComponent<RectTransform>().rect.width + 0.5f),
+                "Classification choices must fit the WebGL-width row without clipping.");
             Assert.That(FindButtonView("BUILD HYPOTHESIS").transform.GetSiblingIndex() % 4, Is.EqualTo(3));
             Assert.That(statusBanner.CurrentLabel, Is.EqualTo("NEXT STEP"));
             Assert.That(statusBanner.CurrentMessage, Does.Contain("Select a comparison card"));
@@ -103,6 +153,7 @@ namespace EDNA.Investigation.Tests
             ScrollRect contentScroll = Object.FindAnyObjectByType<ScrollRect>();
             Assert.That(contentScroll, Is.Not.Null);
             Assert.That(contentScroll.scrollSensitivity, Is.EqualTo(12f));
+            Assert.That(contentScroll.verticalScrollbar, Is.Not.Null, "Scrollable comparison content needs a visible affordance.");
 
             SpeciesComparisonCardView coldFishCard = null;
             for (int index = 0; index < cards.Length; index++)
@@ -116,6 +167,10 @@ namespace EDNA.Investigation.Tests
 
             Assert.That(coldFishCard, Is.Not.Null);
             Assert.That(coldFishCard.IsAwaitingSelection, Is.True);
+            Assert.That(coldFishCard.TraitsLabel, Does.Contain("Rocky reef"));
+            Assert.That(coldFishCard.TraitsLabel, Does.Contain("Cold sensitive"));
+            Assert.That(coldFishCard.TraitsLabel, Does.Not.Contain("RockyReef"));
+            Assert.That(coldFishCard.TraitsLabel, Does.Not.Contain("ColdSensitive"));
             contentScroll.verticalNormalizedPosition = 0.35f;
             Canvas.ForceUpdateCanvases();
             float scrollBeforeSelection = contentScroll.verticalNormalizedPosition;
@@ -152,16 +207,166 @@ namespace EDNA.Investigation.Tests
             FindButton("3  BUILD HYPOTHESIS").onClick.Invoke();
             yield return null;
             Canvas.ForceUpdateCanvases();
+            InvestigationHypothesisPanelView hypothesisPanel = Object.FindAnyObjectByType<InvestigationHypothesisPanelView>();
+            Assert.That(hypothesisPanel, Is.Not.Null);
+            InvestigationStepperView theoryStepper = FindStepper("THEORY");
+            InvestigationStepperView findingStepper = FindStepper("FINDING");
+            Assert.That(theoryStepper, Is.Not.Null);
+            Assert.That(findingStepper, Is.Not.Null);
+            Assert.That(theoryStepper.ValueLabel, Does.Contain("Ocean warming"));
+            Assert.That(findingStepper.ValueLabel, Does.Contain("not detected").IgnoreCase);
+            Assert.That(hypothesisPanel.StatusLabel, Is.EqualTo("UNEXPLORED"));
+            Assert.That(hypothesisPanel.HypothesisMetadata, Does.Contain("Evidence needed: New arrival, Different depth"));
+            Assert.That(hypothesisPanel.HypothesisMetadata, Does.Not.Contain("NewDetection"));
+            Assert.That(hypothesisPanel.HypothesisMetadata, Does.Not.Contain("DepthShift"));
             Assert.That(FindButtonView("COMPARE DATA").transform.GetSiblingIndex(), Is.EqualTo(0), "Back-stage actions belong in the leftmost column.");
+            Assert.That(FindButtonView("ASSIGN SUPPORT").transform.GetSiblingIndex(), Is.EqualTo(1));
+            Assert.That(FindButtonView("ASSIGN CHALLENGE").transform.GetSiblingIndex(), Is.EqualTo(2));
+            Assert.That(FindButtonView("SELECT THEORY  >").transform.GetSiblingIndex(), Is.EqualTo(3));
+            Assert.That(FindButtonView("SELECT THEORY  >").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
+
+            FindButton("ASSIGN CHALLENGE").onClick.Invoke();
+            yield return null;
+            FindButton("SELECT THEORY  >").onClick.Invoke();
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            InvestigationSamplePlannerPanelView plannerPanel = Object.FindAnyObjectByType<InvestigationSamplePlannerPanelView>();
+            Assert.That(plannerPanel, Is.Not.Null);
+            Assert.That(FindStepper("SITE"), Is.Not.Null);
+            Assert.That(FindStepper("DEPTH"), Is.Not.Null);
+            Assert.That(FindStepper("TEST TARGET"), Is.Not.Null);
+            Assert.That(FindButtonView("COMPARE RESULTS").transform.GetSiblingIndex(), Is.EqualTo(0));
+            Assert.That(FindButtonView("COLLECT SAMPLE  >").transform.GetSiblingIndex(), Is.EqualTo(3));
+            Assert.That(FindButtonView("COLLECT SAMPLE  >").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
+            Assert.That(FindButtonView("<  PREVIOUS SITE"), Is.Null, "Site browsing belongs inside the content panel.");
+
+            FindButton("COLLECT SAMPLE  >").onClick.Invoke();
+            yield return null;
+            FindButton("4  PLAN SAMPLE").onClick.Invoke();
+            yield return null;
+            FindButton("COLLECT SAMPLE  >").onClick.Invoke();
+            yield return null;
+            FindButton("4  PLAN SAMPLE").onClick.Invoke();
+            yield return null;
+            Assert.That(FindButton("COLLECT SAMPLE  >").interactable, Is.False, "Collect must be disabled when no sample slots remain.");
 
             FindButton("5  CONCLUSION").onClick.Invoke();
             yield return null;
-            Assert.That(FindText("Misclassifications recorded: 1"), Is.Not.Null);
-            Assert.That(FindButtonView("PLAN SAMPLE").transform.GetSiblingIndex(), Is.EqualTo(0));
-            Assert.That(FindButtonView("SUBMIT CONCLUSION").transform.GetSiblingIndex() % 4, Is.EqualTo(3));
+            Assert.That(FindText("Theory selected"), Is.Not.Null);
+            Assert.That(FindText("Evidence supports it"), Is.Not.Null);
+            Assert.That(FindText("Follow-up sample completed"), Is.Not.Null);
+            Assert.That(FindText("At least one challenge assigned"), Is.Not.Null);
+            Assert.That(FindButtonView("BUILD HYPOTHESIS"), Is.Null);
+            Assert.That(FindButtonView("COMPARE DATA"), Is.Null);
+            Assert.That(FindButtonView("PLAN SAMPLE"), Is.Null);
+            Assert.That(FindButtonView("RESTART CASE").transform.GetSiblingIndex(), Is.EqualTo(2));
+            Assert.That(FindButtonView("RESTART CASE").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Destructive));
+            Assert.That(FindButtonView("SUBMIT CONCLUSION  >").transform.GetSiblingIndex(), Is.EqualTo(3));
+            Assert.That(FindButtonView("SUBMIT CONCLUSION  >").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
+            Assert.That(FindButton("SUBMIT CONCLUSION  >").interactable, Is.False, "Submission stays disabled until every checklist gate passes.");
 
             LogAssert.NoUnexpectedReceived();
         }
+
+        [UnityTest]
+        public IEnumerator InvestigationScene_NewSampleShowsLatestResultAndReturnsToComparison()
+        {
+            AsyncOperation loadOperation = SceneManager.LoadSceneAsync("InvestigationScene", LoadSceneMode.Single);
+            Assert.That(loadOperation, Is.Not.Null);
+            yield return loadOperation;
+            yield return null;
+
+            InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
+            Assert.That(controller, Is.Not.Null);
+            Assert.That(controller.State.AllResults.Count, Is.EqualTo(2));
+
+            FindButton("4  PLAN SAMPLE").onClick.Invoke();
+            yield return null;
+            FindButton("COLLECT SAMPLE  >").onClick.Invoke();
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            Assert.That(controller.State.AllResults.Count, Is.EqualTo(3));
+            Assert.That(FindNamedText("Title").text, Does.EndWith("COMPARE DATA"));
+            Assert.That(FindNamedText("Sample Header").text, Does.StartWith("SAMPLE 3 / 3"));
+            Assert.That(FindButtonView("2  COMPARE DATA").IsCurrentNavigation, Is.True);
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest]
+        public IEnumerator InvestigationScene_SelectedAndIdentifiedCardsKeepKeyboardFocusOutline()
+        {
+            AsyncOperation loadOperation = SceneManager.LoadSceneAsync("InvestigationScene", LoadSceneMode.Single);
+            Assert.That(loadOperation, Is.Not.Null);
+            yield return loadOperation;
+            yield return null;
+
+            FindButton("2  COMPARE DATA").onClick.Invoke();
+            yield return null;
+
+            SpeciesComparisonCardView coldFishCard = FindCard("Cold-water Fish A");
+            Assert.That(coldFishCard, Is.Not.Null);
+            coldFishCard.GetComponent<Button>().onClick.Invoke();
+            yield return null;
+
+            SpeciesComparisonCardView selectedCard = FindCard("Cold-water Fish A");
+            Outline selectedOutline = selectedCard.GetComponent<Outline>();
+            Assert.That(selectedCard.IsAwaitingSelection, Is.False);
+            Assert.That(selectedCard.enabled, Is.True, "Selected cards must stay enabled to receive keyboard focus events.");
+            Assert.That(selectedOutline, Is.Not.Null);
+            EventSystem.current.SetSelectedGameObject(null);
+            EventSystem.current.SetSelectedGameObject(selectedCard.gameObject);
+            yield return null;
+
+            Assert.That(selectedOutline.effectDistance, Is.EqualTo(new Vector2(2f, -2f)));
+            Assert.That(selectedOutline.effectColor, Is.EqualTo(InvestigationTheme.Sand));
+
+            FindButton("EXPECTED BUT MISSING").onClick.Invoke();
+            yield return null;
+
+            SpeciesComparisonCardView identifiedCard = FindCard("Cold-water Fish A");
+            Outline identifiedOutline = identifiedCard.GetComponent<Outline>();
+            Assert.That(identifiedCard.IsAwaitingSelection, Is.False);
+            Assert.That(identifiedCard.enabled, Is.True, "Identified cards must stay enabled to receive keyboard focus events.");
+            Assert.That(identifiedOutline, Is.Not.Null);
+            EventSystem.current.SetSelectedGameObject(null);
+            EventSystem.current.SetSelectedGameObject(identifiedCard.gameObject);
+            yield return null;
+
+            Assert.That(identifiedOutline.effectDistance, Is.EqualTo(new Vector2(2f, -2f)));
+            Assert.That(identifiedOutline.effectColor, Is.EqualTo(InvestigationTheme.Sand));
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest]
+        public IEnumerator InvestigationScene_RestartReturnsViewToCaseFiles()
+        {
+            AsyncOperation loadOperation = SceneManager.LoadSceneAsync("InvestigationScene", LoadSceneMode.Single);
+            Assert.That(loadOperation, Is.Not.Null);
+            yield return loadOperation;
+            yield return null;
+
+            InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
+            Assert.That(controller, Is.Not.Null);
+
+            FindButton("5  CONCLUSION").onClick.Invoke();
+            yield return null;
+            Assert.That(FindButtonView("5  CONCLUSION").IsCurrentNavigation, Is.True);
+
+            FindButton("RESTART CASE").onClick.Invoke();
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+
+            Assert.That(controller.State.AllResults.Count, Is.EqualTo(2));
+            Assert.That(controller.State.RemainingSamples, Is.EqualTo(2));
+            Assert.That(FindNamedText("Title").text, Does.EndWith("CASE FILES"));
+            Assert.That(FindButtonView("1  CASE FILES").IsCurrentNavigation, Is.True);
+            Assert.That(FindButtonView("5  CONCLUSION").IsCurrentNavigation, Is.False);
+            Assert.That(FindButtonView("3  BUILD HYPOTHESIS").IsCompletedNavigation, Is.False);
+            LogAssert.NoUnexpectedReceived();
+        }
+
 
         private static Button FindButton(string label)
         {
@@ -192,6 +397,20 @@ namespace EDNA.Investigation.Tests
             return null;
         }
 
+        private static Text FindNamedText(string objectName)
+        {
+            Text[] labels = Object.FindObjectsByType<Text>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (int index = 0; index < labels.Length; index++)
+            {
+                if (labels[index].name == objectName)
+                {
+                    return labels[index];
+                }
+            }
+
+            return null;
+        }
+
         private static InvestigationButtonView FindButtonView(string label)
         {
             InvestigationButtonView[] buttons = Object.FindObjectsByType<InvestigationButtonView>();
@@ -200,6 +419,20 @@ namespace EDNA.Investigation.Tests
                 if (buttons[index].Label == label)
                 {
                     return buttons[index];
+                }
+            }
+
+            return null;
+        }
+
+        private static InvestigationStepperView FindStepper(string category)
+        {
+            InvestigationStepperView[] steppers = Object.FindObjectsByType<InvestigationStepperView>();
+            for (int index = 0; index < steppers.Length; index++)
+            {
+                if (steppers[index].CategoryLabel == category)
+                {
+                    return steppers[index];
                 }
             }
 

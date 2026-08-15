@@ -107,7 +107,7 @@ namespace EDNA.Investigation.Editor
                 "mock_overfishing",
                 "Fishing pressure disrupted the food web",
                 "Predator and prey losses should form a repeated, reliable food-web pattern.",
-                new[] { EvidenceType.RepeatedNonDetection.ToString(), "FoodWebDisruption" },
+                new[] { EvidenceType.RepeatedNonDetection.ToString(), "FoodWeb" },
                 Array.Empty<string>(),
                 EvidenceConfidence.Medium,
                 2);
@@ -147,6 +147,8 @@ namespace EDNA.Investigation.Editor
             EditorUtility.SetDirty(caseDefinition);
 
             GameObject viewPrefab = CreatePresentationPrefabs();
+            global::InvestigationUiPrefabBuilder.Rebuild();
+            viewPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabRoot + "/InvestigationRuntimeView.prefab");
             CreateScene(caseDefinition, viewPrefab);
             AddSceneToBuildSettings();
             AssetDatabase.SaveAssets();
@@ -363,7 +365,7 @@ namespace EDNA.Investigation.Editor
             colors.selectedColor = background.color;
             button.colors = colors;
             LayoutElement layout = root.GetComponent<LayoutElement>();
-            layout.minHeight = 46f;
+            layout.minHeight = 0f;
             layout.preferredHeight = 50f;
             layout.flexibleWidth = 1f;
 

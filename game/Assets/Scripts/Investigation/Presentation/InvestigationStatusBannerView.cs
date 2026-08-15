@@ -13,20 +13,20 @@ namespace EDNA.Investigation
     [DisallowMultipleComponent]
     public sealed class InvestigationStatusBannerView : MonoBehaviour
     {
-        private static readonly Color GuideAccent = new Color32(50, 204, 209, 255);
-        private static readonly Color WarningAccent = new Color32(255, 190, 90, 255);
-        private static readonly Color SuccessAccent = new Color32(92, 214, 157, 255);
-        private static readonly Color GuideBackground = new Color32(7, 25, 38, 250);
-        private static readonly Color WarningBackground = new Color32(48, 40, 25, 250);
-        private static readonly Color SuccessBackground = new Color32(10, 43, 43, 250);
+        private static readonly Color GuideAccent = InvestigationTheme.Primary;
+        private static readonly Color WarningAccent = InvestigationTheme.Warning;
+        private static readonly Color SuccessAccent = InvestigationTheme.Success;
+        private static readonly Color GuideBackground = InvestigationTheme.Surface;
+        private static readonly Color WarningBackground = InvestigationTheme.SurfaceWarning;
+        private static readonly Color SuccessBackground = InvestigationTheme.SurfaceSuccess;
 
         [SerializeField] private CanvasGroup canvasGroup;
         [SerializeField] private Image backgroundImage;
         [SerializeField] private Image accentImage;
         [SerializeField] private Text labelText;
         [SerializeField] private Text messageText;
-        [SerializeField, Min(0.01f)] private float fadeDuration = 0.18f;
-        [SerializeField, Range(0f, 1f)] private float fadeStartAlpha = 0.55f;
+        [SerializeField, Min(0.01f)] private float fadeDuration = InvestigationTheme.MotionStandard;
+        [SerializeField, Range(0f, 1f)] private float fadeStartAlpha = 0.72f;
 
         private float fadeElapsed;
         private string currentLabel = string.Empty;

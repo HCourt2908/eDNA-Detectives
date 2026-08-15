@@ -15,9 +15,9 @@ namespace EDNA.Investigation
     {
         private enum Page { CaseFiles, CompareData, BuildHypothesis, PlanSample, Conclusion }
 
-        private static readonly Color Muted = new Color32(169, 201, 207, 255);
-        private static readonly Color Warning = new Color32(255, 190, 90, 255);
-        private static readonly Color Success = new Color32(92, 214, 157, 255);
+        private static readonly Color Muted = InvestigationTheme.TextSecondary;
+        private static readonly Color Warning = InvestigationTheme.Warning;
+        private static readonly Color Success = InvestigationTheme.Success;
 
         [Header("Prefab-owned UI references")]
         [SerializeField] private Text titleText;
@@ -27,6 +27,10 @@ namespace EDNA.Investigation
         [SerializeField] private Text bodyText;
         [SerializeField] private RectTransform navigationRoot;
         [SerializeField] private RectTransform actionRoot;
+        [SerializeField] private RectTransform compareNavigationRoot;
+        [SerializeField] private RectTransform classificationPanel;
+        [SerializeField] private RectTransform classificationRoot;
+        [SerializeField] private Text classificationPromptText;
         [SerializeField] private RectTransform contentViewport;
         [SerializeField] private ScrollRect contentScrollRect;
 
@@ -34,6 +38,10 @@ namespace EDNA.Investigation
         [SerializeField] private InvestigationButtonView buttonPrefab;
         [SerializeField] private SampleComparisonBoardView comparisonBoardPrefab;
         [SerializeField] private SpeciesComparisonCardView comparisonCardPrefab;
+        [SerializeField] private InvestigationCaseFilesPanelView caseFilesPanelPrefab;
+        [SerializeField] private InvestigationHypothesisPanelView hypothesisPanelPrefab;
+        [SerializeField] private InvestigationSamplePlannerPanelView samplePlannerPanelPrefab;
+        [SerializeField] private InvestigationStepperView stepperPrefab;
 
         private InvestigationCaseDefinition caseDefinition;
         private InvestigationState state;
@@ -52,10 +60,17 @@ namespace EDNA.Investigation
         private int siteIndex;
         private int depthIndex;
         private int resultIndex;
+        private int renderedResultCount;
         private int actionSlotCount;
         private bool navigationBuilt;
         private bool preserveScrollOnNextRefresh;
+        private bool comparisonActionMode;
+        private int highestVisitedPage;
+        private readonly List<InvestigationButtonView> navigationButtons = new List<InvestigationButtonView>();
         private SampleComparisonBoardView comparisonBoardInstance;
+        private InvestigationCaseFilesPanelView caseFilesPanelInstance;
+        private InvestigationHypothesisPanelView hypothesisPanelInstance;
+        private InvestigationSamplePlannerPanelView samplePlannerPanelInstance;
 
         public void ConfigureReferences(
             Text titleReference,
@@ -69,7 +84,10 @@ namespace EDNA.Investigation
             ScrollRect scrollReference,
             InvestigationButtonView buttonReference,
             SampleComparisonBoardView boardReference,
-            SpeciesComparisonCardView cardReference)
+            SpeciesComparisonCardView cardReference,
+            InvestigationCaseFilesPanelView caseFilesReference = null,
+            InvestigationSamplePlannerPanelView samplePlannerReference = null,
+            InvestigationStepperView stepperReference = null)
         {
             titleText = titleReference;
             progressText = progressReference;
@@ -83,6 +101,9 @@ namespace EDNA.Investigation
             buttonPrefab = buttonReference;
             comparisonBoardPrefab = boardReference;
             comparisonCardPrefab = cardReference;
+            caseFilesPanelPrefab = caseFilesReference;
+            samplePlannerPanelPrefab = samplePlannerReference;
+            stepperPrefab = stepperReference;
         }
 
         public void Bind(
@@ -107,21 +128,22 @@ namespace EDNA.Investigation
 
         public void Refresh(InvestigationState investigationState, string message)
         {
-            int previousResultCount = state == null ? 0 : state.AllResults.Count;
             bool isNewState = !ReferenceEquals(state, investigationState);
+            int resultCount = investigationState == null ? 0 : investigationState.AllResults.Count;
+            bool hasNewResults = !isNewState && resultCount > renderedResultCount;
             state = investigationState;
             if (isNewState)
             {
-                resultIndex = 0;
-                selectedComparisonEvidenceId = string.Empty;
+                ResetViewState();
             }
-            else if (state != null && state.AllResults.Count > previousResultCount)
+            else if (hasNewResults)
             {
-                resultIndex = state.AllResults.Count - 1;
+                resultIndex = resultCount - 1;
                 selectedComparisonEvidenceId = string.Empty;
                 currentPage = Page.CompareData;
             }
 
+            renderedResultCount = resultCount;
             statusMessage = message ?? string.Empty;
             ClampSelections();
             bool preserveScroll = preserveScrollOnNextRefresh
@@ -129,6 +151,21 @@ namespace EDNA.Investigation
                 && currentPage == Page.CompareData;
             preserveScrollOnNextRefresh = false;
             RenderCurrentPage(preserveScroll);
+        }
+
+        private void ResetViewState()
+        {
+            currentPage = Page.CaseFiles;
+            highestVisitedPage = 0;
+            speciesIndex = 0;
+            hypothesisIndex = 0;
+            evidenceIndex = 0;
+            siteIndex = 0;
+            depthIndex = 0;
+            resultIndex = 0;
+            selectedComparisonEvidenceId = string.Empty;
+            preserveScrollOnNextRefresh = false;
+            comparisonActionMode = false;
         }
 
         public void ShowFatalError(string message)
@@ -151,11 +188,12 @@ namespace EDNA.Investigation
         {
             if (navigationBuilt || navigationRoot == null || buttonPrefab == null) return;
             navigationBuilt = true;
-            AddButton(navigationRoot, "1  CASE FILES", () => ChangePage(Page.CaseFiles), InvestigationButtonStyle.Navigation);
-            AddButton(navigationRoot, "2  COMPARE DATA", () => ChangePage(Page.CompareData), InvestigationButtonStyle.Navigation);
-            AddButton(navigationRoot, "3  BUILD HYPOTHESIS", () => ChangePage(Page.BuildHypothesis), InvestigationButtonStyle.Navigation);
-            AddButton(navigationRoot, "4  PLAN SAMPLE", () => ChangePage(Page.PlanSample), InvestigationButtonStyle.Navigation);
-            AddButton(navigationRoot, "5  CONCLUSION", () => ChangePage(Page.Conclusion), InvestigationButtonStyle.Navigation);
+            navigationButtons.Clear();
+            navigationButtons.Add(AddButton(navigationRoot, "1  CASE FILES", () => ChangePage(Page.CaseFiles), InvestigationButtonStyle.Navigation));
+            navigationButtons.Add(AddButton(navigationRoot, "2  COMPARE DATA", () => ChangePage(Page.CompareData), InvestigationButtonStyle.Navigation));
+            navigationButtons.Add(AddButton(navigationRoot, "3  BUILD HYPOTHESIS", () => ChangePage(Page.BuildHypothesis), InvestigationButtonStyle.Navigation));
+            navigationButtons.Add(AddButton(navigationRoot, "4  PLAN SAMPLE", () => ChangePage(Page.PlanSample), InvestigationButtonStyle.Navigation));
+            navigationButtons.Add(AddButton(navigationRoot, "5  CONCLUSION", () => ChangePage(Page.Conclusion), InvestigationButtonStyle.Navigation));
         }
 
         private void RenderCurrentPage(bool preserveContentPosition = false)
@@ -166,6 +204,8 @@ namespace EDNA.Investigation
                 : 1f;
             titleText.text = $"eDNA DETECTIVES  /  {GetPageTitle()}";
             progressText.text = $"R{state.CurrentRound}    SAMPLES {state.AvailableSampleSlots}    FOUND {state.IdentifiedEvidenceIds.Count}/{state.UnlockedEvidence.Count}    MISSTEPS {state.MisclassificationCount}";
+            highestVisitedPage = Mathf.Max(highestVisitedPage, (int)currentPage);
+            RefreshNavigationState();
             RenderStatus();
             ClearActions();
 
@@ -189,26 +229,28 @@ namespace EDNA.Investigation
 
         private void RenderCaseFiles()
         {
-            ShowBodyContent();
             SpeciesDefinition species = GetSelectedSpecies();
-            StringBuilder text = new StringBuilder();
-            text.AppendLine(caseDefinition.DisplayName.ToUpperInvariant());
-            text.AppendLine(caseDefinition.Briefing);
-            text.AppendLine();
-            text.AppendLine("SPECIES FILE");
-            if (species != null)
+            if (caseFilesPanelPrefab == null)
             {
-                text.AppendLine($"{speciesIndex + 1} / {caseDefinition.Species.Count}   {species.DisplayName}");
-                text.AppendLine(species.Description);
-                text.AppendLine($"Preferred depths: {Join(species.PreferredDepths)}");
-                text.AppendLine($"Temperature: {species.TemperaturePreference}");
-                text.AppendLine($"Habitat tags: {Join(species.HabitatTags)}");
-                text.AppendLine($"Sensitivity tags: {Join(species.SensitivityTags)}");
+                ShowBodyContent();
+                bodyText.text = "The case-file interface is not configured.";
+                return;
             }
-            text.AppendLine();
-            text.AppendLine("MISSION");
-            text.AppendLine("Inspect one present-day sample at a time. Compare each species with records from 20 years ago, select a card, and classify what changed. Correct findings can then be used to build and test a hypothesis.");
-            bodyText.text = text.ToString();
+
+            ShowCaseFilesPanel();
+            caseFilesPanelInstance.Bind(
+                caseDefinition.DisplayName,
+                caseDefinition.Briefing,
+                species == null ? 0 : speciesIndex + 1,
+                caseDefinition.Species.Count,
+                species == null ? "No species record available" : species.DisplayName,
+                species == null ? "Species details are not available." : species.Description,
+                species == null ? "None recorded" : Join(species.PreferredDepths),
+                species == null ? "Unknown" : species.TemperaturePreference,
+                species == null ? "Unknown" : InvestigationDisplayNames.Traits(species.HabitatTags),
+                species == null ? "Unknown" : InvestigationDisplayNames.Traits(species.SensitivityTags),
+                "Inspect the present-day samples, compare each species with the 20-year baseline, and classify what changed. Correct findings become evidence for a testable explanation.");
+            LayoutRebuilder.ForceRebuildLayoutImmediate(caseFilesPanelInstance.GetComponent<RectTransform>());
             AddBrowseButton("PREVIOUS SPECIES", () => ChangeSpecies(-1));
             AddBrowseButton("NEXT SPECIES", () => ChangeSpecies(1));
             AddStageForwardButton("START COMPARISON", () => ChangePage(Page.CompareData));
@@ -236,13 +278,14 @@ namespace EDNA.Investigation
             AddWarningCards(sourceId);
             LayoutRebuilder.ForceRebuildLayoutImmediate(comparisonBoardInstance.GetComponent<RectTransform>());
 
+            BeginComparisonActions();
             AddBrowseButton("PREVIOUS SAMPLE", () => ChangeResult(-1));
             AddBrowseButton("NEXT SAMPLE", () => ChangeResult(1));
-            AddClassificationButton("NEW ARRIVAL", AnomalyClaimType.NewArrival);
-            AddClassificationButton("EXPECTED BUT MISSING", AnomalyClaimType.ExpectedButMissing);
-            AddClassificationButton("DIFFERENT DEPTH", AnomalyClaimType.DifferentDepth);
-            AddClassificationButton("RESULT WARNING", AnomalyClaimType.ResultWarning);
-            AddClassificationButton("MATCHES BASELINE", AnomalyClaimType.MatchesBaseline);
+            AddClassificationButton(AnomalyClaimType.NewArrival);
+            AddClassificationButton(AnomalyClaimType.ExpectedButMissing);
+            AddClassificationButton(AnomalyClaimType.DifferentDepth);
+            AddClassificationButton(AnomalyClaimType.ResultWarning);
+            AddClassificationButton(AnomalyClaimType.MatchesBaseline);
             AddStageForwardButton("BUILD HYPOTHESIS", () => ChangePage(Page.BuildHypothesis));
         }
 
@@ -265,7 +308,7 @@ namespace EDNA.Investigation
                 missing ? "FISH\nSILHOUETTE" : "eDNA\nDETECTED",
                 historicallyExpected ? $"20 YEARS AGO\nExpected at {result.depthBand} depth" : $"20 YEARS AGO\nNot recorded at {result.depthBand} depth",
                 currentlyDetected ? "CURRENT SAMPLE\nDetected" : "CURRENT SAMPLE\nNot detected",
-                species == null ? "Species details are not available." : $"Temperature: {species.TemperaturePreference}\nPreferred depth: {Join(species.PreferredDepths)}\nTraits: {Join(species.SensitivityTags)}",
+                species == null ? "Species details are not available." : BuildSpeciesTraits(species),
                 findingState,
                 missing,
                 selected,
@@ -303,112 +346,184 @@ namespace EDNA.Investigation
 
         private void RenderHypothesisBuilder()
         {
-            ShowBodyContent();
             HypothesisDefinition hypothesis = GetSelectedHypothesis();
+            if (hypothesis == null || hypothesisPanelPrefab == null)
+            {
+                ShowBodyContent();
+                StringBuilder unavailable = new StringBuilder();
+                AppendSectionHeading(unavailable, "WORKING HYPOTHESIS");
+                AppendBody(unavailable, "No hypothesis definitions are available for this case.");
+                bodyText.text = unavailable.ToString();
+                return;
+            }
+
+            ShowHypothesisPanel();
             List<EvidenceRecord> identifiedEvidence = state.GetIdentifiedEvidence();
             EvidenceRecord evidence = GetSelectedEvidence();
-            StringBuilder text = new StringBuilder();
-            text.AppendLine("WORKING HYPOTHESIS");
-            if (hypothesis != null)
-            {
-                HypothesisEvaluation evaluation = new HypothesisEvaluator().Evaluate(hypothesis, state);
-                text.AppendLine($"{hypothesisIndex + 1} / {caseDefinition.Hypotheses.Count}   {hypothesis.DisplayName}");
-                text.AppendLine(hypothesis.Explanation);
-                text.AppendLine($"Status: {evaluation.Status}");
-                text.AppendLine($"Assigned support: {evaluation.SupportingEvidenceCount}   Assigned opposition: {evaluation.OpposingEvidenceCount}");
-                text.AppendLine($"Required evidence patterns: {Join(hypothesis.RequiredEvidenceTags)}");
-                text.AppendLine($"Minimum confidence: {hypothesis.MinimumConfidence}");
-                if (string.Equals(state.SelectedHypothesisId, hypothesis.HypothesisId, StringComparison.Ordinal)) text.AppendLine("SELECTED FOR CONCLUSION");
-            }
-            text.AppendLine();
-            text.AppendLine("IDENTIFIED FINDING TO ASSIGN");
-            if (evidence == null) text.AppendLine("No findings have been identified yet. Return to Compare Data and correctly classify a comparison card.");
-            else
-            {
-                text.AppendLine($"{evidenceIndex + 1} / {identifiedEvidence.Count}   [{evidence.Confidence}] {evidence.DisplayText}");
-                text.AppendLine(evidence.ConfidenceReason);
-                text.AppendLine($"Current assignment: {DescribeAssignment(evidence.EvidenceId, hypothesis?.HypothesisId)}");
-            }
-            text.AppendLine();
-            text.AppendLine("Assigning a finding records whether it supports or challenges the selected explanation. It never changes the raw eDNA result.");
-            bodyText.text = text.ToString();
+            HypothesisEvaluation evaluation = new HypothesisEvaluator().Evaluate(hypothesis, state);
+            string findingTitle = evidence == null
+                ? "No identified finding yet"
+                : $"FINDING {evidenceIndex + 1} OF {identifiedEvidence.Count}  ·  {evidence.DisplayText}";
+            string findingDescription = evidence == null
+                ? "Return to Compare Data and correctly classify a comparison card. Identified findings will appear here."
+                : evidence.ConfidenceReason;
+            string findingMetadata = evidence == null
+                ? string.Empty
+                : $"Confidence: {InvestigationDisplayNames.Confidence(evidence.Confidence)}    Current assignment: {InvestigationDisplayNames.FormatIdentifier(DescribeAssignment(evidence.EvidenceId, hypothesis.HypothesisId))}";
+
+            string currentAssignment = evidence == null
+                ? "None"
+                : DescribeAssignment(evidence.EvidenceId, hypothesis.HypothesisId);
+            hypothesisPanelInstance.Bind(
+                hypothesisIndex + 1,
+                caseDefinition.Hypotheses.Count,
+                hypothesis.DisplayName,
+                hypothesis.Explanation,
+                evaluation.Status,
+                evaluation.SupportingEvidenceCount,
+                evaluation.OpposingEvidenceCount,
+                InvestigationDisplayNames.EvidencePatterns(hypothesis.RequiredEvidenceTags),
+                InvestigationDisplayNames.Confidence(hypothesis.MinimumConfidence),
+                string.Equals(state.SelectedHypothesisId, hypothesis.HypothesisId, StringComparison.Ordinal),
+                findingTitle,
+                findingDescription,
+                findingMetadata,
+                currentAssignment);
+            AddStepper(
+                hypothesisPanelInstance.SelectorRoot,
+                "Theory",
+                hypothesis.DisplayName,
+                hypothesisIndex,
+                caseDefinition.Hypotheses.Count,
+                () => ChangeHypothesis(-1),
+                () => ChangeHypothesis(1));
+            AddStepper(
+                hypothesisPanelInstance.SelectorRoot,
+                "Finding",
+                evidence == null ? "No identified finding yet" : evidence.DisplayText,
+                evidenceIndex,
+                identifiedEvidence.Count,
+                () => ChangeEvidence(-1),
+                () => ChangeEvidence(1));
+            LayoutRebuilder.ForceRebuildLayoutImmediate(hypothesisPanelInstance.GetComponent<RectTransform>());
 
             AddStageBackButton("COMPARE DATA", () => ChangePage(Page.CompareData));
-            AddBrowseButton("PREVIOUS THEORY", () => ChangeHypothesis(-1));
-            AddBrowseButton("NEXT THEORY", () => ChangeHypothesis(1));
-            AddBrowseButton("PREVIOUS FINDING", () => ChangeEvidence(-1));
-            AddBrowseButton("NEXT FINDING", () => ChangeEvidence(1));
-            AddActionButton("ASSIGN SUPPORT", () => AssignSelected(EvidenceAssignmentKind.Supports));
-            AddActionButton("ASSIGN CHALLENGE", () => AssignSelected(EvidenceAssignmentKind.Opposes));
-            AddActionButton("SELECT THEORY", SelectCurrentHypothesis);
+            bool canAssignFinding = evidence != null;
+            AddActionSlotButton("ASSIGN SUPPORT", () => AssignSelected(EvidenceAssignmentKind.Supports), InvestigationButtonStyle.Support, canAssignFinding);
+            AddActionSlotButton("ASSIGN CHALLENGE", () => AssignSelected(EvidenceAssignmentKind.Opposes), InvestigationButtonStyle.Challenge, canAssignFinding);
+            AddCommitButton("SELECT THEORY  >", SelectCurrentHypothesisAndPlanSample, hypothesis != null);
         }
 
         private void RenderSamplePlanner()
         {
-            ShowBodyContent();
+            if (samplePlannerPanelPrefab == null || stepperPrefab == null)
+            {
+                ShowBodyContent();
+                bodyText.text = "The sample planning interface is not configured.";
+                return;
+            }
+            ShowSamplePlannerPanel();
             SampleSiteDefinition site = GetSelectedSite();
             DepthBand depth = GetSelectedDepth();
             HypothesisDefinition hypothesis = GetSelectedHypothesis();
             EvidenceRecord evidence = GetSelectedEvidence();
-            StringBuilder text = new StringBuilder();
-            text.AppendLine("FOLLOW-UP SAMPLE PLAN");
-            text.AppendLine("Choose a site and depth that can test an identified finding. This prototype returns an immediate Mock Lab result through the shared sampling contract.");
-            text.AppendLine();
-            if (site != null)
-            {
-                text.AppendLine($"Site: {site.DisplayName}");
-                text.AppendLine(site.Description);
-                text.AppendLine($"Available depths: {Join(site.AvailableDepths)}");
-                text.AppendLine($"Selected depth: {depth}");
-            }
-            text.AppendLine($"Related hypothesis: {(hypothesis == null ? "None" : hypothesis.DisplayName)}");
-            text.AppendLine($"Sampling reason: {(evidence == null ? "General investigation" : evidence.DisplayText)}");
-            text.AppendLine();
-            text.AppendLine($"Follow-up samples available: {state.AvailableSampleSlots}");
-            if (state.PendingSampleCount > 0) text.AppendLine($"Samples awaiting results: {state.PendingSampleCount}");
-            bodyText.text = text.ToString();
+            List<EvidenceRecord> identifiedEvidence = state.GetIdentifiedEvidence();
+            samplePlannerPanelInstance.Bind(
+                site == null ? string.Empty : site.DisplayName,
+                site == null ? string.Empty : site.Description,
+                hypothesis == null ? string.Empty : hypothesis.DisplayName,
+                state.AvailableSampleSlots,
+                state.PendingSampleCount);
+            AddStepper(
+                samplePlannerPanelInstance.SelectorRoot,
+                "Site",
+                site == null ? "No site available" : site.DisplayName,
+                siteIndex,
+                caseDefinition.SampleSites.Count,
+                () => ChangeSite(-1),
+                () => ChangeSite(1));
+            AddStepper(
+                samplePlannerPanelInstance.SelectorRoot,
+                "Depth",
+                InvestigationDisplayNames.FormatIdentifier(depth.ToString()),
+                depthIndex,
+                site == null ? 0 : site.AvailableDepths.Count,
+                () => ChangeDepth(-1),
+                () => ChangeDepth(1));
+            AddStepper(
+                samplePlannerPanelInstance.SelectorRoot,
+                "Test target",
+                evidence == null ? "General investigation" : evidence.DisplayText,
+                evidenceIndex,
+                identifiedEvidence.Count,
+                () => ChangeEvidence(-1),
+                () => ChangeEvidence(1));
+            LayoutRebuilder.ForceRebuildLayoutImmediate(samplePlannerPanelInstance.GetComponent<RectTransform>());
             AddStageBackButton("COMPARE RESULTS", () => ChangePage(Page.CompareData));
-            AddBrowseButton("PREVIOUS SITE", () => ChangeSite(-1));
-            AddBrowseButton("NEXT SITE", () => ChangeSite(1));
-            AddBrowseButton("PREVIOUS DEPTH", () => ChangeDepth(-1));
-            AddBrowseButton("NEXT DEPTH", () => ChangeDepth(1));
-            AddBrowseButton("PREVIOUS REASON", () => ChangeEvidence(-1));
-            AddBrowseButton("NEXT REASON", () => ChangeEvidence(1));
-            AddActionButton("COLLECT MOCK SAMPLE", RequestSelectedSample);
+            bool canCollectSample = site != null
+                && site.AvailableDepths.Count > 0
+                && state.AvailableSampleSlots > 0;
+            AddStageCommitButton("COLLECT SAMPLE  >", RequestSelectedSample, canCollectSample);
         }
 
         private void RenderConclusion()
         {
             ShowBodyContent();
             StringBuilder text = new StringBuilder();
-            text.AppendLine("CASE CONCLUSION");
-            HypothesisDefinition selected = caseDefinition.FindHypothesis(state.SelectedHypothesisId);
+            AppendSectionHeading(text, "CASE CONCLUSION");
+            ConclusionEvaluator conclusionEvaluator = new ConclusionEvaluator(new HypothesisEvaluator());
+            ConclusionReadiness readiness = conclusionEvaluator.EvaluateReadiness(caseDefinition, state);
+            HypothesisDefinition selected = readiness.SelectedHypothesis;
+            HypothesisEvaluation evaluation = readiness.HypothesisEvaluation;
             if (selected == null)
             {
-                text.AppendLine("Selected hypothesis: None");
-                text.AppendLine("Choose a working hypothesis on the Build Hypothesis page.");
+                AppendTitle(text, "No theory selected");
+                AppendBody(text, "Choose a working hypothesis on the Build Hypothesis page.");
             }
             else
             {
-                HypothesisEvaluation evaluation = new HypothesisEvaluator().Evaluate(selected, state);
-                text.AppendLine($"Selected hypothesis: {selected.DisplayName}");
-                text.AppendLine($"Evidence status: {evaluation.Status}");
-                text.AppendLine($"Support: {evaluation.SupportingEvidenceCount}   Opposition/uncertainty: {evaluation.OpposingEvidenceCount}");
-                text.AppendLine(evaluation.Explanation);
+                AppendTitle(text, selected.DisplayName);
+                AppendBody(text, evaluation.Explanation);
+                AppendMetadata(
+                    text,
+                    $"Evidence status: {InvestigationDisplayNames.HypothesisStatus(evaluation.Status)}    " +
+                    $"Support: {evaluation.SupportingEvidenceCount}    Challenge / uncertainty: {evaluation.OpposingEvidenceCount}");
             }
-            text.AppendLine();
-            text.AppendLine($"Identified findings: {state.IdentifiedEvidenceIds.Count}");
-            text.AppendLine($"Follow-up samples completed: {state.CompletedSampleCount}");
-            text.AppendLine($"Misclassifications recorded: {state.MisclassificationCount}");
-            text.AppendLine($"Submission status: {state.ConclusionStatus}");
-            text.AppendLine();
-            text.AppendLine("A defensible conclusion needs a supported hypothesis, at least one targeted follow-up sample, and at least one challenging or uncertain finding.");
+            AppendSectionHeading(text, "CASE CHECKLIST");
+            AppendChecklistItem(
+                text,
+                readiness.HasSelectedHypothesis,
+                "Theory selected",
+                selected == null ? "Not selected" : selected.DisplayName);
+            AppendChecklistItem(
+                text,
+                readiness.HasSupportedHypothesis,
+                "Evidence supports it",
+                evaluation == null
+                    ? "Not evaluated"
+                    : InvestigationDisplayNames.HypothesisStatus(evaluation.Status));
+            AppendChecklistItem(
+                text,
+                readiness.HasRequiredFollowUpSample,
+                "Follow-up sample completed",
+                caseDefinition.RequireFollowUpSample
+                    ? state.CompletedSampleCount.ToString()
+                    : "Not required");
+            AppendChecklistItem(
+                text,
+                readiness.HasRequiredOpposingEvidence,
+                "At least one challenge assigned",
+                caseDefinition.RequiredOpposingEvidence == 0
+                    ? "Not required"
+                    : $"{(evaluation == null ? 0 : evaluation.OpposingEvidenceCount)} / {caseDefinition.RequiredOpposingEvidence}");
+            AppendMetadata(
+                text,
+                $"Case record: {state.MisclassificationCount} misclassification(s)    " +
+                $"Submission: {InvestigationDisplayNames.ConclusionStatus(state.ConclusionStatus)}");
             bodyText.text = text.ToString();
-            AddStageBackButton("PLAN SAMPLE", () => ChangePage(Page.PlanSample));
-            AddActionButton("BUILD HYPOTHESIS", () => ChangePage(Page.BuildHypothesis));
-            AddActionButton("COMPARE DATA", () => ChangePage(Page.CompareData));
-            AddStageForwardButton("SUBMIT CONCLUSION", () => submitConclusion?.Invoke());
-            AddActionButton("RESTART CASE", () => restartCase?.Invoke());
+            PadActionsToColumn(2);
+            AddDestructiveButton("RESTART CASE", () => restartCase?.Invoke());
+            AddCommitButton("SUBMIT CONCLUSION  >", () => submitConclusion?.Invoke(), readiness.CanSubmit);
         }
 
         private List<string> BuildComparisonSpeciesIds(EDNAResultData result, string sourceId)
@@ -459,13 +574,21 @@ namespace EDNA.Investigation
         private void ShowBodyContent()
         {
             DestroyComparisonBoard();
+            DestroyCaseFilesPanel();
+            DestroyHypothesisPanel();
+            DestroySamplePlannerPanel();
             bodyText.gameObject.SetActive(true);
+            bodyText.supportRichText = true;
             contentScrollRect.content = bodyText.rectTransform;
+            contentScrollRect.verticalNormalizedPosition = 1f;
         }
 
         private void ShowComparisonBoard()
         {
             DestroyComparisonBoard();
+            DestroyCaseFilesPanel();
+            DestroyHypothesisPanel();
+            DestroySamplePlannerPanel();
             bodyText.gameObject.SetActive(false);
             comparisonBoardInstance = Instantiate(comparisonBoardPrefab, contentViewport);
             RectTransform boardRect = comparisonBoardInstance.GetComponent<RectTransform>();
@@ -479,6 +602,42 @@ namespace EDNA.Investigation
             contentScrollRect.verticalNormalizedPosition = 1f;
         }
 
+        private void ShowHypothesisPanel()
+        {
+            DestroyComparisonBoard();
+            DestroyCaseFilesPanel();
+            DestroyHypothesisPanel();
+            DestroySamplePlannerPanel();
+            bodyText.gameObject.SetActive(false);
+            hypothesisPanelInstance = Instantiate(hypothesisPanelPrefab, contentViewport);
+            RectTransform panelRect = hypothesisPanelInstance.GetComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0f, 1f);
+            panelRect.anchorMax = new Vector2(1f, 1f);
+            panelRect.pivot = new Vector2(0.5f, 1f);
+            panelRect.anchoredPosition = Vector2.zero;
+            panelRect.sizeDelta = Vector2.zero;
+            contentScrollRect.content = panelRect;
+            contentScrollRect.verticalNormalizedPosition = 1f;
+        }
+
+        private void ShowSamplePlannerPanel()
+        {
+            DestroyComparisonBoard();
+            DestroyCaseFilesPanel();
+            DestroyHypothesisPanel();
+            DestroySamplePlannerPanel();
+            bodyText.gameObject.SetActive(false);
+            samplePlannerPanelInstance = Instantiate(samplePlannerPanelPrefab, contentViewport);
+            RectTransform panelRect = samplePlannerPanelInstance.GetComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0f, 1f);
+            panelRect.anchorMax = new Vector2(1f, 1f);
+            panelRect.pivot = new Vector2(0.5f, 1f);
+            panelRect.anchoredPosition = Vector2.zero;
+            panelRect.sizeDelta = Vector2.zero;
+            contentScrollRect.content = panelRect;
+            contentScrollRect.verticalNormalizedPosition = 1f;
+        }
+
         private void DestroyComparisonBoard()
         {
             if (comparisonBoardInstance == null) return;
@@ -487,21 +646,116 @@ namespace EDNA.Investigation
             comparisonBoardInstance = null;
         }
 
-        private void AddClassificationButton(string label, AnomalyClaimType claimType)
+        private void ShowCaseFilesPanel()
+        {
+            DestroyComparisonBoard();
+            DestroyCaseFilesPanel();
+            DestroyHypothesisPanel();
+            DestroySamplePlannerPanel();
+            bodyText.gameObject.SetActive(false);
+            caseFilesPanelInstance = Instantiate(caseFilesPanelPrefab, contentViewport);
+            RectTransform panelRect = caseFilesPanelInstance.GetComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0f, 1f);
+            panelRect.anchorMax = new Vector2(1f, 1f);
+            panelRect.pivot = new Vector2(0.5f, 1f);
+            panelRect.anchoredPosition = Vector2.zero;
+            panelRect.sizeDelta = Vector2.zero;
+            contentScrollRect.content = panelRect;
+            contentScrollRect.verticalNormalizedPosition = 1f;
+        }
+
+        private void DestroyCaseFilesPanel()
+        {
+            if (caseFilesPanelInstance == null) return;
+            caseFilesPanelInstance.gameObject.SetActive(false);
+            Destroy(caseFilesPanelInstance.gameObject);
+            caseFilesPanelInstance = null;
+        }
+
+        private void DestroyHypothesisPanel()
+        {
+            if (hypothesisPanelInstance == null) return;
+            hypothesisPanelInstance.gameObject.SetActive(false);
+            Destroy(hypothesisPanelInstance.gameObject);
+            hypothesisPanelInstance = null;
+        }
+
+        private void DestroySamplePlannerPanel()
+        {
+            if (samplePlannerPanelInstance == null) return;
+            samplePlannerPanelInstance.gameObject.SetActive(false);
+            Destroy(samplePlannerPanelInstance.gameObject);
+            samplePlannerPanelInstance = null;
+        }
+
+        private void AddStepper(
+            RectTransform parent,
+            string category,
+            string value,
+            int selectedIndex,
+            int itemCount,
+            Action onPrevious,
+            Action onNext)
+        {
+            if (parent == null || stepperPrefab == null) return;
+            InvestigationStepperView stepper = Instantiate(stepperPrefab, parent);
+            stepper.name = $"{category} Stepper";
+            stepper.Bind(category, value, selectedIndex, itemCount, onPrevious, onNext);
+        }
+
+        private void AddClassificationButton(AnomalyClaimType claimType)
         {
             bool hasSelection = !string.IsNullOrEmpty(selectedComparisonEvidenceId);
             bool alreadyIdentified = hasSelection && state.IsEvidenceIdentified(selectedComparisonEvidenceId);
             bool ruledOut = hasSelection && state.HasRejectedClassification(selectedComparisonEvidenceId, claimType);
+            string label = InvestigationDisplayNames.Classification(claimType).ToUpperInvariant();
             string visibleLabel = ruledOut ? $"RULED OUT: {label}" : label;
-            AddActionButton(
+            AddButton(
+                classificationRoot == null ? ActiveActionRoot : classificationRoot,
                 visibleLabel,
                 () => ClassifySelected(claimType),
+                InvestigationButtonStyle.Primary,
                 hasSelection && !alreadyIdentified && !ruledOut);
+        }
+
+        private void BeginComparisonActions()
+        {
+            if (compareNavigationRoot == null || classificationPanel == null || classificationRoot == null)
+            {
+                comparisonActionMode = false;
+                return;
+            }
+
+            comparisonActionMode = true;
+            actionSlotCount = 0;
+            if (actionRoot != null) actionRoot.gameObject.SetActive(false);
+            compareNavigationRoot.gameObject.SetActive(true);
+            classificationPanel.gameObject.SetActive(true);
+            if (classificationPromptText != null)
+            {
+                classificationPromptText.text = "CLASSIFY THIS CARD";
+            }
         }
 
         private void AddActionButton(string label, Action action, bool isInteractable = true)
         {
             AddActionSlotButton(label, action, InvestigationButtonStyle.Primary, isInteractable);
+        }
+
+        private void AddCommitButton(string label, Action action, bool isInteractable = true)
+        {
+            AddActionSlotButton(label, action, InvestigationButtonStyle.Commit, isInteractable);
+        }
+
+        private void AddDestructiveButton(string label, Action action, bool isInteractable = true)
+        {
+            AddActionSlotButton(label, action, InvestigationButtonStyle.Destructive, isInteractable);
+        }
+
+        private void AddStageCommitButton(string label, Action action, bool isInteractable = true)
+        {
+            PadActionsToColumn(GetActionColumnCount() - 1);
+            AddCommitButton(label, action, isInteractable);
         }
 
         private void AddBrowseButton(string label, Action action, bool isInteractable = true)
@@ -532,7 +786,7 @@ namespace EDNA.Investigation
             InvestigationButtonStyle style,
             bool isInteractable)
         {
-            AddButton(actionRoot, label, action, style, isInteractable);
+            AddButton(ActiveActionRoot, label, action, style, isInteractable);
             actionSlotCount++;
         }
 
@@ -543,35 +797,67 @@ namespace EDNA.Investigation
             while (actionSlotCount % columnCount != safeTarget)
             {
                 GameObject spacer = new GameObject("Action Spacer", typeof(RectTransform));
-                spacer.transform.SetParent(actionRoot, false);
+                spacer.transform.SetParent(ActiveActionRoot, false);
                 actionSlotCount++;
             }
         }
 
         private int GetActionColumnCount()
         {
-            if (actionRoot == null) return 1;
-            GridLayoutGroup grid = actionRoot.GetComponent<GridLayoutGroup>();
+            RectTransform activeRoot = ActiveActionRoot;
+            if (activeRoot == null) return 1;
+            GridLayoutGroup grid = activeRoot.GetComponent<GridLayoutGroup>();
             return grid != null
                 && grid.constraint == GridLayoutGroup.Constraint.FixedColumnCount
                 ? Mathf.Max(1, grid.constraintCount)
                 : 1;
         }
 
-        private void AddButton(
+        private RectTransform ActiveActionRoot => comparisonActionMode && compareNavigationRoot != null
+            ? compareNavigationRoot
+            : actionRoot;
+
+        private InvestigationButtonView AddButton(
             Transform parent,
             string label,
             Action action,
             InvestigationButtonStyle style,
             bool isInteractable = true)
         {
-            if (parent == null || buttonPrefab == null) return;
+            if (parent == null || buttonPrefab == null) return null;
             InvestigationButtonView button = Instantiate(buttonPrefab, parent);
             button.name = label;
             button.Bind(label, action, style, isInteractable);
+            return button;
         }
 
-        private void ChangePage(Page page) { currentPage = page; statusMessage = string.Empty; RenderCurrentPage(); }
+        private void ChangePage(Page page) { currentPage = page; highestVisitedPage = Mathf.Max(highestVisitedPage, (int)page); statusMessage = string.Empty; RenderCurrentPage(); }
+
+        private void RefreshNavigationState()
+        {
+            for (int index = 0; index < navigationButtons.Count; index++)
+            {
+                InvestigationButtonView button = navigationButtons[index];
+                if (button == null) continue;
+                button.SetNavigationState(
+                    index == (int)currentPage,
+                    index < highestVisitedPage,
+                    GetNavigationGlyph(index));
+            }
+        }
+
+        private static InvestigationGlyph GetNavigationGlyph(int index)
+        {
+            switch (index)
+            {
+                case 0: return InvestigationGlyph.CaseFile;
+                case 1: return InvestigationGlyph.Compare;
+                case 2: return InvestigationGlyph.Hypothesis;
+                case 3: return InvestigationGlyph.Sample;
+                case 4: return InvestigationGlyph.Conclusion;
+                default: return InvestigationGlyph.None;
+            }
+        }
         private void ChangeSpecies(int delta) { speciesIndex = Wrap(speciesIndex + delta, caseDefinition.Species.Count); RenderCurrentPage(); }
         private void ChangeHypothesis(int delta) { hypothesisIndex = Wrap(hypothesisIndex + delta, caseDefinition.Hypotheses.Count); RenderCurrentPage(); }
         private void ChangeEvidence(int delta) { evidenceIndex = Wrap(evidenceIndex + delta, state.GetIdentifiedEvidence().Count); RenderCurrentPage(); }
@@ -619,14 +905,30 @@ namespace EDNA.Investigation
             assignEvidence?.Invoke(evidence.EvidenceId, hypothesis.HypothesisId, kind);
         }
 
-        private void SelectCurrentHypothesis()
+        private void SelectCurrentHypothesisAndPlanSample()
         {
             HypothesisDefinition hypothesis = GetSelectedHypothesis();
-            if (hypothesis != null) selectHypothesis?.Invoke(hypothesis.HypothesisId);
+            if (hypothesis == null) return;
+            currentPage = Page.PlanSample;
+            statusMessage = string.Empty;
+            if (selectHypothesis != null)
+            {
+                selectHypothesis.Invoke(hypothesis.HypothesisId);
+            }
+            else
+            {
+                RenderCurrentPage();
+            }
         }
 
         private void RequestSelectedSample()
         {
+            if (state.AvailableSampleSlots <= 0)
+            {
+                statusMessage = "No follow-up sample slots remain.";
+                RenderCurrentPage();
+                return;
+            }
             SampleSiteDefinition site = GetSelectedSite();
             if (site == null) { statusMessage = "Choose a valid sample site."; RenderCurrentPage(); return; }
             HypothesisDefinition hypothesis = GetSelectedHypothesis();
@@ -668,7 +970,9 @@ namespace EDNA.Investigation
             for (int index = 0; index < state.EvidenceAssignments.Count; index++)
             {
                 EvidenceAssignmentRecord assignment = state.EvidenceAssignments[index];
-                if (string.Equals(assignment.EvidenceId, evidenceId, StringComparison.Ordinal) && string.Equals(assignment.HypothesisId, hypothesisId, StringComparison.Ordinal)) return assignment.AssignmentKind.ToString();
+                if (!string.Equals(assignment.EvidenceId, evidenceId, StringComparison.Ordinal)
+                    || !string.Equals(assignment.HypothesisId, hypothesisId, StringComparison.Ordinal)) continue;
+                return assignment.AssignmentKind == EvidenceAssignmentKind.Supports ? "Support" : "Challenge";
             }
             return "None";
         }
@@ -696,18 +1000,7 @@ namespace EDNA.Investigation
 
         private static string GetClaimName(EvidenceType type)
         {
-            switch (type)
-            {
-                case EvidenceType.NewDetection: return "New Arrival";
-                case EvidenceType.NotDetectedInSample:
-                case EvidenceType.RepeatedNonDetection: return "Expected but Missing";
-                case EvidenceType.DepthShift: return "Different Depth";
-                case EvidenceType.LowQualityResult:
-                case EvidenceType.ContaminationWarning: return "Result Warning";
-                case EvidenceType.StableIndicator:
-                case EvidenceType.RepeatedDetection: return "Matches Baseline";
-                default: return type.ToString();
-            }
+            return InvestigationDisplayNames.EvidencePattern(type.ToString());
         }
 
         private static int GetEvidencePriority(EvidenceType type)
@@ -746,15 +1039,88 @@ namespace EDNA.Investigation
             return string.Join(", ", strings);
         }
 
+        private static string BuildSpeciesTraits(SpeciesDefinition species)
+        {
+            if (species == null) return "Species details are not available.";
+
+            StringBuilder traits = new StringBuilder();
+            AppendInlineTrait(traits, species.TemperaturePreference);
+            AppendInlineTrait(traits, Join(species.PreferredDepths));
+            AppendInlineTrait(traits, InvestigationDisplayNames.Traits(species.HabitatTags));
+            AppendInlineTrait(traits, InvestigationDisplayNames.Traits(species.SensitivityTags));
+            return traits.Length == 0 ? "No species traits recorded." : traits.ToString();
+        }
+
+        private static void AppendInlineTrait(StringBuilder text, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, "None", StringComparison.OrdinalIgnoreCase)) return;
+            if (text.Length > 0) text.Append("  ·  ");
+            text.Append(value);
+        }
+
+        private static void AppendSectionHeading(StringBuilder text, string value)
+        {
+            if (text.Length > 0) text.AppendLine();
+            text.Append("<size=20><b><color=#F5E6BE>");
+            text.Append(value.ToUpperInvariant());
+            text.AppendLine("</color></b></size>");
+        }
+
+        private static void AppendTitle(StringBuilder text, string value)
+        {
+            text.Append("<size=18><b><color=#F5E6BE>");
+            text.Append(value);
+            text.AppendLine("</color></b></size>");
+        }
+
+        private static void AppendBody(StringBuilder text, string value)
+        {
+            text.Append("<size=16><color=#A9C9CF>");
+            text.Append(value);
+            text.AppendLine("</color></size>");
+        }
+
+        private static void AppendMetadata(StringBuilder text, string value)
+        {
+            text.Append("<size=13><color=#8EAEB5>");
+            text.Append(value);
+            text.AppendLine("</color></size>");
+        }
+
+        private static void AppendChecklistItem(
+            StringBuilder text,
+            bool isComplete,
+            string label,
+            string value)
+        {
+            text.Append("<size=16><b><color=");
+            text.Append(isComplete ? "#5CD69D>✓  " : "#FFBE5A>✗  ");
+            text.Append(label);
+            text.Append("</color></b><color=#A9C9CF>    ");
+            text.Append(value);
+            text.AppendLine("</color></size>");
+        }
+
         private void ClearActions()
         {
-            if (actionRoot == null) return;
             actionSlotCount = 0;
-            for (int index = actionRoot.childCount - 1; index >= 0; index--)
+            comparisonActionMode = false;
+            ClearActionRoot(actionRoot);
+            ClearActionRoot(compareNavigationRoot);
+            ClearActionRoot(classificationRoot);
+            if (actionRoot != null) actionRoot.gameObject.SetActive(true);
+            if (compareNavigationRoot != null) compareNavigationRoot.gameObject.SetActive(false);
+            if (classificationPanel != null) classificationPanel.gameObject.SetActive(false);
+        }
+
+        private static void ClearActionRoot(RectTransform root)
+        {
+            if (root == null) return;
+            for (int index = root.childCount - 1; index >= 0; index--)
             {
-                GameObject child = actionRoot.GetChild(index).gameObject;
+                GameObject child = root.GetChild(index).gameObject;
                 child.SetActive(false);
-                Destroy(child);
+                UnityEngine.Object.Destroy(child);
             }
         }
 
@@ -818,11 +1184,11 @@ namespace EDNA.Investigation
                 case Page.CompareData:
                     return "Select a comparison card, then classify the change with the buttons below.";
                 case Page.BuildHypothesis:
-                    return "Choose a theory and assign identified findings as support or challenge.";
+                    return "Use the in-panel selectors, assign the finding, then select a theory to continue.";
                 case Page.PlanSample:
-                    return "Choose a site and depth that can test your working hypothesis.";
+                    return "Choose a site, depth, and test target with the in-panel selectors.";
                 case Page.Conclusion:
-                    return "Review your evidence, then submit a conclusion when the requirements are met.";
+                    return "Complete every checklist item, then submit your conclusion.";
                 default:
                     return "Review the case briefing and species records, then start the comparison.";
             }

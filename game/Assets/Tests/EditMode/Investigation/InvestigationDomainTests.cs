@@ -255,6 +255,10 @@ namespace EDNA.Investigation.Tests
             InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
             InvestigationState state = updater.CreateInitialState();
 
+            ConclusionEvaluator evaluator = new ConclusionEvaluator(new HypothesisEvaluator());
+            ConclusionReadiness initialReadiness = evaluator.EvaluateReadiness(caseDefinition, state);
+            Assert.That(initialReadiness.HasSelectedHypothesis, Is.False);
+            Assert.That(initialReadiness.CanSubmit, Is.False);
             Assert.That(updater.SubmitConclusion(state).Status, Is.EqualTo(ConclusionStatus.InsufficientEvidence));
 
             EvidenceRecord newDetection = FindEvidence(state, EvidenceType.NewDetection);
@@ -270,6 +274,12 @@ namespace EDNA.Investigation.Tests
             updater.TryAssignEvidence(state, uncertainty.EvidenceId, "warming", EvidenceAssignmentKind.Opposes, out _);
             updater.TrySelectHypothesis(state, "warming", out _);
 
+            ConclusionReadiness finalReadiness = evaluator.EvaluateReadiness(caseDefinition, state);
+            Assert.That(finalReadiness.HasSelectedHypothesis, Is.True);
+            Assert.That(finalReadiness.HasSupportedHypothesis, Is.True);
+            Assert.That(finalReadiness.HasRequiredFollowUpSample, Is.True);
+            Assert.That(finalReadiness.HasRequiredOpposingEvidence, Is.True);
+            Assert.That(finalReadiness.CanSubmit, Is.True);
             ConclusionResult result = updater.SubmitConclusion(state);
             Assert.That(result.Status, Is.EqualTo(ConclusionStatus.Correct));
             Assert.That(state.ConclusionStatus, Is.EqualTo(ConclusionStatus.Correct));
@@ -320,6 +330,18 @@ namespace EDNA.Investigation.Tests
 
             Assert.That(errors, Has.Some.Contains("unknown species"));
             Assert.That(errors, Has.Some.Contains("Duplicate mock outcome"));
+        }
+
+        [Test]
+        public void CaseValidator_FindsHypothesisEvidenceTagThatCannotBeProduced()
+        {
+            InvestigationCaseDefinition caseDefinition = CreateCase();
+            HypothesisDefinition hypothesis = caseDefinition.Hypotheses[0];
+            SetField(hypothesis, "requiredEvidenceTags", new List<string> { "NeverProduced" });
+
+            List<string> errors = new InvestigationCaseValidator().Validate(caseDefinition);
+
+            Assert.That(errors, Has.Some.Contains("cannot be produced: NeverProduced"));
         }
 
         private InvestigationCaseDefinition CreateCase(
