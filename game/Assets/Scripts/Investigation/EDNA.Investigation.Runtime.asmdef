@@ -1,0 +1,19 @@
+{
+    "name": "EDNA.Investigation.Runtime",
+    "rootNamespace": "EDNA.Investigation",
+    "references": [
+        "EDNA.Core",
+        "EDNA.Investigation.Domain",
+        "Unity.InputSystem",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

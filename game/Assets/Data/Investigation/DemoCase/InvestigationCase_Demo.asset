@@ -1,0 +1,199 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 35a1e0453a7224fc5afad0a51c2a17de, type: 3}
+  m_Name: InvestigationCase_Demo
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationCaseDefinition
+  caseId: investigation_demo_01
+  displayName: The Shifting Seamount
+  briefing: Recent eDNA samples show a warmer-water visitor and missing cold-water
+    species. Determine whether this is an ecosystem shift, a food-web problem, or
+    unreliable sampling.
+  historicalBaseline:
+  - speciesId: mock_cold_fish
+    siteId: mock_summit
+    depthBand: 0
+    expectedPresence: 1
+  - speciesId: mock_predator
+    siteId: mock_summit
+    depthBand: 0
+    expectedPresence: 1
+  - speciesId: mock_stable_species
+    siteId: mock_summit
+    depthBand: 0
+    expectedPresence: 1
+  - speciesId: mock_cold_fish
+    siteId: mock_slope
+    depthBand: 0
+    expectedPresence: 1
+  - speciesId: mock_prey
+    siteId: mock_slope
+    depthBand: 0
+    expectedPresence: 1
+  - speciesId: mock_deep_species
+    siteId: mock_deep_zone
+    depthBand: 2
+    expectedPresence: 1
+  - speciesId: mock_stable_species
+    siteId: mock_deep_zone
+    depthBand: 2
+    expectedPresence: 1
+  - speciesId: mock_stable_species
+    siteId: mock_slope
+    depthBand: 0
+    expectedPresence: 1
+  species:
+  - {fileID: 11400000, guid: a8c9622e0133d466b915cae3ed865482, type: 2}
+  - {fileID: 11400000, guid: 0eb9f94723e1640a68cfc158bd46ba60, type: 2}
+  - {fileID: 11400000, guid: 7907e3819a4484b51981484118bf1619, type: 2}
+  - {fileID: 11400000, guid: 7c386c20fd9cc469baba11757478c06d, type: 2}
+  - {fileID: 11400000, guid: d4ba18bcf007b40a4ab301d4a17946c9, type: 2}
+  - {fileID: 11400000, guid: ce47bf6a7a10b4369a3ad688c992c700, type: 2}
+  sampleSites:
+  - {fileID: 11400000, guid: 6d040e2f500e74997848d0789498a426, type: 2}
+  - {fileID: 11400000, guid: a515039fba1d84158be2fdb46acdf558, type: 2}
+  - {fileID: 11400000, guid: 8cb7c7760e9224f21806220c6a4616f4, type: 2}
+  hypotheses:
+  - {fileID: 11400000, guid: 2b12d30aa0e5448a28ae42ecafae08ac, type: 2}
+  - {fileID: 11400000, guid: 738a0b8101ea04329b085167e08a1bcb, type: 2}
+  - {fileID: 11400000, guid: 0fc50f7b2b04b4d79a51f9b260605ce0, type: 2}
+  initialResults:
+  - requestId: 
+    sampleId: initial_summit_shallow
+    siteId: mock_summit
+    depthBand: 0
+    roundIndex: 0
+    sampleQuality: 3
+    detectedSpeciesIds:
+    - mock_warm_fish
+    - mock_stable_species
+    resultFlags: 
+  - requestId: 
+    sampleId: initial_slope_shallow
+    siteId: mock_slope
+    depthBand: 0
+    roundIndex: 0
+    sampleQuality: 1
+    detectedSpeciesIds:
+    - mock_prey
+    - mock_stable_species
+    resultFlags: 0000000001000000
+  mockSampleOutcomes:
+  - siteId: mock_summit
+    depthBand: 0
+    resultTemplate:
+      requestId: 
+      sampleId: 
+      siteId: mock_summit
+      depthBand: 0
+      roundIndex: 0
+      sampleQuality: 3
+      detectedSpeciesIds:
+      - mock_warm_fish
+      - mock_stable_species
+      resultFlags: 
+  - siteId: mock_summit
+    depthBand: 1
+    resultTemplate:
+      requestId: 
+      sampleId: 
+      siteId: mock_summit
+      depthBand: 1
+      roundIndex: 0
+      sampleQuality: 2
+      detectedSpeciesIds:
+      - mock_warm_fish
+      - mock_cold_fish
+      - mock_stable_species
+      resultFlags: 
+  - siteId: mock_summit
+    depthBand: 2
+    resultTemplate:
+      requestId: 
+      sampleId: 
+      siteId: mock_summit
+      depthBand: 2
+      roundIndex: 0
+      sampleQuality: 3
+      detectedSpeciesIds:
+      - mock_cold_fish
+      - mock_stable_species
+      resultFlags: 
+  - siteId: mock_slope
+    depthBand: 0
+    resultTemplate:
+      requestId: 
+      sampleId: 
+      siteId: mock_slope
+      depthBand: 0
+      roundIndex: 0
+      sampleQuality: 3
+      detectedSpeciesIds:
+      - mock_prey
+      - mock_stable_species
+      resultFlags: 
+  - siteId: mock_slope
+    depthBand: 1
+    resultTemplate:
+      requestId: 
+      sampleId: 
+      siteId: mock_slope
+      depthBand: 1
+      roundIndex: 0
+      sampleQuality: 2
+      detectedSpeciesIds:
+      - mock_prey
+      - mock_stable_species
+      resultFlags: 
+  - siteId: mock_slope
+    depthBand: 2
+    resultTemplate:
+      requestId: 
+      sampleId: 
+      siteId: mock_slope
+      depthBand: 2
+      roundIndex: 0
+      sampleQuality: 2
+      detectedSpeciesIds:
+      - mock_deep_species
+      resultFlags: 
+  - siteId: mock_deep_zone
+    depthBand: 1
+    resultTemplate:
+      requestId: 
+      sampleId: 
+      siteId: mock_deep_zone
+      depthBand: 1
+      roundIndex: 0
+      sampleQuality: 2
+      detectedSpeciesIds:
+      - mock_deep_species
+      resultFlags: 
+  - siteId: mock_deep_zone
+    depthBand: 2
+    resultTemplate:
+      requestId: 
+      sampleId: 
+      siteId: mock_deep_zone
+      depthBand: 2
+      roundIndex: 0
+      sampleQuality: 3
+      detectedSpeciesIds:
+      - mock_deep_species
+      - mock_stable_species
+      resultFlags: 
+  followUpSampleLimit: 2
+  correctHypothesisId: mock_ocean_warming
+  requireFollowUpSample: 1
+  requiredOpposingEvidence: 1
+  successFeedback: 'Case solved: a warm-water arrival plus the cold-water fish''s
+    deeper detection supports a depth shift. The contamination warning remains an
+    important uncertainty, but it does not explain the full pattern.'
