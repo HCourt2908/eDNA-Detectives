@@ -76,7 +76,10 @@ public static class InvestigationUiPrefabBuilder
         briefing.lineSpacing = 1.18f;
         AddAccentRail(caseCard.transform, Cyan);
 
-        GameObject speciesCard = CreateCardContainer(root.transform, "Species Record Card", 316f, 1f);
+        GameObject speciesCard = CreateCardContainer(root.transform, "Species Record Card", 238f, 1f);
+        LayoutElement speciesCardLayout = speciesCard.GetComponent<LayoutElement>();
+        speciesCardLayout.minHeight = -1f;
+        speciesCardLayout.preferredHeight = -1f;
         Text speciesCounter = CreateText(speciesCard.transform, "Species Counter", "SPECIES RECORD  01 / 03", 12, FontStyle.Bold, Cyan, 22f);
         GameObject speciesOverview = CreateLayoutObject(speciesCard.transform, "Species Overview", 122f);
         HorizontalLayoutGroup overviewLayout = speciesOverview.AddComponent<HorizontalLayoutGroup>();
@@ -100,19 +103,19 @@ public static class InvestigationUiPrefabBuilder
         Text speciesDescription = CreateText(speciesCopy.transform, "Species Description", "Species description", 16, FontStyle.Normal, Muted, 66f);
         speciesDescription.lineSpacing = 1.15f;
 
-        GameObject traitGridObject = CreateLayoutObject(speciesCard.transform, "Trait Grid", 122f);
+        GameObject traitGridObject = CreateLayoutObject(speciesCard.transform, "Trait Grid", 42f);
         GridLayoutGroup traitGrid = traitGridObject.AddComponent<GridLayoutGroup>();
         traitGrid.padding = new RectOffset(0, 0, 0, 0);
-        traitGrid.spacing = new Vector2(10f, 10f);
-        traitGrid.cellSize = new Vector2(635f, 54f);
+        traitGrid.spacing = new Vector2(8f, 8f);
+        traitGrid.cellSize = new Vector2(280f, 42f);
         traitGrid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        traitGrid.constraintCount = 2;
+        traitGrid.constraintCount = 4;
         InvestigationResponsiveGridLayout responsiveTraitGrid = traitGridObject.AddComponent<InvestigationResponsiveGridLayout>();
-        responsiveTraitGrid.Configure(200f);
-        Text depth = CreateTraitChip(traitGridObject.transform, "Depth Trait", "DEPTH RANGE\nShallow, Mid");
-        Text temperature = CreateTraitChip(traitGridObject.transform, "Temperature Trait", "TEMPERATURE\nCold water");
-        Text habitat = CreateTraitChip(traitGridObject.transform, "Habitat Trait", "HABITAT\nRocky reef");
-        Text sensitivity = CreateTraitChip(traitGridObject.transform, "Sensitivity Trait", "SENSITIVITY\nCold sensitive");
+        Text depth = CreateTraitChip(traitGridObject.transform, "Depth Trait", "Depth range: Shallow, Mid.");
+        Text temperature = CreateTraitChip(traitGridObject.transform, "Temperature Trait", "Temperature: Cold water.");
+        Text habitat = CreateTraitChip(traitGridObject.transform, "Habitat Trait", "Habitat: Rocky reef.");
+        Text sensitivity = CreateTraitChip(traitGridObject.transform, "Sensitivity Trait", "Sensitivity: Cold sensitive.");
+        responsiveTraitGrid.Configure(180f, 4, true);
 
         GameObject missionCard = CreateCardContainer(root.transform, "Mission Card", 94f, 1f);
         missionCard.GetComponent<Image>().color = InvestigationTheme.WithAlpha(InvestigationTheme.SurfaceSelected, 0.88f);
@@ -402,8 +405,46 @@ public static class InvestigationUiPrefabBuilder
             RectTransform classificationRoot = FindChild(classificationPanel, "Classification Choices").GetComponent<RectTransform>();
             RectTransform compareNavigation = CreateCompareNavigation(actions);
             Scrollbar scrollbar = CreateVerticalScrollbar(contentPanel);
+            InvestigationStatusBannerView statusView = root.GetComponentInChildren<InvestigationStatusBannerView>(true);
+            InvestigationProgressView progressView = FindChild(root.transform, "Progress Metrics").GetComponent<InvestigationProgressView>();
+            RectTransform navigation = FindChild(root.transform, "Navigation").GetComponent<RectTransform>();
+            RectTransform content = contentPanel.GetComponent<RectTransform>();
+            RectTransform actionsRect = actions.GetComponent<RectTransform>();
+
+            InvestigationAdaptiveShellLayout shellLayout = root.GetComponent<InvestigationAdaptiveShellLayout>();
+            if (shellLayout == null) shellLayout = root.AddComponent<InvestigationAdaptiveShellLayout>();
+            SerializedObject serializedShellLayout = new SerializedObject(shellLayout);
+            serializedShellLayout.FindProperty("compactActionsHeight").floatValue = 56f;
+            serializedShellLayout.FindProperty("comparisonActionsHeight").floatValue = 138f;
+            serializedShellLayout.ApplyModifiedPropertiesWithoutUndo();
+            shellLayout.ConfigureReferences(
+                statusView.GetComponent<RectTransform>(),
+                statusView.MessageText,
+                content,
+                actionsRect,
+                standardActions,
+                classificationPanel,
+                classificationRoot.GetComponent<InvestigationResponsiveGridLayout>(),
+                compareNavigation,
+                standardActions.GetComponent<InvestigationResponsiveGridLayout>(),
+                compareNavigation.GetComponent<InvestigationResponsiveGridLayout>());
+            shellLayout.SetComparisonMode(false);
+
+            InvestigationAccessibilityBridge accessibility = root.GetComponent<InvestigationAccessibilityBridge>();
+            if (accessibility == null) accessibility = root.AddComponent<InvestigationAccessibilityBridge>();
+            accessibility.ConfigureReferences(
+                FindChild(root.transform, "Title").GetComponent<RectTransform>(),
+                progressView.GetComponent<RectTransform>(),
+                statusView.GetComponent<RectTransform>(),
+                navigation,
+                content,
+                standardActions,
+                compareNavigation,
+                classificationRoot);
 
             ScrollRect scrollRect = contentPanel.GetComponent<ScrollRect>();
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.elasticity = 0f;
             scrollRect.verticalScrollbar = scrollbar;
             scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
             scrollRect.verticalScrollbarSpacing = 4f;
@@ -417,6 +458,9 @@ public static class InvestigationUiPrefabBuilder
             serializedView.FindProperty("classificationPanel").objectReferenceValue = classificationPanel;
             serializedView.FindProperty("classificationRoot").objectReferenceValue = classificationRoot;
             serializedView.FindProperty("classificationPromptText").objectReferenceValue = classificationPrompt;
+            serializedView.FindProperty("progressView").objectReferenceValue = progressView;
+            serializedView.FindProperty("adaptiveShellLayout").objectReferenceValue = shellLayout;
+            serializedView.FindProperty("accessibilityBridge").objectReferenceValue = accessibility;
             GameObject caseFilesPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CaseFilesPrefabPath);
             GameObject hypothesisPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(HypothesisPrefabPath);
             GameObject samplePlannerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SamplePlannerPrefabPath);
@@ -490,7 +534,9 @@ public static class InvestigationUiPrefabBuilder
                 indicator,
                 glyph);
             SerializedObject serializedButton = new SerializedObject(root.GetComponent<InvestigationButtonView>());
-            serializedButton.FindProperty("destructiveBackground").colorValue = InvestigationTheme.SurfaceWarning;
+            serializedButton.FindProperty("destructiveBackground").colorValue = InvestigationTheme.BackgroundDeep;
+            serializedButton.FindProperty("destructiveText").colorValue = InvestigationTheme.Danger;
+            serializedButton.FindProperty("destructiveOutline").colorValue = InvestigationTheme.Danger;
             serializedButton.ApplyModifiedPropertiesWithoutUndo();
             PrefabUtility.SaveAsPrefabAsset(root, ButtonPrefabPath);
         }
@@ -503,9 +549,10 @@ public static class InvestigationUiPrefabBuilder
     private static void ApplyRuntimeShell(GameObject root)
     {
         CanvasScaler scaler = root.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
-        scaler.scaleFactor = 1f;
-        scaler.referencePixelsPerUnit = 100f;
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(960f, 600f);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        scaler.matchWidthOrHeight = 1f;
 
         Transform background = FindChild(root.transform, "Ocean Background");
         Transform header = FindChild(root.transform, "Header");
@@ -555,11 +602,20 @@ public static class InvestigationUiPrefabBuilder
         progress.color = Cyan;
         progress.alignment = TextAnchor.MiddleRight;
         SetOffsets(progress.rectTransform, new Vector2(0.56f, 0.15f), new Vector2(1f, 0.78f), 8f, 0f, -178f, 0f);
+        progress.gameObject.SetActive(false);
+        CreateProgressMetrics(header);
 
         Transform existingEyebrow = FindDirectChild(header, "Header Eyebrow");
         if (existingEyebrow != null) Object.DestroyImmediate(existingEyebrow.gameObject);
         Text eyebrow = CreateOverlayText(header, "Header Eyebrow", "MARINE eDNA INVESTIGATION // FIELD CONSOLE", 11, FontStyle.Bold, Metadata, TextAnchor.UpperLeft);
         SetOffsets(eyebrow.rectTransform, new Vector2(0f, 0.72f), new Vector2(0.58f, 1f), 18f, 0f, -8f, -6f);
+
+        InvestigationResponsiveHeaderLayout headerLayout = header.GetComponent<InvestigationResponsiveHeaderLayout>();
+        if (headerLayout == null) headerLayout = header.gameObject.AddComponent<InvestigationResponsiveHeaderLayout>();
+        headerLayout.ConfigureReferences(
+            title,
+            eyebrow.rectTransform,
+            FindChild(header, "Progress Metrics").GetComponent<RectTransform>());
 
         Transform existingLine = FindDirectChild(header, "Header Accent Line");
         if (existingLine != null) Object.DestroyImmediate(existingLine.gameObject);
@@ -575,10 +631,81 @@ public static class InvestigationUiPrefabBuilder
         navigationLayout.spacing = 6f;
         navigationLayout.childForceExpandWidth = true;
         navigationLayout.childForceExpandHeight = true;
+        if (navigation.GetComponent<InvestigationResponsiveNavigationLayout>() == null)
+        {
+            navigation.gameObject.AddComponent<InvestigationResponsiveNavigationLayout>();
+        }
 
         ConfigurePanelOutline(content.gameObject, InvestigationTheme.BorderQuiet);
         ConfigurePanelOutline(actions.gameObject, InvestigationTheme.BorderQuiet);
         AddTopRail(actions, "Actions Top Rail", InvestigationTheme.Border);
+    }
+
+    private static void CreateProgressMetrics(Transform header)
+    {
+        Transform existing = FindDirectChild(header, "Progress Metrics");
+        if (existing != null) Object.DestroyImmediate(existing.gameObject);
+
+        GameObject root = new GameObject(
+            "Progress Metrics",
+            typeof(RectTransform),
+            typeof(HorizontalLayoutGroup),
+            typeof(InvestigationProgressView));
+        root.layer = 5;
+        root.transform.SetParent(header, false);
+        RectTransform rect = root.GetComponent<RectTransform>();
+        SetOffsets(rect, new Vector2(0.50f, 0.12f), new Vector2(1f, 0.86f), 8f, 0f, -154f, 0f);
+
+        HorizontalLayoutGroup layout = root.GetComponent<HorizontalLayoutGroup>();
+        layout.spacing = 6f;
+        layout.childAlignment = TextAnchor.MiddleCenter;
+        layout.childControlWidth = true;
+        layout.childControlHeight = true;
+        layout.childForceExpandWidth = true;
+        layout.childForceExpandHeight = true;
+
+        Text round = CreateProgressMetric(root.transform, "Round Metric", "ROUND", "1");
+        Text samples = CreateProgressMetric(root.transform, "Samples Metric", "SAMPLES", "2");
+        Text findings = CreateProgressMetric(root.transform, "Findings Metric", "FOUND", "0/0");
+        Text missteps = CreateProgressMetric(root.transform, "Missteps Metric", "MISSTEPS", "0");
+        root.GetComponent<InvestigationProgressView>().ConfigureReferences(round, samples, findings, missteps);
+    }
+
+    private static Text CreateProgressMetric(
+        Transform parent,
+        string name,
+        string label,
+        string value)
+    {
+        GameObject metric = new GameObject(
+            name,
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image),
+            typeof(Outline),
+            typeof(LayoutElement));
+        metric.layer = 5;
+        metric.transform.SetParent(parent, false);
+        Image background = metric.GetComponent<Image>();
+        background.color = InvestigationTheme.WithAlpha(InvestigationTheme.SurfaceInteractive, 0.78f);
+        background.raycastTarget = false;
+        ConfigureOutline(metric.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
+        LayoutElement metricLayout = metric.GetComponent<LayoutElement>();
+        metricLayout.minWidth = 58f;
+        metricLayout.preferredWidth = 72f;
+        metricLayout.flexibleWidth = 1f;
+        Text text = CreateOverlayText(
+            metric.transform,
+            "Metric Text",
+            $"<size=10><color=#8EAEB5>{label}</color></size>\n<size=15><b><color=#F5E6BE>{value}</color></b></size>",
+            14,
+            FontStyle.Normal,
+            Sand,
+            TextAnchor.MiddleCenter);
+        text.supportRichText = true;
+        text.lineSpacing = 0.82f;
+        Stretch(text.rectTransform, 3f, 2f, 3f, 2f);
+        return text;
     }
 
     private static void UpdateStatusBannerPrefab()
@@ -593,13 +720,17 @@ public static class InvestigationUiPrefabBuilder
             Text message = FindChild(root.transform, "Status Message").GetComponent<Text>();
             Image accent = FindChild(root.transform, "Status Accent").GetComponent<Image>();
             label.fontSize = 11;
+            label.fontStyle = FontStyle.Bold;
             label.color = Cyan;
             message.fontSize = 18;
             message.color = InvestigationTheme.TextPrimary;
+            message.horizontalOverflow = HorizontalWrapMode.Wrap;
+            message.verticalOverflow = VerticalWrapMode.Truncate;
+            message.lineSpacing = 1.05f;
             accent.color = Cyan;
             SetOffsets(accent.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f), 0f, 0f, 4f, 0f);
-            SetOffsets(label.rectTransform, new Vector2(0f, 0.55f), new Vector2(1f, 1f), 16f, 0f, -16f, -5f);
-            SetOffsets(message.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.65f), 16f, 5f, -16f, -1f);
+            SetOffsets(label.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), 16f, -22f, -16f, -3f);
+            SetOffsets(message.rectTransform, Vector2.zero, Vector2.one, 16f, 4f, -16f, -23f);
             PrefabUtility.SaveAsPrefabAsset(root, StatusPrefabPath);
         }
         finally
@@ -672,13 +803,13 @@ public static class InvestigationUiPrefabBuilder
         Stretch(rect, 0f, 0f, 0f, 0f);
 
         GridLayoutGroup grid = standard.GetComponent<GridLayoutGroup>();
-        grid.padding = new RectOffset(12, 12, 12, 12);
-        grid.cellSize = new Vector2(300f, 49f);
+        grid.padding = new RectOffset(12, 12, 4, 4);
+        grid.cellSize = new Vector2(300f, 48f);
         grid.spacing = new Vector2(16f, 10f);
         grid.childAlignment = TextAnchor.MiddleCenter;
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 4;
-        standard.GetComponent<InvestigationResponsiveGridLayout>().Configure(120f);
+        standard.GetComponent<InvestigationResponsiveGridLayout>().Configure(120f, 4);
         return rect;
     }
 
@@ -761,7 +892,11 @@ public static class InvestigationUiPrefabBuilder
         promptRect.offsetMin = new Vector2(4f, -21f);
         promptRect.offsetMax = new Vector2(-4f, 0f);
 
-        GameObject choices = new GameObject("Classification Choices", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        GameObject choices = new GameObject(
+            "Classification Choices",
+            typeof(RectTransform),
+            typeof(GridLayoutGroup),
+            typeof(InvestigationResponsiveGridLayout));
         choices.layer = 5;
         choices.transform.SetParent(panel.transform, false);
         RectTransform choicesRect = choices.GetComponent<RectTransform>();
@@ -769,14 +904,14 @@ public static class InvestigationUiPrefabBuilder
         choicesRect.anchorMax = Vector2.one;
         choicesRect.offsetMin = new Vector2(0f, 0f);
         choicesRect.offsetMax = new Vector2(0f, -22f);
-        HorizontalLayoutGroup layout = choices.GetComponent<HorizontalLayoutGroup>();
+        GridLayoutGroup layout = choices.GetComponent<GridLayoutGroup>();
         layout.padding = new RectOffset(0, 0, 0, 0);
-        layout.spacing = 8f;
-        layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.childControlWidth = true;
-        layout.childControlHeight = true;
-        layout.childForceExpandWidth = true;
-        layout.childForceExpandHeight = true;
+        layout.spacing = new Vector2(8f, 8f);
+        layout.cellSize = new Vector2(144f, 48f);
+        layout.childAlignment = TextAnchor.UpperCenter;
+        layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        layout.constraintCount = 5;
+        choices.GetComponent<InvestigationResponsiveGridLayout>().Configure(120f, 5);
         return rect;
     }
 
@@ -795,16 +930,16 @@ public static class InvestigationUiPrefabBuilder
         RectTransform rect = navigation.GetComponent<RectTransform>();
         rect.anchorMin = Vector2.zero;
         rect.anchorMax = new Vector2(1f, 0.5f);
-        rect.offsetMin = new Vector2(12f, 6f);
+        rect.offsetMin = new Vector2(12f, 4f);
         rect.offsetMax = new Vector2(-12f, -2f);
         GridLayoutGroup grid = navigation.GetComponent<GridLayoutGroup>();
         grid.padding = new RectOffset(0, 0, 0, 0);
-        grid.cellSize = new Vector2(300f, 49f);
+        grid.cellSize = new Vector2(300f, 48f);
         grid.spacing = new Vector2(16f, 0f);
         grid.childAlignment = TextAnchor.MiddleCenter;
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 4;
-        navigation.GetComponent<InvestigationResponsiveGridLayout>().Configure(120f);
+        navigation.GetComponent<InvestigationResponsiveGridLayout>().Configure(120f, 4);
         return rect;
     }
 
@@ -820,16 +955,27 @@ public static class InvestigationUiPrefabBuilder
         trackRect.anchorMin = new Vector2(1f, 0f);
         trackRect.anchorMax = Vector2.one;
         trackRect.pivot = new Vector2(1f, 0.5f);
-        trackRect.sizeDelta = new Vector2(10f, -24f);
-        trackRect.anchoredPosition = new Vector2(-7f, 0f);
+        trackRect.sizeDelta = new Vector2(28f, -24f);
+        trackRect.anchoredPosition = new Vector2(-2f, 0f);
         Image trackImage = track.GetComponent<Image>();
-        trackImage.color = new Color32(7, 25, 38, 220);
+        trackImage.color = new Color32(7, 25, 38, 70);
+
+        GameObject visualTrack = new GameObject("Track Visual", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        visualTrack.layer = 5;
+        visualTrack.transform.SetParent(track.transform, false);
+        RectTransform visualTrackRect = visualTrack.GetComponent<RectTransform>();
+        visualTrackRect.anchorMin = new Vector2(0.5f, 0f);
+        visualTrackRect.anchorMax = new Vector2(0.5f, 1f);
+        visualTrackRect.sizeDelta = new Vector2(6f, 0f);
+        Image visualTrackImage = visualTrack.GetComponent<Image>();
+        visualTrackImage.color = new Color32(7, 25, 38, 220);
+        visualTrackImage.raycastTarget = false;
 
         GameObject slidingArea = new GameObject("Sliding Area", typeof(RectTransform));
         slidingArea.layer = 5;
         slidingArea.transform.SetParent(track.transform, false);
         RectTransform slidingRect = slidingArea.GetComponent<RectTransform>();
-        Stretch(slidingRect, 2f, 2f, 2f, 2f);
+        Stretch(slidingRect, 9f, 2f, 9f, 2f);
 
         GameObject handle = new GameObject("Handle", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         handle.layer = 5;
@@ -953,6 +1099,24 @@ public static class InvestigationUiPrefabBuilder
             serializedCard.FindProperty("portraitGlyph").objectReferenceValue = portraitGlyph;
             serializedCard.FindProperty("attentionPulse").objectReferenceValue = attentionPulse;
             serializedCard.ApplyModifiedPropertiesWithoutUndo();
+
+            InvestigationResponsiveComparisonCardLayout responsiveLayout =
+                root.GetComponent<InvestigationResponsiveComparisonCardLayout>();
+            if (responsiveLayout == null)
+            {
+                responsiveLayout = root.AddComponent<InvestigationResponsiveComparisonCardLayout>();
+            }
+            responsiveLayout.ConfigureReferences(
+                portraitRect,
+                nameText.rectTransform,
+                historicalText.rectTransform,
+                currentText.rectTransform,
+                traitsText.rectTransform,
+                traitsText,
+                findingRect,
+                traitRect,
+                actionRect,
+                divider.GetComponent<RectTransform>());
             PrefabUtility.SaveAsPrefabAsset(root, CardPrefabPath);
         }
         finally
@@ -1051,8 +1215,13 @@ public static class InvestigationUiPrefabBuilder
         background.color = InvestigationTheme.WithAlpha(InvestigationTheme.BackgroundDeep, 0.72f);
         background.raycastTarget = false;
         ConfigureOutline(chip.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
-        Text text = CreateOverlayText(chip.transform, "Label", value, 12, FontStyle.Bold, Muted, TextAnchor.MiddleLeft);
-        Stretch(text.rectTransform, 12f, 12f, 5f, 5f);
+        Text text = CreateOverlayText(chip.transform, "Label", value, 12, FontStyle.Normal, Muted, TextAnchor.MiddleLeft);
+        text.resizeTextForBestFit = true;
+        text.resizeTextMinSize = 9;
+        text.resizeTextMaxSize = 12;
+        text.horizontalOverflow = HorizontalWrapMode.Wrap;
+        text.verticalOverflow = VerticalWrapMode.Truncate;
+        Stretch(text.rectTransform, 10f, 10f, 5f, 5f);
         return text;
     }
 

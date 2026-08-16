@@ -49,11 +49,12 @@ namespace EDNA.Investigation
         [SerializeField] private Color challengeText = new Color32(255, 208, 128, 255);
 
         [Header("Destructive action")]
-        [SerializeField] private Color destructiveBackground = new Color32(61, 47, 27, 255);
-        [SerializeField] private Color destructiveText = new Color32(255, 190, 90, 255);
-        [SerializeField] private Color destructiveOutline = new Color32(255, 190, 90, 255);
+        [SerializeField] private Color destructiveBackground = new Color32(4, 17, 27, 255);
+        [SerializeField] private Color destructiveText = new Color32(242, 125, 111, 255);
+        [SerializeField] private Color destructiveOutline = new Color32(242, 125, 111, 255);
 
-        public string Label => labelText == null ? string.Empty : labelText.text;
+        public string Label => semanticLabel;
+        public string DisplayLabel => labelText == null ? string.Empty : labelText.text;
         public InvestigationButtonStyle CurrentStyle { get; private set; }
         public Color BackgroundColor => background == null ? Color.clear : background.color;
         public Color LabelColor => labelText == null ? Color.clear : labelText.color;
@@ -61,6 +62,7 @@ namespace EDNA.Investigation
         public bool IsCompletedNavigation { get; private set; }
 
         private bool hasFocus;
+        private string semanticLabel = string.Empty;
 
         public void ConfigureReferences(
             Button buttonReference,
@@ -85,6 +87,7 @@ namespace EDNA.Investigation
             bool isInteractable = true)
         {
             CurrentStyle = style;
+            semanticLabel = label ?? string.Empty;
             IsCurrentNavigation = false;
             IsCompletedNavigation = false;
             if (labelText != null)
@@ -117,6 +120,18 @@ namespace EDNA.Investigation
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(() => action?.Invoke());
             RefreshOutline();
+
+            if (style == InvestigationButtonStyle.Navigation)
+            {
+                transform.parent?.GetComponent<InvestigationResponsiveNavigationLayout>()?.ApplyNow();
+            }
+        }
+
+        public void SetVisualLabel(string visibleLabel, bool minimalNavigationLabel = false)
+        {
+            if (labelText == null) return;
+            labelText.text = visibleLabel ?? string.Empty;
+            ConfigureLabelLayout(CurrentStyle, minimalNavigationLabel);
         }
 
         public void SetNavigationState(bool isCurrent, bool isCompleted, InvestigationGlyph glyph)
@@ -176,16 +191,16 @@ namespace EDNA.Investigation
             RefreshOutline();
         }
 
-        private void ConfigureLabelLayout(InvestigationButtonStyle style)
+        private void ConfigureLabelLayout(InvestigationButtonStyle style, bool minimalNavigationLabel = false)
         {
             if (labelText == null) return;
             RectTransform rect = labelText.rectTransform;
             if (style == InvestigationButtonStyle.Navigation)
             {
                 labelText.fontSize = 13;
-                labelText.alignment = TextAnchor.MiddleLeft;
-                rect.offsetMin = new Vector2(40f, 4f);
-                rect.offsetMax = new Vector2(-6f, -4f);
+                labelText.alignment = minimalNavigationLabel ? TextAnchor.MiddleCenter : TextAnchor.MiddleLeft;
+                rect.offsetMin = minimalNavigationLabel ? new Vector2(34f, 4f) : new Vector2(40f, 4f);
+                rect.offsetMax = minimalNavigationLabel ? new Vector2(-4f, -4f) : new Vector2(-6f, -4f);
             }
             else
             {
@@ -204,13 +219,18 @@ namespace EDNA.Investigation
             colors.highlightedColor = new Color(0.86f, 1f, 1f, 1f);
             colors.pressedColor = new Color(0.72f, 0.82f, 0.84f, 1f);
             colors.selectedColor = new Color(0.86f, 1f, 1f, 1f);
-            colors.disabledColor = new Color(0.52f, 0.58f, 0.60f, 0.72f);
+            colors.disabledColor = Color.white;
             colors.colorMultiplier = 1f;
             colors.fadeDuration = InvestigationTheme.MotionFast;
             button.colors = colors;
             if (labelText != null && !isInteractable)
             {
-                labelText.color = InvestigationTheme.WithAlpha(labelText.color, 0.48f);
+                labelText.color = InvestigationTheme.TextMuted;
+            }
+
+            if (background != null && !isInteractable)
+            {
+                background.color = InvestigationTheme.BackgroundDeep;
             }
         }
 

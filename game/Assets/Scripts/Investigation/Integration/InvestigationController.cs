@@ -62,11 +62,11 @@ namespace EDNA.Investigation
         {
             if (stateUpdater.TrySelectHypothesis(state, hypothesisId, out string error))
             {
-                view.Refresh(state, "Working hypothesis selected.");
+                view.Refresh(state, "Working hypothesis selected.", InvestigationStatusTone.Success);
             }
             else
             {
-                view.Refresh(state, error);
+                view.Refresh(state, error, InvestigationStatusTone.Warning);
             }
         }
 
@@ -83,18 +83,24 @@ namespace EDNA.Investigation
                     out string error))
             {
                 HypothesisEvaluation evaluation = stateUpdater.EvaluateHypothesis(state, hypothesisId);
-                view.Refresh(state, $"Evidence assigned. Hypothesis status: {evaluation.Status}.");
+                view.Refresh(
+                    state,
+                    $"Evidence assigned. Hypothesis status: {evaluation.Status}.",
+                    InvestigationStatusTone.Success);
             }
             else
             {
-                view.Refresh(state, error);
+                view.Refresh(state, error, InvestigationStatusTone.Warning);
             }
         }
 
         private void HandleIdentifyAnomaly(string evidenceId, AnomalyClaimType claimType)
         {
-            stateUpdater.TryIdentifyAnomaly(state, evidenceId, claimType, out string feedback);
-            view.Refresh(state, feedback);
+            bool identified = stateUpdater.TryIdentifyAnomaly(state, evidenceId, claimType, out string feedback);
+            view.Refresh(
+                state,
+                feedback,
+                identified ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
         }
 
         private void HandleRequestSample(
@@ -112,7 +118,7 @@ namespace EDNA.Investigation
                     out InvestigationSamplePlan plan,
                     out string error))
             {
-                view.Refresh(state, error);
+                view.Refresh(state, error, InvestigationStatusTone.Warning);
                 return;
             }
 
@@ -120,13 +126,14 @@ namespace EDNA.Investigation
             if (!stateUpdater.ApplyResult(state, result, out error))
             {
                 stateUpdater.TryCancelPlannedSample(state, plan.Request.requestId, out _);
-                view.Refresh(state, error);
+                view.Refresh(state, error, InvestigationStatusTone.Warning);
                 return;
             }
 
             view.Refresh(
                 state,
-                $"Mock sample complete: {result.detectedSpeciesIds.Count} species detected at {depthBand} depth.");
+                $"Mock sample complete: {result.detectedSpeciesIds.Count} species detected at {depthBand} depth.",
+                InvestigationStatusTone.Success);
         }
 
         private void HandleSubmitConclusion()
@@ -135,7 +142,12 @@ namespace EDNA.Investigation
             string classificationReview = state.MisclassificationCount == 0
                 ? "No incorrect classifications were recorded."
                 : $"Classification review: {state.MisclassificationCount} incorrect option(s) were ruled out during the investigation.";
-            view.Refresh(state, $"{result.Feedback} {classificationReview}");
+            view.Refresh(
+                state,
+                $"{result.Feedback} {classificationReview}",
+                result.Status == ConclusionStatus.Correct
+                    ? InvestigationStatusTone.Success
+                    : InvestigationStatusTone.Warning);
         }
     }
 }

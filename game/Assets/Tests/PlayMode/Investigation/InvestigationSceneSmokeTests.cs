@@ -40,6 +40,91 @@ namespace EDNA.Investigation.Tests
         }
 
         [UnityTest]
+        public IEnumerator ResponsiveGrid_ReducesColumnsWithoutHorizontalOverflow()
+        {
+            GameObject gridObject = new GameObject(
+                "Responsive Grid Test",
+                typeof(RectTransform),
+                typeof(GridLayoutGroup),
+                typeof(LayoutElement),
+                typeof(InvestigationResponsiveGridLayout));
+            RectTransform rect = gridObject.GetComponent<RectTransform>();
+            GridLayoutGroup grid = gridObject.GetComponent<GridLayoutGroup>();
+            LayoutElement layoutElement = gridObject.GetComponent<LayoutElement>();
+            grid.padding = new RectOffset(12, 12, 0, 0);
+            grid.spacing = new Vector2(16f, 10f);
+            grid.cellSize = new Vector2(120f, 50f);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 4;
+            for (int index = 0; index < 4; index++)
+            {
+                new GameObject($"Item {index + 1}", typeof(RectTransform)).transform.SetParent(gridObject.transform, false);
+            }
+
+            InvestigationResponsiveGridLayout responsive = gridObject.GetComponent<InvestigationResponsiveGridLayout>();
+            rect.sizeDelta = new Vector2(500f, 300f);
+            responsive.Configure(120f, 4, true);
+            Assert.That(grid.constraintCount, Is.EqualTo(3));
+            Assert.That(grid.padding.horizontal + grid.constraintCount * grid.cellSize.x + (grid.constraintCount - 1) * grid.spacing.x, Is.LessThanOrEqualTo(rect.rect.width + 0.01f));
+            Assert.That(layoutElement.preferredHeight, Is.EqualTo(110f));
+
+            rect.sizeDelta = new Vector2(300f, 300f);
+            responsive.ApplyNow();
+            Assert.That(grid.constraintCount, Is.EqualTo(2));
+            Assert.That(grid.padding.horizontal + grid.constraintCount * grid.cellSize.x + (grid.constraintCount - 1) * grid.spacing.x, Is.LessThanOrEqualTo(rect.rect.width + 0.01f));
+
+            rect.sizeDelta = new Vector2(100f, 300f);
+            responsive.ApplyNow();
+            Assert.That(grid.constraintCount, Is.EqualTo(1));
+            Assert.That(grid.padding.horizontal + grid.cellSize.x, Is.LessThanOrEqualTo(rect.rect.width + 0.01f));
+            Assert.That(layoutElement.preferredHeight, Is.EqualTo(230f));
+
+            Object.Destroy(gridObject);
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator ResponsiveHeader_CompactsTitleAndKeepsAllMetricsAtNarrowWidths()
+        {
+            GameObject headerObject = new GameObject(
+                "Responsive Header Test",
+                typeof(RectTransform),
+                typeof(InvestigationResponsiveHeaderLayout));
+            RectTransform headerRect = headerObject.GetComponent<RectTransform>();
+            headerRect.sizeDelta = new Vector2(600f, 68f);
+
+            Text title = new GameObject("Title", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text)).GetComponent<Text>();
+            title.transform.SetParent(headerObject.transform, false);
+            RectTransform eyebrow = new GameObject("Eyebrow", typeof(RectTransform)).GetComponent<RectTransform>();
+            eyebrow.SetParent(headerObject.transform, false);
+            RectTransform progress = new GameObject("Progress", typeof(RectTransform)).GetComponent<RectTransform>();
+            progress.SetParent(headerObject.transform, false);
+            for (int index = 0; index < 4; index++)
+            {
+                new GameObject($"Metric {index + 1}", typeof(RectTransform), typeof(LayoutElement))
+                    .transform.SetParent(progress, false);
+            }
+
+            InvestigationResponsiveHeaderLayout responsive = headerObject.GetComponent<InvestigationResponsiveHeaderLayout>();
+            responsive.ConfigureReferences(title, eyebrow, progress);
+            responsive.SetTitle("eDNA DETECTIVES  /  COMPARE DATA");
+
+            Assert.That(responsive.IsCompact, Is.True);
+            Assert.That(title.text, Is.EqualTo("eDNA  /  COMPARE DATA"));
+            LayoutElement[] metrics = progress.GetComponentsInChildren<LayoutElement>();
+            Assert.That(metrics, Has.Length.EqualTo(4));
+            Assert.That(metrics, Has.All.Matches<LayoutElement>(metric => metric.minWidth == 36f));
+
+            headerRect.sizeDelta = new Vector2(960f, 68f);
+            responsive.ApplyNow();
+            Assert.That(responsive.IsCompact, Is.False);
+            Assert.That(title.text, Is.EqualTo("eDNA DETECTIVES  /  COMPARE DATA"));
+
+            Object.Destroy(headerObject);
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator InvestigationScene_BootstrapsCompleteEnglishWorkflow()
         {
             AsyncOperation loadOperation = SceneManager.LoadSceneAsync("InvestigationScene", LoadSceneMode.Single);
@@ -69,8 +154,31 @@ namespace EDNA.Investigation.Tests
             Assert.That(canvas, Is.Not.Null);
             CanvasScaler canvasScaler = canvas.GetComponent<CanvasScaler>();
             Assert.That(canvasScaler, Is.Not.Null);
-            Assert.That(canvasScaler.uiScaleMode, Is.EqualTo(CanvasScaler.ScaleMode.ConstantPixelSize));
-            Assert.That(canvasScaler.scaleFactor, Is.EqualTo(1f));
+            Assert.That(canvasScaler.uiScaleMode, Is.EqualTo(CanvasScaler.ScaleMode.ScaleWithScreenSize));
+            Assert.That(canvasScaler.referenceResolution, Is.EqualTo(new Vector2(960f, 600f)));
+            Assert.That(canvasScaler.screenMatchMode, Is.EqualTo(CanvasScaler.ScreenMatchMode.MatchWidthOrHeight));
+            Assert.That(canvasScaler.matchWidthOrHeight, Is.EqualTo(1f));
+
+            InvestigationProgressView progressView = Object.FindAnyObjectByType<InvestigationProgressView>();
+            InvestigationAdaptiveShellLayout shellLayout = Object.FindAnyObjectByType<InvestigationAdaptiveShellLayout>();
+            InvestigationAccessibilityBridge accessibility = Object.FindAnyObjectByType<InvestigationAccessibilityBridge>();
+            InvestigationResponsiveNavigationLayout navigationLayout = Object.FindAnyObjectByType<InvestigationResponsiveNavigationLayout>();
+            InvestigationResponsiveHeaderLayout headerLayout = Object.FindAnyObjectByType<InvestigationResponsiveHeaderLayout>();
+            Assert.That(progressView, Is.Not.Null);
+            Assert.That(progressView.CurrentSummary, Does.Contain("2 samples available"));
+            Assert.That(shellLayout, Is.Not.Null);
+            Assert.That(shellLayout.IsComparisonMode, Is.False);
+            Assert.That(shellLayout.CurrentActionsHeight, Is.LessThanOrEqualTo(56.1f));
+            Assert.That(shellLayout.CurrentContentHeight, Is.GreaterThan(278f), "Compact pages should keep most vertical space for their content.");
+            Assert.That(accessibility, Is.Not.Null);
+            Assert.That(accessibility.NodeCount, Is.GreaterThanOrEqualTo(10));
+            Assert.That(accessibility.LastPageTitle, Does.EndWith("CASE FILES"));
+            Assert.That(accessibility.LastAnnouncement, Does.Contain("Review the historical records"));
+            Assert.That(navigationLayout, Is.Not.Null);
+            Assert.That(navigationLayout.CurrentMode, Is.EqualTo(InvestigationNavigationLabelMode.Full));
+            Assert.That(headerLayout, Is.Not.Null);
+            Assert.That(headerLayout.IsCompact, Is.False);
+            Assert.That(headerLayout.AccessibleTitle, Does.EndWith("CASE FILES"));
 
             InvestigationStatusBannerView statusBanner = Object.FindAnyObjectByType<InvestigationStatusBannerView>();
             Assert.That(statusBanner, Is.Not.Null);
@@ -104,6 +212,16 @@ namespace EDNA.Investigation.Tests
             Assert.That(caseContent, Is.Not.Null);
             Canvas.ForceUpdateCanvases();
             Assert.That(caseContent.rectTransform.rect.height, Is.GreaterThan(1f), "Case content must have a visible layout height.");
+            InvestigationCaseFilesPanelView caseFilesPanel = Object.FindAnyObjectByType<InvestigationCaseFilesPanelView>();
+            Assert.That(caseFilesPanel, Is.Not.Null);
+            Assert.That(caseFilesPanel.Depth, Is.EqualTo("Depth range: Shallow."));
+            Assert.That(caseFilesPanel.Temperature, Is.EqualTo("Temperature: Cold water below 12°C."));
+            Assert.That(caseFilesPanel.Habitat, Is.EqualTo("Habitat: Rocky reef, Cold sensitive."));
+            Assert.That(caseFilesPanel.Sensitivity, Is.EqualTo("Sensitivity: Rocky reef, Cold sensitive."));
+            Assert.That(caseFilesPanel.Depth, Does.Not.Contain("\n"));
+            InvestigationResponsiveGridLayout traitGrid = caseFilesPanel.GetComponentInChildren<InvestigationResponsiveGridLayout>();
+            Assert.That(traitGrid, Is.Not.Null);
+            Assert.That(traitGrid.CurrentColumns, Is.GreaterThanOrEqualTo(2));
 
             InvestigationButtonView previousSpecies = FindButtonView("<  PREVIOUS SPECIES");
             InvestigationButtonView nextSpecies = FindButtonView("NEXT SPECIES  >");
@@ -113,13 +231,17 @@ namespace EDNA.Investigation.Tests
             Assert.That(startComparison, Is.Not.Null);
             Assert.That(previousSpecies.CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Browse));
             Assert.That(nextSpecies.CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Browse));
-            Assert.That(startComparison.CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Primary));
+            Assert.That(startComparison.CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
             Assert.That(previousSpecies.BackgroundColor, Is.Not.EqualTo(startComparison.BackgroundColor));
             Assert.That(previousSpecies.LabelColor, Is.Not.EqualTo(startComparison.LabelColor));
             Assert.That(previousSpecies.transform.GetSiblingIndex(), Is.EqualTo(0));
             Assert.That(nextSpecies.transform.GetSiblingIndex(), Is.EqualTo(1));
             Assert.That(startComparison.transform.GetSiblingIndex(), Is.EqualTo(3), "Forward-stage actions belong in the rightmost column.");
             Assert.That(startComparison.transform.position.x, Is.GreaterThan(nextSpecies.transform.position.x + nextSpecies.GetComponent<RectTransform>().rect.width));
+            GridLayoutGroup standardActionsGrid = previousSpecies.transform.parent.GetComponent<GridLayoutGroup>();
+            Assert.That(standardActionsGrid, Is.Not.Null);
+            Assert.That(standardActionsGrid.padding.vertical, Is.EqualTo(8));
+            Assert.That(standardActionsGrid.cellSize.y, Is.EqualTo(48f));
 
             FindButton("3  BUILD HYPOTHESIS").onClick.Invoke();
             yield return null;
@@ -161,25 +283,31 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindButton("DIFFERENT DEPTH").transform.parent, Is.EqualTo(classificationParent));
             Assert.That(FindButton("RESULT WARNING").transform.parent, Is.EqualTo(classificationParent));
             Assert.That(FindButton("MATCHES BASELINE").transform.parent, Is.EqualTo(classificationParent));
-            Assert.That(classificationParent.childCount, Is.EqualTo(5), "All five classification choices must occupy one dedicated row.");
-            Assert.That(classificationParent.GetComponent<HorizontalLayoutGroup>(), Is.Not.Null, "The classification row must resize its five choices to the available width.");
-            float classificationWidth = 0f;
-            for (int index = 0; index < classificationParent.childCount; index++)
-            {
-                classificationWidth += classificationParent.GetChild(index).GetComponent<RectTransform>().rect.width;
-            }
-            classificationWidth += 4f * classificationParent.GetComponent<HorizontalLayoutGroup>().spacing;
+            Assert.That(classificationParent.childCount, Is.EqualTo(5), "All five classification choices must share one responsive region.");
+            GridLayoutGroup classificationGrid = classificationParent.GetComponent<GridLayoutGroup>();
+            InvestigationResponsiveGridLayout responsiveClassification = classificationParent.GetComponent<InvestigationResponsiveGridLayout>();
+            Assert.That(classificationGrid, Is.Not.Null);
+            Assert.That(responsiveClassification, Is.Not.Null);
+            Assert.That(responsiveClassification.CurrentColumns, Is.EqualTo(5));
+            float classificationWidth = classificationGrid.padding.horizontal
+                + responsiveClassification.CurrentColumns * classificationGrid.cellSize.x
+                + (responsiveClassification.CurrentColumns - 1) * classificationGrid.spacing.x;
             Assert.That(
                 classificationWidth,
                 Is.LessThanOrEqualTo(classificationParent.GetComponent<RectTransform>().rect.width + 0.5f),
                 "Classification choices must fit the WebGL-width row without clipping.");
+            Assert.That(shellLayout.IsComparisonMode, Is.True);
+            Assert.That(shellLayout.CurrentActionsHeight, Is.InRange(137.9f, 138.1f));
             Assert.That(FindButtonView("BUILD HYPOTHESIS").transform.GetSiblingIndex() % 4, Is.EqualTo(3));
+            Assert.That(FindButtonView("BUILD HYPOTHESIS").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
             Assert.That(statusBanner.CurrentLabel, Is.EqualTo("NEXT STEP"));
             Assert.That(statusBanner.CurrentMessage, Does.Contain("Select a comparison card"));
 
             ScrollRect contentScroll = Object.FindAnyObjectByType<ScrollRect>();
             Assert.That(contentScroll, Is.Not.Null);
             Assert.That(contentScroll.scrollSensitivity, Is.EqualTo(12f));
+            Assert.That(contentScroll.movementType, Is.EqualTo(ScrollRect.MovementType.Clamped));
+            Assert.That(contentScroll.elasticity, Is.Zero);
             Assert.That(contentScroll.verticalScrollbar, Is.Not.Null, "Scrollable comparison content needs a visible affordance.");
 
             SpeciesComparisonCardView coldFishCard = null;
@@ -193,6 +321,9 @@ namespace EDNA.Investigation.Tests
             }
 
             Assert.That(coldFishCard, Is.Not.Null);
+            InvestigationResponsiveComparisonCardLayout cardLayout = coldFishCard.GetComponent<InvestigationResponsiveComparisonCardLayout>();
+            Assert.That(cardLayout, Is.Not.Null);
+            Assert.That(cardLayout.IsCompact, Is.False);
             Assert.That(coldFishCard.IsAwaitingSelection, Is.True);
             Assert.That(coldFishCard.TraitsLabel, Does.Contain("Rocky reef"));
             Assert.That(coldFishCard.TraitsLabel, Does.Contain("Cold sensitive"));
@@ -220,6 +351,9 @@ namespace EDNA.Investigation.Tests
             Button ruledOut = FindButton("RULED OUT: NEW ARRIVAL");
             Assert.That(ruledOut, Is.Not.Null);
             Assert.That(ruledOut.interactable, Is.False);
+            InvestigationButtonView ruledOutView = ruledOut.GetComponent<InvestigationButtonView>();
+            Assert.That(ruledOutView.BackgroundColor, Is.EqualTo(InvestigationTheme.BackgroundDeep));
+            Assert.That(ruledOutView.LabelColor, Is.EqualTo(InvestigationTheme.TextMuted));
             Assert.That(statusBanner.CurrentLabel, Is.EqualTo("TRY AGAIN"));
             Assert.That(statusBanner.CurrentTone, Is.EqualTo(InvestigationStatusTone.Warning));
 
@@ -247,7 +381,8 @@ namespace EDNA.Investigation.Tests
             Assert.That(hypothesisPanel.HypothesisMetadata, Does.Contain("Evidence needed: New arrival, Different depth"));
             Assert.That(hypothesisPanel.HypothesisMetadata, Does.Not.Contain("NewDetection"));
             Assert.That(hypothesisPanel.HypothesisMetadata, Does.Not.Contain("DepthShift"));
-            Assert.That(FindButtonView("COMPARE DATA").transform.GetSiblingIndex(), Is.EqualTo(0), "Back-stage actions belong in the leftmost column.");
+            Assert.That(FindButtonView("<  COMPARE DATA").transform.GetSiblingIndex(), Is.EqualTo(0), "Back-stage actions belong in the leftmost column.");
+            Assert.That(FindButtonView("<  COMPARE DATA").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Browse));
             Assert.That(FindButtonView("ASSIGN SUPPORT").transform.GetSiblingIndex(), Is.EqualTo(1));
             Assert.That(FindButtonView("ASSIGN CHALLENGE").transform.GetSiblingIndex(), Is.EqualTo(2));
             Assert.That(FindButtonView("SELECT THEORY  >").transform.GetSiblingIndex(), Is.EqualTo(3));
@@ -265,7 +400,8 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindStepper("SITE"), Is.Not.Null);
             Assert.That(FindStepper("DEPTH"), Is.Not.Null);
             Assert.That(FindStepper("TEST TARGET"), Is.Not.Null);
-            Assert.That(FindButtonView("COMPARE RESULTS").transform.GetSiblingIndex(), Is.EqualTo(0));
+            Assert.That(FindButtonView("<  COMPARE RESULTS").transform.GetSiblingIndex(), Is.EqualTo(0));
+            Assert.That(FindButtonView("<  COMPARE RESULTS").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Browse));
             Assert.That(FindButtonView("COLLECT SAMPLE  >").transform.GetSiblingIndex(), Is.EqualTo(3));
             Assert.That(FindButtonView("COLLECT SAMPLE  >").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
             Assert.That(FindButtonView("<  PREVIOUS SITE"), Is.Null, "Site browsing belongs inside the content panel.");
@@ -290,7 +426,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindButtonView("BUILD HYPOTHESIS"), Is.Null);
             Assert.That(FindButtonView("COMPARE DATA"), Is.Null);
             Assert.That(FindButtonView("PLAN SAMPLE"), Is.Null);
-            Assert.That(FindButtonView("RESTART CASE").transform.GetSiblingIndex(), Is.EqualTo(2));
+            Assert.That(FindButtonView("RESTART CASE").transform.GetSiblingIndex(), Is.EqualTo(0));
             Assert.That(FindButtonView("RESTART CASE").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Destructive));
             Assert.That(FindButtonView("RESTART CASE").BackgroundColor.a, Is.EqualTo(1f), "Destructive actions need an opaque surface so their outline cannot cover the label.");
             Assert.That(FindButtonView("RESTART CASE").BackgroundColor, Is.Not.EqualTo(FindButtonView("RESTART CASE").LabelColor));
@@ -399,6 +535,8 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindNamedText("Title").text, Does.EndWith("CONCLUSION"));
             Assert.That(FindButton("CONFIRM RESTART"), Is.Not.Null);
             Assert.That(FindButton("CANCEL RESTART"), Is.Not.Null);
+            Assert.That(FindButtonView("CANCEL RESTART").transform.GetSiblingIndex(), Is.EqualTo(0));
+            Assert.That(FindButtonView("CONFIRM RESTART").transform.GetSiblingIndex(), Is.EqualTo(1));
             Assert.That(FindButtonView("CONFIRM RESTART").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Destructive));
             Assert.That(Object.FindAnyObjectByType<InvestigationStatusBannerView>().CurrentTone, Is.EqualTo(InvestigationStatusTone.Warning));
 

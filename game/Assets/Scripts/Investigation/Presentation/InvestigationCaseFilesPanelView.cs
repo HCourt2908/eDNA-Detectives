@@ -19,6 +19,10 @@ namespace EDNA.Investigation
 
         public string CaseTitle => caseTitleText == null ? string.Empty : caseTitleText.text;
         public string SpeciesTitle => speciesTitleText == null ? string.Empty : speciesTitleText.text;
+        public string Depth => depthText == null ? string.Empty : depthText.text;
+        public string Temperature => temperatureText == null ? string.Empty : temperatureText.text;
+        public string Habitat => habitatText == null ? string.Empty : habitatText.text;
+        public string Sensitivity => sensitivityText == null ? string.Empty : sensitivityText.text;
 
         public void ConfigureReferences(
             Text caseTitleReference,
@@ -62,11 +66,20 @@ namespace EDNA.Investigation
             speciesCounterText.text = $"SPECIES RECORD  {speciesNumber:00} / {speciesCount:00}";
             speciesTitleText.text = speciesTitle;
             speciesDescriptionText.text = speciesDescription;
-            depthText.text = $"DEPTH RANGE\n{depths}";
-            temperatureText.text = $"TEMPERATURE\n{temperature}";
-            habitatText.text = $"HABITAT\n{habitat}";
-            sensitivityText.text = $"SENSITIVITY\n{sensitivity}";
+            depthText.text = $"Depth range: {AsSentence(depths)}";
+            temperatureText.text = $"Temperature: {AsSentence(temperature)}";
+            habitatText.text = $"Habitat: {AsSentence(habitat)}";
+            sensitivityText.text = $"Sensitivity: {AsSentence(sensitivity)}";
             missionText.text = mission;
+        }
+
+        private static string AsSentence(string value)
+        {
+            string trimmed = string.IsNullOrWhiteSpace(value) ? "Unknown" : value.Trim();
+            char finalCharacter = trimmed[trimmed.Length - 1];
+            return finalCharacter == '.' || finalCharacter == '!' || finalCharacter == '?'
+                ? trimmed
+                : $"{trimmed}.";
         }
     }
 }

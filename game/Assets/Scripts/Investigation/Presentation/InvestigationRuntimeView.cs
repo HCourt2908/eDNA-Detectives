@@ -40,6 +40,7 @@ namespace EDNA.Investigation
         [Header("Prefab-owned UI references")]
         [SerializeField] private Text titleText;
         [SerializeField] private Text progressText;
+        [SerializeField] private InvestigationProgressView progressView;
         [SerializeField] private Text statusText;
         [SerializeField] private InvestigationStatusBannerView statusBanner;
         [SerializeField] private Text bodyText;
@@ -51,6 +52,8 @@ namespace EDNA.Investigation
         [SerializeField] private Text classificationPromptText;
         [SerializeField] private RectTransform contentViewport;
         [SerializeField] private ScrollRect contentScrollRect;
+        [SerializeField] private InvestigationAdaptiveShellLayout adaptiveShellLayout;
+        [SerializeField] private InvestigationAccessibilityBridge accessibilityBridge;
 
         [Header("Reusable presentation prefabs")]
         [SerializeField] private InvestigationButtonView buttonPrefab;
@@ -71,6 +74,9 @@ namespace EDNA.Investigation
         private Action restartCase;
         private Page currentPage;
         private string statusMessage = string.Empty;
+        private string currentStatusLabel = string.Empty;
+        private string currentStatusAnnouncement = string.Empty;
+        private InvestigationStatusTone statusTone = InvestigationStatusTone.Guide;
         private string selectedComparisonEvidenceId = string.Empty;
         private int speciesIndex;
         private int hypothesisIndex;
@@ -108,7 +114,10 @@ namespace EDNA.Investigation
             SpeciesComparisonCardView cardReference,
             InvestigationCaseFilesPanelView caseFilesReference = null,
             InvestigationSamplePlannerPanelView samplePlannerReference = null,
-            InvestigationStepperView stepperReference = null)
+            InvestigationStepperView stepperReference = null,
+            InvestigationProgressView progressViewReference = null,
+            InvestigationAdaptiveShellLayout shellLayoutReference = null,
+            InvestigationAccessibilityBridge accessibilityReference = null)
         {
             titleText = titleReference;
             progressText = progressReference;
@@ -125,6 +134,9 @@ namespace EDNA.Investigation
             caseFilesPanelPrefab = caseFilesReference;
             samplePlannerPanelPrefab = samplePlannerReference;
             stepperPrefab = stepperReference;
+            progressView = progressViewReference;
+            adaptiveShellLayout = shellLayoutReference;
+            accessibilityBridge = accessibilityReference;
         }
 
         public void Bind(
@@ -148,7 +160,10 @@ namespace EDNA.Investigation
             BuildMotionToggle();
         }
 
-        public void Refresh(InvestigationState investigationState, string message)
+        public void Refresh(
+            InvestigationState investigationState,
+            string message,
+            InvestigationStatusTone tone = InvestigationStatusTone.Guide)
         {
             bool isNewState = !ReferenceEquals(state, investigationState);
             int resultCount = investigationState == null ? 0 : investigationState.AllResults.Count;
@@ -166,7 +181,7 @@ namespace EDNA.Investigation
             }
 
             renderedResultCount = resultCount;
-            statusMessage = message ?? string.Empty;
+            SetStatus(message, tone);
             ClampSelections();
             bool preserveScroll = preserveScrollOnNextRefresh
                 && !isNewState
@@ -189,11 +204,17 @@ namespace EDNA.Investigation
             selectedComparisonEvidenceId = string.Empty;
             preserveScrollOnNextRefresh = false;
             comparisonActionMode = false;
+            statusTone = InvestigationStatusTone.Guide;
         }
 
         public void ShowFatalError(string message)
         {
-            if (titleText != null) titleText.text = "INVESTIGATION UNAVAILABLE";
+            if (titleText != null)
+            {
+                InvestigationResponsiveHeaderLayout headerLayout = titleText.GetComponentInParent<InvestigationResponsiveHeaderLayout>();
+                if (headerLayout != null) headerLayout.SetTitle("INVESTIGATION UNAVAILABLE");
+                else titleText.text = "INVESTIGATION UNAVAILABLE";
+            }
             if (bodyText != null)
             {
                 ShowBodyContent();
@@ -217,20 +238,24 @@ namespace EDNA.Investigation
             navigationButtons.Add(AddButton(navigationRoot, "3  BUILD HYPOTHESIS", () => ChangePage(Page.BuildHypothesis), InvestigationButtonStyle.Navigation));
             navigationButtons.Add(AddButton(navigationRoot, "4  PLAN SAMPLE", () => ChangePage(Page.PlanSample), InvestigationButtonStyle.Navigation));
             navigationButtons.Add(AddButton(navigationRoot, "5  CONCLUSION", () => ChangePage(Page.Conclusion), InvestigationButtonStyle.Navigation));
+            InvestigationResponsiveNavigationLayout responsiveNavigation = navigationRoot.GetComponent<InvestigationResponsiveNavigationLayout>();
+            if (responsiveNavigation != null) responsiveNavigation.ApplyNow();
         }
 
         private void BuildMotionToggle()
         {
-            if (motionToggleButton != null || progressText == null || buttonPrefab == null) return;
-            motionToggleButton = Instantiate(buttonPrefab, progressText.transform.parent);
+            if (motionToggleButton != null || (progressText == null && progressView == null) || buttonPrefab == null) return;
+            Transform header = progressView != null ? progressView.transform.parent : progressText.transform.parent;
+            motionToggleButton = Instantiate(buttonPrefab, header);
             motionToggleButton.name = "Motion Preference";
             RectTransform rect = motionToggleButton.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(1f, 0.5f);
             rect.anchorMax = new Vector2(1f, 0.5f);
             rect.pivot = new Vector2(1f, 0.5f);
-            rect.sizeDelta = new Vector2(152f, 44f);
-            rect.anchoredPosition = new Vector2(-14f, 0f);
+            rect.sizeDelta = new Vector2(136f, 44f);
+            rect.anchoredPosition = new Vector2(-12f, 0f);
             BindMotionToggle();
+            progressView?.GetComponentInParent<InvestigationResponsiveHeaderLayout>()?.ApplyNow();
         }
 
         private void BindMotionToggle()
@@ -240,6 +265,7 @@ namespace EDNA.Investigation
                 InvestigationMotionSettings.ReducedMotion ? "MOTION: REDUCED" : "MOTION: FULL",
                 ToggleReducedMotion,
                 InvestigationButtonStyle.Browse);
+            progressView?.GetComponentInParent<InvestigationResponsiveHeaderLayout>()?.ApplyNow();
         }
 
         private void RenderCurrentPage(bool preserveContentPosition = false)
@@ -249,8 +275,23 @@ namespace EDNA.Investigation
             float previousScrollPosition = preserveContentPosition && contentScrollRect != null
                 ? contentScrollRect.verticalNormalizedPosition
                 : 1f;
-            titleText.text = $"eDNA DETECTIVES  /  {GetPageTitle()}";
-            progressText.text = $"ROUND {state.CurrentRound}    SAMPLES {state.AvailableSampleSlots}\nFOUND {state.IdentifiedEvidenceIds.Count}/{state.UnlockedEvidence.Count}    MISSTEPS {state.MisclassificationCount}";
+            string pageTitle = $"eDNA DETECTIVES  /  {GetPageTitle()}";
+            InvestigationResponsiveHeaderLayout headerLayout = titleText.GetComponentInParent<InvestigationResponsiveHeaderLayout>();
+            if (headerLayout != null) headerLayout.SetTitle(pageTitle);
+            else titleText.text = pageTitle;
+            if (progressView != null)
+            {
+                progressView.SetMetrics(
+                    state.CurrentRound,
+                    state.AvailableSampleSlots,
+                    state.IdentifiedEvidenceIds.Count,
+                    state.UnlockedEvidence.Count,
+                    state.MisclassificationCount);
+            }
+            else if (progressText != null)
+            {
+                progressText.text = $"ROUND {state.CurrentRound}    SAMPLES {state.AvailableSampleSlots}\nFOUND {state.IdentifiedEvidenceIds.Count}/{state.UnlockedEvidence.Count}    MISSTEPS {state.MisclassificationCount}";
+            }
             BindMotionToggle();
             RefreshNavigationState();
             RenderStatus();
@@ -266,12 +307,18 @@ namespace EDNA.Investigation
             }
 
             if (bodyText.gameObject.activeSelf) LayoutRebuilder.ForceRebuildLayoutImmediate(bodyText.rectTransform);
+            adaptiveShellLayout?.ApplyNow();
             if (preserveContentPosition && contentScrollRect != null)
             {
                 Canvas.ForceUpdateCanvases();
                 contentScrollRect.StopMovement();
                 contentScrollRect.verticalNormalizedPosition = previousScrollPosition;
             }
+            accessibilityBridge?.Refresh(
+                headerLayout == null ? titleText.text : headerLayout.AccessibleTitle,
+                progressView == null ? progressText?.text : progressView.CurrentSummary,
+                currentStatusLabel,
+                currentStatusAnnouncement);
             ScheduleFocusRestore(focusSnapshot);
         }
 
@@ -572,15 +619,13 @@ namespace EDNA.Investigation
             if (restartConfirmationPending)
             {
                 AddBrowseButton("CANCEL RESTART", CancelRestartConfirmation);
-                PadActionsToColumn(2);
                 AddDestructiveButton("CONFIRM RESTART", ConfirmRestart);
             }
             else
             {
-                PadActionsToColumn(2);
                 AddDestructiveButton("RESTART CASE", RequestRestartConfirmation);
             }
-            AddCommitButton("SUBMIT CONCLUSION  >", () => submitConclusion?.Invoke(), readiness.CanSubmit);
+            AddStageCommitButton("SUBMIT CONCLUSION  >", () => submitConclusion?.Invoke(), readiness.CanSubmit);
         }
 
         private List<string> BuildComparisonSpeciesIds(EDNAResultData result, string sourceId)
@@ -784,6 +829,7 @@ namespace EDNA.Investigation
             }
 
             comparisonActionMode = true;
+            adaptiveShellLayout?.SetComparisonMode(true);
             actionSlotCount = 0;
             if (actionRoot != null) actionRoot.gameObject.SetActive(false);
             compareNavigationRoot.gameObject.SetActive(true);
@@ -828,13 +874,13 @@ namespace EDNA.Investigation
         private void AddStageBackButton(string label, Action action, bool isInteractable = true)
         {
             PadActionsToColumn(0);
-            AddActionSlotButton(label, action, InvestigationButtonStyle.Primary, isInteractable);
+            AddActionSlotButton($"<  {label}", action, InvestigationButtonStyle.Browse, isInteractable);
         }
 
         private void AddStageForwardButton(string label, Action action, bool isInteractable = true)
         {
             PadActionsToColumn(GetActionColumnCount() - 1);
-            AddActionSlotButton(label, action, InvestigationButtonStyle.Primary, isInteractable);
+            AddActionSlotButton(label, action, InvestigationButtonStyle.Commit, isInteractable);
         }
 
         private void AddActionSlotButton(
@@ -898,7 +944,7 @@ namespace EDNA.Investigation
         {
             currentPage = page;
             restartConfirmationPending = false;
-            statusMessage = string.Empty;
+            SetStatus(string.Empty);
             RenderCurrentPage();
         }
 
@@ -959,14 +1005,14 @@ namespace EDNA.Investigation
         {
             resultIndex = Wrap(resultIndex + delta, state.AllResults.Count);
             selectedComparisonEvidenceId = string.Empty;
-            statusMessage = string.Empty;
+            SetStatus(string.Empty);
             RenderCurrentPage();
         }
 
         private void SelectComparisonEvidence(string evidenceId)
         {
             selectedComparisonEvidenceId = evidenceId;
-            statusMessage = "Comparison selected. Choose the classification that best describes the change.";
+            SetStatus("Comparison selected. Choose the classification that best describes the change.");
             RenderCurrentPage(true);
         }
 
@@ -974,23 +1020,26 @@ namespace EDNA.Investigation
         {
             bool reducedMotion = !InvestigationMotionSettings.ReducedMotion;
             InvestigationMotionSettings.SetReducedMotion(reducedMotion);
-            statusMessage = reducedMotion
+            SetStatus(reducedMotion
                 ? "Reduced motion enabled. Pulsing and banner fades are now paused."
-                : "Full motion enabled. Subtle guidance animation is active.";
+                : "Full motion enabled. Subtle guidance animation is active.",
+                InvestigationStatusTone.Success);
             RenderCurrentPage(currentPage == Page.CompareData);
         }
 
         private void RequestRestartConfirmation()
         {
             restartConfirmationPending = true;
-            statusMessage = "Restarting will discard all findings, samples, and conclusion progress. Confirm only if you want to begin again.";
+            SetStatus(
+                "Restarting will discard all findings, samples, and conclusion progress. Confirm only if you want to begin again.",
+                InvestigationStatusTone.Warning);
             RenderCurrentPage();
         }
 
         private void CancelRestartConfirmation()
         {
             restartConfirmationPending = false;
-            statusMessage = "Restart cancelled. Your investigation progress is unchanged.";
+            SetStatus("Restart cancelled. Your investigation progress is unchanged.");
             RenderCurrentPage();
         }
 
@@ -1004,7 +1053,9 @@ namespace EDNA.Investigation
         {
             if (string.IsNullOrEmpty(selectedComparisonEvidenceId))
             {
-                statusMessage = "Select a species or warning card before classifying it.";
+                SetStatus(
+                    "Select a species or warning card before classifying it.",
+                    InvestigationStatusTone.Warning);
                 RenderCurrentPage(true);
                 return;
             }
@@ -1019,7 +1070,9 @@ namespace EDNA.Investigation
             EvidenceRecord evidence = GetSelectedEvidence();
             if (hypothesis == null || evidence == null)
             {
-                statusMessage = "Choose a hypothesis and identify a finding first.";
+                SetStatus(
+                    "Choose a hypothesis and identify a finding first.",
+                    InvestigationStatusTone.Warning);
                 RenderCurrentPage();
                 return;
             }
@@ -1031,7 +1084,7 @@ namespace EDNA.Investigation
             HypothesisDefinition hypothesis = GetSelectedHypothesis();
             if (hypothesis == null) return;
             currentPage = Page.PlanSample;
-            statusMessage = string.Empty;
+            SetStatus(string.Empty);
             if (selectHypothesis != null)
             {
                 selectHypothesis.Invoke(hypothesis.HypothesisId);
@@ -1046,12 +1099,17 @@ namespace EDNA.Investigation
         {
             if (state.AvailableSampleSlots <= 0)
             {
-                statusMessage = "No follow-up sample slots remain.";
+                SetStatus("No follow-up sample slots remain.", InvestigationStatusTone.Warning);
                 RenderCurrentPage();
                 return;
             }
             SampleSiteDefinition site = GetSelectedSite();
-            if (site == null) { statusMessage = "Choose a valid sample site."; RenderCurrentPage(); return; }
+            if (site == null)
+            {
+                SetStatus("Choose a valid sample site.", InvestigationStatusTone.Warning);
+                RenderCurrentPage();
+                return;
+            }
             HypothesisDefinition hypothesis = GetSelectedHypothesis();
             EvidenceRecord evidence = GetSelectedEvidence();
             requestSample?.Invoke(site.SiteId, GetSelectedDepth(), hypothesis?.HypothesisId ?? string.Empty, evidence?.EvidenceId ?? string.Empty);
@@ -1226,6 +1284,7 @@ namespace EDNA.Investigation
         {
             actionSlotCount = 0;
             comparisonActionMode = false;
+            adaptiveShellLayout?.SetComparisonMode(false);
             ClearActionRoot(actionRoot);
             ClearActionRoot(compareNavigationRoot);
             ClearActionRoot(classificationRoot);
@@ -1243,19 +1302,6 @@ namespace EDNA.Investigation
                 child.SetActive(false);
                 UnityEngine.Object.Destroy(child);
             }
-        }
-
-        private static bool IsWarningMessage(string message)
-        {
-            if (string.IsNullOrEmpty(message)) return false;
-            if (message.IndexOf("No incorrect classifications", StringComparison.OrdinalIgnoreCase) >= 0) return false;
-            return message.IndexOf("missing", StringComparison.OrdinalIgnoreCase) >= 0
-                || message.IndexOf("invalid", StringComparison.OrdinalIgnoreCase) >= 0
-                || message.IndexOf("does not", StringComparison.OrdinalIgnoreCase) >= 0
-                || message.IndexOf("incorrect", StringComparison.OrdinalIgnoreCase) >= 0
-                || message.IndexOf("ruled out", StringComparison.OrdinalIgnoreCase) >= 0
-                || message.IndexOf("discard", StringComparison.OrdinalIgnoreCase) >= 0
-                || message.IndexOf("before", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private FocusSnapshot CaptureFocus()
@@ -1403,10 +1449,12 @@ namespace EDNA.Investigation
             focusRestoreCoroutine = null;
         }
 
-        private static bool IsIdentifiedMessage(string message)
+        private void SetStatus(
+            string message,
+            InvestigationStatusTone tone = InvestigationStatusTone.Guide)
         {
-            return !string.IsNullOrEmpty(message)
-                && message.StartsWith("Finding identified:", StringComparison.OrdinalIgnoreCase);
+            statusMessage = message ?? string.Empty;
+            statusTone = tone;
         }
 
         private void RenderStatus()
@@ -1414,21 +1462,23 @@ namespace EDNA.Investigation
             string message = string.IsNullOrWhiteSpace(statusMessage)
                 ? GetDefaultStatusMessage()
                 : statusMessage;
-            InvestigationStatusTone tone = IsIdentifiedMessage(message)
-                ? InvestigationStatusTone.Success
-                : IsWarningMessage(message)
-                    ? InvestigationStatusTone.Warning
-                    : InvestigationStatusTone.Guide;
+            InvestigationStatusTone tone = string.IsNullOrWhiteSpace(statusMessage)
+                ? InvestigationStatusTone.Guide
+                : statusTone;
             string label = tone == InvestigationStatusTone.Warning
                 ? "TRY AGAIN"
                 : tone == InvestigationStatusTone.Success
-                    ? "FINDING IDENTIFIED"
+                    ? message.StartsWith("Finding identified:", StringComparison.OrdinalIgnoreCase)
+                        ? "FINDING IDENTIFIED"
+                        : "UPDATE SAVED"
                     : "NEXT STEP";
             ShowStatus(label, message, tone);
         }
 
         private void ShowStatus(string label, string message, InvestigationStatusTone tone)
         {
+            currentStatusLabel = label ?? string.Empty;
+            currentStatusAnnouncement = message ?? string.Empty;
             if (statusBanner != null)
             {
                 statusBanner.Show(label, message, tone);
@@ -1451,7 +1501,9 @@ namespace EDNA.Investigation
                 case Page.CompareData:
                     return "Select a comparison card, then classify the change with the buttons below.";
                 case Page.BuildHypothesis:
-                    return "Use the in-panel selectors, assign the finding, then select a theory to continue.";
+                    return state != null && state.GetIdentifiedEvidence().Count == 0
+                        ? "Identify a finding in Compare Data first; it will become available here for hypothesis testing."
+                        : "Use the in-panel selectors, assign the finding, then select a theory to continue.";
                 case Page.PlanSample:
                     return "Choose a site, depth, and test target with the in-panel selectors.";
                 case Page.Conclusion:

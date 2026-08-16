@@ -558,9 +558,10 @@ namespace EDNA.Investigation.Editor
             Canvas canvas = root.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             CanvasScaler scaler = root.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
-            scaler.scaleFactor = 1f;
-            scaler.referencePixelsPerUnit = 100f;
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(960f, 600f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 1f;
 
             RectTransform background = CreatePanel("Ocean Background", root.transform, new Color32(10, 32, 48, 255));
             Stretch(background, 0f, 0f, 0f, 0f);
@@ -590,6 +591,8 @@ namespace EDNA.Investigation.Editor
             Anchor(contentPanel, 0f, 0f, 1f, 1f, 16f, 164f, -16f, -226f);
             ScrollRect scroll = contentPanel.gameObject.AddComponent<ScrollRect>();
             scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.elasticity = 0f;
             scroll.scrollSensitivity = 12f;
             RectTransform viewport = CreatePanel("Viewport", contentPanel, new Color(0f, 0f, 0f, 0f));
             Stretch(viewport, 18f, 18f, -18f, -18f);

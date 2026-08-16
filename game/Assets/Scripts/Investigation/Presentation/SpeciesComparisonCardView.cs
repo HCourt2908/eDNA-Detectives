@@ -44,9 +44,11 @@ namespace EDNA.Investigation
         private bool selected;
         private bool identified;
         private bool hasFocus;
+        private string accessibleLabel = string.Empty;
 
         public bool IsAwaitingSelection => pendingAttention;
         public bool IsSelected => selected;
+        public string AccessibleLabel => accessibleLabel;
         public Color ActionBackgroundColor => actionBackground == null ? Color.clear : actionBackground.color;
         public string TraitsLabel => traitsText == null ? string.Empty : traitsText.text;
 
@@ -104,6 +106,7 @@ namespace EDNA.Investigation
             currentText.text = current;
             traitsText.text = traits;
             findingStateText.text = findingState;
+            accessibleLabel = $"{displayName}. {historical}. {current}. {traits}. {findingState}";
 
             selected = isSelected;
             identified = isIdentified;
