@@ -25,6 +25,9 @@ namespace EDNA.Investigation
         [SerializeField] private Outline outline;
         [SerializeField] private Image activeIndicator;
         [SerializeField] private InvestigationGlyphGraphic glyphGraphic;
+        [SerializeField] private Image navigationBadgeBackground;
+        [SerializeField] private Text navigationBadgeText;
+        [SerializeField] private InvestigationGlyphGraphic navigationCheckGraphic;
 
         [Header("Primary action")]
         [SerializeField] private Color primaryBackground = new Color32(18, 72, 83, 255);
@@ -70,7 +73,10 @@ namespace EDNA.Investigation
             Text labelReference,
             Outline outlineReference = null,
             Image activeIndicatorReference = null,
-            InvestigationGlyphGraphic glyphReference = null)
+            InvestigationGlyphGraphic glyphReference = null,
+            Image navigationBadgeBackgroundReference = null,
+            Text navigationBadgeTextReference = null,
+            InvestigationGlyphGraphic navigationCheckReference = null)
         {
             button = buttonReference;
             background = backgroundReference;
@@ -78,6 +84,9 @@ namespace EDNA.Investigation
             outline = outlineReference;
             activeIndicator = activeIndicatorReference;
             glyphGraphic = glyphReference;
+            navigationBadgeBackground = navigationBadgeBackgroundReference;
+            navigationBadgeText = navigationBadgeTextReference;
+            navigationCheckGraphic = navigationCheckReference;
         }
 
         public void Bind(
@@ -109,6 +118,7 @@ namespace EDNA.Investigation
             }
 
             if (activeIndicator != null) activeIndicator.gameObject.SetActive(false);
+            SetNavigationBadgeVisible(style == InvestigationButtonStyle.Navigation);
 
             if (button == null)
             {
@@ -134,7 +144,7 @@ namespace EDNA.Investigation
             ConfigureLabelLayout(CurrentStyle, minimalNavigationLabel);
         }
 
-        public void SetNavigationState(bool isCurrent, bool isCompleted, InvestigationGlyph glyph)
+        public void SetNavigationState(int stepNumber, bool isCurrent, bool isCompleted)
         {
             if (CurrentStyle != InvestigationButtonStyle.Navigation) return;
             IsCurrentNavigation = isCurrent;
@@ -144,29 +154,47 @@ namespace EDNA.Investigation
             {
                 background.color = isCurrent
                     ? InvestigationTheme.SurfaceSelected
-                    : isCompleted
-                        ? InvestigationTheme.SurfaceRaised
-                        : navigationBackground;
+                    : InvestigationTheme.BackgroundDeep;
             }
 
             if (labelText != null)
             {
                 labelText.color = isCurrent
-                    ? InvestigationTheme.Sand
+                    ? InvestigationTheme.TextPrimary
                     : isCompleted
-                        ? InvestigationTheme.TextPrimary
-                        : navigationText;
+                        ? InvestigationTheme.TextSecondary
+                        : InvestigationTheme.TextMuted;
             }
 
             if (glyphGraphic != null)
             {
-                glyphGraphic.gameObject.SetActive(glyph != InvestigationGlyph.None);
-                glyphGraphic.color = isCurrent
+                glyphGraphic.gameObject.SetActive(false);
+            }
+
+            if (navigationBadgeBackground != null)
+            {
+                navigationBadgeBackground.gameObject.SetActive(true);
+                navigationBadgeBackground.color = isCurrent
                     ? InvestigationTheme.Primary
                     : isCompleted
-                        ? InvestigationTheme.Success
-                        : InvestigationTheme.TextMuted;
-                glyphGraphic.SetGlyph(glyph);
+                        ? InvestigationTheme.SurfaceSuccess
+                        : InvestigationTheme.SurfaceInteractive;
+            }
+
+            if (navigationBadgeText != null)
+            {
+                navigationBadgeText.gameObject.SetActive(!isCompleted);
+                navigationBadgeText.text = Mathf.Max(1, stepNumber).ToString("00");
+                navigationBadgeText.color = isCurrent
+                    ? InvestigationTheme.BackgroundDeep
+                    : InvestigationTheme.TextSecondary;
+            }
+
+            if (navigationCheckGraphic != null)
+            {
+                navigationCheckGraphic.gameObject.SetActive(isCompleted);
+                navigationCheckGraphic.color = InvestigationTheme.Success;
+                navigationCheckGraphic.SetGlyph(InvestigationGlyph.Check);
             }
 
             if (activeIndicator != null)
@@ -199,7 +227,7 @@ namespace EDNA.Investigation
             {
                 labelText.fontSize = 13;
                 labelText.alignment = minimalNavigationLabel ? TextAnchor.MiddleCenter : TextAnchor.MiddleLeft;
-                rect.offsetMin = minimalNavigationLabel ? new Vector2(34f, 4f) : new Vector2(40f, 4f);
+                rect.offsetMin = minimalNavigationLabel ? new Vector2(34f, 4f) : new Vector2(44f, 4f);
                 rect.offsetMax = minimalNavigationLabel ? new Vector2(-4f, -4f) : new Vector2(-6f, -4f);
             }
             else
@@ -208,6 +236,33 @@ namespace EDNA.Investigation
                 labelText.alignment = TextAnchor.MiddleCenter;
                 rect.offsetMin = new Vector2(10f, 4f);
                 rect.offsetMax = new Vector2(-10f, -4f);
+            }
+
+            LayoutElement layout = GetComponent<LayoutElement>();
+            if (layout == null) return;
+            switch (style)
+            {
+                case InvestigationButtonStyle.Browse:
+                    bool compactArrow = labelText.text == "‹" || labelText.text == "›";
+                    layout.minWidth = compactArrow ? 44f : 92f;
+                    layout.preferredWidth = compactArrow ? 44f : 132f;
+                    layout.flexibleWidth = 0f;
+                    break;
+                case InvestigationButtonStyle.Navigation:
+                    layout.minWidth = minimalNavigationLabel ? 48f : 118f;
+                    layout.preferredWidth = minimalNavigationLabel ? 56f : 176f;
+                    layout.flexibleWidth = 1f;
+                    break;
+                case InvestigationButtonStyle.Commit:
+                    layout.minWidth = 146f;
+                    layout.preferredWidth = 220f;
+                    layout.flexibleWidth = 0f;
+                    break;
+                default:
+                    layout.minWidth = 116f;
+                    layout.preferredWidth = 168f;
+                    layout.flexibleWidth = 0f;
+                    break;
             }
         }
 
@@ -238,7 +293,7 @@ namespace EDNA.Investigation
         {
             if (outline == null) return;
             bool destructive = CurrentStyle == InvestigationButtonStyle.Destructive;
-            outline.enabled = destructive || hasFocus || IsCurrentNavigation;
+            outline.enabled = destructive || hasFocus;
             outline.effectColor = destructive
                 ? destructiveOutline
                 : hasFocus
@@ -246,6 +301,13 @@ namespace EDNA.Investigation
                     : InvestigationTheme.Primary;
             outline.effectDistance = hasFocus ? new Vector2(2f, -2f) : new Vector2(1f, -1f);
             outline.useGraphicAlpha = false;
+        }
+
+        private void SetNavigationBadgeVisible(bool visible)
+        {
+            if (navigationBadgeBackground != null) navigationBadgeBackground.gameObject.SetActive(visible);
+            if (navigationBadgeText != null) navigationBadgeText.gameObject.SetActive(visible);
+            if (navigationCheckGraphic != null) navigationCheckGraphic.gameObject.SetActive(false);
         }
 
         private Color GetBackgroundColor(InvestigationButtonStyle style)

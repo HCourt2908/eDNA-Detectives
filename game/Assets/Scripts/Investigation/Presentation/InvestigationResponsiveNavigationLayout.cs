@@ -15,20 +15,20 @@ namespace EDNA.Investigation
     {
         private static readonly string[] FullLabels =
         {
-            "1  CASE FILES",
-            "2  COMPARE DATA",
-            "3  BUILD HYPOTHESIS",
-            "4  PLAN SAMPLE",
-            "5  CONCLUSION"
+            "CASE FILES",
+            "COMPARE DATA",
+            "BUILD HYPOTHESIS",
+            "PLAN SAMPLE",
+            "CONCLUSION"
         };
 
         private static readonly string[] CompactLabels =
         {
-            "1  CASE",
-            "2  COMPARE",
-            "3  THEORY",
-            "4  SAMPLE",
-            "5  RESULT"
+            "CASE",
+            "COMPARE",
+            "THEORY",
+            "SAMPLE",
+            "RESULT"
         };
 
         [SerializeField, Min(320f)] private float compactBreakpoint = 760f;
@@ -53,7 +53,7 @@ namespace EDNA.Investigation
                 if (navigationIndex >= FullLabels.Length) break;
 
                 string visibleLabel = CurrentMode == InvestigationNavigationLabelMode.Minimal
-                    ? (navigationIndex + 1).ToString()
+                    ? string.Empty
                     : CurrentMode == InvestigationNavigationLabelMode.Compact
                         ? CompactLabels[navigationIndex]
                         : FullLabels[navigationIndex];

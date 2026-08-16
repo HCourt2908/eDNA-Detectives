@@ -226,6 +226,11 @@ namespace EDNA.Investigation.Tests
             Assert.That(caseFilesPanel.Habitat, Is.EqualTo("HABITAT: rocky reef, cold sensitive."));
             Assert.That(caseFilesPanel.Sensitivity, Is.EqualTo("SENSITIVITY: rocky reef, cold sensitive."));
             Assert.That(caseFilesPanel.Depth, Does.Not.Contain("\n"));
+            Assert.That(FindNamedText("Case Title").font.name, Does.StartWith("FiraSans"));
+            Assert.That(FindNamedText("Species Counter").font.name, Does.StartWith("FiraMono"));
+            InvestigationGlyphGraphic speciesGraphic = caseFilesPanel.GetComponentInChildren<InvestigationGlyphGraphic>();
+            Assert.That(speciesGraphic, Is.Not.Null);
+            Assert.That(speciesGraphic.Glyph, Is.EqualTo(InvestigationGlyph.ColdFish));
             InvestigationResponsiveGridLayout traitGrid = caseFilesPanel.GetComponentInChildren<InvestigationResponsiveGridLayout>();
             Assert.That(traitGrid, Is.Not.Null);
             Assert.That(traitGrid.CurrentColumns, Is.GreaterThanOrEqualTo(2));
@@ -241,14 +246,17 @@ namespace EDNA.Investigation.Tests
             Assert.That(startComparison.CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
             Assert.That(previousSpecies.BackgroundColor, Is.Not.EqualTo(startComparison.BackgroundColor));
             Assert.That(previousSpecies.LabelColor, Is.Not.EqualTo(startComparison.LabelColor));
+            Assert.That(previousSpecies.DisplayLabel, Is.EqualTo("‹"));
+            Assert.That(nextSpecies.DisplayLabel, Is.EqualTo("›"));
             Assert.That(previousSpecies.transform.GetSiblingIndex(), Is.EqualTo(0));
-            Assert.That(nextSpecies.transform.GetSiblingIndex(), Is.EqualTo(1));
-            Assert.That(startComparison.transform.GetSiblingIndex(), Is.EqualTo(3), "Forward-stage actions belong in the rightmost column.");
+            Assert.That(nextSpecies.transform.GetSiblingIndex(), Is.EqualTo(2));
+            Assert.That(startComparison.transform.GetSiblingIndex(), Is.EqualTo(4), "Forward-stage actions belong on the right side of the compact action bar.");
             Assert.That(startComparison.transform.position.x, Is.GreaterThan(nextSpecies.transform.position.x + nextSpecies.GetComponent<RectTransform>().rect.width));
-            GridLayoutGroup standardActionsGrid = previousSpecies.transform.parent.GetComponent<GridLayoutGroup>();
-            Assert.That(standardActionsGrid, Is.Not.Null);
-            Assert.That(standardActionsGrid.padding.vertical, Is.EqualTo(4));
-            Assert.That(standardActionsGrid.cellSize.y, Is.EqualTo(44f));
+            HorizontalLayoutGroup standardActionsLayout = previousSpecies.transform.parent.GetComponent<HorizontalLayoutGroup>();
+            Assert.That(standardActionsLayout, Is.Not.Null);
+            Assert.That(standardActionsLayout.padding.vertical, Is.EqualTo(4));
+            Assert.That(previousSpecies.transform.parent.Find("Action Counter"), Is.Not.Null);
+            Assert.That(previousSpecies.transform.parent.Find("Flexible Action Spacer"), Is.Not.Null);
 
             ScrollRect caseContentScroll = caseFilesPanel.GetComponentInParent<ScrollRect>();
             Assert.That(caseContentScroll, Is.Not.Null);
@@ -258,6 +266,8 @@ namespace EDNA.Investigation.Tests
             FindButton("NEXT SPECIES  >").onClick.Invoke();
             yield return null;
             Canvas.ForceUpdateCanvases();
+            InvestigationCaseFilesPanelView nextSpeciesPanel = Object.FindAnyObjectByType<InvestigationCaseFilesPanelView>();
+            Assert.That(nextSpeciesPanel.GetComponentInChildren<InvestigationGlyphGraphic>().Glyph, Is.EqualTo(InvestigationGlyph.PredatorFish));
             Assert.That(
                 caseContentScroll.verticalNormalizedPosition,
                 Is.EqualTo(speciesScrollPosition).Within(0.02f),
@@ -406,7 +416,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindButtonView("<  COMPARE DATA").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Browse));
             Assert.That(FindButtonView("ASSIGN SUPPORT").transform.GetSiblingIndex(), Is.EqualTo(1));
             Assert.That(FindButtonView("ASSIGN CHALLENGE").transform.GetSiblingIndex(), Is.EqualTo(2));
-            Assert.That(FindButtonView("SELECT THEORY  >").transform.GetSiblingIndex(), Is.EqualTo(3));
+            Assert.That(FindButtonView("SELECT THEORY  >").transform.GetSiblingIndex(), Is.EqualTo(4));
             Assert.That(FindButtonView("SELECT THEORY  >").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
 
             FindButton("ASSIGN CHALLENGE").onClick.Invoke();
@@ -423,7 +433,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindStepper("TEST TARGET"), Is.Not.Null);
             Assert.That(FindButtonView("<  COMPARE RESULTS").transform.GetSiblingIndex(), Is.EqualTo(0));
             Assert.That(FindButtonView("<  COMPARE RESULTS").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Browse));
-            Assert.That(FindButtonView("COLLECT SAMPLE  >").transform.GetSiblingIndex(), Is.EqualTo(3));
+            Assert.That(FindButtonView("COLLECT SAMPLE  >").transform.GetSiblingIndex(), Is.EqualTo(2));
             Assert.That(FindButtonView("COLLECT SAMPLE  >").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
             Assert.That(FindButtonView("<  PREVIOUS SITE"), Is.Null, "Site browsing belongs inside the content panel.");
 
@@ -451,7 +461,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindButtonView("RESTART CASE").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Destructive));
             Assert.That(FindButtonView("RESTART CASE").BackgroundColor.a, Is.EqualTo(1f), "Destructive actions need an opaque surface so their outline cannot cover the label.");
             Assert.That(FindButtonView("RESTART CASE").BackgroundColor, Is.Not.EqualTo(FindButtonView("RESTART CASE").LabelColor));
-            Assert.That(FindButtonView("SUBMIT CONCLUSION  >").transform.GetSiblingIndex(), Is.EqualTo(3));
+            Assert.That(FindButtonView("SUBMIT CONCLUSION  >").transform.GetSiblingIndex(), Is.EqualTo(2));
             Assert.That(FindButtonView("SUBMIT CONCLUSION  >").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
             Assert.That(FindButton("SUBMIT CONCLUSION  >").interactable, Is.False, "Submission stays disabled until every checklist gate passes.");
 
@@ -621,6 +631,11 @@ namespace EDNA.Investigation.Tests
             Button[] buttons = Object.FindObjectsByType<Button>();
             for (int index = 0; index < buttons.Length; index++)
             {
+                InvestigationButtonView investigationButton = buttons[index].GetComponent<InvestigationButtonView>();
+                if (investigationButton != null && investigationButton.Label == label)
+                {
+                    return buttons[index];
+                }
                 Text text = buttons[index].GetComponentInChildren<Text>();
                 if (text != null && text.text == label)
                 {

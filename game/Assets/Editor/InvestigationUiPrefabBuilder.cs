@@ -33,6 +33,7 @@ public static class InvestigationUiPrefabBuilder
         UpdateRuntimePrefab();
         UpdateComparisonBoardPrefab();
         UpdateComparisonCardPrefab();
+        ApplyTypographyToUiPrefabs();
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log("Investigation UI prefabs rebuilt.");
@@ -55,6 +56,7 @@ public static class InvestigationUiPrefabBuilder
         rootRect.pivot = new Vector2(0.5f, 1f);
         root.GetComponent<Image>().color = InvestigationTheme.WithAlpha(InvestigationTheme.Surface, 0.94f);
         ConfigureOutline(root.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
+        root.GetComponent<Outline>().enabled = false;
 
         VerticalLayoutGroup layout = root.GetComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(20, 20, 18, 20);
@@ -73,7 +75,7 @@ public static class InvestigationUiPrefabBuilder
         VerticalLayoutGroup caseCardLayout = caseCard.GetComponent<VerticalLayoutGroup>();
         caseCardLayout.padding = new RectOffset(16, 16, 10, 10);
         caseCardLayout.spacing = 4f;
-        CreateText(caseCard.transform, "Case Eyebrow", "ACTIVE CASE // OCEAN CHANGE INVESTIGATION", 12, FontStyle.Bold, Cyan, 18f);
+        CreateText(caseCard.transform, "Case Eyebrow", "ACTIVE CASE // OCEAN CHANGE INVESTIGATION", 12, FontStyle.Bold, Metadata, 18f);
         Text caseTitle = CreateText(caseCard.transform, "Case Title", "Case title", 24, FontStyle.Bold, Sand, 30f);
         Text briefing = CreateText(caseCard.transform, "Case Briefing", "Case briefing", 16, FontStyle.Normal, Muted, 48f);
         briefing.lineSpacing = 1.18f;
@@ -83,7 +85,7 @@ public static class InvestigationUiPrefabBuilder
         LayoutElement speciesCardLayout = speciesCard.GetComponent<LayoutElement>();
         speciesCardLayout.minHeight = -1f;
         speciesCardLayout.preferredHeight = -1f;
-        Text speciesCounter = CreateText(speciesCard.transform, "Species Counter", "SPECIES RECORD  01 / 03", 12, FontStyle.Bold, Cyan, 22f);
+        Text speciesCounter = CreateText(speciesCard.transform, "Species Counter", "SPECIES RECORD  01 / 03", 12, FontStyle.Bold, Metadata, 22f);
         GameObject speciesOverview = CreateLayoutObject(speciesCard.transform, "Species Overview", 122f);
         HorizontalLayoutGroup overviewLayout = speciesOverview.AddComponent<HorizontalLayoutGroup>();
         overviewLayout.spacing = 16f;
@@ -93,11 +95,10 @@ public static class InvestigationUiPrefabBuilder
         overviewLayout.childForceExpandWidth = false;
         overviewLayout.childForceExpandHeight = true;
 
-        GameObject glyphPanel = CreateSurfaceObject(speciesOverview.transform, "Species DNA Marker", InvestigationTheme.BackgroundDeep);
-        SetLayoutWidth(glyphPanel.GetComponent<LayoutElement>(), 132f, 0f);
-        InvestigationGlyphGraphic glyph = CreateGlyph(glyphPanel.transform, "DNA Glyph", InvestigationGlyph.Dna, Sand);
-        Stretch(glyph.rectTransform, 25f, 25f, 25f, 25f);
-        ConfigureOutline(glyphPanel.GetComponent<Outline>(), InvestigationTheme.Border, 1f);
+        GameObject glyphPanel = CreateSurfaceObject(speciesOverview.transform, "Species Illustration", InvestigationTheme.SurfaceRaised);
+        SetLayoutWidth(glyphPanel.GetComponent<LayoutElement>(), 112f, 0f);
+        InvestigationGlyphGraphic glyph = CreateGlyph(glyphPanel.transform, "Species Line Art", InvestigationGlyph.Fish, InvestigationTheme.PrimarySoft);
+        Stretch(glyph.rectTransform, 14f, 14f, 18f, 18f);
 
         GameObject speciesCopy = CreateCardContainer(speciesOverview.transform, "Species Copy", 122f, 1f);
         speciesCopy.GetComponent<Image>().color = Color.clear;
@@ -122,7 +123,7 @@ public static class InvestigationUiPrefabBuilder
 
         GameObject missionCard = CreateCardContainer(root.transform, "Mission Card", 94f, 1f);
         missionCard.GetComponent<Image>().color = InvestigationTheme.WithAlpha(InvestigationTheme.SurfaceSelected, 0.88f);
-        CreateText(missionCard.transform, "Mission Eyebrow", "MISSION // INVESTIGATION PROTOCOL", 12, FontStyle.Bold, Cyan, 22f);
+        CreateText(missionCard.transform, "Mission Eyebrow", "MISSION // INVESTIGATION PROTOCOL", 12, FontStyle.Bold, Metadata, 22f);
         Text mission = CreateText(missionCard.transform, "Mission Text", "Mission", 15, FontStyle.Normal, InvestigationTheme.TextPrimary, 48f);
         mission.lineSpacing = 1.12f;
         AddAccentRail(missionCard.transform, InvestigationTheme.Warning);
@@ -130,6 +131,7 @@ public static class InvestigationUiPrefabBuilder
         root.GetComponent<InvestigationCaseFilesPanelView>().ConfigureReferences(
             caseTitle,
             briefing,
+            glyph,
             speciesCounter,
             speciesTitle,
             speciesDescription,
@@ -183,7 +185,7 @@ public static class InvestigationUiPrefabBuilder
         headerLayout.childControlHeight = true;
         headerLayout.childForceExpandWidth = false;
         headerLayout.childForceExpandHeight = true;
-        Text heading = CreateText(headerRow.transform, "Working Hypothesis Heading", "REASONING WORKSPACE // BUILD A TESTABLE EXPLANATION", 13, FontStyle.Bold, Cyan, 38f);
+        Text heading = CreateText(headerRow.transform, "Working Hypothesis Heading", "REASONING WORKSPACE // BUILD A TESTABLE EXPLANATION", 13, FontStyle.Bold, Metadata, 38f);
         SetLayoutWidth(heading.GetComponent<LayoutElement>(), 640f, 1f);
         Text selectedIndicator = CreateText(headerRow.transform, "Selected Indicator", "SELECTED FOR CONCLUSION", 12, FontStyle.Bold, InvestigationTheme.Success, 38f);
         selectedIndicator.alignment = TextAnchor.MiddleRight;
@@ -203,7 +205,7 @@ public static class InvestigationUiPrefabBuilder
 
         GameObject theoryCard = CreateCardContainer(workspace.transform, "Theory Card", 278f, 1f);
         SetLayoutWidth(theoryCard.GetComponent<LayoutElement>(), 0f, 1.08f);
-        Text counter = CreateText(theoryCard.transform, "Theory Counter", "THEORY 1 OF 3", 12, FontStyle.Bold, Cyan, 22f);
+        Text counter = CreateText(theoryCard.transform, "Theory Counter", "THEORY 1 OF 3", 12, FontStyle.Bold, Metadata, 22f);
         Text title = CreateText(theoryCard.transform, "Hypothesis Title", "Hypothesis title", 20, FontStyle.Bold, Sand, 34f);
         Text description = CreateText(theoryCard.transform, "Hypothesis Description", "Hypothesis description", 16, FontStyle.Normal, Muted, 64f);
         description.lineSpacing = 1.15f;
@@ -318,7 +320,7 @@ public static class InvestigationUiPrefabBuilder
         fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        CreateText(root.transform, "Plan Heading", "FOLLOW-UP SAMPLE PLAN // TEST THE THEORY", 13, FontStyle.Bold, Cyan, 24f);
+        CreateText(root.transform, "Plan Heading", "FOLLOW-UP SAMPLE PLAN // TEST THE THEORY", 13, FontStyle.Bold, Metadata, 24f);
         CreateText(
             root.transform,
             "Plan Help",
@@ -329,7 +331,7 @@ public static class InvestigationUiPrefabBuilder
             48f);
         RectTransform selectorRoot = CreateSelectorRoot(root.transform, "Sample Selectors", 164f);
         GameObject siteCard = CreateCardContainer(root.transform, "Selected Site Card", 164f, 1f);
-        CreateText(siteCard.transform, "Site Details Heading", "SELECTED SITE // FIELD CONDITIONS", 12, FontStyle.Bold, Cyan, 22f);
+        CreateText(siteCard.transform, "Site Details Heading", "SELECTED SITE // FIELD CONDITIONS", 12, FontStyle.Bold, Metadata, 22f);
         Text siteTitle = CreateText(siteCard.transform, "Site Title", "Site title", 20, FontStyle.Bold, Sand, 34f);
         Text siteDescription = CreateText(siteCard.transform, "Site Description", "Site description", 16, FontStyle.Normal, Muted, 62f);
         Text metadata = CreateText(siteCard.transform, "Plan Metadata", "Related theory and sample availability", 13, FontStyle.Normal, Metadata, 32f);
@@ -372,7 +374,7 @@ public static class InvestigationUiPrefabBuilder
         layout.childForceExpandWidth = false;
         layout.childForceExpandHeight = true;
 
-        Text category = CreateText(root.transform, "Category", "THEORY", 12, FontStyle.Bold, Cyan, 40f);
+        Text category = CreateText(root.transform, "Category", "THEORY", 12, FontStyle.Bold, Metadata, 40f);
         SetLayoutWidth(category.GetComponent<LayoutElement>(), 142f, 0f);
         Button previous = CreateStepperButton(root.transform, "Previous", "‹");
         Text value = CreateText(root.transform, "Value", "Selected value", 16, FontStyle.Bold, Sand, 40f);
@@ -434,7 +436,7 @@ public static class InvestigationUiPrefabBuilder
                 classificationPanel,
                 classificationRoot.GetComponent<InvestigationResponsiveGridLayout>(),
                 compareNavigation,
-                standardActions.GetComponent<InvestigationResponsiveGridLayout>(),
+                null,
                 compareNavigation.GetComponent<InvestigationResponsiveGridLayout>());
             shellLayout.SetComparisonMode(false);
 
@@ -501,8 +503,8 @@ public static class InvestigationUiPrefabBuilder
             Image background = root.GetComponent<Image>();
             background.color = InvestigationTheme.SurfaceSelected;
             LayoutElement layout = root.GetComponent<LayoutElement>();
-            layout.minHeight = 48f;
-            layout.preferredHeight = 50f;
+            layout.minHeight = 44f;
+            layout.preferredHeight = 44f;
 
             Outline outline = root.GetComponent<Outline>();
             if (outline == null) outline = root.AddComponent<Outline>();
@@ -529,10 +531,44 @@ public static class InvestigationUiPrefabBuilder
             indicator.raycastTarget = false;
             indicatorObject.SetActive(false);
 
-            Text label = root.GetComponentInChildren<Text>(true);
+            Transform existingBadge = FindDirectChild(root.transform, "Navigation Badge");
+            if (existingBadge != null) Object.DestroyImmediate(existingBadge.gameObject);
+            GameObject badgeObject = new GameObject(
+                "Navigation Badge",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+            badgeObject.layer = 5;
+            badgeObject.transform.SetParent(root.transform, false);
+            RectTransform badgeRect = badgeObject.GetComponent<RectTransform>();
+            SetOffsets(badgeRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), 12f, -12f, 36f, 12f);
+            Image badgeBackground = badgeObject.GetComponent<Image>();
+            badgeBackground.color = InvestigationTheme.SurfaceInteractive;
+            badgeBackground.raycastTarget = false;
+            Text badgeText = CreateOverlayText(
+                badgeObject.transform,
+                "Badge Number",
+                "01",
+                11,
+                FontStyle.Bold,
+                InvestigationTheme.TextSecondary,
+                TextAnchor.MiddleCenter);
+            Stretch(badgeText.rectTransform, 0f, 0f, 0f, 0f);
+            InvestigationTypography.Apply(badgeText, InvestigationFontRole.Data, FontStyle.Bold);
+            InvestigationGlyphGraphic check = CreateGlyph(
+                badgeObject.transform,
+                "Completion Check",
+                InvestigationGlyph.Check,
+                InvestigationTheme.Success);
+            Stretch(check.rectTransform, 5f, 5f, 5f, 5f);
+            check.gameObject.SetActive(false);
+            badgeObject.SetActive(false);
+
+            Text label = FindDirectChild(root.transform, "Label").GetComponent<Text>();
             label.fontSize = 14;
             label.color = InvestigationTheme.TextPrimary;
             label.raycastTarget = false;
+            InvestigationTypography.Apply(label, InvestigationFontRole.Interface, FontStyle.Bold);
 
             root.GetComponent<InvestigationButtonView>().ConfigureReferences(
                 root.GetComponent<Button>(),
@@ -540,8 +576,23 @@ public static class InvestigationUiPrefabBuilder
                 label,
                 outline,
                 indicator,
-                glyph);
+                glyph,
+                badgeBackground,
+                badgeText,
+                check);
             SerializedObject serializedButton = new SerializedObject(root.GetComponent<InvestigationButtonView>());
+            serializedButton.FindProperty("primaryBackground").colorValue = InvestigationTheme.SurfaceInteractive;
+            serializedButton.FindProperty("primaryText").colorValue = InvestigationTheme.TextPrimary;
+            serializedButton.FindProperty("browseBackground").colorValue = InvestigationTheme.SurfaceRaised;
+            serializedButton.FindProperty("browseText").colorValue = InvestigationTheme.TextSecondary;
+            serializedButton.FindProperty("navigationBackground").colorValue = InvestigationTheme.BackgroundDeep;
+            serializedButton.FindProperty("navigationText").colorValue = InvestigationTheme.TextMuted;
+            serializedButton.FindProperty("commitBackground").colorValue = InvestigationTheme.Primary;
+            serializedButton.FindProperty("commitText").colorValue = InvestigationTheme.BackgroundDeep;
+            serializedButton.FindProperty("supportBackground").colorValue = InvestigationTheme.SurfaceSuccess;
+            serializedButton.FindProperty("supportText").colorValue = InvestigationTheme.Success;
+            serializedButton.FindProperty("challengeBackground").colorValue = InvestigationTheme.SurfaceWarning;
+            serializedButton.FindProperty("challengeText").colorValue = InvestigationTheme.Warning;
             serializedButton.FindProperty("destructiveBackground").colorValue = InvestigationTheme.BackgroundDeep;
             serializedButton.FindProperty("destructiveText").colorValue = InvestigationTheme.Danger;
             serializedButton.FindProperty("destructiveOutline").colorValue = InvestigationTheme.Danger;
@@ -583,7 +634,7 @@ public static class InvestigationUiPrefabBuilder
         backdropObject.transform.SetParent(background, false);
         backdropObject.transform.SetAsFirstSibling();
         InvestigationBackdropGraphic backdrop = backdropObject.GetComponent<InvestigationBackdropGraphic>();
-        backdrop.color = InvestigationTheme.WithAlpha(InvestigationTheme.Primary, 0.055f);
+        backdrop.color = InvestigationTheme.WithAlpha(InvestigationTheme.TextMuted, 0.025f);
         backdrop.raycastTarget = false;
         Stretch(backdrop.rectTransform, 0f, 0f, 0f, 0f);
 
@@ -631,12 +682,12 @@ public static class InvestigationUiPrefabBuilder
         line.layer = 5;
         line.transform.SetParent(header, false);
         SetOffsets(line.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(1f, 0f), 0f, 0f, 0f, 2f);
-        line.GetComponent<Image>().color = InvestigationTheme.WithAlpha(Cyan, 0.75f);
+        line.GetComponent<Image>().color = InvestigationTheme.Border;
         line.GetComponent<Image>().raycastTarget = false;
 
         HorizontalLayoutGroup navigationLayout = navigation.GetComponent<HorizontalLayoutGroup>();
         navigationLayout.padding = new RectOffset(4, 4, 2, 2);
-        navigationLayout.spacing = 6f;
+        navigationLayout.spacing = 0f;
         navigationLayout.childForceExpandWidth = true;
         navigationLayout.childForceExpandHeight = true;
         if (navigation.GetComponent<InvestigationResponsiveNavigationLayout>() == null)
@@ -698,6 +749,7 @@ public static class InvestigationUiPrefabBuilder
         background.color = InvestigationTheme.WithAlpha(InvestigationTheme.SurfaceInteractive, 0.78f);
         background.raycastTarget = false;
         ConfigureOutline(metric.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
+        metric.GetComponent<Outline>().enabled = false;
         LayoutElement metricLayout = metric.GetComponent<LayoutElement>();
         metricLayout.minWidth = 58f;
         metricLayout.preferredWidth = 72f;
@@ -767,7 +819,7 @@ public static class InvestigationUiPrefabBuilder
 
             Transform oldEyebrow = FindDirectChild(root.transform, "Board Eyebrow");
             if (oldEyebrow != null) Object.DestroyImmediate(oldEyebrow.gameObject);
-            Text eyebrow = CreateText(root.transform, "Board Eyebrow", "FIELD SAMPLE // 20-YEAR BASELINE COMPARISON", 12, FontStyle.Bold, Cyan, 22f);
+            Text eyebrow = CreateText(root.transform, "Board Eyebrow", "FIELD SAMPLE // 20-YEAR BASELINE COMPARISON", 12, FontStyle.Bold, Metadata, 22f);
             eyebrow.transform.SetAsFirstSibling();
 
             Text header = FindChild(root.transform, "Sample Header").GetComponent<Text>();
@@ -782,7 +834,7 @@ public static class InvestigationUiPrefabBuilder
             Text findings = FindChild(root.transform, "Findings Summary").GetComponent<Text>();
             findings.fontSize = 14;
             findings.fontStyle = FontStyle.Bold;
-            findings.color = Cyan;
+            findings.color = InvestigationTheme.TextSecondary;
             SetPreferredHeight(findings.gameObject, 34f);
 
             VerticalLayoutGroup cards = FindChild(root.transform, "Comparison Cards").GetComponent<VerticalLayoutGroup>();
@@ -806,21 +858,20 @@ public static class InvestigationUiPrefabBuilder
         GameObject standard = new GameObject(
             "Standard Actions",
             typeof(RectTransform),
-            typeof(GridLayoutGroup),
-            typeof(InvestigationResponsiveGridLayout));
+            typeof(HorizontalLayoutGroup));
         standard.layer = 5;
         standard.transform.SetParent(actions, false);
         RectTransform rect = standard.GetComponent<RectTransform>();
         Stretch(rect, 0f, 0f, 0f, 0f);
 
-        GridLayoutGroup grid = standard.GetComponent<GridLayoutGroup>();
-        grid.padding = new RectOffset(12, 12, 2, 2);
-        grid.cellSize = new Vector2(300f, 44f);
-        grid.spacing = new Vector2(16f, 10f);
-        grid.childAlignment = TextAnchor.MiddleCenter;
-        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        grid.constraintCount = 4;
-        standard.GetComponent<InvestigationResponsiveGridLayout>().Configure(120f, 4);
+        HorizontalLayoutGroup layout = standard.GetComponent<HorizontalLayoutGroup>();
+        layout.padding = new RectOffset(12, 12, 2, 2);
+        layout.spacing = 8f;
+        layout.childAlignment = TextAnchor.MiddleLeft;
+        layout.childControlWidth = true;
+        layout.childControlHeight = true;
+        layout.childForceExpandWidth = false;
+        layout.childForceExpandHeight = true;
         return rect;
     }
 
@@ -1167,6 +1218,7 @@ public static class InvestigationUiPrefabBuilder
         image.color = InvestigationTheme.SurfaceRaised;
         image.raycastTarget = false;
         ConfigureOutline(card.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
+        card.GetComponent<Outline>().enabled = false;
 
         VerticalLayoutGroup layout = card.GetComponent<VerticalLayoutGroup>();
         layout.padding = new RectOffset(16, 16, 12, 14);
@@ -1198,6 +1250,7 @@ public static class InvestigationUiPrefabBuilder
         image.color = color;
         image.raycastTarget = false;
         ConfigureOutline(surface.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
+        surface.GetComponent<Outline>().enabled = false;
         return surface;
     }
 
@@ -1226,6 +1279,7 @@ public static class InvestigationUiPrefabBuilder
         background.color = InvestigationTheme.WithAlpha(InvestigationTheme.BackgroundDeep, 0.72f);
         background.raycastTarget = false;
         ConfigureOutline(chip.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
+        chip.GetComponent<Outline>().enabled = false;
         Text text = CreateOverlayText(chip.transform, "Label", value, 12, FontStyle.Normal, Muted, TextAnchor.MiddleLeft);
         text.resizeTextForBestFit = true;
         text.resizeTextMinSize = 9;
@@ -1336,16 +1390,102 @@ public static class InvestigationUiPrefabBuilder
 
     private static void ConfigureText(Text text, string value, int size, FontStyle style, Color color, TextAnchor alignment)
     {
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        InvestigationTypography.Apply(text, InvestigationFontRole.Interface, style);
         text.text = value;
         text.fontSize = size;
-        text.fontStyle = style;
         text.color = color;
         text.alignment = alignment;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Overflow;
         text.raycastTarget = false;
         text.lineSpacing = 1.05f;
+    }
+
+    private static void ApplyTypographyToUiPrefabs()
+    {
+        string[] paths =
+        {
+            CaseFilesPrefabPath,
+            HypothesisPrefabPath,
+            SamplePlannerPrefabPath,
+            StepperPrefabPath,
+            ButtonPrefabPath,
+            RuntimePrefabPath,
+            CardPrefabPath,
+            BoardPrefabPath,
+            StatusPrefabPath
+        };
+
+        for (int index = 0; index < paths.Length; index++)
+        {
+            GameObject root = PrefabUtility.LoadPrefabContents(paths[index]);
+            try
+            {
+                Text[] labels = root.GetComponentsInChildren<Text>(true);
+                for (int labelIndex = 0; labelIndex < labels.Length; labelIndex++)
+                {
+                    Text label = labels[labelIndex];
+                    FontStyle emphasis = label.fontStyle;
+                    if (emphasis == FontStyle.Normal && IsEmphasizedLabel(label))
+                    {
+                        emphasis = FontStyle.Bold;
+                    }
+                    InvestigationTypography.Apply(
+                        label,
+                        IsDataLabel(label.transform) ? InvestigationFontRole.Data : InvestigationFontRole.Interface,
+                        emphasis);
+                }
+                PrefabUtility.SaveAsPrefabAsset(root, paths[index]);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+    }
+
+    private static bool IsDataLabel(Transform label)
+    {
+        Transform current = label;
+        while (current != null)
+        {
+            string name = current.name.ToLowerInvariant();
+            if (name.Contains("eyebrow")
+                || name.Contains("counter")
+                || name.Contains("metric")
+                || name.Contains("metadata")
+                || name.Contains("count")
+                || name.Contains("progress")
+                || name.Contains("category")
+                || name.Contains("status label")
+                || name.Contains("findings summary")
+                || name.Contains("trait"))
+            {
+                return true;
+            }
+            current = current.parent;
+        }
+        return false;
+    }
+
+    private static bool IsEmphasizedLabel(Text label)
+    {
+        if (label.font != null
+            && (label.font.name.Contains("SemiBold") || label.font.name.Contains("Medium")))
+        {
+            return true;
+        }
+
+        string name = label.name.ToLowerInvariant();
+        return name == "title"
+            || name.Contains("heading")
+            || name.Contains("eyebrow")
+            || name.Contains("counter")
+            || name.Contains("metric")
+            || name.Contains("category")
+            || name.Contains("status label")
+            || name.Contains("findings summary")
+            || label.GetComponentInParent<InvestigationButtonView>() != null;
     }
 
     private static void Stretch(RectTransform rect, float left, float right, float bottom, float top)

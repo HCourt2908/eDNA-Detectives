@@ -336,6 +336,7 @@ namespace EDNA.Investigation
             caseFilesPanelInstance.Bind(
                 caseDefinition.DisplayName,
                 caseDefinition.Briefing,
+                species == null ? string.Empty : species.SpeciesId,
                 species == null ? 0 : speciesIndex + 1,
                 caseDefinition.Species.Count,
                 species == null ? "No species record available" : species.DisplayName,
@@ -346,8 +347,11 @@ namespace EDNA.Investigation
                 species == null ? "Unknown" : InvestigationDisplayNames.Traits(species.SensitivityTags),
                 "Inspect the present-day samples, compare each species with the 20-year baseline, and classify what changed. Correct findings become evidence for a testable explanation.");
             LayoutRebuilder.ForceRebuildLayoutImmediate(caseFilesPanelInstance.GetComponent<RectTransform>());
-            AddBrowseButton("PREVIOUS SPECIES", () => ChangeSpecies(-1));
-            AddBrowseButton("NEXT SPECIES", () => ChangeSpecies(1));
+            InvestigationButtonView previousSpecies = AddBrowseButton("PREVIOUS SPECIES", () => ChangeSpecies(-1));
+            previousSpecies?.SetVisualLabel("‹");
+            AddActionCounter($"{(species == null ? 0 : speciesIndex + 1):00} / {caseDefinition.Species.Count:00}");
+            InvestigationButtonView nextSpecies = AddBrowseButton("NEXT SPECIES", () => ChangeSpecies(1));
+            nextSpecies?.SetVisualLabel("›");
             AddStageForwardButton("START COMPARISON", StartComparison);
         }
 
@@ -506,7 +510,7 @@ namespace EDNA.Investigation
             bool canAssignFinding = evidence != null;
             AddActionSlotButton("ASSIGN SUPPORT", () => AssignSelected(EvidenceAssignmentKind.Supports), InvestigationButtonStyle.Support, canAssignFinding);
             AddActionSlotButton("ASSIGN CHALLENGE", () => AssignSelected(EvidenceAssignmentKind.Opposes), InvestigationButtonStyle.Challenge, canAssignFinding);
-            AddCommitButton("SELECT THEORY  >", SelectCurrentHypothesisAndPlanSample, hypothesis != null);
+            AddStageCommitButton("SELECT THEORY  >", SelectCurrentHypothesisAndPlanSample, hypothesis != null);
         }
 
         private void RenderSamplePlanner()
@@ -857,18 +861,18 @@ namespace EDNA.Investigation
 
         private void AddStageCommitButton(string label, Action action, bool isInteractable = true)
         {
-            PadActionsToColumn(GetActionColumnCount() - 1);
+            if (!TryAddFlexibleActionSpacer()) PadActionsToColumn(GetActionColumnCount() - 1);
             AddCommitButton(label, action, isInteractable);
         }
 
-        private void AddBrowseButton(string label, Action action, bool isInteractable = true)
+        private InvestigationButtonView AddBrowseButton(string label, Action action, bool isInteractable = true)
         {
             string directionalLabel = label.StartsWith("PREVIOUS", StringComparison.Ordinal)
                 ? $"<  {label}"
                 : label.StartsWith("NEXT", StringComparison.Ordinal)
                     ? $"{label}  >"
                     : label;
-            AddActionSlotButton(directionalLabel, action, InvestigationButtonStyle.Browse, isInteractable);
+            return AddActionSlotButton(directionalLabel, action, InvestigationButtonStyle.Browse, isInteractable);
         }
 
         private void AddStageBackButton(string label, Action action, bool isInteractable = true)
@@ -879,18 +883,70 @@ namespace EDNA.Investigation
 
         private void AddStageForwardButton(string label, Action action, bool isInteractable = true)
         {
-            PadActionsToColumn(GetActionColumnCount() - 1);
+            if (!TryAddFlexibleActionSpacer()) PadActionsToColumn(GetActionColumnCount() - 1);
             AddActionSlotButton($"{label}  >", action, InvestigationButtonStyle.Commit, isInteractable);
         }
 
-        private void AddActionSlotButton(
+        private InvestigationButtonView AddActionSlotButton(
             string label,
             Action action,
             InvestigationButtonStyle style,
             bool isInteractable)
         {
-            AddButton(ActiveActionRoot, label, action, style, isInteractable);
+            InvestigationButtonView button = AddButton(ActiveActionRoot, label, action, style, isInteractable);
             actionSlotCount++;
+            return button;
+        }
+
+        private void AddActionCounter(string value)
+        {
+            RectTransform root = ActiveActionRoot;
+            if (root == null) return;
+            GameObject counter = new GameObject(
+                "Action Counter",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(LayoutElement));
+            counter.layer = 5;
+            counter.transform.SetParent(root, false);
+            counter.GetComponent<Image>().color = InvestigationTheme.SurfaceRaised;
+            LayoutElement layout = counter.GetComponent<LayoutElement>();
+            layout.minWidth = 64f;
+            layout.preferredWidth = 64f;
+            layout.minHeight = 44f;
+            layout.preferredHeight = 44f;
+
+            GameObject labelObject = new GameObject("Counter Label", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            labelObject.layer = 5;
+            labelObject.transform.SetParent(counter.transform, false);
+            Text counterText = labelObject.GetComponent<Text>();
+            counterText.text = value;
+            counterText.fontSize = 12;
+            counterText.color = InvestigationTheme.TextSecondary;
+            counterText.alignment = TextAnchor.MiddleCenter;
+            counterText.raycastTarget = false;
+            InvestigationTypography.Apply(counterText, InvestigationFontRole.Data, FontStyle.Normal);
+            RectTransform labelRect = counterText.rectTransform;
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = Vector2.zero;
+            labelRect.offsetMax = Vector2.zero;
+            actionSlotCount++;
+        }
+
+        private bool TryAddFlexibleActionSpacer()
+        {
+            RectTransform activeRoot = ActiveActionRoot;
+            if (activeRoot == null || activeRoot.GetComponent<HorizontalLayoutGroup>() == null) return false;
+            GameObject spacer = new GameObject("Flexible Action Spacer", typeof(RectTransform), typeof(LayoutElement));
+            spacer.transform.SetParent(activeRoot, false);
+            LayoutElement layout = spacer.GetComponent<LayoutElement>();
+            layout.minWidth = 0f;
+            layout.preferredWidth = 0f;
+            layout.flexibleWidth = 1f;
+            actionSlotCount++;
+            return true;
         }
 
         private void PadActionsToColumn(int targetColumn)
@@ -955,9 +1011,9 @@ namespace EDNA.Investigation
                 InvestigationButtonView button = navigationButtons[index];
                 if (button == null) continue;
                 button.SetNavigationState(
+                    index + 1,
                     index == (int)currentPage,
-                    IsPageComplete((Page)index),
-                    GetNavigationGlyph(index));
+                    IsPageComplete((Page)index));
             }
         }
 
@@ -983,18 +1039,6 @@ namespace EDNA.Investigation
             }
         }
 
-        private static InvestigationGlyph GetNavigationGlyph(int index)
-        {
-            switch (index)
-            {
-                case 0: return InvestigationGlyph.CaseFile;
-                case 1: return InvestigationGlyph.Compare;
-                case 2: return InvestigationGlyph.Hypothesis;
-                case 3: return InvestigationGlyph.Sample;
-                case 4: return InvestigationGlyph.Conclusion;
-                default: return InvestigationGlyph.None;
-            }
-        }
         private void ChangeSpecies(int delta) { speciesIndex = Wrap(speciesIndex + delta, caseDefinition.Species.Count); RenderCurrentPage(true); }
         private void ChangeHypothesis(int delta) { hypothesisIndex = Wrap(hypothesisIndex + delta, caseDefinition.Hypotheses.Count); RenderCurrentPage(); }
         private void ChangeEvidence(int delta) { evidenceIndex = Wrap(evidenceIndex + delta, state.GetIdentifiedEvidence().Count); RenderCurrentPage(); }

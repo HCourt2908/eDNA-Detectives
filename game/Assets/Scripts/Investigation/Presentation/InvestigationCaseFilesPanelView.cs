@@ -8,6 +8,7 @@ namespace EDNA.Investigation
     {
         [SerializeField] private Text caseTitleText;
         [SerializeField] private Text briefingText;
+        [SerializeField] private InvestigationGlyphGraphic speciesGraphic;
         [SerializeField] private Text speciesCounterText;
         [SerializeField] private Text speciesTitleText;
         [SerializeField] private Text speciesDescriptionText;
@@ -27,6 +28,7 @@ namespace EDNA.Investigation
         public void ConfigureReferences(
             Text caseTitleReference,
             Text briefingReference,
+            InvestigationGlyphGraphic speciesGraphicReference,
             Text speciesCounterReference,
             Text speciesTitleReference,
             Text speciesDescriptionReference,
@@ -38,6 +40,7 @@ namespace EDNA.Investigation
         {
             caseTitleText = caseTitleReference;
             briefingText = briefingReference;
+            speciesGraphic = speciesGraphicReference;
             speciesCounterText = speciesCounterReference;
             speciesTitleText = speciesTitleReference;
             speciesDescriptionText = speciesDescriptionReference;
@@ -51,6 +54,7 @@ namespace EDNA.Investigation
         public void Bind(
             string caseTitle,
             string briefing,
+            string speciesId,
             int speciesNumber,
             int speciesCount,
             string speciesTitle,
@@ -63,6 +67,7 @@ namespace EDNA.Investigation
         {
             caseTitleText.text = caseTitle;
             briefingText.text = briefing;
+            if (speciesGraphic != null) speciesGraphic.SetGlyph(GetSpeciesGlyph(speciesId));
             speciesCounterText.text = $"SPECIES RECORD  {speciesNumber:00} / {speciesCount:00}";
             speciesTitleText.text = speciesTitle;
             speciesDescriptionText.text = speciesDescription;
@@ -71,6 +76,20 @@ namespace EDNA.Investigation
             habitatText.text = $"HABITAT: {AsLowerSentence(habitat)}";
             sensitivityText.text = $"SENSITIVITY: {AsLowerSentence(sensitivity)}";
             missionText.text = mission;
+        }
+
+        private static InvestigationGlyph GetSpeciesGlyph(string speciesId)
+        {
+            switch (speciesId)
+            {
+                case "mock_cold_fish": return InvestigationGlyph.ColdFish;
+                case "mock_predator": return InvestigationGlyph.PredatorFish;
+                case "mock_stable_species": return InvestigationGlyph.StableFish;
+                case "mock_prey": return InvestigationGlyph.PreyFish;
+                case "mock_deep_species": return InvestigationGlyph.DeepFish;
+                case "mock_warm_fish": return InvestigationGlyph.WarmFish;
+                default: return InvestigationGlyph.Fish;
+            }
         }
 
         private static string AsLowerSentence(string value)

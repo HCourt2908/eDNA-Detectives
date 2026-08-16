@@ -9,26 +9,26 @@ namespace EDNA.Investigation
     /// </summary>
     public static class InvestigationTheme
     {
-        public static readonly Color Background = new Color32(6, 24, 35, 255);
-        public static readonly Color BackgroundDeep = new Color32(4, 17, 27, 255);
-        public static readonly Color Surface = new Color32(13, 43, 58, 255);
-        public static readonly Color SurfaceRaised = new Color32(17, 55, 70, 255);
-        public static readonly Color SurfaceInteractive = new Color32(18, 62, 78, 255);
-        public static readonly Color SurfaceSelected = new Color32(18, 72, 83, 255);
-        public static readonly Color SurfaceSuccess = new Color32(16, 61, 51, 255);
-        public static readonly Color SurfaceWarning = new Color32(61, 47, 27, 255);
+        public static readonly Color Background = new Color32(7, 16, 24, 255);
+        public static readonly Color BackgroundDeep = new Color32(4, 10, 15, 255);
+        public static readonly Color Surface = new Color32(15, 27, 36, 255);
+        public static readonly Color SurfaceRaised = new Color32(20, 35, 46, 255);
+        public static readonly Color SurfaceInteractive = new Color32(24, 43, 55, 255);
+        public static readonly Color SurfaceSelected = new Color32(23, 54, 64, 255);
+        public static readonly Color SurfaceSuccess = new Color32(19, 55, 45, 255);
+        public static readonly Color SurfaceWarning = new Color32(58, 44, 25, 255);
 
-        public static readonly Color Primary = new Color32(50, 204, 209, 255);
-        public static readonly Color PrimarySoft = new Color32(103, 220, 222, 255);
-        public static readonly Color Sand = new Color32(245, 230, 190, 255);
-        public static readonly Color TextPrimary = new Color32(242, 247, 248, 255);
-        public static readonly Color TextSecondary = new Color32(177, 207, 213, 255);
-        public static readonly Color TextMuted = new Color32(142, 174, 181, 255);
-        public static readonly Color Border = new Color32(38, 91, 104, 255);
-        public static readonly Color BorderQuiet = new Color32(27, 69, 82, 255);
-        public static readonly Color Success = new Color32(92, 214, 157, 255);
-        public static readonly Color Warning = new Color32(255, 190, 90, 255);
-        public static readonly Color Danger = new Color32(242, 125, 111, 255);
+        public static readonly Color Primary = new Color32(40, 184, 192, 255);
+        public static readonly Color PrimarySoft = new Color32(103, 207, 211, 255);
+        public static readonly Color Sand = new Color32(238, 224, 194, 255);
+        public static readonly Color TextPrimary = new Color32(237, 243, 245, 255);
+        public static readonly Color TextSecondary = new Color32(170, 192, 201, 255);
+        public static readonly Color TextMuted = new Color32(114, 140, 151, 255);
+        public static readonly Color Border = new Color32(44, 72, 84, 255);
+        public static readonly Color BorderQuiet = new Color32(28, 49, 58, 255);
+        public static readonly Color Success = new Color32(91, 199, 153, 255);
+        public static readonly Color Warning = new Color32(232, 168, 79, 255);
+        public static readonly Color Danger = new Color32(229, 112, 102, 255);
 
         public const float MotionFast = 0.12f;
         public const float MotionStandard = 0.20f;
