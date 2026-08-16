@@ -69,10 +69,13 @@ public static class InvestigationUiPrefabBuilder
         fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        GameObject caseCard = CreateCardContainer(root.transform, "Case Brief Card", 156f, 1f);
-        CreateText(caseCard.transform, "Case Eyebrow", "ACTIVE CASE // OCEAN CHANGE INVESTIGATION", 12, FontStyle.Bold, Cyan, 22f);
-        Text caseTitle = CreateText(caseCard.transform, "Case Title", "Case title", 24, FontStyle.Bold, Sand, 36f);
-        Text briefing = CreateText(caseCard.transform, "Case Briefing", "Case briefing", 16, FontStyle.Normal, Muted, 66f);
+        GameObject caseCard = CreateCardContainer(root.transform, "Case Brief Card", 124f, 1f);
+        VerticalLayoutGroup caseCardLayout = caseCard.GetComponent<VerticalLayoutGroup>();
+        caseCardLayout.padding = new RectOffset(16, 16, 10, 10);
+        caseCardLayout.spacing = 4f;
+        CreateText(caseCard.transform, "Case Eyebrow", "ACTIVE CASE // OCEAN CHANGE INVESTIGATION", 12, FontStyle.Bold, Cyan, 18f);
+        Text caseTitle = CreateText(caseCard.transform, "Case Title", "Case title", 24, FontStyle.Bold, Sand, 30f);
+        Text briefing = CreateText(caseCard.transform, "Case Briefing", "Case briefing", 16, FontStyle.Normal, Muted, 48f);
         briefing.lineSpacing = 1.18f;
         AddAccentRail(caseCard.transform, Cyan);
 
@@ -111,10 +114,10 @@ public static class InvestigationUiPrefabBuilder
         traitGrid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         traitGrid.constraintCount = 4;
         InvestigationResponsiveGridLayout responsiveTraitGrid = traitGridObject.AddComponent<InvestigationResponsiveGridLayout>();
-        Text depth = CreateTraitChip(traitGridObject.transform, "Depth Trait", "Depth range: Shallow, Mid.");
-        Text temperature = CreateTraitChip(traitGridObject.transform, "Temperature Trait", "Temperature: Cold water.");
-        Text habitat = CreateTraitChip(traitGridObject.transform, "Habitat Trait", "Habitat: Rocky reef.");
-        Text sensitivity = CreateTraitChip(traitGridObject.transform, "Sensitivity Trait", "Sensitivity: Cold sensitive.");
+        Text depth = CreateTraitChip(traitGridObject.transform, "Depth Trait", "DEPTH RANGE: shallow, mid.");
+        Text temperature = CreateTraitChip(traitGridObject.transform, "Temperature Trait", "TEMPERATURE: cold water.");
+        Text habitat = CreateTraitChip(traitGridObject.transform, "Habitat Trait", "HABITAT: rocky reef.");
+        Text sensitivity = CreateTraitChip(traitGridObject.transform, "Sensitivity Trait", "SENSITIVITY: cold sensitive.");
         responsiveTraitGrid.Configure(180f, 4, true);
 
         GameObject missionCard = CreateCardContainer(root.transform, "Mission Card", 94f, 1f);
@@ -414,8 +417,13 @@ public static class InvestigationUiPrefabBuilder
             InvestigationAdaptiveShellLayout shellLayout = root.GetComponent<InvestigationAdaptiveShellLayout>();
             if (shellLayout == null) shellLayout = root.AddComponent<InvestigationAdaptiveShellLayout>();
             SerializedObject serializedShellLayout = new SerializedObject(shellLayout);
-            serializedShellLayout.FindProperty("compactActionsHeight").floatValue = 56f;
-            serializedShellLayout.FindProperty("comparisonActionsHeight").floatValue = 138f;
+            serializedShellLayout.FindProperty("compactActionsHeight").floatValue = 48f;
+            serializedShellLayout.FindProperty("comparisonActionsHeight").floatValue = 128f;
+            serializedShellLayout.FindProperty("minimumStatusHeight").floatValue = 32f;
+            serializedShellLayout.FindProperty("maximumStatusHeight").floatValue = 48f;
+            serializedShellLayout.FindProperty("statusTopOffset").floatValue = 116f;
+            serializedShellLayout.FindProperty("statusContentOverlap").floatValue = 16f;
+            serializedShellLayout.FindProperty("regionGap").floatValue = 6f;
             serializedShellLayout.ApplyModifiedPropertiesWithoutUndo();
             shellLayout.ConfigureReferences(
                 statusView.GetComponent<RectTransform>(),
@@ -579,19 +587,19 @@ public static class InvestigationUiPrefabBuilder
         backdrop.raycastTarget = false;
         Stretch(backdrop.rectTransform, 0f, 0f, 0f, 0f);
 
-        SetOffsets(header.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), 12f, -76f, -12f, -8f);
-        SetOffsets(navigation.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), 12f, -132f, -12f, -80f);
-        SetOffsets(content.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(1f, 1f), 12f, 164f, -12f, -192f);
-        SetOffsets(actions.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(1f, 0f), 12f, 8f, -12f, 156f);
+        SetOffsets(header.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), 12f, -60f, -12f, -8f);
+        SetOffsets(navigation.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), 12f, -112f, -12f, -64f);
+        SetOffsets(content.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(1f, 1f), 12f, 62f, -12f, -132f);
+        SetOffsets(actions.GetComponent<RectTransform>(), new Vector2(0f, 0f), new Vector2(1f, 0f), 12f, 8f, -12f, 56f);
 
         if (status != null)
         {
             status.SetParent(background, false);
-            SetOffsets(status.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), 12f, -184f, -12f, -136f);
+            SetOffsets(status.GetComponent<RectTransform>(), new Vector2(0f, 1f), new Vector2(1f, 1f), 28f, -148f, -28f, -116f);
         }
 
         Text title = FindChild(header, "Title").GetComponent<Text>();
-        title.fontSize = 23;
+        title.fontSize = 21;
         title.color = Sand;
         title.alignment = TextAnchor.LowerLeft;
         SetOffsets(title.rectTransform, new Vector2(0f, 0f), new Vector2(0.58f, 0.72f), 18f, 6f, -8f, -2f);
@@ -607,7 +615,7 @@ public static class InvestigationUiPrefabBuilder
 
         Transform existingEyebrow = FindDirectChild(header, "Header Eyebrow");
         if (existingEyebrow != null) Object.DestroyImmediate(existingEyebrow.gameObject);
-        Text eyebrow = CreateOverlayText(header, "Header Eyebrow", "MARINE eDNA INVESTIGATION // FIELD CONSOLE", 11, FontStyle.Bold, Metadata, TextAnchor.UpperLeft);
+        Text eyebrow = CreateOverlayText(header, "Header Eyebrow", "MARINE eDNA INVESTIGATION // FIELD CONSOLE", 10, FontStyle.Bold, Metadata, TextAnchor.UpperLeft);
         SetOffsets(eyebrow.rectTransform, new Vector2(0f, 0.72f), new Vector2(0.58f, 1f), 18f, 0f, -8f, -6f);
 
         InvestigationResponsiveHeaderLayout headerLayout = header.GetComponent<InvestigationResponsiveHeaderLayout>();
@@ -627,7 +635,7 @@ public static class InvestigationUiPrefabBuilder
         line.GetComponent<Image>().raycastTarget = false;
 
         HorizontalLayoutGroup navigationLayout = navigation.GetComponent<HorizontalLayoutGroup>();
-        navigationLayout.padding = new RectOffset(4, 4, 4, 4);
+        navigationLayout.padding = new RectOffset(4, 4, 2, 2);
         navigationLayout.spacing = 6f;
         navigationLayout.childForceExpandWidth = true;
         navigationLayout.childForceExpandHeight = true;
@@ -715,6 +723,7 @@ public static class InvestigationUiPrefabBuilder
         {
             Image background = root.GetComponent<Image>();
             background.color = InvestigationTheme.Surface;
+            root.GetComponent<CanvasGroup>().blocksRaycasts = false;
             ConfigurePanelOutline(root, InvestigationTheme.BorderQuiet);
             Text label = FindChild(root.transform, "Status Label").GetComponent<Text>();
             Text message = FindChild(root.transform, "Status Message").GetComponent<Text>();
@@ -722,15 +731,17 @@ public static class InvestigationUiPrefabBuilder
             label.fontSize = 11;
             label.fontStyle = FontStyle.Bold;
             label.color = Cyan;
-            message.fontSize = 18;
+            message.fontSize = 16;
             message.color = InvestigationTheme.TextPrimary;
             message.horizontalOverflow = HorizontalWrapMode.Wrap;
             message.verticalOverflow = VerticalWrapMode.Truncate;
-            message.lineSpacing = 1.05f;
+            message.lineSpacing = 1f;
+            label.alignment = TextAnchor.MiddleLeft;
+            message.alignment = TextAnchor.MiddleLeft;
             accent.color = Cyan;
             SetOffsets(accent.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f), 0f, 0f, 4f, 0f);
-            SetOffsets(label.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), 16f, -22f, -16f, -3f);
-            SetOffsets(message.rectTransform, Vector2.zero, Vector2.one, 16f, 4f, -16f, -23f);
+            SetOffsets(label.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f), 16f, 0f, 104f, 0f);
+            SetOffsets(message.rectTransform, Vector2.zero, Vector2.one, 112f, 4f, -16f, -4f);
             PrefabUtility.SaveAsPrefabAsset(root, StatusPrefabPath);
         }
         finally
@@ -803,8 +814,8 @@ public static class InvestigationUiPrefabBuilder
         Stretch(rect, 0f, 0f, 0f, 0f);
 
         GridLayoutGroup grid = standard.GetComponent<GridLayoutGroup>();
-        grid.padding = new RectOffset(12, 12, 4, 4);
-        grid.cellSize = new Vector2(300f, 48f);
+        grid.padding = new RectOffset(12, 12, 2, 2);
+        grid.cellSize = new Vector2(300f, 44f);
         grid.spacing = new Vector2(16f, 10f);
         grid.childAlignment = TextAnchor.MiddleCenter;
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
@@ -907,7 +918,7 @@ public static class InvestigationUiPrefabBuilder
         GridLayoutGroup layout = choices.GetComponent<GridLayoutGroup>();
         layout.padding = new RectOffset(0, 0, 0, 0);
         layout.spacing = new Vector2(8f, 8f);
-        layout.cellSize = new Vector2(144f, 48f);
+        layout.cellSize = new Vector2(144f, 44f);
         layout.childAlignment = TextAnchor.UpperCenter;
         layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         layout.constraintCount = 5;
@@ -934,7 +945,7 @@ public static class InvestigationUiPrefabBuilder
         rect.offsetMax = new Vector2(-12f, -2f);
         GridLayoutGroup grid = navigation.GetComponent<GridLayoutGroup>();
         grid.padding = new RectOffset(0, 0, 0, 0);
-        grid.cellSize = new Vector2(300f, 48f);
+        grid.cellSize = new Vector2(300f, 44f);
         grid.spacing = new Vector2(16f, 0f);
         grid.childAlignment = TextAnchor.MiddleCenter;
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;

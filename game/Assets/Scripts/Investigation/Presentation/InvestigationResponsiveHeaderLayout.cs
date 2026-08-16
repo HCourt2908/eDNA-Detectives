@@ -51,7 +51,7 @@ namespace EDNA.Investigation
 
                 if (titleText != null)
                 {
-                    titleText.fontSize = IsCompact ? 19 : 23;
+                    titleText.fontSize = IsCompact ? 18 : 21;
                     titleText.text = IsCompact ? CompactTitle(accessibleTitle) : accessibleTitle;
                     SetOffsets(
                         titleText.rectTransform,

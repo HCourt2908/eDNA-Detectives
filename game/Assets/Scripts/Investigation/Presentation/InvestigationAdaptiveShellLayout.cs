@@ -22,12 +22,13 @@ namespace EDNA.Investigation
         [SerializeField] private InvestigationResponsiveGridLayout comparisonNavigationGrid;
 
         [Header("Sizing")]
-        [SerializeField, Min(48f)] private float compactActionsHeight = 56f;
-        [SerializeField, Min(96f)] private float comparisonActionsHeight = 138f;
-        [SerializeField, Min(48f)] private float minimumStatusHeight = 54f;
-        [SerializeField, Min(54f)] private float maximumStatusHeight = 76f;
-        [SerializeField, Min(0f)] private float statusTopOffset = 136f;
-        [SerializeField, Min(0f)] private float regionGap = 8f;
+        [SerializeField, Min(48f)] private float compactActionsHeight = 48f;
+        [SerializeField, Min(96f)] private float comparisonActionsHeight = 128f;
+        [SerializeField, Min(32f)] private float minimumStatusHeight = 32f;
+        [SerializeField, Min(32f)] private float maximumStatusHeight = 48f;
+        [SerializeField, Min(0f)] private float statusTopOffset = 116f;
+        [SerializeField, Min(0f)] private float statusContentOverlap = 16f;
+        [SerializeField, Min(0f)] private float regionGap = 6f;
 
         private bool comparisonMode;
         private bool applyingLayout;
@@ -77,7 +78,7 @@ namespace EDNA.Investigation
                 CurrentStatusHeight = CalculateStatusHeight();
                 if (statusRoot != null)
                 {
-                    SetTopOffsets(statusRoot, 12f, statusTopOffset, 12f, statusTopOffset + CurrentStatusHeight);
+                    SetTopOffsets(statusRoot, 28f, statusTopOffset, 28f, statusTopOffset + CurrentStatusHeight);
                 }
 
                 float actionHeight = comparisonMode
@@ -91,7 +92,7 @@ namespace EDNA.Investigation
                     12f,
                     8f + actionHeight + regionGap,
                     12f,
-                    statusTopOffset + CurrentStatusHeight + regionGap);
+                    statusTopOffset + CurrentStatusHeight - Mathf.Min(statusContentOverlap, CurrentStatusHeight));
 
                 if (standardActions != null)
                 {
@@ -112,8 +113,8 @@ namespace EDNA.Investigation
         private float CalculateStatusHeight()
         {
             if (statusMessage == null) return minimumStatusHeight;
-            float preferredMessageHeight = Mathf.Max(20f, statusMessage.preferredHeight);
-            return Mathf.Clamp(preferredMessageHeight + 34f, minimumStatusHeight, maximumStatusHeight);
+            float preferredMessageHeight = Mathf.Max(18f, statusMessage.preferredHeight);
+            return Mathf.Clamp(preferredMessageHeight + 12f, minimumStatusHeight, maximumStatusHeight);
         }
 
         private float CalculateStandardActionsHeight()
@@ -128,11 +129,11 @@ namespace EDNA.Investigation
             classificationChoices?.ApplyNow();
             comparisonNavigationGrid?.ApplyNow();
             float choicesHeight = classificationChoices == null
-                ? 48f
-                : Mathf.Max(48f, classificationChoices.RequiredHeight);
+                ? 44f
+                : Mathf.Max(44f, classificationChoices.RequiredHeight);
             float navigationHeight = comparisonNavigationGrid == null
-                ? 56f
-                : Mathf.Max(56f, comparisonNavigationGrid.RequiredHeight + 8f);
+                ? 52f
+                : Mathf.Max(52f, comparisonNavigationGrid.RequiredHeight + 8f);
             float classificationHeight = 22f + choicesHeight + 4f;
             return Mathf.Max(comparisonActionsHeight, navigationHeight + classificationHeight + regionGap);
         }
@@ -140,8 +141,8 @@ namespace EDNA.Investigation
         private void ApplyComparisonRegions()
         {
             float navigationContentHeight = comparisonNavigationGrid == null
-                ? 48f
-                : Mathf.Max(48f, comparisonNavigationGrid.RequiredHeight);
+                ? 44f
+                : Mathf.Max(44f, comparisonNavigationGrid.RequiredHeight);
             float navigationHeight = navigationContentHeight + 8f;
             if (comparisonNavigation != null)
             {

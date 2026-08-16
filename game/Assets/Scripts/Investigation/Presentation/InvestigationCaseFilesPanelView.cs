@@ -66,20 +66,21 @@ namespace EDNA.Investigation
             speciesCounterText.text = $"SPECIES RECORD  {speciesNumber:00} / {speciesCount:00}";
             speciesTitleText.text = speciesTitle;
             speciesDescriptionText.text = speciesDescription;
-            depthText.text = $"Depth range: {AsSentence(depths)}";
-            temperatureText.text = $"Temperature: {AsSentence(temperature)}";
-            habitatText.text = $"Habitat: {AsSentence(habitat)}";
-            sensitivityText.text = $"Sensitivity: {AsSentence(sensitivity)}";
+            depthText.text = $"DEPTH RANGE: {AsLowerSentence(depths)}";
+            temperatureText.text = $"TEMPERATURE: {AsLowerSentence(temperature)}";
+            habitatText.text = $"HABITAT: {AsLowerSentence(habitat)}";
+            sensitivityText.text = $"SENSITIVITY: {AsLowerSentence(sensitivity)}";
             missionText.text = mission;
         }
 
-        private static string AsSentence(string value)
+        private static string AsLowerSentence(string value)
         {
             string trimmed = string.IsNullOrWhiteSpace(value) ? "Unknown" : value.Trim();
             char finalCharacter = trimmed[trimmed.Length - 1];
-            return finalCharacter == '.' || finalCharacter == '!' || finalCharacter == '?'
+            string sentence = finalCharacter == '.' || finalCharacter == '!' || finalCharacter == '?'
                 ? trimmed
                 : $"{trimmed}.";
+            return sentence.ToLowerInvariant().Replace("°c", "°C");
         }
     }
 }

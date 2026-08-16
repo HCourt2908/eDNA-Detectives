@@ -168,8 +168,9 @@ namespace EDNA.Investigation.Tests
             Assert.That(progressView.CurrentSummary, Does.Contain("2 samples available"));
             Assert.That(shellLayout, Is.Not.Null);
             Assert.That(shellLayout.IsComparisonMode, Is.False);
-            Assert.That(shellLayout.CurrentActionsHeight, Is.LessThanOrEqualTo(56.1f));
-            Assert.That(shellLayout.CurrentContentHeight, Is.GreaterThan(278f), "Compact pages should keep most vertical space for their content.");
+            Assert.That(shellLayout.CurrentActionsHeight, Is.LessThanOrEqualTo(48.1f));
+            Assert.That(shellLayout.CurrentStatusHeight, Is.LessThanOrEqualTo(32.1f));
+            Assert.That(shellLayout.CurrentContentHeight, Is.GreaterThan(400f), "The floating status banner should leave most vertical space for page content.");
             Assert.That(accessibility, Is.Not.Null);
             Assert.That(accessibility.NodeCount, Is.GreaterThanOrEqualTo(10));
             Assert.That(accessibility.LastPageTitle, Does.EndWith("CASE FILES"));
@@ -179,13 +180,17 @@ namespace EDNA.Investigation.Tests
             Assert.That(headerLayout, Is.Not.Null);
             Assert.That(headerLayout.IsCompact, Is.False);
             Assert.That(headerLayout.AccessibleTitle, Does.EndWith("CASE FILES"));
+            Assert.That(headerLayout.GetComponent<RectTransform>().rect.height, Is.LessThanOrEqualTo(52.1f));
+            Assert.That(navigationLayout.GetComponent<RectTransform>().rect.height, Is.LessThanOrEqualTo(48.1f));
 
             InvestigationStatusBannerView statusBanner = Object.FindAnyObjectByType<InvestigationStatusBannerView>();
             Assert.That(statusBanner, Is.Not.Null);
             Assert.That(statusBanner.CurrentLabel, Is.EqualTo("NEXT STEP"));
             Assert.That(statusBanner.CurrentMessage, Does.Contain("Review the historical records"));
             Assert.That(statusBanner.CurrentTone, Is.EqualTo(InvestigationStatusTone.Guide));
-            Assert.That(statusBanner.MessageText.fontSize, Is.GreaterThanOrEqualTo(18));
+            Assert.That(statusBanner.GetComponent<RectTransform>().rect.height, Is.LessThanOrEqualTo(32.1f));
+            Assert.That(statusBanner.MessageText.fontSize, Is.GreaterThanOrEqualTo(16));
+            Assert.That(statusBanner.GetComponent<CanvasGroup>().blocksRaycasts, Is.False, "The floating banner must not intercept content scrolling.");
 
             Text[] labels = Object.FindObjectsByType<Text>();
             Assert.That(labels, Has.Some.Matches<Text>(label => label.text.Contains("CASE FILES")));
@@ -214,10 +219,12 @@ namespace EDNA.Investigation.Tests
             Assert.That(caseContent.rectTransform.rect.height, Is.GreaterThan(1f), "Case content must have a visible layout height.");
             InvestigationCaseFilesPanelView caseFilesPanel = Object.FindAnyObjectByType<InvestigationCaseFilesPanelView>();
             Assert.That(caseFilesPanel, Is.Not.Null);
-            Assert.That(caseFilesPanel.Depth, Is.EqualTo("Depth range: Shallow."));
-            Assert.That(caseFilesPanel.Temperature, Is.EqualTo("Temperature: Cold water below 12°C."));
-            Assert.That(caseFilesPanel.Habitat, Is.EqualTo("Habitat: Rocky reef, Cold sensitive."));
-            Assert.That(caseFilesPanel.Sensitivity, Is.EqualTo("Sensitivity: Rocky reef, Cold sensitive."));
+            LayoutElement caseBriefLayout = caseFilesPanel.transform.Find("Case Brief Card").GetComponent<LayoutElement>();
+            Assert.That(caseBriefLayout.preferredHeight, Is.LessThanOrEqualTo(124.1f));
+            Assert.That(caseFilesPanel.Depth, Is.EqualTo("DEPTH RANGE: shallow."));
+            Assert.That(caseFilesPanel.Temperature, Is.EqualTo("TEMPERATURE: cold water below 12°C."));
+            Assert.That(caseFilesPanel.Habitat, Is.EqualTo("HABITAT: rocky reef, cold sensitive."));
+            Assert.That(caseFilesPanel.Sensitivity, Is.EqualTo("SENSITIVITY: rocky reef, cold sensitive."));
             Assert.That(caseFilesPanel.Depth, Does.Not.Contain("\n"));
             InvestigationResponsiveGridLayout traitGrid = caseFilesPanel.GetComponentInChildren<InvestigationResponsiveGridLayout>();
             Assert.That(traitGrid, Is.Not.Null);
@@ -225,7 +232,7 @@ namespace EDNA.Investigation.Tests
 
             InvestigationButtonView previousSpecies = FindButtonView("<  PREVIOUS SPECIES");
             InvestigationButtonView nextSpecies = FindButtonView("NEXT SPECIES  >");
-            InvestigationButtonView startComparison = FindButtonView("START COMPARISON");
+            InvestigationButtonView startComparison = FindButtonView("START COMPARISON  >");
             Assert.That(previousSpecies, Is.Not.Null);
             Assert.That(nextSpecies, Is.Not.Null);
             Assert.That(startComparison, Is.Not.Null);
@@ -240,8 +247,21 @@ namespace EDNA.Investigation.Tests
             Assert.That(startComparison.transform.position.x, Is.GreaterThan(nextSpecies.transform.position.x + nextSpecies.GetComponent<RectTransform>().rect.width));
             GridLayoutGroup standardActionsGrid = previousSpecies.transform.parent.GetComponent<GridLayoutGroup>();
             Assert.That(standardActionsGrid, Is.Not.Null);
-            Assert.That(standardActionsGrid.padding.vertical, Is.EqualTo(8));
-            Assert.That(standardActionsGrid.cellSize.y, Is.EqualTo(48f));
+            Assert.That(standardActionsGrid.padding.vertical, Is.EqualTo(4));
+            Assert.That(standardActionsGrid.cellSize.y, Is.EqualTo(44f));
+
+            ScrollRect caseContentScroll = caseFilesPanel.GetComponentInParent<ScrollRect>();
+            Assert.That(caseContentScroll, Is.Not.Null);
+            caseContentScroll.verticalNormalizedPosition = 0.35f;
+            Canvas.ForceUpdateCanvases();
+            float speciesScrollPosition = caseContentScroll.verticalNormalizedPosition;
+            FindButton("NEXT SPECIES  >").onClick.Invoke();
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            Assert.That(
+                caseContentScroll.verticalNormalizedPosition,
+                Is.EqualTo(speciesScrollPosition).Within(0.02f),
+                "Changing species must preserve the reader's current scroll position.");
 
             FindButton("3  BUILD HYPOTHESIS").onClick.Invoke();
             yield return null;
@@ -297,9 +317,10 @@ namespace EDNA.Investigation.Tests
                 Is.LessThanOrEqualTo(classificationParent.GetComponent<RectTransform>().rect.width + 0.5f),
                 "Classification choices must fit the WebGL-width row without clipping.");
             Assert.That(shellLayout.IsComparisonMode, Is.True);
-            Assert.That(shellLayout.CurrentActionsHeight, Is.InRange(137.9f, 138.1f));
-            Assert.That(FindButtonView("BUILD HYPOTHESIS").transform.GetSiblingIndex() % 4, Is.EqualTo(3));
-            Assert.That(FindButtonView("BUILD HYPOTHESIS").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
+            Assert.That(shellLayout.CurrentActionsHeight, Is.InRange(127.9f, 128.1f));
+            Assert.That(shellLayout.CurrentContentHeight, Is.GreaterThan(290f), "Comparison mode should still prioritize the evidence workspace.");
+            Assert.That(FindButtonView("BUILD HYPOTHESIS  >").transform.GetSiblingIndex() % 4, Is.EqualTo(3));
+            Assert.That(FindButtonView("BUILD HYPOTHESIS  >").CurrentStyle, Is.EqualTo(InvestigationButtonStyle.Commit));
             Assert.That(statusBanner.CurrentLabel, Is.EqualTo("NEXT STEP"));
             Assert.That(statusBanner.CurrentMessage, Does.Contain("Select a comparison card"));
 
@@ -423,7 +444,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindText("Evidence supports it"), Is.Not.Null);
             Assert.That(FindText("Follow-up sample completed"), Is.Not.Null);
             Assert.That(FindText("At least one challenge assigned"), Is.Not.Null);
-            Assert.That(FindButtonView("BUILD HYPOTHESIS"), Is.Null);
+            Assert.That(FindButtonView("BUILD HYPOTHESIS  >"), Is.Null);
             Assert.That(FindButtonView("COMPARE DATA"), Is.Null);
             Assert.That(FindButtonView("PLAN SAMPLE"), Is.Null);
             Assert.That(FindButtonView("RESTART CASE").transform.GetSiblingIndex(), Is.EqualTo(0));
@@ -518,7 +539,7 @@ namespace EDNA.Investigation.Tests
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
             Assert.That(controller, Is.Not.Null);
 
-            FindButton("START COMPARISON").onClick.Invoke();
+            FindButton("START COMPARISON  >").onClick.Invoke();
             yield return null;
             Assert.That(FindButtonView("1  CASE FILES").IsCompletedNavigation, Is.True);
 

@@ -880,7 +880,7 @@ namespace EDNA.Investigation
         private void AddStageForwardButton(string label, Action action, bool isInteractable = true)
         {
             PadActionsToColumn(GetActionColumnCount() - 1);
-            AddActionSlotButton(label, action, InvestigationButtonStyle.Commit, isInteractable);
+            AddActionSlotButton($"{label}  >", action, InvestigationButtonStyle.Commit, isInteractable);
         }
 
         private void AddActionSlotButton(
@@ -995,7 +995,7 @@ namespace EDNA.Investigation
                 default: return InvestigationGlyph.None;
             }
         }
-        private void ChangeSpecies(int delta) { speciesIndex = Wrap(speciesIndex + delta, caseDefinition.Species.Count); RenderCurrentPage(); }
+        private void ChangeSpecies(int delta) { speciesIndex = Wrap(speciesIndex + delta, caseDefinition.Species.Count); RenderCurrentPage(true); }
         private void ChangeHypothesis(int delta) { hypothesisIndex = Wrap(hypothesisIndex + delta, caseDefinition.Hypotheses.Count); RenderCurrentPage(); }
         private void ChangeEvidence(int delta) { evidenceIndex = Wrap(evidenceIndex + delta, state.GetIdentifiedEvidence().Count); RenderCurrentPage(); }
         private void ChangeSite(int delta) { siteIndex = Wrap(siteIndex + delta, caseDefinition.SampleSites.Count); depthIndex = 0; RenderCurrentPage(); }
