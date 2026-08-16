@@ -125,6 +125,33 @@ namespace EDNA.Investigation.Tests
         }
 
         [UnityTest]
+        public IEnumerator InvestigationScene_RoundedSurfacesUseSharedSlicedSprites()
+        {
+            AsyncOperation loadOperation = SceneManager.LoadSceneAsync("InvestigationScene", LoadSceneMode.Single);
+            Assert.That(loadOperation, Is.Not.Null, "InvestigationScene must be present in Build Settings.");
+            yield return loadOperation;
+            yield return null;
+
+            InvestigationRoundedCorners[] roundedSurfaces =
+                Object.FindObjectsByType<InvestigationRoundedCorners>();
+            Assert.That(roundedSurfaces.Length, Is.GreaterThan(10));
+            foreach (InvestigationRoundedCorners roundedSurface in roundedSurfaces)
+            {
+                Image image = roundedSurface.GetComponent<Image>();
+                Assert.That(image, Is.Not.Null, $"{roundedSurface.name} must retain its uGUI Image.");
+                Assert.That(image.sprite, Is.Not.Null, $"{roundedSurface.name} must receive a rounded sprite in Play Mode.");
+                Assert.That(image.type, Is.EqualTo(Image.Type.Sliced));
+                Assert.That(
+                    roundedSurface.Radius,
+                    Is.EqualTo(InvestigationTheme.CornerRadiusSmall)
+                        .Or.EqualTo(InvestigationTheme.CornerRadiusControl)
+                        .Or.EqualTo(InvestigationTheme.CornerRadiusCard));
+            }
+
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest]
         public IEnumerator InvestigationScene_BootstrapsCompleteEnglishWorkflow()
         {
             AsyncOperation loadOperation = SceneManager.LoadSceneAsync("InvestigationScene", LoadSceneMode.Single);

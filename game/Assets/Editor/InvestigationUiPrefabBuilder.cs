@@ -55,6 +55,7 @@ public static class InvestigationUiPrefabBuilder
         rootRect.sizeDelta = new Vector2(1400f, 0f);
         rootRect.pivot = new Vector2(0.5f, 1f);
         root.GetComponent<Image>().color = InvestigationTheme.WithAlpha(InvestigationTheme.Surface, 0.94f);
+        ConfigureRoundedCorners(root, InvestigationTheme.CornerRadiusCard);
         ConfigureOutline(root.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
         root.GetComponent<Outline>().enabled = false;
 
@@ -162,6 +163,7 @@ public static class InvestigationUiPrefabBuilder
         rootRect.sizeDelta = new Vector2(1400f, 0f);
         rootRect.pivot = new Vector2(0.5f, 1f);
         root.GetComponent<Image>().color = InvestigationTheme.WithAlpha(Panel, 0.96f);
+        ConfigureRoundedCorners(root, InvestigationTheme.CornerRadiusCard);
         ConfigureOutline(root.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
 
         VerticalLayoutGroup layout = root.GetComponent<VerticalLayoutGroup>();
@@ -229,6 +231,7 @@ public static class InvestigationUiPrefabBuilder
         Image badgeImage = badge.GetComponent<Image>();
         badgeImage.color = InvestigationTheme.TextMuted;
         badgeImage.raycastTarget = false;
+        ConfigureRoundedCorners(badge, InvestigationTheme.CornerRadiusSmall);
         LayoutElement badgeLayout = badge.GetComponent<LayoutElement>();
         badgeLayout.preferredWidth = 156f;
         badgeLayout.preferredHeight = 30f;
@@ -304,6 +307,7 @@ public static class InvestigationUiPrefabBuilder
         root.GetComponent<RectTransform>().sizeDelta = new Vector2(1400f, 0f);
         root.GetComponent<RectTransform>().pivot = new Vector2(0.5f, 1f);
         root.GetComponent<Image>().color = InvestigationTheme.WithAlpha(Panel, 0.96f);
+        ConfigureRoundedCorners(root, InvestigationTheme.CornerRadiusCard);
         Outline rootOutline = root.AddComponent<Outline>();
         ConfigureOutline(rootOutline, InvestigationTheme.BorderQuiet, 1f);
 
@@ -358,6 +362,7 @@ public static class InvestigationUiPrefabBuilder
             typeof(InvestigationStepperView));
         root.layer = 5;
         root.GetComponent<Image>().color = InvestigationTheme.SurfaceRaised;
+        ConfigureRoundedCorners(root, InvestigationTheme.CornerRadiusControl);
         Outline stepperOutline = root.AddComponent<Outline>();
         ConfigureOutline(stepperOutline, InvestigationTheme.BorderQuiet, 1f);
         LayoutElement rootElement = root.GetComponent<LayoutElement>();
@@ -502,6 +507,7 @@ public static class InvestigationUiPrefabBuilder
         {
             Image background = root.GetComponent<Image>();
             background.color = InvestigationTheme.SurfaceSelected;
+            ConfigureRoundedCorners(root, InvestigationTheme.CornerRadiusControl);
             LayoutElement layout = root.GetComponent<LayoutElement>();
             layout.minHeight = 44f;
             layout.preferredHeight = 44f;
@@ -545,6 +551,7 @@ public static class InvestigationUiPrefabBuilder
             Image badgeBackground = badgeObject.GetComponent<Image>();
             badgeBackground.color = InvestigationTheme.SurfaceInteractive;
             badgeBackground.raycastTarget = false;
+            ConfigureRoundedCorners(badgeObject, InvestigationTheme.CornerRadiusSmall);
             Text badgeText = CreateOverlayText(
                 badgeObject.transform,
                 "Badge Number",
@@ -748,6 +755,7 @@ public static class InvestigationUiPrefabBuilder
         Image background = metric.GetComponent<Image>();
         background.color = InvestigationTheme.WithAlpha(InvestigationTheme.SurfaceInteractive, 0.78f);
         background.raycastTarget = false;
+        ConfigureRoundedCorners(metric, InvestigationTheme.CornerRadiusSmall);
         ConfigureOutline(metric.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
         metric.GetComponent<Outline>().enabled = false;
         LayoutElement metricLayout = metric.GetComponent<LayoutElement>();
@@ -775,6 +783,7 @@ public static class InvestigationUiPrefabBuilder
         {
             Image background = root.GetComponent<Image>();
             background.color = InvestigationTheme.Surface;
+            ConfigureRoundedCorners(root, InvestigationTheme.CornerRadiusCard);
             root.GetComponent<CanvasGroup>().blocksRaycasts = false;
             ConfigurePanelOutline(root, InvestigationTheme.BorderQuiet);
             Text label = FindChild(root.transform, "Status Label").GetComponent<Text>();
@@ -811,6 +820,7 @@ public static class InvestigationUiPrefabBuilder
             if (background == null) background = root.AddComponent<Image>();
             background.color = InvestigationTheme.WithAlpha(InvestigationTheme.Surface, 0.96f);
             background.raycastTarget = false;
+            ConfigureRoundedCorners(root, InvestigationTheme.CornerRadiusCard);
             ConfigurePanelOutline(root, InvestigationTheme.BorderQuiet);
 
             VerticalLayoutGroup layout = root.GetComponent<VerticalLayoutGroup>();
@@ -907,6 +917,7 @@ public static class InvestigationUiPrefabBuilder
         buttonObject.transform.SetParent(parent, false);
         Image background = buttonObject.GetComponent<Image>();
         background.color = InvestigationTheme.BackgroundDeep;
+        ConfigureRoundedCorners(buttonObject, InvestigationTheme.CornerRadiusSmall);
         Outline outline = buttonObject.AddComponent<Outline>();
         ConfigureOutline(outline, InvestigationTheme.Border, 1f);
         Button button = buttonObject.GetComponent<Button>();
@@ -1067,6 +1078,7 @@ public static class InvestigationUiPrefabBuilder
             rootLayout.minHeight = 186f;
             rootLayout.preferredHeight = 186f;
             root.GetComponent<Image>().color = InvestigationTheme.SurfaceRaised;
+            ConfigureRoundedCorners(root, InvestigationTheme.CornerRadiusCard);
             Outline cardOutline = root.GetComponent<Outline>();
             if (cardOutline == null) cardOutline = root.AddComponent<Outline>();
             ConfigureOutline(cardOutline, InvestigationTheme.Border, 1f);
@@ -1074,6 +1086,7 @@ public static class InvestigationUiPrefabBuilder
             RectTransform portraitRect = FindChild(root.transform, "Portrait Placeholder").GetComponent<RectTransform>();
             SetOffsets(portraitRect, new Vector2(0f, 0f), new Vector2(0f, 1f), 14f, 14f, 170f, -14f);
             portraitRect.GetComponent<Image>().color = InvestigationTheme.SurfaceInteractive;
+            ConfigureRoundedCorners(portraitRect.gameObject, InvestigationTheme.CornerRadiusControl);
             ConfigurePanelOutline(portraitRect.gameObject, InvestigationTheme.Border);
 
             SetOffsets(FindChild(root.transform, "Species Name").GetComponent<RectTransform>(), new Vector2(0f, 0.72f), new Vector2(0.81f, 1f), 188f, 0f, -14f, -8f);
@@ -1114,6 +1127,7 @@ public static class InvestigationUiPrefabBuilder
             Image traitImage = traitBackground.GetComponent<Image>();
             traitImage.color = InvestigationTheme.WithAlpha(InvestigationTheme.BackgroundDeep, 0.62f);
             traitImage.raycastTarget = false;
+            ConfigureRoundedCorners(traitBackground, InvestigationTheme.CornerRadiusSmall);
             ConfigureOutline(traitBackground.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
             traitRect.SetSiblingIndex(traitsText.rectTransform.GetSiblingIndex());
 
@@ -1145,6 +1159,7 @@ public static class InvestigationUiPrefabBuilder
             Image actionImage = actionBackground.GetComponent<Image>();
             actionImage.color = new Color32(14, 48, 65, 255);
             actionImage.raycastTarget = false;
+            ConfigureRoundedCorners(actionBackground, InvestigationTheme.CornerRadiusControl);
             Outline outline = actionBackground.GetComponent<Outline>();
             outline.effectColor = InvestigationTheme.WithAlpha(Cyan, 0.42f);
             outline.effectDistance = new Vector2(1f, -1f);
@@ -1217,6 +1232,7 @@ public static class InvestigationUiPrefabBuilder
         Image image = card.GetComponent<Image>();
         image.color = InvestigationTheme.SurfaceRaised;
         image.raycastTarget = false;
+        ConfigureRoundedCorners(card, InvestigationTheme.CornerRadiusCard);
         ConfigureOutline(card.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
         card.GetComponent<Outline>().enabled = false;
 
@@ -1249,6 +1265,7 @@ public static class InvestigationUiPrefabBuilder
         Image image = surface.GetComponent<Image>();
         image.color = color;
         image.raycastTarget = false;
+        ConfigureRoundedCorners(surface, InvestigationTheme.CornerRadiusControl);
         ConfigureOutline(surface.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
         surface.GetComponent<Outline>().enabled = false;
         return surface;
@@ -1278,6 +1295,7 @@ public static class InvestigationUiPrefabBuilder
         Image background = chip.GetComponent<Image>();
         background.color = InvestigationTheme.WithAlpha(InvestigationTheme.BackgroundDeep, 0.72f);
         background.raycastTarget = false;
+        ConfigureRoundedCorners(chip, InvestigationTheme.CornerRadiusSmall);
         ConfigureOutline(chip.GetComponent<Outline>(), InvestigationTheme.BorderQuiet, 1f);
         chip.GetComponent<Outline>().enabled = false;
         Text text = CreateOverlayText(chip.transform, "Label", value, 12, FontStyle.Normal, Muted, TextAnchor.MiddleLeft);
@@ -1303,6 +1321,7 @@ public static class InvestigationUiPrefabBuilder
         backgroundImage = well.GetComponent<Image>();
         backgroundImage.color = InvestigationTheme.WithAlpha(backgroundColor, 0.72f);
         backgroundImage.raycastTarget = false;
+        ConfigureRoundedCorners(well, InvestigationTheme.CornerRadiusControl);
         ConfigureOutline(well.GetComponent<Outline>(), accentColor, 1f);
         Text text = CreateOverlayText(well.transform, "Label", name.ToUpperInvariant(), 13, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft);
         Stretch(text.rectTransform, 16f, 12f, 8f, 8f);
@@ -1345,6 +1364,13 @@ public static class InvestigationUiPrefabBuilder
         Outline outline = target.GetComponent<Outline>();
         if (outline == null) outline = target.AddComponent<Outline>();
         ConfigureOutline(outline, color, 1f);
+    }
+
+    private static void ConfigureRoundedCorners(GameObject target, float radius)
+    {
+        InvestigationRoundedCorners rounded = target.GetComponent<InvestigationRoundedCorners>();
+        if (rounded == null) rounded = target.AddComponent<InvestigationRoundedCorners>();
+        rounded.Configure(radius);
     }
 
     private static void ConfigureOutline(Outline outline, Color color, float distance)

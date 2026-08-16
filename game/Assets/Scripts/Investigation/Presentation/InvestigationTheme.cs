@@ -33,6 +33,10 @@ namespace EDNA.Investigation
         public const float MotionFast = 0.12f;
         public const float MotionStandard = 0.20f;
 
+        public const float CornerRadiusSmall = 4f;
+        public const float CornerRadiusControl = 6f;
+        public const float CornerRadiusCard = 8f;
+
         public static Color WithAlpha(Color color, float alpha)
         {
             color.a = Mathf.Clamp01(alpha);
