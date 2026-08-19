@@ -40,6 +40,14 @@ A successful conclusion needs:
 
 ![Build Hypothesis screen](docs/images/investigation-build-hypothesis.png)
 
+### Plan Sample
+
+![Plan Sample screen](docs/images/investigation-plan-sample.png)
+
+### Conclusion
+
+![Conclusion screen](docs/images/investigation-conclusion.png)
+
 ## Gameplay flow
 
 ```mermaid
