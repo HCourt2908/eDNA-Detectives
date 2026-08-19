@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -22,6 +23,7 @@ public class CleaningMinigame : MonoBehaviour
 
     private bool hasCompleted;
     private bool hasSelectedTool;
+    private bool isAutoCleaning;
     private CleaningToolType selectedTool;
 
     private void Awake()
@@ -39,29 +41,29 @@ public class CleaningMinigame : MonoBehaviour
 
     public void Begin()
     {
+        StopAllCoroutines();
         hasCompleted = false;
         hasSelectedTool = false;
+        isAutoCleaning = false;
 
         foreach (CleaningTarget target in targets)
         {
             target.ResetTarget();
         }
 
-        bool tutorialComplete = PlayerPrefs.GetInt(TutorialCompleteKey, 0) == 1;
-        manualCleaningGroup.SetActive(!tutorialComplete);
-        quickCleaningGroup.SetActive(tutorialComplete);
+        manualCleaningGroup.SetActive(true);
+        quickCleaningGroup.SetActive(true);
+        quickCleanButton.interactable = true;
         continueButton.gameObject.SetActive(false);
 
-        instructionText.text = tutorialComplete
-            ? "Equipment check: press CLEAN ALL to prepare the sampling kit."
-            : "Click a tool, then click equipment — or drag the tool across it.";
+        instructionText.text = "Click a tool, then click equipment — or drag the tool across it.";
 
         explanationText.text = "Clean equipment prevents DNA left by an earlier sample from changing our results.";
     }
 
     public void ApplyTool(CleaningToolType toolType, Vector2 screenPosition, float deltaTime)
     {
-        if (hasCompleted)
+        if (hasCompleted || isAutoCleaning)
         {
             return;
         }
@@ -102,7 +104,7 @@ public class CleaningMinigame : MonoBehaviour
 
     public void SelectTool(CleaningToolType toolType)
     {
-        if (hasCompleted)
+        if (hasCompleted || isAutoCleaning)
         {
             return;
         }
@@ -110,20 +112,20 @@ public class CleaningMinigame : MonoBehaviour
         selectedTool = toolType;
         hasSelectedTool = true;
         instructionText.text = toolType == CleaningToolType.DecontaminationSolution
-            ? "Cleaning solution selected. Click an item or drag the tool across it."
+            ? "Cleaning sponge selected. Click an item or drag the sponge across it."
             : "Sterile water selected. Click an already-cleaned item to rinse it.";
     }
 
     public void HandleTargetClick(CleaningTarget target)
     {
-        if (hasCompleted)
+        if (hasCompleted || isAutoCleaning)
         {
             return;
         }
 
         if (!hasSelectedTool)
         {
-            instructionText.text = "Choose CLEANING SOLUTION or STERILE WATER first.";
+            instructionText.text = "Choose the CLEANING SPONGE or STERILE WATER first.";
             return;
         }
 
@@ -146,13 +148,74 @@ public class CleaningMinigame : MonoBehaviour
 
     private void QuickClean()
     {
+        if (hasCompleted || isAutoCleaning)
+        {
+            return;
+        }
+
+        StartCoroutine(AutoCleanAndContinue());
+    }
+
+    private IEnumerator AutoCleanAndContinue()
+    {
+        isAutoCleaning = true;
+        hasSelectedTool = false;
+        quickCleanButton.interactable = false;
+        continueButton.gameObject.SetActive(false);
+
+        instructionText.text = "Skip selected — automatically cleaning all three items...";
+        yield return AnimateAutomaticStep(true, 0.55f);
+
+        instructionText.text = "Automatically rinsing away the cleaning solution...";
+        yield return AnimateAutomaticStep(false, 0.55f);
+
         foreach (CleaningTarget target in targets)
         {
             target.CompleteImmediately();
         }
 
-        instructionText.text = "All equipment is clean and ready. ✓";
-        CheckCompletion();
+        CompleteCleaning(false);
+        instructionText.text = "Auto-clean complete. Opening the station map... ✓";
+        yield return new WaitForSeconds(0.45f);
+
+        Completed?.Invoke();
+    }
+
+    private IEnumerator AnimateAutomaticStep(bool cleaning, float duration)
+    {
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            float frameTime = Mathf.Min(Time.deltaTime, duration - elapsed);
+            elapsed += frameTime;
+
+            foreach (CleaningTarget target in targets)
+            {
+                if (cleaning)
+                {
+                    target.ApplyCleaning(target.cleanSeconds * frameTime / duration);
+                }
+                else
+                {
+                    target.ApplyRinse(target.rinseSeconds * frameTime / duration);
+                }
+            }
+
+            yield return null;
+        }
+
+        foreach (CleaningTarget target in targets)
+        {
+            if (cleaning)
+            {
+                target.ApplyCleaning(target.cleanSeconds);
+            }
+            else
+            {
+                target.ApplyRinse(target.rinseSeconds);
+            }
+        }
     }
 
     private void CheckCompletion()
@@ -170,11 +233,18 @@ public class CleaningMinigame : MonoBehaviour
             return;
         }
 
+        CompleteCleaning(true);
+    }
+
+    private void CompleteCleaning(bool showContinueButton)
+    {
         hasCompleted = true;
+        isAutoCleaning = false;
         PlayerPrefs.SetInt(TutorialCompleteKey, 1);
         PlayerPrefs.Save();
+        quickCleaningGroup.SetActive(false);
         instructionText.text = "Sampling equipment prepared successfully. ✓";
-        continueButton.gameObject.SetActive(true);
+        continueButton.gameObject.SetActive(showContinueButton);
     }
 
     private void Continue()

@@ -27,6 +27,7 @@ public class CleaningTarget : MonoBehaviour, IPointerClickHandler
     private float cleanProgress;
     private float rinseProgress;
     private Color originalEquipmentColor;
+    private readonly Color dirtyEquipmentColor = new Color(0.30f, 0.32f, 0.34f, 1f);
 
     private void Awake()
     {
@@ -38,6 +39,12 @@ public class CleaningTarget : MonoBehaviour, IPointerClickHandler
         if (equipmentImage != null)
         {
             originalEquipmentColor = equipmentImage.color;
+
+            Transform placeholderLabel = equipmentImage.transform.Find("EquipmentName");
+            if (placeholderLabel != null)
+            {
+                placeholderLabel.gameObject.SetActive(false);
+            }
         }
 
         ResetTarget();
@@ -56,16 +63,9 @@ public class CleaningTarget : MonoBehaviour, IPointerClickHandler
         cleanProgress = 0f;
         rinseProgress = 0f;
 
-        if (equipmentImage != null)
-        {
-            equipmentImage.color = originalEquipmentColor == default
-                ? new Color(0.72f, 0.78f, 0.82f)
-                : originalEquipmentColor;
-        }
-
         if (dirtyOverlay != null)
         {
-            dirtyOverlay.color = new Color(0.40f, 0.25f, 0.12f, 0.72f);
+            dirtyOverlay.gameObject.SetActive(false);
         }
 
         RefreshUI();
@@ -115,9 +115,13 @@ public class CleaningTarget : MonoBehaviour, IPointerClickHandler
 
         if (dirtyOverlay != null)
         {
-            Color dirty = dirtyOverlay.color;
-            dirty.a = Mathf.Lerp(0.72f, 0.08f, cleanProgress);
-            dirtyOverlay.color = dirty;
+            dirtyOverlay.gameObject.SetActive(false);
+        }
+
+        if (equipmentImage != null)
+        {
+            Color cleanColour = originalEquipmentColor == default ? Color.white : originalEquipmentColor;
+            equipmentImage.color = Color.Lerp(dirtyEquipmentColor, cleanColour, cleanProgress);
         }
 
         if (statusText != null)
@@ -134,14 +138,10 @@ public class CleaningTarget : MonoBehaviour, IPointerClickHandler
             }
             else
             {
-                statusText.text = "Apply cleaning solution";
+                statusText.text = "Use the cleaning sponge";
                 statusText.color = Color.white;
             }
         }
 
-        if (IsComplete && equipmentImage != null)
-        {
-            equipmentImage.color = new Color(0.68f, 1f, 0.90f);
-        }
     }
 }

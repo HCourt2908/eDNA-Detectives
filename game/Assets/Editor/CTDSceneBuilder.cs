@@ -13,6 +13,12 @@ using UnityEngine.UI;
 public static class CTDSceneBuilder
 {
     private const string ScenePath = "Assets/Scenes/CTD-Minigame.unity";
+    private const string LaboratoryBackgroundPath = "Assets/Art/CTD-Minigame/Backgrounds/laboratory_bg.jpg";
+    private const string UnderseaBackgroundPath = "Assets/Art/CTD-Minigame/Backgrounds/undersea_bg.jpg";
+    private const string SingleBottlePath = "Assets/Art/CTD-Minigame/CTD/niksin_bottle_1.png";
+    private const string TubePath = "Assets/Art/CTD-Minigame/CTD/tube.png";
+    private const string FilterPath = "Assets/Art/CTD-Minigame/CTD/filter.png";
+    private const string SpongePath = "Assets/Art/CTD-Minigame/CTD/sponge.png";
     private static readonly Color Navy = new Color(0.018f, 0.055f, 0.12f);
     private static readonly Color PanelBlue = new Color(0.035f, 0.13f, 0.22f, 0.96f);
     private static readonly Color Cyan = new Color(0.18f, 0.82f, 0.86f);
@@ -36,12 +42,15 @@ public static class CTDSceneBuilder
         CTDGameManager manager = managerObject.AddComponent<CTDGameManager>();
 
         GameObject introPanel = CreateIntroPanel(canvas.transform, out Button beginButton);
+        ApplyBackground(introPanel, UnderseaBackgroundPath, Color.white);
         GameObject cleaningPanel = CreateCleaningPanel(canvas, out CleaningMinigame cleaningMinigame);
+        ApplyBackground(cleaningPanel, LaboratoryBackgroundPath, Color.white);
         GameObject planningPanel = CreatePlanningPanel(
             canvas.transform,
             out Button[] locationButtons,
             out TMP_Text selectedLocationText,
             out Button deployButton);
+        ApplyBackground(planningPanel, UnderseaBackgroundPath, Color.white);
         GameObject launchPanel = CreateTransitionPanel(
             canvas.transform,
             "LaunchPanel",
@@ -49,6 +58,7 @@ public static class CTDSceneBuilder
             out RectTransform launchRosette,
             out TMP_Text transitionStatusText,
             false);
+        ApplyBackground(launchPanel, UnderseaBackgroundPath, Color.white);
         GameObject samplingPanel = CreateSamplingPanel(canvas.transform, out CTDSamplingController samplingController);
         GameObject recoveryPanel = CreateTransitionPanel(
             canvas.transform,
@@ -57,11 +67,13 @@ public static class CTDSceneBuilder
             out RectTransform recoveryRosette,
             out _,
             true);
+        ApplyBackground(recoveryPanel, UnderseaBackgroundPath, Color.white);
         GameObject completePanel = CreateCompletePanel(
             canvas.transform,
             out TMP_Text completionSummary,
             out Button replayButton,
             out Button continueButton);
+        ApplyBackground(completePanel, UnderseaBackgroundPath, Color.white);
 
         manager.introPanel = introPanel;
         manager.cleaningPanel = cleaningPanel;
@@ -249,7 +261,7 @@ public static class CTDSceneBuilder
         TMP_Text instruction = CreateText(
             "Instruction",
             panel.transform,
-            "Drag the cleaning solution over each item, then rinse it with sterile water.",
+            "Drag the cleaning sponge over each item, then rinse it with sterile water.",
             28,
             White,
             new Vector2(0f, 315f),
@@ -259,9 +271,9 @@ public static class CTDSceneBuilder
         GameObject manualGroup = CreateEmptyUI("ManualCleaningGroup", panel.transform);
         Stretch(manualGroup.GetComponent<RectTransform>());
         CleaningTarget[] targets = new CleaningTarget[3];
-        targets[0] = CreateCleaningTarget(manualGroup.transform, "Niskin bottle", "NISKIN BOTTLE", -500f, new Color(0.66f, 0.76f, 0.82f));
-        targets[1] = CreateCleaningTarget(manualGroup.transform, "sampling tubing", "SAMPLING TUBING", 0f, new Color(0.30f, 0.72f, 0.78f));
-        targets[2] = CreateCleaningTarget(manualGroup.transform, "filtration apparatus", "FILTER APPARATUS", 500f, new Color(0.56f, 0.66f, 0.78f));
+        targets[0] = CreateCleaningTarget(manualGroup.transform, "Niskin bottle", "NISKIN BOTTLE", -500f, SingleBottlePath, new Vector2(230f, 260f));
+        targets[1] = CreateCleaningTarget(manualGroup.transform, "sampling tubing", "SAMPLING TUBING", 0f, TubePath, new Vector2(290f, 245f));
+        targets[2] = CreateCleaningTarget(manualGroup.transform, "filtration apparatus", "FILTER APPARATUS", 500f, FilterPath, new Vector2(230f, 260f));
 
         CleaningTool cleaningTool = CreateCleaningTool(
             manualGroup.transform,
@@ -270,7 +282,8 @@ public static class CTDSceneBuilder
             "DECONTAMINATION SOLUTION\nCLICK OR DRAG",
             CleaningToolType.DecontaminationSolution,
             new Vector2(-225f, -405f),
-            new Color(0.35f, 0.82f, 0.58f));
+            Color.white,
+            SpongePath);
         CleaningTool rinseTool = CreateCleaningTool(
             manualGroup.transform,
             canvas,
@@ -287,12 +300,13 @@ public static class CTDSceneBuilder
         CreateText(
             "QuickText",
             quickGroup.transform,
-            "You completed the full cleaning tutorial earlier.\nRun the standard equipment preparation check.",
-            36,
+            "SHORT ON TIME?",
+            20,
             White,
-            new Vector2(0f, 70f),
-            new Vector2(1100f, 150f));
-        Button quickButton = CreateButton("QuickCleanButton", quickGroup.transform, "CLEAN ALL EQUIPMENT", new Vector2(0f, -90f), new Vector2(520f, 105f), Cyan);
+            new Vector2(760f, -405f),
+            new Vector2(320f, 45f),
+            FontStyles.Bold);
+        Button quickButton = CreateButton("QuickCleanButton", quickGroup.transform, "SKIP & AUTO-CLEAN", new Vector2(760f, -465f), new Vector2(330f, 72f), Cyan);
 
         Button continueButton = CreateButton("CleaningContinueButton", panel.transform, "CONTINUE TO SAMPLING PLAN", new Vector2(0f, -465f), new Vector2(620f, 82f), Green);
 
@@ -306,26 +320,28 @@ public static class CTDSceneBuilder
         return panel;
     }
 
-    private static CleaningTarget CreateCleaningTarget(Transform parent, string displayName, string label, float x, Color equipmentColour)
+    private static CleaningTarget CreateCleaningTarget(Transform parent, string displayName, string label, float x, string spritePath, Vector2 imageSize)
     {
         GameObject card = CreateImage($"{label} Card", parent, PanelBlue, new Vector2(x, 5f), new Vector2(420f, 500f));
         CreateText("Label", card.transform, label, 27, White, new Vector2(0f, 205f), new Vector2(350f, 50f), FontStyles.Bold);
 
-        GameObject equipment = CreateImage("Equipment", card.transform, equipmentColour, new Vector2(0f, 62f), new Vector2(220f, 205f));
-        GameObject dirty = CreateImage("Contamination", equipment.transform, new Color(0.4f, 0.25f, 0.12f, 0.72f), Vector2.zero, new Vector2(220f, 205f));
-        CreateText("EquipmentName", equipment.transform, label.Replace(" ", "\n"), 24, Navy, Vector2.zero, new Vector2(190f, 150f), FontStyles.Bold);
+        GameObject equipment = CreateImage("Equipment", card.transform, Color.white, new Vector2(0f, 68f), imageSize);
+        Image equipmentImage = equipment.GetComponent<Image>();
+        equipmentImage.sprite = LoadSprite(spritePath);
+        equipmentImage.type = Image.Type.Simple;
+        equipmentImage.preserveAspect = true;
 
-        CreateText("CleanLabel", card.transform, "CLEAN", 17, new Color(0.72f, 0.88f, 0.94f), new Vector2(-145f, -78f), new Vector2(90f, 30f));
-        Image cleanFill = CreateProgressBar(card.transform, new Vector2(38f, -78f), new Color(0.35f, 0.90f, 0.62f));
-        CreateText("RinseLabel", card.transform, "RINSE", 17, new Color(0.72f, 0.88f, 0.94f), new Vector2(-145f, -128f), new Vector2(90f, 30f));
-        Image rinseFill = CreateProgressBar(card.transform, new Vector2(38f, -128f), new Color(0.30f, 0.70f, 1f));
-        TMP_Text status = CreateText("Status", card.transform, "Apply cleaning solution", 21, White, new Vector2(0f, -190f), new Vector2(360f, 65f));
+        CreateText("CleanLabel", card.transform, "CLEAN", 17, new Color(0.72f, 0.88f, 0.94f), new Vector2(-145f, -92f), new Vector2(90f, 30f));
+        Image cleanFill = CreateProgressBar(card.transform, new Vector2(38f, -92f), new Color(0.35f, 0.90f, 0.62f));
+        CreateText("RinseLabel", card.transform, "RINSE", 17, new Color(0.72f, 0.88f, 0.94f), new Vector2(-145f, -138f), new Vector2(90f, 30f));
+        Image rinseFill = CreateProgressBar(card.transform, new Vector2(38f, -138f), new Color(0.30f, 0.70f, 1f));
+        TMP_Text status = CreateText("Status", card.transform, "Use the cleaning sponge", 21, White, new Vector2(0f, -190f), new Vector2(360f, 65f));
 
         CleaningTarget target = card.AddComponent<CleaningTarget>();
         target.displayName = displayName;
         target.targetRect = card.GetComponent<RectTransform>();
-        target.equipmentImage = equipment.GetComponent<Image>();
-        target.dirtyOverlay = dirty.GetComponent<Image>();
+        target.equipmentImage = equipmentImage;
+        target.dirtyOverlay = null;
         target.cleanProgressFill = cleanFill;
         target.rinseProgressFill = rinseFill;
         target.statusText = status;
@@ -351,10 +367,30 @@ public static class CTDSceneBuilder
         string label,
         CleaningToolType toolType,
         Vector2 position,
-        Color colour)
+        Color colour,
+        string spritePath = null)
     {
-        GameObject toolObject = CreateImage(name, parent, colour, position, new Vector2(330f, 92f));
-        CreateText("Label", toolObject.transform, label, 22, Navy, Vector2.zero, new Vector2(290f, 75f), FontStyles.Bold);
+        bool usesSprite = !string.IsNullOrEmpty(spritePath);
+        Vector2 toolSize = usesSprite ? new Vector2(180f, 130f) : new Vector2(330f, 92f);
+        GameObject toolObject = CreateImage(name, parent, colour, position, toolSize);
+        Image toolImage = toolObject.GetComponent<Image>();
+
+        if (usesSprite)
+        {
+            toolImage.sprite = LoadSprite(spritePath);
+            toolImage.type = Image.Type.Simple;
+            toolImage.preserveAspect = true;
+        }
+
+        CreateText(
+            "Label",
+            toolObject.transform,
+            usesSprite ? "CLEANING SPONGE\nCLICK OR DRAG" : label,
+            usesSprite ? 18 : 22,
+            usesSprite ? White : Navy,
+            usesSprite ? new Vector2(0f, -88f) : Vector2.zero,
+            usesSprite ? new Vector2(310f, 55f) : new Vector2(290f, 75f),
+            FontStyles.Bold);
         CleaningTool tool = toolObject.AddComponent<CleaningTool>();
         tool.toolType = toolType;
         tool.rectTransform = toolObject.GetComponent<RectTransform>();
@@ -410,8 +446,8 @@ public static class CTDSceneBuilder
         bool recovery)
     {
         GameObject panel = CreatePanel(panelName, parent, Navy);
-        CreateImage("Sea", panel.transform, new Color(0.03f, 0.33f, 0.52f), new Vector2(0f, -150f), new Vector2(1920f, 780f));
-        CreateImage("Deck", panel.transform, new Color(0.18f, 0.23f, 0.27f), new Vector2(0f, 430f), new Vector2(1920f, 220f));
+        CreateImage("Sea", panel.transform, new Color(1f, 1f, 1f, 0f), new Vector2(0f, -150f), new Vector2(1920f, 780f));
+        CreateImage("Deck", panel.transform, new Color(1f, 1f, 1f, 0f), new Vector2(0f, 430f), new Vector2(1920f, 220f));
         CreateText("Title", panel.transform, title, 50, White, new Vector2(0f, 445f), new Vector2(1200f, 70f), FontStyles.Bold);
 
         GameObject cable = CreateImage("Cable", panel.transform, new Color(0.75f, 0.82f, 0.85f), new Vector2(0f, 80f), new Vector2(10f, 720f));
@@ -433,9 +469,12 @@ public static class CTDSceneBuilder
         GameObject panel = CreatePanel("SamplingPanel", parent, Navy);
         controller = panel.AddComponent<CTDSamplingController>();
 
-        GameObject ocean = CreateImage("OceanBackground", panel.transform, new Color(0.08f, 0.54f, 0.79f), Vector2.zero, new Vector2(1920f, 1080f));
-        CreateImage("TopShade", panel.transform, new Color(0.01f, 0.04f, 0.09f, 0.76f), new Vector2(0f, 440f), new Vector2(1920f, 200f));
-        CreateImage("BottomShade", panel.transform, new Color(0.01f, 0.04f, 0.09f, 0.68f), new Vector2(0f, -455f), new Vector2(1920f, 170f));
+        GameObject ocean = CreateImage("OceanBackground", panel.transform, Color.white, Vector2.zero, new Vector2(1920f, 1080f));
+        Image oceanImage = ocean.GetComponent<Image>();
+        oceanImage.sprite = LoadSprite(UnderseaBackgroundPath);
+        oceanImage.type = Image.Type.Simple;
+        CreateImage("TopShade", panel.transform, new Color(1f, 1f, 1f, 0f), new Vector2(0f, 440f), new Vector2(1920f, 200f));
+        CreateImage("BottomShade", panel.transform, new Color(1f, 1f, 1f, 0f), new Vector2(0f, -455f), new Vector2(1920f, 170f));
 
         TMP_Text phaseText = CreateText("Phase", panel.transform, "DOWNCAST", 27, Cyan, new Vector2(0f, 488f), new Vector2(1200f, 45f), FontStyles.Bold);
         TMP_Text targetText = CreateText("Target", panel.transform, "Sampling begins during the upcast", 34, White, new Vector2(0f, 435f), new Vector2(1450f, 60f), FontStyles.Bold);
@@ -518,7 +557,7 @@ public static class CTDSceneBuilder
 
         Button closeButton = CreateButton("CloseBottleButton", panel.transform, "CLOSE BOTTLE", new Vector2(0f, -445f), new Vector2(470f, 95f), Green);
 
-        controller.oceanBackground = ocean.GetComponent<Image>();
+        controller.oceanBackground = oceanImage;
         controller.depthGauge = gaugeRect;
         controller.depthMarker = marker;
         controller.targetBand = targetBand;
@@ -602,6 +641,28 @@ public static class CTDSceneBuilder
         GameObject panel = CreateImage(name, parent, backgroundColour, Vector2.zero, new Vector2(1920f, 1080f));
         Stretch(panel.GetComponent<RectTransform>());
         return panel;
+    }
+
+    private static void ApplyBackground(GameObject panel, string assetPath, Color tint)
+    {
+        Sprite sprite = LoadSprite(assetPath);
+
+        if (sprite == null)
+        {
+            Debug.LogWarning($"CTD background not found at {assetPath}. The placeholder colour will be used.");
+            return;
+        }
+
+        Image image = panel.GetComponent<Image>();
+        image.sprite = sprite;
+        image.type = Image.Type.Simple;
+        image.preserveAspect = false;
+        image.color = tint;
+    }
+
+    private static Sprite LoadSprite(string assetPath)
+    {
+        return AssetDatabase.LoadAllAssetsAtPath(assetPath).OfType<Sprite>().FirstOrDefault();
     }
 
     private static GameObject CreateEmptyUI(string name, Transform parent)

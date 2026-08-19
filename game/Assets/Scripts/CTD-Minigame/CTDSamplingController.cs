@@ -31,8 +31,6 @@ public class CTDSamplingController : MonoBehaviour
 
     public event Action<CTDSampleRecord[]> SamplingCompleted;
 
-    private readonly Color surfaceColour = new Color(0.08f, 0.54f, 0.79f);
-    private readonly Color deepColour = new Color(0.015f, 0.055f, 0.17f);
     private readonly CTDSampleRecord[] samples = new CTDSampleRecord[3];
 
     private float currentDepth;
@@ -224,7 +222,7 @@ public class CTDSamplingController : MonoBehaviour
         float temperature = Mathf.Lerp(22f, 3.5f, normalized);
         float salinity = Mathf.Lerp(34.1f, 35.0f, normalized);
         sensorText.text = $"Temperature  {temperature:0.0} °C\nSalinity         {salinity:0.0} PSU";
-        oceanBackground.color = Color.Lerp(surfaceColour, deepColour, normalized);
+        oceanBackground.color = Color.white;
 
         if (!descending && currentTargetIndex < targetDepths.Length)
         {
