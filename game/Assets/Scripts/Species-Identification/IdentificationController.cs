@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 public enum SymbolType
 {
@@ -132,6 +133,8 @@ public class sampleController : MonoBehaviour
             button.onClick.AddListener(() => CheckCorrectness(button, buttonText));
             buttons.Add(button);
         }
+
+        EventSystem.current.SetSelectedGameObject(buttons[0].gameObject);
 
     }
 

@@ -40,13 +40,28 @@ public class MicroscopeMinigame : MonoBehaviour
 
     private void Update()
     {
-        if (Mouse.current == null) return;
 
-        float scroll = Mouse.current.scroll.ReadValue().y;
+        float magnificationChange = 0f;
 
-        if (scroll != 0)
+        if (Mouse.current != null)
         {
-            magnification += scroll * scrollSpeed;
+            float scroll = Mouse.current.scroll.ReadValue().y;
+
+            if (scroll != 0) magnificationChange += scroll * scrollSpeed / 3f;
+        }
+
+        if (Gamepad.current != null)
+        {
+            float rightTrigger = Gamepad.current.rightTrigger.ReadValue();
+            float leftTrigger = Gamepad.current.leftTrigger.ReadValue();
+
+            magnificationChange += rightTrigger * scrollSpeed;
+            magnificationChange -= leftTrigger * scrollSpeed;
+        }
+
+        if (magnificationChange != 0)
+        {
+            magnification += magnificationChange;
             magnification = Mathf.Clamp(magnification, minMagnification, maxMagnification);
 
             UpdateSample();
