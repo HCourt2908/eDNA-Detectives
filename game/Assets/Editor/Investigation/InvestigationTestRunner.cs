@@ -15,16 +15,28 @@ namespace EDNA.Investigation.Editor
             Run(TestMode.EditMode, "EDNA.Investigation.EditModeTests", true);
         }
 
+        [MenuItem("eDNA Detectives/Validation/Run V2 EditMode Tests")]
+        public static void RunV2EditModeTests()
+        {
+            Run(TestMode.EditMode, "EDNA.Investigation.V2.EditModeTests", true);
+        }
+
         [MenuItem("eDNA Detectives/Validation/Run PlayMode Tests")]
         public static void RunPlayModeTests()
         {
             Run(TestMode.PlayMode, "EDNA.Investigation.PlayModeTests", false);
         }
 
+        [MenuItem("eDNA Detectives/Validation/Run V2 PlayMode Tests")]
+        public static void RunV2PlayModeTests()
+        {
+            Run(TestMode.PlayMode, "EDNA.Investigation.V2.PlayModeTests", false);
+        }
+
         private static void Run(TestMode mode, string assemblyName, bool runSynchronously)
         {
             activeApi = ScriptableObject.CreateInstance<TestRunnerApi>();
-            activeCallbacks = new TestCallbacks(mode);
+            activeCallbacks = new TestCallbacks(mode, activeApi);
             activeApi.RegisterCallbacks(activeCallbacks);
             activeApi.Execute(
                 new ExecutionSettings(
@@ -41,10 +53,12 @@ namespace EDNA.Investigation.Editor
         private sealed class TestCallbacks : ICallbacks
         {
             private readonly TestMode mode;
+            private readonly TestRunnerApi api;
 
-            public TestCallbacks(TestMode mode)
+            public TestCallbacks(TestMode mode, TestRunnerApi api)
             {
                 this.mode = mode;
+                this.api = api;
             }
 
             public void RunStarted(ITestAdaptor testsToRun)
@@ -56,6 +70,7 @@ namespace EDNA.Investigation.Editor
             {
                 Debug.Log(
                     $"INVESTIGATION_TESTS_FINISHED mode={mode} passed={result.PassCount} failed={result.FailCount} skipped={result.SkipCount} inconclusive={result.InconclusiveCount}");
+                api.UnregisterCallbacks(this);
             }
 
             public void TestStarted(ITestAdaptor test)
