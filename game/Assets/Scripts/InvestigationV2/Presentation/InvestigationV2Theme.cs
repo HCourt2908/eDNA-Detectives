@@ -26,6 +26,12 @@ namespace EDNA.Investigation.V2
         public static readonly Color32 PaperRaised = new Color32(248, 251, 252, 255);
         public static readonly Color32 PaperInk = new Color32(18, 48, 67, 255);
         public static readonly Color32 PaperMuted = new Color32(77, 111, 132, 255);
+        public static readonly Color32 PaperBorder = new Color32(145, 177, 194, 255);
+        public static readonly Color32 PaperSelected = new Color32(217, 236, 243, 255);
+        public static readonly Color32 PaperSelectedBorder = new Color32(27, 109, 138, 255);
+        public static readonly Color32 MapLabelPlate = new Color32(4, 18, 28, 232);
+        public static readonly Color32 PrimaryShadow = new Color32(0, 0, 0, 82);
+        public static readonly Color32 PaperShadow = new Color32(18, 48, 67, 46);
 
         public const float ShellRadius = 20f;
         public const float CardRadius = 16f;

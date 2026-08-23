@@ -53,7 +53,7 @@ namespace EDNA.Investigation.V2
 
             int remaining = Mathf.Max(0, caseDefinition.MinimumObserveDiscoveries - state.DiscoveredObservationIds.Count);
             string nextLabel = remaining == 0 ? "Try causes →" : $"Record {remaining} more";
-            Button next = CreateButton("Continue To Simulate", notebook, nextLabel, ButtonVisualStyle.PaperPrimary, () => setPhase?.Invoke(InvestigationV2Phase.Simulate), out _);
+            Button next = CreateButton("Continue To Simulate", notebook, nextLabel, ButtonVisualStyle.Primary, () => setPhase?.Invoke(InvestigationV2Phase.Simulate), out _);
             next.GetComponent<LayoutElement>().ignoreLayout = true;
             Anchor(next.GetComponent<RectTransform>(), 0.25f, 0f, 0.75f, 0f, 0f, 8f, 0f, 58f);
             next.interactable = remaining == 0;
@@ -171,26 +171,27 @@ namespace EDNA.Investigation.V2
             bool historical = era == SurveyEra.Historical;
             bool anomaly = !historical && observation != null && observation.ClaimType != ObservationClaimType.MatchesBaseline;
             string detail = historical
-                ? "Detected in baseline"
+                ? "Detected"
                 : observation != null ? ConciseObservationLabel(observation) : "No current observation";
 
+            RectTransform rect = null;
             Button marker = CreateButton(
                 historical ? $"Historical Species Marker {species.SpeciesId}" : $"Species Marker {species.SpeciesId}",
                 map,
                 string.Empty,
                 ButtonVisualStyle.Choice,
-                historical || observation == null ? null : () => discoverObservation?.Invoke(observation.EvidenceId),
+                () => ActivateSpeciesMarker(rect, species, era, observation),
                 out Text emptyLabel);
             emptyLabel.gameObject.SetActive(false);
-            marker.interactable = !historical && observation != null;
-            RectTransform rect = marker.GetComponent<RectTransform>();
+            marker.interactable = true;
+            rect = marker.GetComponent<RectTransform>();
             Vector2 comparisonPosition = new Vector2(
                 0.08f + species.MapPosition.x * 0.84f,
                 0.08f + species.MapPosition.y * 0.78f);
             rect.anchorMin = comparisonPosition;
             rect.anchorMax = comparisonPosition;
             rect.pivot = Vector2.one * 0.5f;
-            rect.sizeDelta = new Vector2(106f, 76f);
+            rect.sizeDelta = new Vector2(112f, 88f);
             rect.anchoredPosition = Vector2.zero;
             LayoutElement markerLayout = marker.GetComponent<LayoutElement>();
             markerLayout.ignoreLayout = true;
@@ -227,23 +228,30 @@ namespace EDNA.Investigation.V2
                 Anchor(missing.rectTransform, 0.18f, 0.43f, 0.82f, 0.98f, 0f, 0f, 0f, -2f);
             }
 
-            Text name = CreateText("Species Name", marker.transform, species.DisplayName, 12, FontStyle.Bold, InvestigationV2Theme.TextPrimary, TextAnchor.MiddleCenter, InvestigationV2Theme.DisplayFont);
-            Anchor(name.rectTransform, 0f, 0.24f, 1f, 0.47f, 6f, 0f, -6f, 0f);
+            RectTransform labelPlate = CreatePanel("Marker Label Plate", marker.transform, InvestigationV2Theme.MapLabelPlate, 8f);
+            Anchor(labelPlate, 0.02f, 0.01f, 0.98f, 0.51f, 0f, 0f, 0f, 0f);
+            Text name = CreateText("Species Name", marker.transform, species.DisplayName, 13, FontStyle.Bold, InvestigationV2Theme.TextPrimary, TextAnchor.MiddleCenter, InvestigationV2Theme.DisplayFont);
+            Anchor(name.rectTransform, 0f, 0.31f, 1f, 0.51f, 6f, 0f, -6f, 0f);
             Color stateColor = !historical && observation != null && observation.ClaimType == ObservationClaimType.NotDetected
                 ? InvestigationV2Theme.Danger
                 : !historical && observation != null && observation.ClaimType == ObservationClaimType.ChangedDepthOrDistribution
                     ? InvestigationV2Theme.Accent
                     : InvestigationV2Theme.TextSecondary;
-            Text stateLabel = CreateText("Observation", marker.transform, detail, 10, FontStyle.Bold, stateColor, TextAnchor.UpperCenter, InvestigationV2Theme.BodyFont);
-            Anchor(stateLabel.rectTransform, 0f, 0.04f, 1f, 0.27f, 6f, 1f, -6f, 0f);
-            AddTextShadow(name);
-            AddTextShadow(stateLabel);
+            Text stateLabel = CreateText("Observation", marker.transform, detail, 12, FontStyle.Bold, stateColor, TextAnchor.UpperCenter, InvestigationV2Theme.BodyFont);
+            Anchor(stateLabel.rectTransform, 0f, 0.02f, 1f, 0.31f, 6f, 1f, -6f, 0f);
 
             InvestigationV2HoverTooltipTrigger tooltipTrigger = marker.gameObject.AddComponent<InvestigationV2HoverTooltipTrigger>();
             tooltipTrigger.Configure(
                 1f,
                 () => ShowSpeciesTooltip(rect, species),
                 HideSpeciesTooltip);
+
+            if (string.Equals(pendingTappedSpeciesId, species.SpeciesId, StringComparison.Ordinal)
+                && pendingTappedSpeciesHistorical == historical)
+            {
+                pendingTappedSpeciesMarker = rect;
+                pendingTappedSpecies = species;
+            }
         }
 
         private static void CreateMapGroupMember(Transform parent, Sprite sprite, string name, float minX, float minY, float maxX, float maxY)
@@ -256,12 +264,33 @@ namespace EDNA.Investigation.V2
             Anchor(member.rectTransform, minX, minY, maxX, maxY, 0f, 0f, 0f, 0f);
         }
 
-        private static void AddTextShadow(Text text)
+        private void ActivateSpeciesMarker(
+            RectTransform marker,
+            InvestigationV2SpeciesDefinition species,
+            SurveyEra era,
+            InvestigationV2ObservationDefinition observation)
         {
-            Shadow shadow = text.gameObject.AddComponent<Shadow>();
-            shadow.effectColor = new Color(0f, 0f, 0f, 0.72f);
-            shadow.effectDistance = new Vector2(1f, -1f);
-            shadow.useGraphicAlpha = true;
+            bool historical = era == SurveyEra.Historical;
+            if (historical || observation == null)
+            {
+                ShowSpeciesTooltip(marker, species);
+                return;
+            }
+
+            pendingTappedSpeciesId = species.SpeciesId;
+            pendingTappedSpeciesHistorical = false;
+            discoverObservation?.Invoke(observation.EvidenceId);
+        }
+
+        private void ShowPendingTappedSpeciesTooltip()
+        {
+            if (string.IsNullOrEmpty(pendingTappedSpeciesId)) return;
+            RectTransform marker = pendingTappedSpeciesMarker;
+            InvestigationV2SpeciesDefinition species = pendingTappedSpecies;
+            pendingTappedSpeciesId = string.Empty;
+            pendingTappedSpeciesMarker = null;
+            pendingTappedSpecies = null;
+            ShowSpeciesTooltip(marker, species);
         }
 
         private int CountVisibleNotebookObservations()
@@ -408,7 +437,7 @@ namespace EDNA.Investigation.V2
             {
                 case ObservationClaimType.NotDetected: return "Not detected";
                 case ObservationClaimType.NewDetection: return "New detection";
-                case ObservationClaimType.ChangedDepthOrDistribution: return "Detected at more sites";
+                case ObservationClaimType.ChangedDepthOrDistribution: return "More sites";
                 case ObservationClaimType.MatchesBaseline: return "Same as before";
                 case ObservationClaimType.ResultWarning: return "Result warning";
                 default: return observation.DisplayName;

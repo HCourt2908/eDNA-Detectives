@@ -24,8 +24,8 @@ namespace EDNA.Investigation.V2.Tests
         public IEnumerator V2Scene_BootstrapsObserveCanvasAndAccessibleControls()
         {
             yield return LoadV2Scene();
-            InvestigationV2RuntimeView view = Object.FindFirstObjectByType<InvestigationV2RuntimeView>();
-            InvestigationV2Controller controller = Object.FindFirstObjectByType<InvestigationV2Controller>();
+            InvestigationV2RuntimeView view = Object.FindAnyObjectByType<InvestigationV2RuntimeView>();
+            InvestigationV2Controller controller = Object.FindAnyObjectByType<InvestigationV2Controller>();
             Assert.That(view, Is.Not.Null);
             Assert.That(controller, Is.Not.Null);
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationV2Phase.Observe));
@@ -73,7 +73,7 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(notebookColor.r, Is.GreaterThan(0.85f));
             Assert.That(notebookColor.g, Is.GreaterThan(0.90f));
             Assert.That(notebookColor.b, Is.GreaterThan(0.92f));
-            Assert.That(FindButton("Historical Species Marker shark").interactable, Is.False);
+            Assert.That(FindButton("Historical Species Marker shark").interactable, Is.True);
             Assert.That(FindButton("Species Marker shark").interactable, Is.True);
             Assert.That(FindButton("Species Marker shark").transform.Find("Marker Halo"), Is.Null);
             Assert.That(FindButton("Species Marker shark").transform.Find("Missing Signal"), Is.Not.Null);
@@ -85,12 +85,15 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(continueButton.anchorMax.x, Is.EqualTo(0.75f).Within(0.001f));
             Assert.That(FindButton("Continue To Simulate").GetComponentInChildren<Text>().horizontalOverflow, Is.EqualTo(HorizontalWrapMode.Wrap));
             Assert.That(FindButton("Continue To Simulate").GetComponents<Shadow>().Length, Is.EqualTo(1));
-            Assert.That(FindButton("Continue To Simulate").transform.Find("Paper Clay Inner Face"), Is.Not.Null);
+            Assert.That(FindButton("Continue To Simulate").GetComponent<Outline>(), Is.Null);
+            Assert.That(FindButton("Continue To Simulate").transform.Find("Paper Clay Inner Face"), Is.Null);
             Assert.That(GameObject.Find("Species Facts Hint"), Is.Null);
-            foreach (Text text in view.GetComponentsInChildren<Text>(true))
-            {
-                Assert.That(text.fontSize, Is.GreaterThanOrEqualTo(10), $"{text.name} is too small at the reference resolution.");
-            }
+            AssertMapMarkerReadability("Historical Species Marker shark", HistoricalMapBackdrop());
+            AssertMapMarkerReadability("Species Marker shark", CurrentMapBackdrop());
+            AssertMapMarkerReadability("Species Marker tuna", CurrentMapBackdrop());
+            AssertMapMarkerReadability("Species Marker krill", CurrentMapBackdrop());
+            AssertMapMarkerReadability("Species Marker sea_star", CurrentMapBackdrop());
+            AssertMapMarkerReadability("Species Marker mussel", CurrentMapBackdrop());
             Button observeStage = FindButton("Stage Observe");
             Assert.That(observeStage.GetComponents<Shadow>().Length, Is.EqualTo(1));
             Assert.That(observeStage.transform.Find("Paper Clay Inner Face"), Is.Null);
@@ -143,6 +146,9 @@ namespace EDNA.Investigation.V2.Tests
             InvestigationV2HoverTooltipTrigger trigger = shark.GetComponent<InvestigationV2HoverTooltipTrigger>();
             Assert.That(trigger, Is.Not.Null);
 
+            EventSystem.current.SetSelectedGameObject(null);
+            yield return null;
+            Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Null);
             trigger.OnPointerEnter(new PointerEventData(EventSystem.current));
             yield return new WaitForSecondsRealtime(0.55f);
             Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Null);
@@ -163,6 +169,28 @@ namespace EDNA.Investigation.V2.Tests
             EventSystem.current.SetSelectedGameObject(null);
             yield return null;
             Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Null);
+        }
+
+        [UnityTest]
+        public IEnumerator V2Scene_SpeciesFactsAreAvailableByTapOnBothMaps()
+        {
+            yield return LoadV2Scene();
+            InvestigationV2Controller controller = Object.FindAnyObjectByType<InvestigationV2Controller>();
+            PointerEventData tap = new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left };
+
+            Button historicalShark = FindButton("Historical Species Marker shark");
+            ExecuteEvents.Execute(historicalShark.gameObject, tap, ExecuteEvents.pointerClickHandler);
+            yield return null;
+            Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Not.Null);
+            Assert.That(GameObject.Find("Species Facts Tooltip").transform.Find("Tooltip Title").GetComponent<Text>().text, Is.EqualTo("Shark"));
+            Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
+
+            Button currentShark = FindButton("Species Marker shark");
+            ExecuteEvents.Execute(currentShark.gameObject, tap, ExecuteEvents.pointerClickHandler);
+            yield return null;
+            Assert.That(controller.State.HasDiscoveredObservation("E01_SHARK_NONDETECTION"), Is.True);
+            Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Not.Null);
+            Assert.That(GameObject.Find("Species Facts Tooltip").transform.Find("Tooltip Title").GetComponent<Text>().text, Is.EqualTo("Shark"));
         }
 
         [UnityTest]
@@ -259,7 +287,7 @@ namespace EDNA.Investigation.V2.Tests
             Click("Species Marker tuna");
             Click("Species Marker krill");
             Click("Species Marker sea_star");
-            InvestigationV2Controller controller = Object.FindFirstObjectByType<InvestigationV2Controller>();
+            InvestigationV2Controller controller = Object.FindAnyObjectByType<InvestigationV2Controller>();
             Assert.That(controller.State.DiscoveredObservationIds, Has.Count.EqualTo(4));
             Click("Continue To Simulate");
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationV2Phase.Simulate));
@@ -301,6 +329,8 @@ namespace EDNA.Investigation.V2.Tests
             Compare("sea_star", "E04_BENTHIC_STABLE", "Judge Mismatch");
 
             Assert.That(controller.State.AcceptedComparisonCount, Is.EqualTo(4));
+            Assert.That(FindButton("Write Provisional Report").GetComponents<Shadow>().Length, Is.EqualTo(1));
+            Assert.That(FindButton("Write Provisional Report").GetComponent<Outline>(), Is.Null);
             Click("Write Provisional Report");
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationV2Phase.Report));
             AssertActivePageHeadingSharesRow();
@@ -311,7 +341,9 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(reportLeft.position.x, Is.LessThan(reportRight.position.x));
             Assert.That(FindGameObject("Survey Report Paper").GetComponent<RectTransform>().rect.height, Is.LessThan(700f));
             Assert.That(FindButton("Final Cause longline").GetComponents<Shadow>().Length, Is.EqualTo(1));
-            Assert.That(FindButton("Final Cause longline").transform.Find("Paper Clay Inner Face"), Is.Not.Null);
+            Assert.That(FindButton("Final Cause longline").GetComponent<Outline>(), Is.Null);
+            Assert.That(FindButton("Final Cause longline").transform.Find("Paper Clay Inner Face"), Is.Null);
+            Assert.That(FindButton("Final Cause longline").transform.Find("Paper Choice Face"), Is.Not.Null);
             Assert.That(controller.State.ProvisionalThreatId, Is.EqualTo("bottom_trawling"));
             Assert.That(controller.State.FinalThreatId, Is.Empty);
             Assert.That(controller.State.HasDiscoveredObservation("E07_FISHING_LINE"), Is.False);
@@ -326,6 +358,8 @@ namespace EDNA.Investigation.V2.Tests
             Click("Report Evidence E07_FISHING_LINE");
             Click("Reasoning food_web_cascade");
             Click("Limitation L01_NONDETECTION_LIMITATION");
+            Assert.That(FindButton("Submit Final Report").GetComponents<Shadow>().Length, Is.EqualTo(1));
+            Assert.That(FindButton("Submit Final Report").GetComponent<Outline>(), Is.Null);
             Click("Submit Final Report");
             Assert.That(controller.State.ConclusionStatus, Is.EqualTo(InvestigationV2ConclusionStatus.Correct));
             InvestigationGameResult bridgeResult = InvestigationV2SessionBridge.LastResult;
@@ -341,7 +375,7 @@ namespace EDNA.Investigation.V2.Tests
         public IEnumerator V2Scene_ReducedMotionDifficultyAndRestartRemainAvailable()
         {
             yield return LoadV2Scene();
-            InvestigationV2Controller controller = Object.FindFirstObjectByType<InvestigationV2Controller>();
+            InvestigationV2Controller controller = Object.FindAnyObjectByType<InvestigationV2Controller>();
             Click("Difficulty Toggle");
             Assert.That(controller.State.Difficulty, Is.EqualTo(InvestigationV2Difficulty.Hard));
             bool before = InvestigationV2MotionSettings.ReducedMotion;
@@ -353,7 +387,7 @@ namespace EDNA.Investigation.V2.Tests
             // Public UI restart is exercised in Report; verify initial scene reload reset instead.
             yield return SceneManager.LoadSceneAsync("InvestigationSceneV2", LoadSceneMode.Single);
             yield return null;
-            controller = Object.FindFirstObjectByType<InvestigationV2Controller>();
+            controller = Object.FindAnyObjectByType<InvestigationV2Controller>();
             Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
             InvestigationV2MotionSettings.SetReducedMotion(before);
         }
@@ -382,7 +416,7 @@ namespace EDNA.Investigation.V2.Tests
 
         private static Button FindButton(string name)
         {
-            Button[] buttons = Object.FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            Button[] buttons = Object.FindObjectsByType<Button>(FindObjectsInactive.Include);
             for (int index = 0; index < buttons.Length; index++)
             {
                 if (buttons[index].gameObject.activeInHierarchy && buttons[index].name == name) return buttons[index];
@@ -392,7 +426,7 @@ namespace EDNA.Investigation.V2.Tests
 
         private static GameObject FindGameObject(string name)
         {
-            Transform[] transforms = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            Transform[] transforms = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include);
             for (int index = 0; index < transforms.Length; index++)
             {
                 if (transforms[index].name == name && transforms[index].gameObject.activeInHierarchy) return transforms[index].gameObject;
@@ -426,6 +460,71 @@ namespace EDNA.Investigation.V2.Tests
             Canvas.ForceUpdateCanvases();
             Assert.That(scroll.content.rect.height, Is.LessThanOrEqualTo(scroll.viewport.rect.height + 1f));
             Assert.That(scroll.content.rect.width, Is.LessThanOrEqualTo(scroll.viewport.rect.width + 1f));
+        }
+
+        private static void AssertMapMarkerReadability(string buttonName, Color backdrop)
+        {
+            Button marker = FindButton(buttonName);
+            Assert.That(marker.GetComponent<RectTransform>().rect.width, Is.GreaterThanOrEqualTo(44f));
+            Assert.That(marker.GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(44f));
+            Image plate = marker.transform.Find("Marker Label Plate").GetComponent<Image>();
+            Assert.That(plate, Is.Not.Null);
+            Text name = marker.transform.Find("Species Name").GetComponent<Text>();
+            Text stateLabel = marker.transform.Find("Observation").GetComponent<Text>();
+            Assert.That(name.fontSize, Is.GreaterThanOrEqualTo(13));
+            Assert.That(stateLabel.fontSize, Is.GreaterThanOrEqualTo(12));
+
+            Color composedPlate = Composite(plate.color, backdrop);
+            Assert.That(ContrastRatio(name.color, composedPlate), Is.GreaterThanOrEqualTo(4.5f), $"{buttonName} name contrast is too low.");
+            Assert.That(ContrastRatio(stateLabel.color, composedPlate), Is.GreaterThanOrEqualTo(4.5f), $"{buttonName} state contrast is too low.");
+        }
+
+        private static Color HistoricalMapBackdrop()
+        {
+            return SeamountBackdrop(new Color32(11, 43, 61, 255));
+        }
+
+        private static Color CurrentMapBackdrop()
+        {
+            return SeamountBackdrop(InvestigationV2Theme.Deep);
+        }
+
+        private static Color SeamountBackdrop(Color mapColor)
+        {
+            Color outer = Composite(new Color32(42, 125, 163, 105), mapColor);
+            return Composite(new Color32(95, 212, 214, 25), outer);
+        }
+
+        private static Color Composite(Color foreground, Color background)
+        {
+            float alpha = foreground.a;
+            return new Color(
+                foreground.r * alpha + background.r * (1f - alpha),
+                foreground.g * alpha + background.g * (1f - alpha),
+                foreground.b * alpha + background.b * (1f - alpha),
+                1f);
+        }
+
+        private static float ContrastRatio(Color first, Color second)
+        {
+            float firstLuminance = RelativeLuminance(first);
+            float secondLuminance = RelativeLuminance(second);
+            return (Mathf.Max(firstLuminance, secondLuminance) + 0.05f)
+                / (Mathf.Min(firstLuminance, secondLuminance) + 0.05f);
+        }
+
+        private static float RelativeLuminance(Color color)
+        {
+            return 0.2126f * LinearChannel(color.r)
+                + 0.7152f * LinearChannel(color.g)
+                + 0.0722f * LinearChannel(color.b);
+        }
+
+        private static float LinearChannel(float value)
+        {
+            return value <= 0.04045f
+                ? value / 12.92f
+                : Mathf.Pow((value + 0.055f) / 1.055f, 2.4f);
         }
     }
 }

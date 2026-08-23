@@ -309,17 +309,13 @@ namespace EDNA.Investigation.V2
 
         private static void StylePaperChoice(Button button, bool selected)
         {
-            Image image = button.GetComponent<Image>();
-            image.color = selected ? new Color32(217, 236, 243, 255) : InvestigationV2Theme.PaperRaised;
+            Image border = button.GetComponent<Image>();
+            border.color = selected ? InvestigationV2Theme.PaperSelectedBorder : InvestigationV2Theme.PaperBorder;
+            Transform faceTransform = button.transform.Find("Paper Choice Face");
+            Image face = faceTransform == null ? null : faceTransform.GetComponent<Image>();
+            if (face != null) face.color = selected ? InvestigationV2Theme.PaperSelected : InvestigationV2Theme.PaperRaised;
             Text text = button.GetComponentInChildren<Text>();
             if (text != null) text.color = InvestigationV2Theme.PaperInk;
-            Outline outline = button.GetComponent<Outline>();
-            if (selected && outline == null) outline = button.gameObject.AddComponent<Outline>();
-            if (outline != null)
-            {
-                outline.effectColor = selected ? new Color32(27, 109, 138, 255) : new Color(0f, 0f, 0f, 0f);
-                outline.effectDistance = new Vector2(2f, -2f);
-            }
         }
     }
 }
