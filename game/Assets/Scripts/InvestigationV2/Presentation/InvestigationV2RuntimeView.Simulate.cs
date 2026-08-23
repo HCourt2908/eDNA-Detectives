@@ -624,7 +624,7 @@ namespace EDNA.Investigation.V2
                 Button button = CreateButton(
                     $"Observation {observation.EvidenceId}",
                     panel,
-                    observation.DisplayName,
+                    SimulationObservationLabel(observation),
                     ButtonVisualStyle.Choice,
                     () =>
                     {
@@ -633,6 +633,7 @@ namespace EDNA.Investigation.V2
                     },
                     out Text label);
                 label.alignment = TextAnchor.MiddleLeft;
+                label.supportRichText = true;
                 button.GetComponent<LayoutElement>().preferredHeight = 44f;
                 button.GetComponent<LayoutElement>().minHeight = 44f;
                 button.interactable = !comparisonLocked;
@@ -655,6 +656,34 @@ namespace EDNA.Investigation.V2
             {
                 Text none = CreateText("No Candidates", panel, "Return to Observe and record more evidence for this prediction.", 14, FontStyle.Normal, InvestigationV2Theme.TextSecondary, TextAnchor.UpperLeft, InvestigationV2Theme.BodyFont);
                 AddLayout(none.rectTransform, 68f, 1f);
+            }
+        }
+
+        private static string SimulationObservationLabel(InvestigationV2ObservationDefinition observation)
+        {
+            if (observation == null || string.IsNullOrEmpty(observation.DisplayName)) return string.Empty;
+            string status = NotebookStateLabel(observation.ClaimType);
+            int statusIndex = observation.DisplayName.IndexOf(status, StringComparison.OrdinalIgnoreCase);
+            if (statusIndex < 0) return observation.DisplayName;
+
+            string originalStatus = observation.DisplayName.Substring(statusIndex, status.Length);
+            string color = ColorUtility.ToHtmlStringRGB(SimulationObservationStateColor(observation.ClaimType));
+            return observation.DisplayName.Substring(0, statusIndex)
+                + $"<b><color=#{color}>{originalStatus}</color></b>"
+                + observation.DisplayName.Substring(statusIndex + status.Length);
+        }
+
+        private static Color SimulationObservationStateColor(ObservationClaimType claimType)
+        {
+            switch (claimType)
+            {
+                case ObservationClaimType.NotDetected: return InvestigationV2Theme.Danger;
+                case ObservationClaimType.ChangedDepthOrDistribution: return InvestigationV2Theme.Accent;
+                case ObservationClaimType.MatchesBaseline: return InvestigationV2Theme.Success;
+                case ObservationClaimType.NewDetection: return InvestigationV2Theme.Primary;
+                case ObservationClaimType.ResultWarning: return InvestigationV2Theme.Focus;
+                case ObservationClaimType.EnvironmentalReading: return InvestigationV2Theme.Primary;
+                default: return InvestigationV2Theme.TextSecondary;
             }
         }
 

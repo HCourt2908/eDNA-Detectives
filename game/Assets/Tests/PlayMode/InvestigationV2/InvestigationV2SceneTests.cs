@@ -157,6 +157,14 @@ namespace EDNA.Investigation.V2.Tests
             Object.DestroyImmediate(sourceSeamount);
             Button observeStage = FindButton("Stage Observe");
             Assert.That(observeStage.GetComponents<Shadow>().Length, Is.EqualTo(1));
+            Outline activeStageOutline = observeStage.GetComponent<Outline>();
+            Assert.That(activeStageOutline.effectColor, Is.EqualTo((Color)InvestigationV2Theme.Primary));
+            Assert.That(activeStageOutline.effectDistance, Is.EqualTo(new Vector2(3f, -3f)));
+            Assert.That(observeStage.transform.Find("Active Stage Accent"), Is.Null,
+                "The active stage should use a complete thick border rather than a bottom-only accent.");
+            Outline inactiveStageOutline = FindButton("Stage Simulate").GetComponent<Outline>();
+            Assert.That(inactiveStageOutline.effectColor, Is.EqualTo((Color)InvestigationV2Theme.BorderStrong));
+            Assert.That(inactiveStageOutline.effectDistance, Is.EqualTo(new Vector2(2f, -2f)));
             GameObject focusRing = observeStage.transform.Find("Focus Ring").gameObject;
             Assert.That(focusRing.activeSelf, Is.False);
             EventSystem.current.SetSelectedGameObject(observeStage.gameObject);
@@ -370,6 +378,11 @@ namespace EDNA.Investigation.V2.Tests
         {
             InvestigationV2SessionBridge.Clear();
             yield return LoadV2Scene();
+            Button observePrimary = FindButton("Continue To Simulate");
+            Assert.That(observePrimary.colors.highlightedColor, Is.EqualTo(new Color(0.96f, 0.96f, 0.96f, 1f)),
+                "Paper buttons should darken slightly on hover.");
+            Assert.That(observePrimary.colors.selectedColor, Is.EqualTo(observePrimary.colors.normalColor),
+                "A clicked paper button must not retain its hover tint.");
             Click("Species Marker shark");
             Click("Species Marker tuna");
             Click("Species Marker krill");
@@ -416,6 +429,17 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(temperatureValue.fontSize, Is.EqualTo(14));
             Assert.That(temperatureLabel.rectTransform.TransformPoint(temperatureLabel.rectTransform.rect.center).y,
                 Is.GreaterThan(temperatureValue.rectTransform.TransformPoint(temperatureValue.rectTransform.rect.center).y + 4f));
+            Click("Prediction shark");
+            Text sharkObservationLabel = FindButton("Observation E01_SHARK_NONDETECTION").GetComponentInChildren<Text>();
+            Assert.That(sharkObservationLabel.supportRichText, Is.True);
+            Assert.That(sharkObservationLabel.text, Does.Contain("<b><color=#"));
+            Assert.That(sharkObservationLabel.text, Does.Contain("not detected</color></b>").IgnoreCase);
+            Assert.That(sharkObservationLabel.text, Does.Contain(ColorUtility.ToHtmlStringRGB(InvestigationV2Theme.Danger)));
+            Assert.That(FindButton("Observation E01_SHARK_NONDETECTION").GetComponent<RectTransform>().rect.height, Is.EqualTo(44f).Within(0.1f));
+            Click("Prediction tuna");
+            Text tunaObservationLabel = FindButton("Observation E02_TUNA_WIDER_DETECTION").GetComponentInChildren<Text>();
+            Assert.That(tunaObservationLabel.text, Does.Contain("detected at more sites</color></b>").IgnoreCase);
+            Assert.That(tunaObservationLabel.text, Does.Contain(ColorUtility.ToHtmlStringRGB(InvestigationV2Theme.Accent)));
             Assert.That(GameObject.Find("Comparison Guide"), Is.Null);
             Assert.That(FindButton("Judge Match").transform.Find("State Shape").GetComponent<Image>().sprite, Is.Not.Null);
             Assert.That(FindGameObject("Food Web Prediction").transform.IsChildOf(FindGameObject("Simulation Models").transform), Is.True);
@@ -459,6 +483,10 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindButton("Final Cause longline").GetComponents<Shadow>().Length, Is.EqualTo(1));
             Assert.That(FindButton("Final Cause longline").GetComponent<Outline>(), Is.Null);
             Assert.That(FindButton("Final Cause longline").transform.Find("Paper Choice Face"), Is.Not.Null);
+            Assert.That(FindButton("Final Cause longline").colors.highlightedColor,
+                Is.EqualTo(new Color(0.96f, 0.96f, 0.96f, 1f)));
+            Assert.That(FindButton("Final Cause longline").colors.selectedColor,
+                Is.EqualTo(FindButton("Final Cause longline").colors.normalColor));
             Assert.That(ContrastRatio(InvestigationV2Theme.PaperBorder, InvestigationV2Theme.Paper), Is.GreaterThanOrEqualTo(3f));
             Assert.That(controller.State.ProvisionalThreatId, Is.EqualTo("bottom_trawling"));
             Assert.That(controller.State.FinalThreatId, Is.Empty);
@@ -473,6 +501,18 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindButton("Cancel Restart V2 Case"), Is.Not.Null);
             Assert.That(FindButton("Confirm Restart V2 Case"), Is.Not.Null);
             Assert.That(FindGameObject("Status Toast").activeSelf, Is.True);
+
+            Click("Stage Simulate");
+            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationV2Phase.Simulate));
+            Click("Stage Report");
+            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationV2Phase.Report));
+            Assert.That(controller.State.ProvisionalThreatId, Is.EqualTo(provisionalBeforeRestartPrompt));
+            Assert.That(FindButton("Restart V2 Case"), Is.Not.Null,
+                "Leaving Report must cancel its pending restart confirmation.");
+            Assert.That(FindButton("Confirm Restart V2 Case"), Is.Null,
+                "A stale destructive confirmation must not survive a phase change.");
+
+            Click("Restart V2 Case");
             Click("Cancel Restart V2 Case");
             Assert.That(controller.State.ProvisionalThreatId, Is.EqualTo(provisionalBeforeRestartPrompt));
             Assert.That(FindButton("Restart V2 Case"), Is.Not.Null);
@@ -508,6 +548,50 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(InvestigationV2EvidenceIconLibrary.Laboratory, Is.Not.Null);
             Assert.That(InvestigationV2EvidenceIconLibrary.EDNASignal, Is.Not.Null);
 
+            Text provisionalReminder = FindGameObject("Provisional Reminder").GetComponent<Text>();
+            Text evidenceProgress = FindGameObject("Evidence Progress").GetComponent<Text>();
+            Text reportQuestion = FindGameObject("Report Cause Section").transform.Find("Question").GetComponent<Text>();
+            Assert.That(provisionalReminder.GetComponent<LayoutElement>(), Is.Null,
+                "The provisional note must use Text.preferredHeight rather than a fixed LayoutElement height.");
+            Assert.That(evidenceProgress.GetComponent<LayoutElement>(), Is.Null,
+                "Evidence progress must remain readable when its counters wrap.");
+            Assert.That(reportQuestion.GetComponent<LayoutElement>(), Is.Null,
+                "Report questions must grow for narrow layouts and localisation.");
+            Assert.That(provisionalReminder.verticalOverflow, Is.EqualTo(VerticalWrapMode.Overflow));
+            Assert.That(evidenceProgress.verticalOverflow, Is.EqualTo(VerticalWrapMode.Overflow));
+            AssertTextFitsItsRect(provisionalReminder);
+            AssertTextFitsItsRect(evidenceProgress);
+            AssertTextFitsItsRect(reportQuestion);
+
+            RectTransform reasoningChoices = FindGameObject("Reasoning Choices").GetComponent<RectTransform>();
+            RectTransform limitationChoices = FindGameObject("Limitation Choices").GetComponent<RectTransform>();
+            Assert.That(reasoningChoices.GetComponent<VerticalLayoutGroup>(), Is.Not.Null,
+                "Long reasoning statements should stack instead of sharing one cramped row.");
+            Assert.That(reasoningChoices.GetComponent<HorizontalLayoutGroup>(), Is.Null);
+            Assert.That(limitationChoices.GetComponent<VerticalLayoutGroup>(), Is.Not.Null,
+                "Limitations should use the same reflow-safe stacked choice pattern.");
+            Assert.That(limitationChoices.GetComponent<HorizontalLayoutGroup>(), Is.Null);
+            Assert.That(reasoningChoices.GetComponent<LayoutElement>(), Is.Null);
+            Assert.That(limitationChoices.GetComponent<LayoutElement>(), Is.Null);
+
+            Button wrappingReasoning = reasoningChoices.GetChild(1).GetComponent<Button>();
+            Text wrappingReasoningLabel = wrappingReasoning.GetComponentInChildren<Text>();
+            float originalReasoningHeight = wrappingReasoning.GetComponent<RectTransform>().rect.height;
+            string originalReasoningText = wrappingReasoningLabel.text;
+            wrappingReasoningLabel.text = originalReasoningText
+                + " This deliberately longer explanation verifies that wrapped scientific reasoning remains fully inside its choice.";
+            LayoutRebuilder.MarkLayoutForRebuild(reasoningChoices);
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(reasoningChoices);
+            Canvas.ForceUpdateCanvases();
+            Assert.That(wrappingReasoning.GetComponent<RectTransform>().rect.height,
+                Is.GreaterThan(originalReasoningHeight),
+                "A reasoning choice must become taller when its label needs additional lines.");
+            AssertTextFitsItsRect(wrappingReasoningLabel);
+            wrappingReasoningLabel.text = originalReasoningText;
+            LayoutRebuilder.MarkLayoutForRebuild(reasoningChoices);
+            Canvas.ForceUpdateCanvases();
+
             InvestigationV2RuntimeView runtimeView = Object.FindAnyObjectByType<InvestigationV2RuntimeView>();
             GameObject reportPaperBeforeResize = FindGameObject("Survey Report Paper");
             FieldInfo viewportSize = typeof(InvestigationV2RuntimeView).GetField(
@@ -539,8 +623,37 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(diagnosticOutcome.GetComponentInChildren<Text>().text, Does.Contain("Choose a final cause"));
             Assert.That(diagnosticOutcome.GetComponent<Image>().color, Is.EqualTo((Color)InvestigationV2Theme.ReportGuide),
                 "An incomplete report is guidance, not an error state.");
-            Assert.That(FindGameObject("Status Toast").activeSelf, Is.False,
-                "Guide feedback must not trigger the red warning toast.");
+            Assert.That(diagnosticOutcome.transform.GetSiblingIndex(),
+                Is.LessThan(FindGameObject("Report Columns").transform.GetSiblingIndex()),
+                "Report feedback must appear before the form rather than below the scrollable report.");
+            Image diagnosticIcon = diagnosticOutcome.transform.Find("Outcome Icon").GetComponent<Image>();
+            Assert.That(diagnosticIcon.sprite, Is.EqualTo(InvestigationV2StatusIconLibrary.Question));
+            Assert.That(diagnosticOutcome.GetComponent<HorizontalLayoutGroup>(), Is.Not.Null,
+                "The result panel must derive its height from the icon and wrapped diagnostic text.");
+            Assert.That(diagnosticOutcome.GetComponent<LayoutElement>(), Is.Null);
+            Text diagnosticOutcomeText = diagnosticOutcome.transform.Find("Outcome Text").GetComponent<Text>();
+            AssertTextFitsItsRect(diagnosticOutcomeText);
+            float originalOutcomeHeight = diagnosticOutcome.GetComponent<RectTransform>().rect.height;
+            string originalOutcomeText = diagnosticOutcomeText.text;
+            diagnosticOutcomeText.text = originalOutcomeText
+                + " Re-check every observation against the model prediction, include the ROV confirmation, explain the complete food-web cascade, and record the scientific limitation before sending the report.";
+            LayoutRebuilder.MarkLayoutForRebuild(diagnosticOutcome.GetComponent<RectTransform>());
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(FindGameObject("Survey Report Paper").GetComponent<RectTransform>());
+            Canvas.ForceUpdateCanvases();
+            Assert.That(diagnosticOutcome.GetComponent<RectTransform>().rect.height,
+                Is.GreaterThan(originalOutcomeHeight),
+                "The result panel must grow when a diagnostic wraps onto additional lines.");
+            AssertTextFitsItsRect(diagnosticOutcomeText);
+            diagnosticOutcomeText.text = originalOutcomeText;
+            GameObject diagnosticToast = FindGameObject("Status Toast");
+            Assert.That(diagnosticToast.activeSelf, Is.True,
+                "Checking an incomplete report must surface its diagnostic in the current viewport.");
+            Assert.That(diagnosticToast.transform.Find("Status Message").GetComponent<Text>().text,
+                Does.Contain("Choose a final cause"));
+            Assert.That(diagnosticToast.transform.Find("Status Accent").GetComponent<Image>().color,
+                Is.EqualTo((Color)InvestigationV2Theme.Primary),
+                "Incomplete-report guidance must use the neutral guide treatment, not red warning styling.");
             Assert.That(EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Submit Final Report"));
 
             Button finalCause = FindButton("Final Cause longline");
@@ -587,6 +700,8 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(bridgeResult.finalSubmissionAttempts, Is.EqualTo(1));
             Assert.That(bridgeResult.missteps, Is.Zero);
             Assert.That(FindGameObject("Report Outcome").GetComponent<Image>().color, Is.EqualTo((Color)InvestigationV2Theme.ReportSuccess));
+            Assert.That(FindGameObject("Report Outcome").transform.Find("Outcome Icon").GetComponent<Image>().sprite,
+                Is.EqualTo(InvestigationV2StatusIconLibrary.Check));
             Assert.That(FindGameObject("Report Metadata").GetComponent<Text>().text, Does.Contain("Revision 1"));
             Assert.That(FindGameObject("Report Metadata").GetComponent<Text>().text, Does.Not.Contain("Final attempts"));
             Assert.That(FindButton("Back To Simulator"), Is.Null);
@@ -607,6 +722,8 @@ namespace EDNA.Investigation.V2.Tests
             InvestigationV2Controller controller = Object.FindAnyObjectByType<InvestigationV2Controller>();
             Button difficulty = FindButton("Difficulty Toggle");
             Color difficultyBaseColor = difficulty.targetGraphic.color;
+            Assert.That(difficulty.colors.highlightedColor, Is.EqualTo(new Color(1.12f, 1.12f, 1.12f, 1f)),
+                "Dark-surface controls should brighten slightly on hover.");
             Assert.That(difficulty.colors.selectedColor, Is.EqualTo(difficulty.colors.normalColor),
                 "Selection focus must not leave a persistent tint on a clicked button.");
             Assert.That(difficulty.colors.pressedColor, Is.Not.EqualTo(difficulty.colors.normalColor),
@@ -846,6 +963,13 @@ namespace EDNA.Investigation.V2.Tests
                 Assert.That(childRect.yMin, Is.GreaterThanOrEqualTo(parentRect.yMin - 0.5f), $"{layoutName} child {index} overflows bottom.");
                 Assert.That(childRect.yMax, Is.LessThanOrEqualTo(parentRect.yMax + 0.5f), $"{layoutName} child {index} overflows top.");
             }
+        }
+
+        private static void AssertTextFitsItsRect(Text text)
+        {
+            Canvas.ForceUpdateCanvases();
+            Assert.That(text.rectTransform.rect.height + 0.5f, Is.GreaterThanOrEqualTo(text.preferredHeight),
+                $"{text.name} needs {text.preferredHeight:0.0}px but only received {text.rectTransform.rect.height:0.0}px.");
         }
 
         private static void AssertMapMarkerReadability(string buttonName, Color backdrop)

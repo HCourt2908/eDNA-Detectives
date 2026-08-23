@@ -484,6 +484,8 @@ namespace EDNA.Investigation.V2
                 case ObservationClaimType.ChangedDepthOrDistribution: return "Detected at more sites";
                 case ObservationClaimType.MatchesBaseline: return "Stable";
                 case ObservationClaimType.ResultWarning: return "Result warning";
+                case ObservationClaimType.EnvironmentalReading: return "Historical range";
+                case ObservationClaimType.PhysicalObservation: return "Physical evidence";
                 default: return "Observation";
             }
         }
@@ -496,6 +498,8 @@ namespace EDNA.Investigation.V2
                 case ObservationClaimType.ChangedDepthOrDistribution: return new Color32(169, 75, 43, 255);
                 case ObservationClaimType.MatchesBaseline: return new Color32(28, 105, 99, 255);
                 case ObservationClaimType.NewDetection: return new Color32(27, 109, 138, 255);
+                case ObservationClaimType.EnvironmentalReading: return new Color32(27, 109, 138, 255);
+                case ObservationClaimType.PhysicalObservation: return new Color32(28, 105, 99, 255);
                 default: return InvestigationV2Theme.PaperMuted;
             }
         }

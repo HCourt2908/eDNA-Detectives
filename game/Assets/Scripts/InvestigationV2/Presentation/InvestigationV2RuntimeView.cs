@@ -385,6 +385,7 @@ namespace EDNA.Investigation.V2
             StopAllCoroutines();
             ResetPageEntranceVisuals();
             bool animatePhaseChange = state != null && (!hasRenderedPhase || state.Phase != lastRenderedPhase);
+            if (animatePhaseChange) restartConfirmationPending = false;
             RenderChrome();
             Clear(contentRoot);
             Clear(footerLeft);
@@ -484,13 +485,21 @@ namespace EDNA.Investigation.V2
                 metricsText.text = "CASE ERROR";
             }
             motionText.text = InvestigationV2MotionSettings.ReducedMotion ? "Motion: Reduced" : "Motion: Full";
-            bool showWarning = statusTone == InvestigationV2StatusTone.Warning
-                && !string.IsNullOrWhiteSpace(statusMessage);
-            statusPanelRoot.gameObject.SetActive(showWarning);
-            if (showWarning)
+            bool hasStatusMessage = !string.IsNullOrWhiteSpace(statusMessage);
+            bool showReportDiagnostic = state != null
+                && state.Phase == InvestigationV2Phase.Report
+                && state.ConclusionStatus == InvestigationV2ConclusionStatus.InsufficientEvidence
+                && statusTone == InvestigationV2StatusTone.Guide
+                && hasStatusMessage;
+            bool showStatus = (statusTone == InvestigationV2StatusTone.Warning && hasStatusMessage)
+                || showReportDiagnostic;
+            statusPanelRoot.gameObject.SetActive(showStatus);
+            if (showStatus)
             {
                 statusText.text = statusMessage;
-                statusAccent.color = InvestigationV2Theme.Danger;
+                statusAccent.color = showReportDiagnostic
+                    ? InvestigationV2Theme.Primary
+                    : InvestigationV2Theme.Danger;
                 statusPanelRoot.SetAsLastSibling();
                 StartCoroutine(HideStatusToastAfterDelay());
             }
@@ -510,8 +519,7 @@ namespace EDNA.Investigation.V2
             {
                 image.color = InvestigationV2Theme.SurfaceRaised;
                 button.GetComponentInChildren<Text>().color = InvestigationV2Theme.TextPrimary;
-                RectTransform accent = CreatePanel("Active Stage Accent", button.transform, InvestigationV2Theme.Primary, 1f);
-                Anchor(accent, 0.08f, 0f, 0.92f, 0f, 0f, 0f, 0f, 4f);
+                EnsureOutline(button.gameObject, InvestigationV2Theme.Primary, new Vector2(3f, -3f));
             }
         }
 
@@ -617,7 +625,9 @@ namespace EDNA.Investigation.V2
             button.transition = Selectable.Transition.ColorTint;
             ColorBlock colors = button.colors;
             colors.normalColor = Color.white;
-            colors.highlightedColor = Color.white;
+            bool paperStyle = style == ButtonVisualStyle.PaperPrimary || style == ButtonVisualStyle.PaperChoice;
+            float hoverBrightness = paperStyle ? 0.96f : 1.12f;
+            colors.highlightedColor = new Color(hoverBrightness, hoverBrightness, hoverBrightness, 1f);
             colors.selectedColor = colors.normalColor;
             colors.pressedColor = new Color(0.92f, 0.92f, 0.92f, 1f);
             colors.disabledColor = new Color(1f, 1f, 1f, 0.36f);

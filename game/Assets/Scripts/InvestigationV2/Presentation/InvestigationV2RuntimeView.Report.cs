@@ -139,6 +139,8 @@ namespace EDNA.Investigation.V2
             Text metadata = CreateText("Report Metadata", paper, $"Researcher: You · Site: Seamount A · Survey 12{attemptText}", 13, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.MiddleLeft, InvestigationV2Theme.DataFont);
             AddLayout(metadata.rectTransform, 28f, 1f);
 
+            CreateReportOutcome(paper);
+
             RectTransform columns = new GameObject("Report Columns", typeof(RectTransform), typeof(InvestigationV2ResponsiveSplitLayout)).GetComponent<RectTransform>();
             columns.SetParent(paper, false);
             InvestigationV2ResponsiveSplitLayout split = columns.GetComponent<InvestigationV2ResponsiveSplitLayout>();
@@ -152,35 +154,58 @@ namespace EDNA.Investigation.V2
             CreateReportEvidenceSection(rightColumn);
             CreateReportLimitationSection(rightColumn);
             FitReportColumns(split, columns, leftColumn, rightColumn);
+        }
 
-            if (state.ConclusionStatus != InvestigationV2ConclusionStatus.NotSubmitted)
+        private void CreateReportOutcome(Transform parent)
+        {
+            if (state.ConclusionStatus == InvestigationV2ConclusionStatus.NotSubmitted) return;
+
+            Color feedbackColor;
+            Sprite feedbackIcon;
+            switch (state.ConclusionStatus)
             {
-                Color feedbackColor;
-                switch (state.ConclusionStatus)
-                {
-                    case InvestigationV2ConclusionStatus.Correct:
-                        feedbackColor = InvestigationV2Theme.ReportSuccess;
-                        break;
-                    case InvestigationV2ConclusionStatus.InsufficientEvidence:
-                        feedbackColor = InvestigationV2Theme.ReportGuide;
-                        break;
-                    default:
-                        feedbackColor = InvestigationV2Theme.ReportError;
-                        break;
-                }
-                RectTransform feedback = CreatePanel("Report Outcome", paper, feedbackColor, InvestigationV2Theme.SmallRadius);
-                AddLayout(feedback, 74f, 1f);
-                Text outcome = CreateText(
-                    "Outcome Text",
-                    feedback,
-                    statusMessage,
-                    15,
-                    FontStyle.Bold,
-                    InvestigationV2Theme.PaperInk,
-                    TextAnchor.MiddleLeft,
-                    InvestigationV2Theme.BodyFont);
-                Stretch(outcome.rectTransform, 14f, 8f, -14f, -8f);
+                case InvestigationV2ConclusionStatus.Correct:
+                    feedbackColor = InvestigationV2Theme.ReportSuccess;
+                    feedbackIcon = InvestigationV2StatusIconLibrary.Check;
+                    break;
+                case InvestigationV2ConclusionStatus.InsufficientEvidence:
+                    feedbackColor = InvestigationV2Theme.ReportGuide;
+                    feedbackIcon = InvestigationV2StatusIconLibrary.Question;
+                    break;
+                default:
+                    feedbackColor = InvestigationV2Theme.ReportError;
+                    feedbackIcon = InvestigationV2StatusIconLibrary.Cross;
+                    break;
             }
+
+            RectTransform feedback = CreatePanel("Report Outcome", parent, feedbackColor, InvestigationV2Theme.SmallRadius);
+            HorizontalLayoutGroup feedbackLayout = feedback.gameObject.AddComponent<HorizontalLayoutGroup>();
+            feedbackLayout.padding = new RectOffset(14, 14, 10, 10);
+            feedbackLayout.spacing = 12f;
+            feedbackLayout.childAlignment = TextAnchor.MiddleLeft;
+            feedbackLayout.childControlWidth = true;
+            feedbackLayout.childControlHeight = true;
+            feedbackLayout.childForceExpandWidth = false;
+            feedbackLayout.childForceExpandHeight = false;
+            Image icon = CreateStatusIcon("Outcome Icon", feedback, feedbackIcon, InvestigationV2Theme.PaperInk);
+            LayoutElement iconLayout = icon.gameObject.AddComponent<LayoutElement>();
+            iconLayout.minWidth = 28f;
+            iconLayout.preferredWidth = 28f;
+            iconLayout.minHeight = 28f;
+            iconLayout.preferredHeight = 28f;
+            Text outcome = CreateText(
+                "Outcome Text",
+                feedback,
+                statusMessage,
+                15,
+                FontStyle.Bold,
+                InvestigationV2Theme.PaperInk,
+                TextAnchor.MiddleLeft,
+                InvestigationV2Theme.BodyFont);
+            ConfigureContentDrivenText(outcome);
+            LayoutElement outcomeLayout = outcome.gameObject.AddComponent<LayoutElement>();
+            outcomeLayout.minWidth = 0f;
+            outcomeLayout.flexibleWidth = 1f;
         }
 
         private static RectTransform CreateReportColumn(string name, Transform parent)
@@ -210,7 +235,7 @@ namespace EDNA.Investigation.V2
                 InvestigationV2Theme.PaperMuted,
                 TextAnchor.MiddleLeft,
                 InvestigationV2Theme.BodyFont);
-            AddLayout(provisionalNote.rectTransform, 36f, 1f);
+            ConfigureContentDrivenText(provisionalNote);
             RectTransform grid = new GameObject("Cause Choices", typeof(RectTransform), typeof(InvestigationV2ResponsiveGridLayout)).GetComponent<RectTransform>();
             grid.SetParent(section, false);
             InvestigationV2ResponsiveGridLayout layout = grid.GetComponent<InvestigationV2ResponsiveGridLayout>();
@@ -253,7 +278,7 @@ namespace EDNA.Investigation.V2
                     : InvestigationV2Theme.PaperMuted,
                 TextAnchor.MiddleLeft,
                 InvestigationV2Theme.DataFont);
-            AddLayout(progress.rectTransform, 24f, 1f);
+            ConfigureContentDrivenText(progress);
             RectTransform grid = new GameObject("Evidence Choices", typeof(RectTransform), typeof(InvestigationV2ResponsiveGridLayout)).GetComponent<RectTransform>();
             grid.SetParent(section, false);
             InvestigationV2ResponsiveGridLayout layout = grid.GetComponent<InvestigationV2ResponsiveGridLayout>();
@@ -287,13 +312,12 @@ namespace EDNA.Investigation.V2
         {
             RectTransform section = CreatePaperSlot(parent, "Report Reasoning Section", "How did that cause these changes?");
             RectTransform row = CreatePanel("Reasoning Choices", section, new Color(0f, 0f, 0f, 0f), 0f);
-            AddLayout(row, 84f, 1f);
-            HorizontalLayoutGroup layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
+            VerticalLayoutGroup layout = row.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 8f;
             layout.childControlWidth = true;
             layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = true;
+            layout.childForceExpandHeight = false;
             for (int index = 0; index < caseDefinition.ReasoningOptions.Count; index++)
             {
                 InvestigationV2ReasoningDefinition reasoning = caseDefinition.ReasoningOptions[index];
@@ -309,7 +333,8 @@ namespace EDNA.Investigation.V2
                 label,
                 ButtonVisualStyle.PaperChoice,
                 () => setReasoning?.Invoke(reasoningId),
-                out _);
+                out Text choiceLabel);
+            ConfigureWrappingChoice(button, choiceLabel);
             StylePaperChoice(button, string.Equals(state.SelectedReasoningId, reasoningId, StringComparison.Ordinal));
         }
 
@@ -317,13 +342,12 @@ namespace EDNA.Investigation.V2
         {
             RectTransform section = CreatePaperSlot(parent, "Report Limitation Section", "What am I still not sure about?");
             RectTransform row = CreatePanel("Limitation Choices", section, new Color(0f, 0f, 0f, 0f), 0f);
-            AddLayout(row, 72f, 1f);
-            HorizontalLayoutGroup layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
+            VerticalLayoutGroup layout = row.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 8f;
             layout.childControlWidth = true;
             layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = true;
+            layout.childForceExpandHeight = false;
             for (int index = 0; index < caseDefinition.Limitations.Count; index++)
             {
                 InvestigationV2LimitationDefinition limitation = caseDefinition.Limitations[index];
@@ -334,7 +358,8 @@ namespace EDNA.Investigation.V2
                     limitation.DisplayName,
                     ButtonVisualStyle.PaperChoice,
                     () => setLimitation?.Invoke(limitation.LimitationId),
-                    out _);
+                    out Text choiceLabel);
+                ConfigureWrappingChoice(button, choiceLabel);
                 StylePaperChoice(button, string.Equals(state.SelectedLimitationId, limitation.LimitationId, StringComparison.Ordinal));
             }
         }
@@ -350,8 +375,22 @@ namespace EDNA.Investigation.V2
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
             Text label = CreateText("Question", section, question, 16, FontStyle.Bold, InvestigationV2Theme.PaperInk, TextAnchor.MiddleLeft, InvestigationV2Theme.DisplayFont);
-            AddLayout(label.rectTransform, 36f, 1f);
+            ConfigureContentDrivenText(label);
             return section;
+        }
+
+        private static void ConfigureContentDrivenText(Text text)
+        {
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+        }
+
+        private static void ConfigureWrappingChoice(Button button, Text label)
+        {
+            ConfigureContentDrivenText(label);
+            InvestigationV2ContentHeightLayoutElement contentHeight =
+                button.gameObject.AddComponent<InvestigationV2ContentHeightLayoutElement>();
+            contentHeight.Configure(label, 52f, 20f, 16f);
         }
 
         private static void FitReportColumns(
