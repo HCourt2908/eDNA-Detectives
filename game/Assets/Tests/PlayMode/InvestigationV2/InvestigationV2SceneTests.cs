@@ -275,32 +275,42 @@ namespace EDNA.Investigation.V2.Tests
             Click("Species Marker krill");
             Click("Species Marker sea_star");
             Click("Continue To Simulate");
+            Click("Threat bottom_trawling");
             Click("Run Selected Model");
-
             Button shark = FindButton("Prediction shark");
             Button tuna = FindButton("Prediction tuna");
             Button krill = FindButton("Prediction krill");
+            Button seaStar = FindButton("Prediction sea_star");
+            Button mussel = FindButton("Prediction mussel");
             Text sharkState = shark.transform.Find("Prediction").GetComponent<Text>();
             Text tunaState = tuna.transform.Find("Prediction").GetComponent<Text>();
             Text krillState = krill.transform.Find("Prediction").GetComponent<Text>();
+            Text seaStarState = seaStar.transform.Find("Prediction").GetComponent<Text>();
+            Text musselState = mussel.transform.Find("Prediction").GetComponent<Text>();
             Assert.That(sharkState.text, Is.EqualTo("Stable"));
             Assert.That(tunaState.text, Is.EqualTo("Stable"));
             Assert.That(krillState.text, Is.EqualTo("Stable"));
+            Assert.That(seaStarState.text, Is.EqualTo("Stable"));
+            Assert.That(musselState.text, Is.EqualTo("Stable"));
             Assert.That(shark.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.GreaterThan(0.5f));
             Assert.That(tuna.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.LessThan(0.01f));
+            Assert.That(seaStar.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.GreaterThan(0.5f));
 
             yield return new WaitForSecondsRealtime(1.8f);
             Assert.That(sharkState.text, Is.EqualTo("Decrease"));
             Assert.That(krillState.text, Is.EqualTo("Stable"));
 
-            yield return new WaitForSecondsRealtime(3.8f);
+            yield return new WaitForSecondsRealtime(4.1f);
             Assert.That(tunaState.text, Is.EqualTo("Increase"));
             Assert.That(krillState.text, Is.EqualTo("Decrease"));
+            Assert.That(seaStarState.text, Is.EqualTo("Decrease"));
+            Assert.That(musselState.text, Is.EqualTo("Stable"));
             Assert.That(tuna.transform.Find("Species Artwork").localScale.x, Is.GreaterThan(1.05f));
             Assert.That(krill.transform.Find("Species Artwork").GetComponent<CanvasGroup>().alpha, Is.EqualTo(1f).Within(0.01f));
             Assert.That(tuna.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.GreaterThan(0.5f));
             Assert.That(shark.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.LessThan(0.01f));
             Assert.That(krill.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.LessThan(0.01f));
+            Assert.That(seaStar.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.LessThan(0.01f));
             Assert.That(GameObject.Find("Prediction Versus Survey"), Is.Not.Null);
             CanvasGroup pageGroup = FindGameObject("Page Content").GetComponent<CanvasGroup>();
             Assert.That(pageGroup, Is.Not.Null);
@@ -323,14 +333,16 @@ namespace EDNA.Investigation.V2.Tests
             Click("Continue To Simulate");
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationV2Phase.Simulate));
             AssertActivePageHeadingSharesRow();
-            Assert.That(FindGameObject("V2 Footer").GetComponent<RectTransform>().rect.height, Is.EqualTo(38f).Within(0.1f));
+            Assert.That(FindGameObject("V2 Footer").activeSelf, Is.False);
             Assert.That(FindButton("Back To Observe").GetComponentInChildren<Text>().fontSize, Is.EqualTo(12));
-            Assert.That(FindGameObject("V2 Content").GetComponent<RectTransform>().offsetMin.y, Is.EqualTo(50f).Within(0.1f));
+            Assert.That(FindGameObject("V2 Content").GetComponent<RectTransform>().offsetMin.y, Is.EqualTo(8f).Within(0.1f));
             RectTransform modelColumn = FindGameObject("Simulation Models").GetComponent<RectTransform>();
             RectTransform comparisonColumn = FindGameObject("Comparison Workspace").GetComponent<RectTransform>();
             Assert.That(modelColumn.position.x, Is.LessThan(comparisonColumn.position.x));
             Assert.That(Mathf.Abs(modelColumn.rect.width - comparisonColumn.rect.width), Is.LessThan(2f));
             Assert.That(FindGameObject("Threat Choices").transform.IsChildOf(modelColumn), Is.True);
+            Assert.That(FindGameObject("Simulation Navigation").transform.IsChildOf(comparisonColumn), Is.True);
+            Assert.That(FindButton("Back To Observe").transform.IsChildOf(FindGameObject("Simulation Navigation").transform), Is.True);
             Assert.That(FindButton("Threat longline").transform.Find("Threat Status"), Is.Null);
             Assert.That(FindButton("Threat longline").GetComponents<Shadow>().Length, Is.EqualTo(1));
             Assert.That(FindButton("Threat longline").transform.Find("Paper Clay Inner Face"), Is.Null);
@@ -346,6 +358,9 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindGameObject("Prediction Observation Pairing").transform.IsChildOf(FindGameObject("Comparison Workspace").transform), Is.True);
             Assert.That(FindGameObject("Judgement Row").transform.IsChildOf(FindGameObject("Comparison Workspace").transform), Is.True);
             Assert.That(FindButton("Prediction shark").GetComponent<RectTransform>().rect.height, Is.EqualTo(78f).Within(0.1f));
+            Assert.That(FindGameObject("Reference Indicators").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(64f));
+            Assert.That(FindButton("Prediction sea_star").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(44f));
+            Assert.That(FindButton("Prediction mussel").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(44f));
             AssertSimulateContentFitsViewport();
             Image sharkArtwork = FindButton("Prediction shark").transform.Find("Species Artwork").GetComponent<Image>();
             Assert.That(sharkArtwork.sprite, Is.Not.Null);
@@ -405,15 +420,25 @@ namespace EDNA.Investigation.V2.Tests
         [UnityTest]
         public IEnumerator V2Scene_ReducedMotionDifficultyAndRestartRemainAvailable()
         {
+            bool before = InvestigationV2MotionSettings.ReducedMotion;
+            InvestigationV2MotionSettings.SetReducedMotion(false);
             yield return LoadV2Scene();
             InvestigationV2Controller controller = Object.FindAnyObjectByType<InvestigationV2Controller>();
             Click("Difficulty Toggle");
             Assert.That(controller.State.Difficulty, Is.EqualTo(InvestigationV2Difficulty.Hard));
-            bool before = InvestigationV2MotionSettings.ReducedMotion;
             Click("Motion Toggle");
-            Assert.That(InvestigationV2MotionSettings.ReducedMotion, Is.Not.EqualTo(before));
+            Assert.That(InvestigationV2MotionSettings.ReducedMotion, Is.True);
             Click("Species Marker shark");
-            Assert.That(controller.State.DiscoveredObservationIds, Has.Count.EqualTo(1));
+            Click("Species Marker tuna");
+            Click("Species Marker krill");
+            Click("Species Marker sea_star");
+            Assert.That(controller.State.DiscoveredObservationIds, Has.Count.EqualTo(4));
+            Click("Continue To Simulate");
+            Click("Threat plastic");
+            Click("Run Selected Model");
+            Button mussel = FindButton("Prediction mussel");
+            Assert.That(mussel.transform.Find("Prediction").GetComponent<Text>().text, Is.EqualTo("Decrease"));
+            Assert.That(mussel.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.LessThan(0.01f));
             controller.SendMessage("HandleRestart", SendMessageOptions.DontRequireReceiver);
             // Public UI restart is exercised in Report; verify initial scene reload reset instead.
             yield return SceneManager.LoadSceneAsync("InvestigationSceneV2", LoadSceneMode.Single);

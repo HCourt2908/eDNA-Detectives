@@ -105,26 +105,42 @@ namespace EDNA.Investigation.V2
             }
             else
             {
-                RenderSimulationVisualization(modelPanel, simulation);
+                RenderSimulationVisualization(modelPanel, simulation, modelHeight);
                 RenderSimulationComparison(comparisonColumn, simulation, workspaceHeight);
             }
 
-            Button back = CreateButton("Back To Observe", footerLeft, "← Back to notebook", ButtonVisualStyle.Tertiary, () => setPhase?.Invoke(InvestigationV2Phase.Observe), out _);
-            ConfigureCompactFooterButton(back, 160f);
+            RenderSimulationNavigation(comparisonColumn, simulation);
+        }
+
+        private void RenderSimulationNavigation(RectTransform parent, SimulationResult simulation)
+        {
+            RectTransform navigation = CreatePanel("Simulation Navigation", parent, new Color(0f, 0f, 0f, 0f), 0f);
+            AddLayout(navigation, 34f, 1f);
+            HorizontalLayoutGroup navigationLayout = navigation.gameObject.AddComponent<HorizontalLayoutGroup>();
+            navigationLayout.spacing = 6f;
+            navigationLayout.childAlignment = TextAnchor.MiddleCenter;
+            navigationLayout.childControlWidth = true;
+            navigationLayout.childControlHeight = true;
+            navigationLayout.childForceExpandWidth = false;
+            navigationLayout.childForceExpandHeight = true;
+
+            Button back = CreateButton("Back To Observe", navigation, "← Back to notebook", ButtonVisualStyle.Tertiary, () => setPhase?.Invoke(InvestigationV2Phase.Observe), out _);
+            ConfigureCompactFooterButton(back, 150f);
 
             InvestigationV2Readiness readiness = new InvestigationV2ConclusionEvaluator().EvaluateReadiness(caseDefinition, state);
             if (readiness.CanEnterProvisional)
             {
-                Button report = CreateButton("Write Provisional Report", footerRight, "Write my first idea →", ButtonVisualStyle.Primary, () => submitProvisional?.Invoke(selectedThreatId), out _);
-                ConfigureCompactFooterButton(report, 210f);
+                Button report = CreateButton("Write Provisional Report", navigation, "Write my first idea →", ButtonVisualStyle.Primary, () => submitProvisional?.Invoke(selectedThreatId), out _);
+                ConfigureCompactFooterButton(report, 200f);
             }
             else
             {
-                RectTransform gate = CreatePanel("Report Gate Hint", footerRight, new Color32(14, 51, 72, 225), 10f);
-                gate.sizeDelta = new Vector2(520f, 30f);
+                RectTransform gate = CreatePanel("Report Gate Hint", navigation, new Color32(14, 51, 72, 225), 10f);
+                gate.sizeDelta = new Vector2(360f, 30f);
                 LayoutElement gateLayout = gate.gameObject.AddComponent<LayoutElement>();
-                gateLayout.minWidth = 420f;
-                gateLayout.preferredWidth = 520f;
+                gateLayout.minWidth = 250f;
+                gateLayout.preferredWidth = 360f;
+                gateLayout.flexibleWidth = 1f;
                 gateLayout.minHeight = 30f;
                 gateLayout.preferredHeight = 30f;
                 AddPanelAccent(gate, InvestigationV2Theme.Primary, 2f);
@@ -134,7 +150,7 @@ namespace EDNA.Investigation.V2
                     simulation == null
                         ? "TO REPORT · Run a model, then compare its predictions with evidence"
                         : $"TO REPORT · {BuildSimulationGateLabel()}",
-                    12,
+                    11,
                     FontStyle.Bold,
                     InvestigationV2Theme.TextSecondary,
                     TextAnchor.MiddleCenter,
@@ -249,7 +265,7 @@ namespace EDNA.Investigation.V2
             Anchor(detail.rectTransform, 0.12f, 0.20f, 0.88f, 0.47f, 0f, 0f, 0f, 0f);
         }
 
-        private void RenderSimulationVisualization(RectTransform parent, SimulationResult simulation)
+        private void RenderSimulationVisualization(RectTransform parent, SimulationResult simulation, float modelHeight)
         {
             RectTransform environment = CreatePanel("Environmental Predictions", parent, InvestigationV2Theme.Surface, InvestigationV2Theme.SmallRadius);
             AddLayout(environment, 44f, 1f);
@@ -279,7 +295,7 @@ namespace EDNA.Investigation.V2
             chainLayout.childForceExpandHeight = false;
 
             List<PredictionAnimationTarget> foodWebTargets = new List<PredictionAnimationTarget>();
-            List<RectTransform> indicatorNodes = new List<RectTransform>();
+            List<PredictionAnimationTarget> benthicTargets = new List<PredictionAnimationTarget>();
             string[] foodWebSpeciesIds = { "shark", "tuna", "krill" };
             for (int index = 0; index < foodWebSpeciesIds.Length; index++)
             {
@@ -292,30 +308,33 @@ namespace EDNA.Investigation.V2
                 if (index < foodWebSpeciesIds.Length - 1) CreateFoodWebArrow(chain, 24f, 78f, 26);
             }
 
-            RectTransform indicators = CreatePanel("Reference Indicators", parent, new Color(0f, 0f, 0f, 0f), 0f);
-            AddLayout(indicators, 44f, 1f);
+            float benthicHeight = Mathf.Clamp(modelHeight - 206f, 44f, 104f);
+            float benthicNodeHeight = Mathf.Clamp(benthicHeight - 26f, 44f, 78f);
+            RectTransform indicators = CreatePanel("Reference Indicators", parent, InvestigationV2Theme.SurfaceQuiet, InvestigationV2Theme.SmallRadius);
+            AddLayout(indicators, benthicHeight, 1f);
             HorizontalLayoutGroup indicatorLayout = indicators.gameObject.AddComponent<HorizontalLayoutGroup>();
-            indicatorLayout.spacing = 6f;
+            indicatorLayout.padding = new RectOffset(8, 8, 20, 6);
+            indicatorLayout.spacing = 8f;
             indicatorLayout.childAlignment = TextAnchor.MiddleCenter;
-            indicatorLayout.childControlWidth = false;
-            indicatorLayout.childControlHeight = false;
-            indicatorLayout.childForceExpandWidth = false;
+            indicatorLayout.childControlWidth = true;
+            indicatorLayout.childControlHeight = true;
+            indicatorLayout.childForceExpandWidth = true;
             indicatorLayout.childForceExpandHeight = false;
-            Text indicatorLabel = CreateText("Indicator Heading", indicators, "BENTHIC\nCHECK", 10, FontStyle.Bold, InvestigationV2Theme.TextMuted, TextAnchor.MiddleLeft, InvestigationV2Theme.DataFont);
-            indicatorLabel.rectTransform.sizeDelta = new Vector2(92f, 44f);
-            LayoutElement indicatorLabelLayout = indicatorLabel.gameObject.AddComponent<LayoutElement>();
-            indicatorLabelLayout.minWidth = 92f;
-            indicatorLabelLayout.preferredWidth = 92f;
-            indicatorLabelLayout.minHeight = 44f;
-            indicatorLabelLayout.preferredHeight = 44f;
+            Text indicatorLabel = CreateText("Indicator Heading", indicators, "BENTHIC CHECK · SELECT A SPECIES", 11, FontStyle.Bold, InvestigationV2Theme.Primary, TextAnchor.UpperLeft, InvestigationV2Theme.DataFont);
+            Anchor(indicatorLabel.rectTransform, 0f, 1f, 1f, 1f, 10f, -18f, -8f, -2f);
+            indicatorLabel.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
             string[] indicatorIds = { "sea_star", "mussel" };
             for (int index = 0; index < indicatorIds.Length; index++)
             {
                 SimulationPrediction prediction = simulation.FindPrediction(indicatorIds[index]);
                 InvestigationV2SpeciesDefinition species = caseDefinition.FindSpecies(indicatorIds[index]);
                 if (species == null || prediction == null) continue;
-                Button node = CreatePredictionButton(indicators, species, prediction, 220f, 44f, true);
-                indicatorNodes.Add(node.GetComponent<RectTransform>());
+                Button node = CreatePredictionButton(indicators, species, prediction, 220f, benthicNodeHeight, true);
+                LayoutElement nodeLayout = node.GetComponent<LayoutElement>();
+                nodeLayout.minWidth = 180f;
+                nodeLayout.preferredWidth = 0f;
+                nodeLayout.flexibleWidth = 1f;
+                benthicTargets.Add(CreatePredictionAnimationTarget(node, prediction));
             }
 
             if (!animatedThreatIds.Contains(simulation.ThreatId))
@@ -323,7 +342,7 @@ namespace EDNA.Investigation.V2
                 animatedThreatIds.Add(simulation.ThreatId);
                 if (!InvestigationV2MotionSettings.ReducedMotion)
                 {
-                    StartCoroutine(AnimateSimulationSequence(foodWebTargets, indicatorNodes));
+                    StartCoroutine(AnimateSimulationSequence(foodWebTargets, benthicTargets));
                 }
             }
         }
@@ -368,7 +387,7 @@ namespace EDNA.Investigation.V2
                 InvestigationV2Theme.DisplayFont);
             AddLayout(comparisonHeading.rectTransform, 30f, 1f);
 
-            float pairingHeight = Mathf.Clamp(workspaceHeight - 124f, 218f, 346f);
+            float pairingHeight = Mathf.Clamp(workspaceHeight - 166f, 176f, 304f);
             RectTransform pairing = new GameObject("Prediction Observation Pairing", typeof(RectTransform), typeof(InvestigationV2ResponsiveSplitLayout)).GetComponent<RectTransform>();
             pairing.SetParent(parent, false);
             InvestigationV2ResponsiveSplitLayout split = pairing.GetComponent<InvestigationV2ResponsiveSplitLayout>();
@@ -720,86 +739,112 @@ namespace EDNA.Investigation.V2
 
         private IEnumerator AnimateSimulationSequence(
             IReadOnlyList<PredictionAnimationTarget> foodWebTargets,
-            IReadOnlyList<RectTransform> indicatorNodes)
+            IReadOnlyList<PredictionAnimationTarget> benthicTargets)
         {
             for (int index = 0; index < foodWebTargets.Count; index++)
             {
-                PredictionAnimationTarget target = foodWebTargets[index];
-                if (target.Artwork != null) target.Artwork.localScale = Vector3.one;
-                if (target.ArtworkGroup != null) target.ArtworkGroup.alpha = 1f;
-                if (target.StateLabel != null)
-                {
-                    target.StateLabel.text = "Stable";
-                    target.StateLabel.color = InvestigationV2Theme.Unknown;
-                }
-                if (target.IndicatorGroup != null) target.IndicatorGroup.alpha = 0f;
-                SetCrowdAlpha(target.CrowdMembers, target.State == PredictionState.Decrease ? 0.58f : 0f);
+                PreparePredictionAnimationTarget(foodWebTargets[index]);
+            }
+            for (int index = 0; index < benthicTargets.Count; index++)
+            {
+                PreparePredictionAnimationTarget(benthicTargets[index]);
             }
 
             yield return new WaitForSecondsRealtime(0.56f);
             for (int index = 0; index < foodWebTargets.Count; index++)
             {
                 PredictionAnimationTarget target = foodWebTargets[index];
-                if (target.StateLabel != null)
-                {
-                    target.StateLabel.text = $"Stable → {PredictionLabel(target.State)}";
-                    target.StateLabel.color = target.StateColor;
-                }
-
-                float elapsed = 0f;
-                const float duration = 1.04f;
-                float startCrowdAlpha = target.State == PredictionState.Decrease ? 0.58f : 0f;
-                float finalCrowdAlpha = target.State == PredictionState.Increase ? 0.58f : 0f;
-                while (elapsed < duration)
-                {
-                    elapsed += Time.unscaledDeltaTime;
-                    float t = Mathf.Clamp01(elapsed / duration);
-                    float eased = t * t * (3f - 2f * t);
-                    if (target.Artwork != null)
-                    {
-                        float scale = Mathf.Lerp(1f, FinalArtworkScale(target.State), eased);
-                        if (target.State == PredictionState.Increase)
-                        {
-                            scale *= 1f + Mathf.Sin(t * Mathf.PI) * 0.08f;
-                        }
-                        target.Artwork.localScale = Vector3.one * scale;
-                    }
-                    if (target.ArtworkGroup != null)
-                        target.ArtworkGroup.alpha = Mathf.Lerp(1f, FinalArtworkAlpha(target.State), eased);
-                    if (target.IndicatorGroup != null) target.IndicatorGroup.alpha = eased;
-                    SetCrowdAlpha(target.CrowdMembers, Mathf.Lerp(startCrowdAlpha, finalCrowdAlpha, eased));
-                    yield return null;
-                }
-
-                if (target.Artwork != null) target.Artwork.localScale = Vector3.one * FinalArtworkScale(target.State);
-                if (target.ArtworkGroup != null) target.ArtworkGroup.alpha = FinalArtworkAlpha(target.State);
-                if (target.IndicatorGroup != null) target.IndicatorGroup.alpha = 1f;
-                SetCrowdAlpha(target.CrowdMembers, finalCrowdAlpha);
-                if (target.StateLabel != null) target.StateLabel.text = PredictionLabel(target.State);
+                yield return AnimatePredictionTarget(target, 1.04f);
                 yield return new WaitForSecondsRealtime(0.32f);
             }
 
-            for (int index = 0; index < indicatorNodes.Count; index++)
+            for (int index = 0; index < benthicTargets.Count; index++)
             {
-                RectTransform node = indicatorNodes[index];
-                if (node == null) continue;
-                CanvasGroup group = node.GetComponent<CanvasGroup>();
-                if (group == null) group = node.gameObject.AddComponent<CanvasGroup>();
-                group.alpha = 0.35f;
-                node.localScale = Vector3.one * 0.94f;
-                float elapsed = 0f;
-                const float duration = 0.36f;
-                while (elapsed < duration)
-                {
-                    elapsed += Time.unscaledDeltaTime;
-                    float t = Mathf.Clamp01(elapsed / duration);
-                    group.alpha = Mathf.Lerp(0.35f, 1f, t);
-                    node.localScale = Vector3.Lerp(Vector3.one * 0.94f, Vector3.one, t);
-                    yield return null;
-                }
-                group.alpha = 1f;
-                node.localScale = Vector3.one;
+                BeginPredictionAnimationTarget(benthicTargets[index]);
             }
+            float benthicElapsed = 0f;
+            const float benthicDuration = 1.04f;
+            while (benthicElapsed < benthicDuration)
+            {
+                benthicElapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(benthicElapsed / benthicDuration);
+                float eased = t * t * (3f - 2f * t);
+                for (int index = 0; index < benthicTargets.Count; index++)
+                {
+                    ApplyPredictionAnimationTarget(benthicTargets[index], eased, t);
+                }
+                yield return null;
+            }
+            for (int index = 0; index < benthicTargets.Count; index++)
+            {
+                CompletePredictionAnimationTarget(benthicTargets[index]);
+            }
+        }
+
+        private IEnumerator AnimatePredictionTarget(PredictionAnimationTarget target, float duration)
+        {
+            BeginPredictionAnimationTarget(target);
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float eased = t * t * (3f - 2f * t);
+                ApplyPredictionAnimationTarget(target, eased, t);
+                yield return null;
+            }
+            CompletePredictionAnimationTarget(target);
+        }
+
+        private static void PreparePredictionAnimationTarget(PredictionAnimationTarget target)
+        {
+            if (target == null) return;
+            if (target.Artwork != null) target.Artwork.localScale = Vector3.one;
+            if (target.ArtworkGroup != null) target.ArtworkGroup.alpha = 1f;
+            if (target.StateLabel != null)
+            {
+                target.StateLabel.text = "Stable";
+                target.StateLabel.color = InvestigationV2Theme.Unknown;
+            }
+            if (target.IndicatorGroup != null) target.IndicatorGroup.alpha = 0f;
+            SetCrowdAlpha(target.CrowdMembers, target.State == PredictionState.Decrease ? 0.58f : 0f);
+        }
+
+        private static void BeginPredictionAnimationTarget(PredictionAnimationTarget target)
+        {
+            if (target?.StateLabel == null) return;
+            target.StateLabel.text = $"Stable → {PredictionLabel(target.State)}";
+            target.StateLabel.color = target.StateColor;
+        }
+
+        private static void ApplyPredictionAnimationTarget(PredictionAnimationTarget target, float eased, float rawT)
+        {
+            if (target == null) return;
+            if (target.Artwork != null)
+            {
+                float scale = Mathf.Lerp(1f, FinalArtworkScale(target.State), eased);
+                if (target.State == PredictionState.Increase)
+                {
+                    scale *= 1f + Mathf.Sin(rawT * Mathf.PI) * 0.08f;
+                }
+                target.Artwork.localScale = Vector3.one * scale;
+            }
+            if (target.ArtworkGroup != null)
+                target.ArtworkGroup.alpha = Mathf.Lerp(1f, FinalArtworkAlpha(target.State), eased);
+            if (target.IndicatorGroup != null) target.IndicatorGroup.alpha = eased;
+            float startCrowdAlpha = target.State == PredictionState.Decrease ? 0.58f : 0f;
+            float finalCrowdAlpha = target.State == PredictionState.Increase ? 0.58f : 0f;
+            SetCrowdAlpha(target.CrowdMembers, Mathf.Lerp(startCrowdAlpha, finalCrowdAlpha, eased));
+        }
+
+        private static void CompletePredictionAnimationTarget(PredictionAnimationTarget target)
+        {
+            if (target == null) return;
+            if (target.Artwork != null) target.Artwork.localScale = Vector3.one * FinalArtworkScale(target.State);
+            if (target.ArtworkGroup != null) target.ArtworkGroup.alpha = FinalArtworkAlpha(target.State);
+            if (target.IndicatorGroup != null) target.IndicatorGroup.alpha = 1f;
+            SetCrowdAlpha(target.CrowdMembers, target.State == PredictionState.Increase ? 0.58f : 0f);
+            if (target.StateLabel != null) target.StateLabel.text = PredictionLabel(target.State);
         }
 
         private static void SetCrowdAlpha(IReadOnlyList<Image> members, float alpha)

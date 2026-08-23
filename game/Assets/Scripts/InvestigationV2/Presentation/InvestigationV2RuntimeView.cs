@@ -339,21 +339,19 @@ namespace EDNA.Investigation.V2
 
         private void ApplyPhaseLayout(InvestigationV2Phase phase)
         {
-            bool observe = phase == InvestigationV2Phase.Observe;
-            bool simulate = phase == InvestigationV2Phase.Simulate;
-            if (footerRoot != null) footerRoot.gameObject.SetActive(!observe);
-            if (footerRoot != null)
+            bool report = phase == InvestigationV2Phase.Report;
+            if (footerRoot != null) footerRoot.gameObject.SetActive(report);
+            if (footerRoot != null && report)
             {
-                float footerHeight = simulate ? 38f : 70f;
-                Anchor(footerRoot, 0f, 0f, 1f, 0f, OuterMargin, OuterMargin, -OuterMargin, OuterMargin + footerHeight);
+                Anchor(footerRoot, 0f, 0f, 1f, 0f, OuterMargin, OuterMargin, -OuterMargin, OuterMargin + 70f);
             }
-            if (footerLeft != null)
-                Anchor(footerLeft, 0f, 0f, 0.5f, 1f, 10f, simulate ? 2f : 8f, -4f, simulate ? -2f : -8f);
-            if (footerRight != null)
-                Anchor(footerRight, 0.5f, 0f, 1f, 1f, 4f, simulate ? 2f : 8f, -10f, simulate ? -2f : -8f);
+            if (footerLeft != null && report)
+                Anchor(footerLeft, 0f, 0f, 0.5f, 1f, 10f, 8f, -4f, -8f);
+            if (footerRight != null && report)
+                Anchor(footerRight, 0.5f, 0f, 1f, 1f, 4f, 8f, -10f, -8f);
             if (contentPanel != null)
             {
-                float bottom = observe ? OuterMargin : simulate ? 50f : 84f;
+                float bottom = report ? 84f : OuterMargin;
                 Anchor(contentPanel, 0f, 0f, 1f, 1f, OuterMargin, bottom, -OuterMargin, -138f);
             }
         }
