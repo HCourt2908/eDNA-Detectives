@@ -28,7 +28,7 @@ The visual system follows a biomimetic field-console direction: reduced corner r
 
 Controls follow a hierarchy-specific treatment. Every coral Primary CTA uses the same solid fill, 17px label, and one low-cost shadow across Observe, Simulate, and Report. Dark secondary/stage controls use solid fills and at most one crisp 2px outline. Report paper choices use one shadow plus a real 2px blue-grey structural edge and inset paper face; they do not stack `Outline` and `Shadow` effects or use an imperceptible white bevel. Press scaling and decorative highlight strips remain disabled.
 
-Observe keeps only the `20 YEARS AGO` and `TODAY` map headings. Species appear directly on the seamount: wider detection uses a small icon group, while non-detection uses ghosted artwork with a dashed removal mark. Each frameless marker now places its 13px name and 12px state on a compact semi-transparent deep-ocean plate, keeping normal-text contrast above 4.5:1 even over the brightest seamount layer. My Notebook uses pale cyan-white paper, blue-grey edging and shadow, coral bullets, ruled lines, and bold semantically colored status phrases instead of nested cards. The food-web cascade plays once at half speed; decrease predictions animate from a group to one organism, while increase predictions animate from one organism to a group. Check, cross, and question status marks use transparent Heroicons PNG assets rather than runtime-drawn glyphs; their MIT license and attribution are included with the assets.
+Observe keeps only the `20 YEARS AGO` and `TODAY` map headings. Both surveys reuse the same deterministic, in-house Blender render of a flat-topped guyot, with code-drawn sediment mist softening the foot of the sprite. Species and the seamount now share one plot coordinate system: water-column species sit over transparent water while benthic indicators sit on non-transparent rock. Wider detection uses a small icon group, while non-detection uses ghosted artwork with a dashed removal mark. Each frameless marker places its 13px name and 12px state on a compact semi-transparent deep-ocean plate, keeping normal-text contrast above 4.5:1 against the brightest pixel sampled from the real sprite. My Notebook uses pale cyan-white paper, blue-grey edging and shadow, coral bullets, ruled lines, and bold semantically colored status phrases instead of nested cards. The food-web cascade plays once at half speed; decrease predictions animate from a group to one organism, while increase predictions animate from one organism to a group. Check, cross, and question status marks use transparent Heroicons PNG assets rather than runtime-drawn glyphs; their MIT license and attribution are included with the assets.
 
 ## Run Investigation V1 (legacy)
 
@@ -55,6 +55,10 @@ A successful conclusion needs:
 - at least one challenging or uncertain finding.
 
 ## Screenshots
+
+### Ecosystem Detective V2 — Observe
+
+![Ecosystem Detective V2 Observe screen with the shared rendered seamount](docs/images/investigation-v2-observe-seamount.png)
 
 ### Case Files
 
@@ -108,3 +112,5 @@ V2 also includes dedicated `EDNA.Investigation.V2.EditModeTests` and `EDNA.Inves
 ## Artwork credits
 
 Investigation V2 uses transparent PNG artwork from [OpenMoji](https://openmoji.org/). All emojis are designed by OpenMoji, the open-source emoji and icon project, and are licensed under [CC BY-SA 4.0](game/Assets/Art/InvestigationV2/OpenMoji/LICENSE.txt). The per-file source codes are recorded in [ATTRIBUTION.md](game/Assets/Art/InvestigationV2/OpenMoji/ATTRIBUTION.md).
+
+The Observe seamount is an in-house deterministic Blender render. Its seed, source hashes, crop and downsampling recipe are recorded in [GENERATION.md](game/Assets/Art/InvestigationV2/Seamount/GENERATION.md); only the single approved hero angle is included in the Unity project.

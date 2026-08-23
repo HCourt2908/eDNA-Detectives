@@ -18,6 +18,8 @@ namespace EDNA.Investigation.V2
         private static readonly Vector2 PortraitReferenceResolution = new Vector2(720f, 1280f);
         private const float OuterMargin = 8f;
 
+        [SerializeField] private Sprite seamountSprite;
+
         private InvestigationV2CaseDefinition caseDefinition;
         private InvestigationV2State state;
         private Action<InvestigationV2Phase> setPhase;
@@ -68,6 +70,7 @@ namespace EDNA.Investigation.V2
 
         public InvestigationV2State State => state;
         public RectTransform ContentRoot => contentRoot;
+        public Sprite SeamountSprite => seamountSprite;
 
         public void Bind(
             InvestigationV2CaseDefinition definition,

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using EDNA.Core;
 using EDNA.Investigation.V2.Domain;
 using NUnit.Framework;
@@ -73,6 +74,32 @@ namespace EDNA.Investigation.V2.Tests
                 Assert.That(threat.Icon, Is.Not.Null, $"Missing sprite for threat {threat.ThreatId}");
                 AssertSpriteImporterUsesTransparency(threat.Icon);
             }
+        }
+
+        [Test]
+        public void SeamountSprite_IsSingleAngleCompressedAndWithinSourceBudget()
+        {
+            const string path = "Assets/Art/InvestigationV2/Seamount/seamount_hero.png";
+            UnityEngine.Sprite sprite = AssetDatabase.LoadAssetAtPath<UnityEngine.Sprite>(path);
+            Assert.That(sprite, Is.Not.Null);
+            Assert.That(sprite.rect.width, Is.EqualTo(640f).Within(0.1f));
+            Assert.That(sprite.rect.height, Is.EqualTo(333f).Within(0.1f));
+
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            Assert.That(importer, Is.Not.Null);
+            Assert.That(importer.textureType, Is.EqualTo(TextureImporterType.Sprite));
+            Assert.That(importer.spriteImportMode, Is.EqualTo(SpriteImportMode.Single));
+            Assert.That(importer.alphaIsTransparency, Is.True);
+            Assert.That(importer.mipmapEnabled, Is.False);
+            Assert.That(importer.isReadable, Is.False);
+            Assert.That(importer.wrapMode, Is.EqualTo(UnityEngine.TextureWrapMode.Clamp));
+            TextureImporterPlatformSettings platform = importer.GetDefaultPlatformTextureSettings();
+            Assert.That(platform.maxTextureSize, Is.EqualTo(1024));
+            Assert.That(platform.textureCompression, Is.EqualTo(TextureImporterCompression.CompressedHQ));
+            Assert.That(platform.compressionQuality, Is.EqualTo(100));
+
+            string absolutePath = Path.Combine(Directory.GetParent(UnityEngine.Application.dataPath).FullName, path);
+            Assert.That(new FileInfo(absolutePath).Length, Is.LessThan(150 * 1024));
         }
 
         [Test]

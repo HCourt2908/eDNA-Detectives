@@ -136,9 +136,9 @@ namespace EDNA.Investigation.V2
                 InvestigationV2Theme.DisplayFont);
             Anchor(title.rectTransform, 0f, 0.84f, 1f, 1f, 14f, 0f, -12f, -10f);
 
-            InvestigationV2SeamountGraphic mountain = CreateGraphic<InvestigationV2SeamountGraphic>("Seamount Silhouette", map);
-            Stretch(mountain.rectTransform, 44f, 8f, -18f, -28f);
-            mountain.color = Color.white;
+            RectTransform plotArea = CreatePanel("Seamount Plot Area", map, new Color(0f, 0f, 0f, 0f), 0f);
+            Anchor(plotArea, 0.08f, 0.08f, 0.92f, 0.86f, 0f, 0f, 0f, 0f);
+            CreateSeamountVisual(plotArea);
             CreateDepthLabel(map, "SHALLOW", 0.66f);
             CreateDepthLabel(map, "MID", 0.38f);
             CreateDepthLabel(map, "DEEP", 0.10f);
@@ -146,8 +146,38 @@ namespace EDNA.Investigation.V2
             for (int speciesIndex = 0; speciesIndex < caseDefinition.Species.Count; speciesIndex++)
             {
                 InvestigationV2SpeciesDefinition species = caseDefinition.Species[speciesIndex];
-                if (species != null) CreateSpeciesMarker(map, species, era);
+                if (species != null) CreateSpeciesMarker(plotArea, species, era);
             }
+        }
+
+        private void CreateSeamountVisual(RectTransform plotArea)
+        {
+            if (seamountSprite != null)
+            {
+                Image mountain = CreateGraphic<Image>("Seamount Sprite", plotArea);
+                mountain.sprite = seamountSprite;
+                mountain.preserveAspect = true;
+                mountain.raycastTarget = false;
+                mountain.color = Color.white;
+                mountain.rectTransform.anchorMin = new Vector2(0f, 0f);
+                mountain.rectTransform.anchorMax = new Vector2(1f, 0f);
+                mountain.rectTransform.pivot = new Vector2(0.5f, 0f);
+                mountain.rectTransform.anchoredPosition = Vector2.zero;
+                mountain.rectTransform.sizeDelta = Vector2.zero;
+                AspectRatioFitter aspect = mountain.gameObject.AddComponent<AspectRatioFitter>();
+                aspect.aspectMode = AspectRatioFitter.AspectMode.WidthControlsHeight;
+                aspect.aspectRatio = seamountSprite.rect.width / seamountSprite.rect.height;
+            }
+            else
+            {
+                InvestigationV2SeamountGraphic fallback = CreateGraphic<InvestigationV2SeamountGraphic>("Seamount Silhouette Fallback", plotArea);
+                Stretch(fallback.rectTransform, 0f, 0f, 0f, 0f);
+                fallback.color = Color.white;
+            }
+
+            InvestigationV2SeamountFogGraphic fog = CreateGraphic<InvestigationV2SeamountFogGraphic>("Seamount Foot Fog", plotArea);
+            Anchor(fog.rectTransform, 0f, 0f, 1f, 0.24f, -8f, -4f, 8f, 0f);
+            fog.color = InvestigationV2Theme.Primary;
         }
 
         private void CreateDepthLabel(RectTransform map, string value, float normalizedY)
@@ -185,9 +215,7 @@ namespace EDNA.Investigation.V2
             emptyLabel.gameObject.SetActive(false);
             marker.interactable = true;
             rect = marker.GetComponent<RectTransform>();
-            Vector2 comparisonPosition = new Vector2(
-                0.08f + species.MapPosition.x * 0.84f,
-                0.08f + species.MapPosition.y * 0.78f);
+            Vector2 comparisonPosition = species.MapPosition;
             rect.anchorMin = comparisonPosition;
             rect.anchorMax = comparisonPosition;
             rect.pivot = Vector2.one * 0.5f;

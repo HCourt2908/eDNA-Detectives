@@ -15,6 +15,7 @@ namespace EDNA.Investigation.V2.Editor
     {
         private const string DataRoot = "Assets/Data/InvestigationV2/LongLineCase";
         private const string ArtRoot = "Assets/Art/InvestigationV2/OpenMoji";
+        private const string SeamountSpritePath = "Assets/Art/InvestigationV2/Seamount/seamount_hero.png";
         private const string StatusIconRoot = "Assets/Resources/InvestigationV2/Icons/Heroicons";
         private const string PrefabRoot = "Assets/Prefabs/InvestigationV2";
         private const string ScenePath = "Assets/Scenes/InvestigationSceneV2.unity";
@@ -49,7 +50,7 @@ namespace EDNA.Investigation.V2.Editor
                 "Broad range; current temperature alone does not explain a repeated all-depth non-detection.",
                 new[] { "tuna" }, Array.Empty<string>(),
                 new[] { "LargePredator", "LongLineSensitive", "TrawlBycatch" },
-                new Vector2(0.22f, 0.80f));
+                new Vector2(0.22f, 0.95f));
             InvestigationV2SpeciesDefinition tuna = CreateSpecies(
                 "SpeciesV2_Tuna.asset", "tuna", "Tuna",
                 "A mobile fish that eats krill and is normally preyed on by sharks in this simplified food web.",
@@ -58,7 +59,7 @@ namespace EDNA.Investigation.V2.Editor
                 "Warm-affinity visitor; distribution can also respond to predator removal.",
                 new[] { "krill" }, new[] { "shark" },
                 new[] { "Mobile", "WarmAffinity", "FoodWeb" },
-                new Vector2(0.60f, 0.54f));
+                new Vector2(0.66f, 0.92f));
             InvestigationV2SpeciesDefinition krill = CreateSpecies(
                 "SpeciesV2_Krill.asset", "krill", "Krill",
                 "A small prey species linking plankton production to larger fish.",
@@ -67,7 +68,7 @@ namespace EDNA.Investigation.V2.Editor
                 "Sensitive to several pressures; non-detection alone cannot identify the cause.",
                 Array.Empty<string>(), new[] { "tuna" },
                 new[] { "Prey", "FoodWeb", "PlasticSensitive" },
-                new Vector2(0.33f, 0.30f));
+                new Vector2(0.28f, 0.64f));
             InvestigationV2SpeciesDefinition seaStar = CreateSpecies(
                 "SpeciesV2_SeaStar.asset", "sea_star", "Sea star",
                 "A benthic indicator used to test whether the seafloor community was disturbed.",
@@ -76,7 +77,7 @@ namespace EDNA.Investigation.V2.Editor
                 "Broad temperature tolerance in this case.",
                 Array.Empty<string>(), Array.Empty<string>(),
                 new[] { "BenthicIndicator", "TrawlSensitive", "StableIndicator" },
-                new Vector2(0.61f, 0.21f));
+                new Vector2(0.40f, 0.24f));
             InvestigationV2SpeciesDefinition mussel = CreateSpecies(
                 "SpeciesV2_Mussel.asset", "mussel", "Filter-feeding mussel",
                 "A filter feeder used as a plastic-sensitive comparison species.",
@@ -85,7 +86,7 @@ namespace EDNA.Investigation.V2.Editor
                 "Broad temperature tolerance; sensitive to suspended contaminants.",
                 Array.Empty<string>(), Array.Empty<string>(),
                 new[] { "FilterFeeder", "PlasticSensitive", "StableIndicator" },
-                new Vector2(0.77f, 0.34f));
+                new Vector2(0.72f, 0.24f));
 
             InvestigationV2SpeciesDefinition[] species = { shark, tuna, krill, seaStar, mussel };
             ThreatSimulationDefinition warming = CreateThreat(
@@ -277,6 +278,8 @@ namespace EDNA.Investigation.V2.Editor
             string[] statusIcons = { "check-circle.png", "x-circle.png", "question-mark-circle.png" };
             for (int index = 0; index < statusIcons.Length; index++)
                 ConfigureSpriteImporter($"{StatusIconRoot}/{statusIcons[index]}");
+
+            ConfigureSeamountImporter(SeamountSpritePath);
         }
 
         private static void ConfigureSpriteImporter(string path)
@@ -294,6 +297,32 @@ namespace EDNA.Investigation.V2.Editor
             importer.mipmapEnabled = false;
             importer.textureCompression = TextureImporterCompression.Uncompressed;
             importer.maxTextureSize = 1024;
+            importer.SaveAndReimport();
+        }
+
+        private static void ConfigureSeamountImporter(string path)
+        {
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null)
+            {
+                Debug.LogError($"Investigation V2 seamount artwork is missing or not importable: {path}");
+                return;
+            }
+
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.npotScale = TextureImporterNPOTScale.None;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.filterMode = FilterMode.Bilinear;
+            importer.textureCompression = TextureImporterCompression.CompressedHQ;
+            importer.compressionQuality = 100;
+            importer.maxTextureSize = 1024;
+            TextureImporterSettings settings = new TextureImporterSettings();
+            importer.ReadTextureSettings(settings);
+            settings.spriteMeshType = SpriteMeshType.FullRect;
+            importer.SetTextureSettings(settings);
             importer.SaveAndReimport();
         }
 
@@ -596,6 +625,9 @@ namespace EDNA.Investigation.V2.Editor
             scaler.referenceResolution = new Vector2(1200f, 760f);
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             scaler.matchWidthOrHeight = 0.5f;
+            SerializedObject runtimeView = new SerializedObject(root.GetComponent<InvestigationV2RuntimeView>());
+            runtimeView.FindProperty("seamountSprite").objectReferenceValue = AssetDatabase.LoadAssetAtPath<Sprite>(SeamountSpritePath);
+            runtimeView.ApplyModifiedPropertiesWithoutUndo();
             GameObject saved = PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
             UnityEngine.Object.DestroyImmediate(root);
             return saved;

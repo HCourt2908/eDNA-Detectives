@@ -73,8 +73,24 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(notebookColor.r, Is.GreaterThan(0.85f));
             Assert.That(notebookColor.g, Is.GreaterThan(0.90f));
             Assert.That(notebookColor.b, Is.GreaterThan(0.92f));
+            RectTransform historicalPlot = historicalMap.Find("Seamount Plot Area").GetComponent<RectTransform>();
+            RectTransform currentPlot = currentMap.Find("Seamount Plot Area").GetComponent<RectTransform>();
+            Image historicalMountain = historicalPlot.Find("Seamount Sprite").GetComponent<Image>();
+            Image currentMountain = currentPlot.Find("Seamount Sprite").GetComponent<Image>();
+            Assert.That(view.SeamountSprite, Is.Not.Null);
+            Assert.That(historicalMountain.sprite, Is.SameAs(view.SeamountSprite));
+            Assert.That(currentMountain.sprite, Is.SameAs(view.SeamountSprite));
+            Assert.That(historicalMountain.sprite, Is.SameAs(currentMountain.sprite));
+            Assert.That(historicalPlot.anchorMin, Is.EqualTo(currentPlot.anchorMin));
+            Assert.That(historicalPlot.anchorMax, Is.EqualTo(currentPlot.anchorMax));
+            Assert.That(historicalPlot.Find("Seamount Foot Fog"), Is.Not.Null);
+            Assert.That(currentPlot.Find("Seamount Foot Fog"), Is.Not.Null);
+            Assert.That(historicalPlot.Find("Seamount Silhouette Fallback"), Is.Null);
+            Assert.That(currentPlot.Find("Seamount Silhouette Fallback"), Is.Null);
             Assert.That(FindButton("Historical Species Marker shark").interactable, Is.True);
             Assert.That(FindButton("Species Marker shark").interactable, Is.True);
+            Assert.That(FindButton("Historical Species Marker shark").transform.parent, Is.SameAs(historicalPlot));
+            Assert.That(FindButton("Species Marker shark").transform.parent, Is.SameAs(currentPlot));
             Assert.That(FindButton("Species Marker shark").transform.Find("Marker Halo"), Is.Null);
             Assert.That(FindButton("Species Marker shark").transform.Find("Missing Signal"), Is.Not.Null);
             Assert.That(FindButton("Species Marker tuna").transform.Find("Group Member Left"), Is.Not.Null);
@@ -88,12 +104,27 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindButton("Continue To Simulate").GetComponent<Outline>(), Is.Null);
             Assert.That(FindButton("Continue To Simulate").transform.Find("Paper Clay Inner Face"), Is.Null);
             Assert.That(GameObject.Find("Species Facts Hint"), Is.Null);
-            AssertMapMarkerReadability("Historical Species Marker shark", HistoricalMapBackdrop());
-            AssertMapMarkerReadability("Species Marker shark", CurrentMapBackdrop());
-            AssertMapMarkerReadability("Species Marker tuna", CurrentMapBackdrop());
-            AssertMapMarkerReadability("Species Marker krill", CurrentMapBackdrop());
-            AssertMapMarkerReadability("Species Marker sea_star", CurrentMapBackdrop());
-            AssertMapMarkerReadability("Species Marker mussel", CurrentMapBackdrop());
+            Texture2D sourceSeamount = LoadSeamountSourceTexture();
+            Color historicalBackdrop = BrightestSeamountBackdrop(sourceSeamount, new Color32(11, 43, 61, 255));
+            Color currentBackdrop = BrightestSeamountBackdrop(sourceSeamount, InvestigationV2Theme.Deep);
+            AssertMapMarkerReadability("Historical Species Marker shark", historicalBackdrop);
+            AssertMapMarkerReadability("Species Marker shark", currentBackdrop);
+            AssertMapMarkerReadability("Species Marker tuna", currentBackdrop);
+            AssertMapMarkerReadability("Species Marker krill", currentBackdrop);
+            AssertMapMarkerReadability("Species Marker sea_star", currentBackdrop);
+            AssertMapMarkerReadability("Species Marker mussel", currentBackdrop);
+            Assert.That(ContrastRatio(InvestigationV2Theme.Danger, currentBackdrop), Is.LessThan(4.5f),
+                "Reverse guard: removing the marker plate must make the danger state fail contrast over the real sprite highlight.");
+            AssertMarkerHabitat("Species Marker shark", currentMountain, sourceSeamount, false);
+            AssertMarkerHabitat("Species Marker tuna", currentMountain, sourceSeamount, false);
+            AssertMarkerHabitat("Species Marker krill", currentMountain, sourceSeamount, false);
+            AssertMarkerHabitat("Species Marker sea_star", currentMountain, sourceSeamount, true);
+            AssertMarkerHabitat("Species Marker mussel", currentMountain, sourceSeamount, true);
+            AssertMarkerLabelsAvoidDepthLines(currentMap, false);
+            AssertMarkerLabelsAvoidDepthLines(historicalMap, true);
+            AssertMarkerLabelsDoNotOverlap(false);
+            AssertMarkerLabelsDoNotOverlap(true);
+            Object.DestroyImmediate(sourceSeamount);
             Button observeStage = FindButton("Stage Observe");
             Assert.That(observeStage.GetComponents<Shadow>().Length, Is.EqualTo(1));
             Assert.That(observeStage.transform.Find("Paper Clay Inner Face"), Is.Null);
@@ -479,20 +510,90 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(ContrastRatio(stateLabel.color, composedPlate), Is.GreaterThanOrEqualTo(4.5f), $"{buttonName} state contrast is too low.");
         }
 
-        private static Color HistoricalMapBackdrop()
+        private static Texture2D LoadSeamountSourceTexture()
         {
-            return SeamountBackdrop(new Color32(11, 43, 61, 255));
+            string path = Path.Combine(Application.dataPath, "Art/InvestigationV2/Seamount/seamount_hero.png");
+            Assert.That(File.Exists(path), Is.True, $"Missing seamount source texture: {path}");
+            Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            Assert.That(ImageConversion.LoadImage(texture, File.ReadAllBytes(path), false), Is.True);
+            return texture;
         }
 
-        private static Color CurrentMapBackdrop()
+        private static Color BrightestSeamountBackdrop(Texture2D texture, Color mapColor)
         {
-            return SeamountBackdrop(InvestigationV2Theme.Deep);
+            Color32[] pixels = texture.GetPixels32();
+            Color brightest = mapColor;
+            float brightestLuminance = RelativeLuminance(brightest);
+            for (int index = 0; index < pixels.Length; index++)
+            {
+                if (pixels[index].a == 0) continue;
+                Color composed = Composite(pixels[index], mapColor);
+                float luminance = RelativeLuminance(composed);
+                if (luminance <= brightestLuminance) continue;
+                brightest = composed;
+                brightestLuminance = luminance;
+            }
+            return brightest;
         }
 
-        private static Color SeamountBackdrop(Color mapColor)
+        private static void AssertMarkerHabitat(string buttonName, Image mountain, Texture2D sourceTexture, bool expectRock)
         {
-            Color outer = Composite(new Color32(42, 125, 163, 105), mapColor);
-            return Composite(new Color32(95, 212, 214, 25), outer);
+            Button marker = FindButton(buttonName);
+            RectTransform artworkRect = marker.transform.Find("Species Artwork").GetComponent<RectTransform>();
+            RectTransform mountainRect = mountain.rectTransform;
+            Vector3 artworkCenterWorld = artworkRect.TransformPoint(artworkRect.rect.center);
+            Vector3 artworkCenterLocal = mountainRect.InverseTransformPoint(artworkCenterWorld);
+            float u = Mathf.InverseLerp(mountainRect.rect.xMin, mountainRect.rect.xMax, artworkCenterLocal.x);
+            float v = Mathf.InverseLerp(mountainRect.rect.yMin, mountainRect.rect.yMax, artworkCenterLocal.y);
+            bool insideImage = artworkCenterLocal.x >= mountainRect.rect.xMin
+                && artworkCenterLocal.x <= mountainRect.rect.xMax
+                && artworkCenterLocal.y >= mountainRect.rect.yMin
+                && artworkCenterLocal.y <= mountainRect.rect.yMax;
+            float alpha = insideImage ? sourceTexture.GetPixelBilinear(u, v).a : 0f;
+            if (expectRock)
+                Assert.That(alpha, Is.GreaterThan(0.20f), $"{buttonName} should sit on the seamount surface, alpha={alpha:0.000}.");
+            else
+                Assert.That(alpha, Is.LessThan(0.08f), $"{buttonName} should sit in open water, alpha={alpha:0.000}.");
+        }
+
+        private static void AssertMarkerLabelsAvoidDepthLines(RectTransform map, bool historical)
+        {
+            string prefix = historical ? "Historical Species Marker " : "Species Marker ";
+            string[] speciesIds = { "shark", "tuna", "krill", "sea_star", "mussel" };
+            string[] depthLines = { "Depth Line SHALLOW", "Depth Line MID", "Depth Line DEEP" };
+            for (int speciesIndex = 0; speciesIndex < speciesIds.Length; speciesIndex++)
+            {
+                Rect labelRect = WorldRect(FindButton(prefix + speciesIds[speciesIndex]).transform.Find("Marker Label Plate").GetComponent<RectTransform>());
+                for (int lineIndex = 0; lineIndex < depthLines.Length; lineIndex++)
+                {
+                    Rect lineRect = WorldRect(map.Find(depthLines[lineIndex]).GetComponent<RectTransform>());
+                    Assert.That(labelRect.Overlaps(lineRect), Is.False,
+                        $"{prefix}{speciesIds[speciesIndex]} label overlaps {depthLines[lineIndex]}.");
+                }
+            }
+        }
+
+        private static void AssertMarkerLabelsDoNotOverlap(bool historical)
+        {
+            string prefix = historical ? "Historical Species Marker " : "Species Marker ";
+            string[] speciesIds = { "shark", "tuna", "krill", "sea_star", "mussel" };
+            for (int first = 0; first < speciesIds.Length; first++)
+            {
+                Rect firstRect = WorldRect(FindButton(prefix + speciesIds[first]).transform.Find("Marker Label Plate").GetComponent<RectTransform>());
+                for (int second = first + 1; second < speciesIds.Length; second++)
+                {
+                    Rect secondRect = WorldRect(FindButton(prefix + speciesIds[second]).transform.Find("Marker Label Plate").GetComponent<RectTransform>());
+                    Assert.That(firstRect.Overlaps(secondRect), Is.False,
+                        $"{prefix}{speciesIds[first]} label overlaps {prefix}{speciesIds[second]}.");
+                }
+            }
+        }
+
+        private static Rect WorldRect(RectTransform rectTransform)
+        {
+            Vector3[] corners = new Vector3[4];
+            rectTransform.GetWorldCorners(corners);
+            return Rect.MinMaxRect(corners[0].x, corners[0].y, corners[2].x, corners[2].y);
         }
 
         private static Color Composite(Color foreground, Color background)
