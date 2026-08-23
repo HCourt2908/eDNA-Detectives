@@ -50,7 +50,7 @@ namespace EDNA.Investigation.V2.Editor
                 "Broad range; current temperature alone does not explain a repeated all-depth non-detection.",
                 new[] { "tuna" }, Array.Empty<string>(),
                 new[] { "LargePredator", "LongLineSensitive", "TrawlBycatch" },
-                new Vector2(0.22f, 0.95f));
+                new Vector2(0.32f, 0.95f));
             InvestigationV2SpeciesDefinition tuna = CreateSpecies(
                 "SpeciesV2_Tuna.asset", "tuna", "Tuna",
                 "A mobile fish that eats krill and is normally preyed on by sharks in this simplified food web.",
@@ -68,7 +68,7 @@ namespace EDNA.Investigation.V2.Editor
                 "Sensitive to several pressures; non-detection alone cannot identify the cause.",
                 Array.Empty<string>(), new[] { "tuna" },
                 new[] { "Prey", "FoodWeb", "PlasticSensitive" },
-                new Vector2(0.28f, 0.64f));
+                new Vector2(0.18f, 0.72f));
             InvestigationV2SpeciesDefinition seaStar = CreateSpecies(
                 "SpeciesV2_SeaStar.asset", "sea_star", "Sea star",
                 "A benthic indicator used to test whether the seafloor community was disturbed.",

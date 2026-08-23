@@ -28,4 +28,4 @@ MonoBehaviour:
   - LargePredator
   - LongLineSensitive
   - TrawlBycatch
-  mapPosition: {x: 0.22, y: 0.95}
+  mapPosition: {x: 0.32, y: 0.95}

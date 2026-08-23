@@ -82,8 +82,8 @@ namespace EDNA.Investigation.V2.Tests
             const string path = "Assets/Art/InvestigationV2/Seamount/seamount_hero.png";
             UnityEngine.Sprite sprite = AssetDatabase.LoadAssetAtPath<UnityEngine.Sprite>(path);
             Assert.That(sprite, Is.Not.Null);
-            Assert.That(sprite.rect.width, Is.EqualTo(640f).Within(0.1f));
-            Assert.That(sprite.rect.height, Is.EqualTo(333f).Within(0.1f));
+            Assert.That(sprite.rect.width, Is.EqualTo(600f).Within(0.1f));
+            Assert.That(sprite.rect.height, Is.EqualTo(434f).Within(0.1f));
 
             TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
             Assert.That(importer, Is.Not.Null);
