@@ -275,7 +275,16 @@ namespace EDNA.Investigation.V2.Editor
                 ConfigureSpriteImporter($"{ArtRoot}/{artworkFiles[index]}");
             }
 
-            string[] statusIcons = { "check-circle.png", "x-circle.png", "question-mark-circle.png" };
+            string[] statusIcons =
+            {
+                "check-circle.png",
+                "x-circle.png",
+                "question-mark-circle.png",
+                "link.png",
+                "map.png",
+                "beaker.png",
+                "signal.png"
+            };
             for (int index = 0; index < statusIcons.Length; index++)
                 ConfigureSpriteImporter($"{StatusIconRoot}/{statusIcons[index]}");
 

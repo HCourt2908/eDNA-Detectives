@@ -1,10 +1,14 @@
 # Heroicons attribution
 
-The status icons in this folder are derived from Heroicons by Tailwind Labs:
+The status and report-evidence icons in this folder are derived from Heroicons by Tailwind Labs:
 
 - `check-circle.png` from `optimized/24/solid/check-circle.svg`
 - `x-circle.png` from `optimized/24/solid/x-circle.svg`
 - `question-mark-circle.png` from `optimized/24/solid/question-mark-circle.svg`
+- `link.png` from `optimized/24/solid/link.svg`
+- `map.png` from `optimized/24/solid/map.svg`
+- `beaker.png` from `optimized/24/solid/beaker.svg`
+- `signal.png` from `optimized/24/solid/signal.svg`
 
 Source: https://github.com/tailwindlabs/heroicons
 

@@ -66,6 +66,7 @@ namespace EDNA.Investigation.V2
 
         private void HandleRestart()
         {
+            InvestigationV2SessionBridge.ClearResult();
             state = updater.CreateInitialState();
             if (InvestigationV2SessionBridge.PendingInput != null)
             {
@@ -145,46 +146,55 @@ namespace EDNA.Investigation.V2
         private void HandleSetFinalThreat(string threatId)
         {
             bool success = updater.TrySetFinalThreat(state, threatId, out string feedback);
+            if (success) InvestigationV2SessionBridge.ClearResult();
             view.Refresh(state, success ? "Final cause updated. Complete the remaining report sections." : feedback, success ? InvestigationV2StatusTone.Guide : InvestigationV2StatusTone.Warning);
         }
 
         private void HandleSetReportEvidence(string evidenceId, bool selected)
         {
             bool success = updater.TrySetReportEvidence(state, evidenceId, selected, out string feedback);
+            if (success) InvestigationV2SessionBridge.ClearResult();
             view.Refresh(state, success ? "Report evidence updated." : feedback, success ? InvestigationV2StatusTone.Guide : InvestigationV2StatusTone.Warning);
         }
 
         private void HandleSetReasoning(string reasoningId)
         {
             bool success = updater.TrySetReasoning(state, reasoningId, out string feedback);
+            if (success) InvestigationV2SessionBridge.ClearResult();
             view.Refresh(state, success ? "Reasoning updated." : feedback, success ? InvestigationV2StatusTone.Guide : InvestigationV2StatusTone.Warning);
         }
 
         private void HandleSetLimitation(string limitationId)
         {
             bool success = updater.TrySetLimitation(state, limitationId, out string feedback);
+            if (success) InvestigationV2SessionBridge.ClearResult();
             view.Refresh(state, success ? "Scientific limitation recorded." : feedback, success ? InvestigationV2StatusTone.Guide : InvestigationV2StatusTone.Warning);
         }
 
         private void HandleSubmitFinal()
         {
             InvestigationV2ConclusionResult result = updater.SubmitFinal(state);
-            InvestigationV2SessionBridge.PublishResult(new InvestigationGameResult
+            if (result.Status != InvestigationV2ConclusionStatus.InsufficientEvidence)
             {
-                caseId = caseDefinition.CaseId,
-                selectedHypothesisId = state.FinalThreatId,
-                correct = result.Status == InvestigationV2ConclusionStatus.Correct,
-                evidenceIds = new List<string>(state.SelectedReportEvidenceIds),
-                missteps = state.MisstepCount,
-                finalSubmissionAttempts = state.FinalSubmissionAttemptCount,
-                completed = result.Status == InvestigationV2ConclusionStatus.Correct
-            });
+                InvestigationV2SessionBridge.PublishResult(new InvestigationGameResult
+                {
+                    caseId = caseDefinition.CaseId,
+                    selectedHypothesisId = state.FinalThreatId,
+                    correct = result.Status == InvestigationV2ConclusionStatus.Correct,
+                    evidenceIds = new List<string>(state.SelectedReportEvidenceIds),
+                    missteps = state.MisstepCount,
+                    finalSubmissionAttempts = state.FinalSubmissionAttemptCount,
+                    completed = result.Status == InvestigationV2ConclusionStatus.Correct
+                });
+            }
             view.Refresh(
                 state,
                 result.Feedback,
                 result.Status == InvestigationV2ConclusionStatus.Correct
                     ? InvestigationV2StatusTone.Success
-                    : InvestigationV2StatusTone.Warning);
+                    : result.Status == InvestigationV2ConclusionStatus.InsufficientEvidence
+                        ? InvestigationV2StatusTone.Guide
+                        : InvestigationV2StatusTone.Warning);
         }
 
         private void HandleSetReducedMotion(bool reducedMotion)

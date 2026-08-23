@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.IO;
+using System.Reflection;
 using EDNA.Core;
 using EDNA.Investigation.V2.Domain;
 using NUnit.Framework;
@@ -8,6 +10,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace EDNA.Investigation.V2.Tests
 {
@@ -18,6 +21,24 @@ namespace EDNA.Investigation.V2.Tests
         {
             Assert.That(File.Exists(Path.Combine(Application.dataPath, "Scenes/InvestigationScene.unity")), Is.True);
             Assert.That(File.Exists(Path.Combine(Application.dataPath, "Scenes/InvestigationSceneV2.unity")), Is.True);
+        }
+
+        [Test]
+        public void SessionBridge_ClearResultPreservesPendingInput()
+        {
+            InvestigationGameInput input = new InvestigationGameInput { caseId = "bridge-test" };
+            try
+            {
+                InvestigationV2SessionBridge.SetInput(input);
+                InvestigationV2SessionBridge.PublishResult(new InvestigationGameResult { completed = true });
+                InvestigationV2SessionBridge.ClearResult();
+                Assert.That(InvestigationV2SessionBridge.LastResult, Is.Null);
+                Assert.That(InvestigationV2SessionBridge.PendingInput, Is.SameAs(input));
+            }
+            finally
+            {
+                InvestigationV2SessionBridge.Clear();
+            }
         }
 
         [UnityTest]
@@ -112,16 +133,18 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindButton("Continue To Simulate").GetComponent<Outline>(), Is.Null);
             Assert.That(GameObject.Find("Species Facts Hint"), Is.Null);
             Texture2D sourceSeamount = LoadSeamountSourceTexture();
-            Color historicalBackdrop = BrightestSeamountBackdrop(sourceSeamount, new Color32(11, 43, 61, 255));
-            Color currentBackdrop = BrightestSeamountBackdrop(sourceSeamount, InvestigationV2Theme.Deep);
+            float seamountToWaterLuminance = MeanOpaqueSpriteLuminance(sourceSeamount, 0.85f)
+                / RelativeLuminance(InvestigationV2Theme.WaterUpper);
+            Assert.That(seamountToWaterLuminance, Is.InRange(0.70f, 0.85f),
+                "The approved seamount lighting should sit close to, but slightly below, the surrounding water luminance.");
+            Color historicalBackdrop = BrightestSeamountBackdrop(sourceSeamount, BrightestMapSurface(InvestigationV2Theme.MapSurfaceHistorical));
+            Color currentBackdrop = BrightestSeamountBackdrop(sourceSeamount, BrightestMapSurface(InvestigationV2Theme.MapSurface));
             AssertMapMarkerReadability("Historical Species Marker shark", historicalBackdrop);
             AssertMapMarkerReadability("Species Marker shark", currentBackdrop);
             AssertMapMarkerReadability("Species Marker tuna", currentBackdrop);
             AssertMapMarkerReadability("Species Marker krill", currentBackdrop);
             AssertMapMarkerReadability("Species Marker sea_star", currentBackdrop);
             AssertMapMarkerReadability("Species Marker mussel", currentBackdrop);
-            Assert.That(ContrastRatio(InvestigationV2Theme.Danger, currentBackdrop), Is.LessThan(4.5f),
-                "Reverse guard: removing the marker plate must make the danger state fail contrast over the real sprite highlight.");
             AssertMarkerHabitat("Species Marker shark", currentMountain, sourceSeamount, false);
             AssertMarkerHabitat("Species Marker tuna", currentMountain, sourceSeamount, false);
             AssertMarkerHabitat("Species Marker krill", currentMountain, sourceSeamount, false);
@@ -189,8 +212,10 @@ namespace EDNA.Investigation.V2.Tests
             trigger.OnPointerEnter(new PointerEventData(EventSystem.current));
             yield return new WaitForSecondsRealtime(0.55f);
             Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Null);
-            yield return new WaitForSecondsRealtime(0.55f);
-            Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Not.Null);
+            yield return WaitForCondition(
+                () => GameObject.Find("Species Facts Tooltip") != null,
+                1f,
+                "Species facts did not appear after the one-second hover delay.");
 
             EventSystem.current.SetSelectedGameObject(shark.gameObject);
             yield return null;
@@ -268,6 +293,13 @@ namespace EDNA.Investigation.V2.Tests
             notebookScroll.verticalNormalizedPosition = 0f;
             Canvas.ForceUpdateCanvases();
             Assert.That(Vector3.Distance(ctaPosition, cta.transform.position), Is.LessThan(0.01f));
+
+            Click("Species Marker shark");
+            yield return null;
+            yield return null;
+            ScrollRect refreshedNotebookScroll = FindGameObject("Notebook Entry Scroll").GetComponent<ScrollRect>();
+            Assert.That(refreshedNotebookScroll.verticalNormalizedPosition, Is.LessThanOrEqualTo(0.02f),
+                "Recording or reopening an observation must not jump the Notebook back to the top.");
         }
 
         [UnityTest]
@@ -302,11 +334,18 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(tuna.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.LessThan(0.01f));
             Assert.That(seaStar.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.GreaterThan(0.5f));
 
-            yield return new WaitForSecondsRealtime(1.8f);
-            Assert.That(sharkState.text, Is.EqualTo("Decrease"));
+            yield return WaitForCondition(
+                () => sharkState.text == "Decrease",
+                2.8f,
+                "The shark prediction animation did not reach Decrease.");
             Assert.That(krillState.text, Is.EqualTo("Stable"));
 
-            yield return new WaitForSecondsRealtime(4.1f);
+            yield return WaitForCondition(
+                () => tunaState.text == "Increase"
+                    && krillState.text == "Decrease"
+                    && seaStarState.text == "Decrease",
+                5.5f,
+                "The food-web and benthic animation sequence did not reach its final state.");
             Assert.That(tunaState.text, Is.EqualTo("Increase"));
             Assert.That(krillState.text, Is.EqualTo("Decrease"));
             Assert.That(seaStarState.text, Is.EqualTo("Decrease"));
@@ -329,6 +368,7 @@ namespace EDNA.Investigation.V2.Tests
         [UnityTest]
         public IEnumerator V2Scene_CompletePlayerFacingWorkflow_ReachesCorrectReport()
         {
+            InvestigationV2SessionBridge.Clear();
             yield return LoadV2Scene();
             Click("Species Marker shark");
             Click("Species Marker tuna");
@@ -341,6 +381,7 @@ namespace EDNA.Investigation.V2.Tests
             AssertActivePageHeadingSharesRow();
             Assert.That(FindGameObject("V2 Footer").activeSelf, Is.False);
             Assert.That(FindButton("Back To Observe").GetComponentInChildren<Text>().fontSize, Is.EqualTo(11));
+            Assert.That(FindButton("Back To Observe").GetComponentInChildren<Text>().text, Is.EqualTo("← Back to notebook"));
             Assert.That(FindGameObject("V2 Content").GetComponent<RectTransform>().offsetMin.y, Is.EqualTo(8f).Within(0.1f));
             RectTransform modelColumn = FindGameObject("Simulation Models").GetComponent<RectTransform>();
             RectTransform comparisonColumn = FindGameObject("Comparison Workspace").GetComponent<RectTransform>();
@@ -349,12 +390,12 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindGameObject("Threat Choices").transform.IsChildOf(modelColumn), Is.True);
             Assert.That(FindGameObject("Simulation Navigation").transform.IsChildOf(comparisonColumn), Is.True);
             Assert.That(FindButton("Back To Observe").transform.IsChildOf(FindGameObject("Simulation Navigation").transform), Is.True);
-            Assert.That(FindGameObject("Simulation Navigation").GetComponent<RectTransform>().rect.height, Is.EqualTo(44f).Within(0.1f));
-            Assert.That(FindButton("Back To Observe").GetComponent<RectTransform>().rect.height, Is.EqualTo(44f).Within(0.1f));
-            Assert.That(FindButton("Back To Observe").GetComponent<RectTransform>().rect.width, Is.EqualTo(110f).Within(0.1f));
-            Assert.That(FindButton("Back To Observe").GetComponentInChildren<Text>().rectTransform.rect.height, Is.EqualTo(22f).Within(0.1f));
+            Assert.That(FindGameObject("Simulation Navigation").GetComponent<RectTransform>().rect.height, Is.EqualTo(28f).Within(0.1f));
+            Assert.That(FindButton("Back To Observe").GetComponent<RectTransform>().rect.height, Is.EqualTo(28f).Within(0.1f));
+            Assert.That(FindButton("Back To Observe").GetComponent<RectTransform>().rect.width, Is.EqualTo(124f).Within(0.1f));
+            Assert.That(FindButton("Back To Observe").GetComponentInChildren<Text>().rectTransform.rect.height, Is.EqualTo(24f).Within(0.1f));
             AssertBottomAligned(FindButton("Back To Observe").GetComponent<RectTransform>(), FindGameObject("Simulation Navigation").GetComponent<RectTransform>());
-            Assert.That(FindGameObject("Report Gate Hint").GetComponent<RectTransform>().rect.height, Is.EqualTo(22f).Within(0.1f));
+            Assert.That(FindGameObject("Report Gate Hint").GetComponent<RectTransform>().rect.height, Is.EqualTo(28f).Within(0.1f));
             AssertBottomAligned(FindGameObject("Report Gate Hint").GetComponent<RectTransform>(), FindGameObject("Simulation Navigation").GetComponent<RectTransform>());
             Assert.That(comparisonColumn.GetComponent<VerticalLayoutGroup>().padding.bottom, Is.EqualTo(4));
             Assert.That(FindButton("Threat longline").transform.Find("Threat Status"), Is.Null);
@@ -365,6 +406,16 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(controller.State.HasTriedThreat("longline"), Is.True);
             Assert.That(FindButton("Threat longline").transform.Find("Threat Tried"), Is.Not.Null);
             Assert.That(GameObject.Find("Food Web Prediction"), Is.Not.Null);
+            RectTransform environmentalPredictions = FindGameObject("Environmental Predictions").GetComponent<RectTransform>();
+            Assert.That(environmentalPredictions.rect.height, Is.EqualTo(44f).Within(0.1f),
+                "Larger indicator typography must not change the environment-row height.");
+            Transform temperatureIndicator = FindGameObject("Model Indicator TEMP").transform;
+            Text temperatureLabel = temperatureIndicator.Find("Indicator Label").GetComponent<Text>();
+            Text temperatureValue = temperatureIndicator.Find("Indicator Value").GetComponent<Text>();
+            Assert.That(temperatureLabel.fontSize, Is.EqualTo(12));
+            Assert.That(temperatureValue.fontSize, Is.EqualTo(14));
+            Assert.That(temperatureLabel.rectTransform.TransformPoint(temperatureLabel.rectTransform.rect.center).y,
+                Is.GreaterThan(temperatureValue.rectTransform.TransformPoint(temperatureValue.rectTransform.rect.center).y + 4f));
             Assert.That(GameObject.Find("Comparison Guide"), Is.Null);
             Assert.That(FindButton("Judge Match").transform.Find("State Shape").GetComponent<Image>().sprite, Is.Not.Null);
             Assert.That(FindGameObject("Food Web Prediction").transform.IsChildOf(FindGameObject("Simulation Models").transform), Is.True);
@@ -390,12 +441,16 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(controller.State.AcceptedComparisonCount, Is.EqualTo(4));
             Assert.That(FindButton("Write Provisional Report").GetComponents<Shadow>().Length, Is.EqualTo(1));
             Assert.That(FindButton("Write Provisional Report").GetComponent<Outline>(), Is.Null);
-            Assert.That(FindButton("Write Provisional Report").GetComponent<RectTransform>().rect.height, Is.EqualTo(44f).Within(0.1f));
-            Assert.That(FindButton("Write Provisional Report").transform.Find("Compact Navigation Surface").GetComponent<RectTransform>().rect.height, Is.EqualTo(22f).Within(0.1f));
+            Assert.That(FindButton("Write Provisional Report").GetComponent<RectTransform>().rect.height, Is.EqualTo(28f).Within(0.1f));
+            Assert.That(FindButton("Write Provisional Report").GetComponent<RectTransform>().rect.width, Is.EqualTo(148f).Within(0.1f));
+            Assert.That(FindButton("Write Provisional Report").transform.Find("Compact Navigation Surface").GetComponent<RectTransform>().rect.height, Is.EqualTo(28f).Within(0.1f));
             Click("Write Provisional Report");
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationV2Phase.Report));
             AssertActivePageHeadingSharesRow();
-            Assert.That(FindGameObject("V2 Footer").GetComponent<RectTransform>().rect.height, Is.EqualTo(70f).Within(0.1f));
+            Assert.That(FindGameObject("V2 Footer").GetComponent<RectTransform>().rect.height, Is.EqualTo(44f).Within(0.1f));
+            Assert.That(FindButton("Back To Simulator").GetComponent<RectTransform>().rect.size, Is.EqualTo(new Vector2(126f, 30f)));
+            Assert.That(FindButton("Restart V2 Case").GetComponent<RectTransform>().rect.size, Is.EqualTo(new Vector2(100f, 30f)));
+            Assert.That(FindButton("Review ROV Follow-up").GetComponent<RectTransform>().rect.size, Is.EqualTo(new Vector2(104f, 30f)));
             Canvas.ForceUpdateCanvases();
             RectTransform reportLeft = FindGameObject("Report Cause And Reasoning").GetComponent<RectTransform>();
             RectTransform reportRight = FindGameObject("Report Evidence And Limitation").GetComponent<RectTransform>();
@@ -409,18 +464,119 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(controller.State.FinalThreatId, Is.Empty);
             Assert.That(controller.State.HasDiscoveredObservation("E07_FISHING_LINE"), Is.False);
 
+            string provisionalBeforeRestartPrompt = controller.State.ProvisionalThreatId;
+            Click("Restart V2 Case");
+            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationV2Phase.Report));
+            Assert.That(controller.State.ProvisionalThreatId, Is.EqualTo(provisionalBeforeRestartPrompt),
+                "The first Restart click must not clear progress.");
+            Assert.That(FindButton("Restart V2 Case"), Is.Null);
+            Assert.That(FindButton("Cancel Restart V2 Case"), Is.Not.Null);
+            Assert.That(FindButton("Confirm Restart V2 Case"), Is.Not.Null);
+            Assert.That(FindGameObject("Status Toast").activeSelf, Is.True);
+            Click("Cancel Restart V2 Case");
+            Assert.That(controller.State.ProvisionalThreatId, Is.EqualTo(provisionalBeforeRestartPrompt));
+            Assert.That(FindButton("Restart V2 Case"), Is.Not.Null);
+            Assert.That(FindButton("Confirm Restart V2 Case"), Is.Null);
+
+            ScrollRect reportScroll = FindGameObject("V2 Content").GetComponent<ScrollRect>();
+            reportScroll.verticalNormalizedPosition = 0.35f;
+            Canvas.ForceUpdateCanvases();
+            Click("Stage Report");
+            Assert.That(reportScroll.verticalNormalizedPosition, Is.EqualTo(0.35f).Within(0.02f),
+                "Refreshing the active Report stage must preserve the reader's place.");
+
             Click("Review ROV Follow-up");
             Assert.That(controller.State.ConfirmationReviewed, Is.True);
             Assert.That(controller.State.HasDiscoveredObservation("E07_FISHING_LINE"), Is.True);
             Assert.That(controller.State.HasDiscoveredObservation("E08_SEAFLOOR_INTACT"), Is.True);
+            Assert.That(reportScroll.verticalNormalizedPosition, Is.EqualTo(0.35f).Within(0.02f),
+                "Reviewing the ROV follow-up must not jump the Report back to the top.");
+            AssertSameRow("ROV Title", "ROV Detail");
+            Assert.That(FindGameObject("ROV Confirmation").GetComponent<RectTransform>().rect.height, Is.EqualTo(154f).Within(0.1f));
+            Rect rovSummary = WorldRect(FindGameObject("ROV Title").GetComponent<RectTransform>());
+            Rect rovEvidence = WorldRect(FindGameObject("ROV Evidence").GetComponent<RectTransform>());
+            Assert.That(rovSummary.yMin - rovEvidence.yMax, Is.InRange(0f, 9f),
+                "The ROV summary and evidence cards should be compact without overlapping.");
+            AssertSectionsDoNotOverlap("Report Evidence Section", "Report Limitation Section");
+            AssertChildrenStayInsideLayout("Cause Choices");
+            AssertChildrenStayInsideLayout("Evidence Choices");
+            Assert.That(FindGameObject("Confirmation E07_FISHING_LINE").transform.Find("Confirmation Icon").GetComponent<Image>().sprite, Is.Not.Null);
+            Assert.That(FindGameObject("Confirmation E07_FISHING_LINE").transform.Find("Confirmation Icon").GetComponent<InvestigationV2GlyphGraphic>(), Is.Null);
+            Assert.That(FindButton("Report Evidence E07_FISHING_LINE").transform.Find("Evidence Icon").GetComponent<Image>().sprite, Is.Not.Null);
+            Assert.That(InvestigationV2EvidenceIconLibrary.FishingLine, Is.Not.Null);
+            Assert.That(InvestigationV2EvidenceIconLibrary.Seafloor, Is.Not.Null);
+            Assert.That(InvestigationV2EvidenceIconLibrary.Laboratory, Is.Not.Null);
+            Assert.That(InvestigationV2EvidenceIconLibrary.EDNASignal, Is.Not.Null);
 
+            InvestigationV2RuntimeView runtimeView = Object.FindAnyObjectByType<InvestigationV2RuntimeView>();
+            GameObject reportPaperBeforeResize = FindGameObject("Survey Report Paper");
+            FieldInfo viewportSize = typeof(InvestigationV2RuntimeView).GetField(
+                "lastViewportSize",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(viewportSize, Is.Not.Null);
+            viewportSize.SetValue(runtimeView, new Vector2(-1000f, -1000f));
+            runtimeView.SendMessage("OnRectTransformDimensionsChange", SendMessageOptions.DontRequireReceiver);
+            yield return null;
+            yield return null;
+            Assert.That(FindGameObject("Survey Report Paper"), Is.Not.SameAs(reportPaperBeforeResize),
+                "A viewport change must rebuild the active Report with fresh responsive heights.");
+            AssertChildrenStayInsideLayout("Cause Choices");
+            AssertChildrenStayInsideLayout("Evidence Choices");
+            Assert.That(reportScroll.verticalNormalizedPosition, Is.EqualTo(0.35f).Within(0.02f),
+                "Responsive reflow must preserve the Report reading position.");
+
+            Button reportCheck = FindButton("Submit Final Report");
+            Assert.That(reportCheck.interactable, Is.True);
+            Assert.That(reportCheck.GetComponentInChildren<Text>().text, Is.EqualTo("Check my report"));
+            EventSystem.current.SetSelectedGameObject(reportCheck.gameObject);
+            Click("Submit Final Report");
+            yield return null;
+            Assert.That(controller.State.ConclusionStatus, Is.EqualTo(InvestigationV2ConclusionStatus.InsufficientEvidence));
+            Assert.That(controller.State.FinalSubmissionAttemptCount, Is.Zero);
+            Assert.That(InvestigationV2SessionBridge.LastResult, Is.Null,
+                "Checking an incomplete report is diagnostic and must not publish a session result.");
+            GameObject diagnosticOutcome = FindGameObject("Report Outcome");
+            Assert.That(diagnosticOutcome.GetComponentInChildren<Text>().text, Does.Contain("Choose a final cause"));
+            Assert.That(diagnosticOutcome.GetComponent<Image>().color, Is.EqualTo((Color)InvestigationV2Theme.ReportGuide),
+                "An incomplete report is guidance, not an error state.");
+            Assert.That(FindGameObject("Status Toast").activeSelf, Is.False,
+                "Guide feedback must not trigger the red warning toast.");
+            Assert.That(EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Submit Final Report"));
+
+            Button finalCause = FindButton("Final Cause longline");
+            EventSystem.current.SetSelectedGameObject(finalCause.gameObject);
             Click("Final Cause longline");
+            yield return null;
+            Assert.That(controller.State.ConclusionStatus, Is.EqualTo(InvestigationV2ConclusionStatus.NotSubmitted));
+            Assert.That(EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Final Cause longline"));
+            Assert.That(FindButton("Final Cause longline").transform.Find("Selected Check"), Is.Not.Null);
+
+            Click("Submit Final Report");
+            Assert.That(FindGameObject("Report Outcome").GetComponentInChildren<Text>().text, Does.Contain("Select at least two observations"));
             Click("Report Evidence E01_SHARK_NONDETECTION");
+            yield return null;
+            Assert.That(FindButton("Report Evidence E01_SHARK_NONDETECTION").transform.Find("Selected Check"), Is.Not.Null);
+            Click("Report Evidence E02_TUNA_WIDER_DETECTION");
+            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("Selected 2 / 2 minimum"));
+            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("ROV 0 / 1 minimum"));
+            Click("Submit Final Report");
+            Assert.That(FindGameObject("Report Outcome").GetComponentInChildren<Text>().text, Does.Contain("ROV confirmation"));
             Click("Report Evidence E07_FISHING_LINE");
+            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("Selected 3 / 2 minimum"));
+            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("ROV 1 / 1 minimum"));
+            Click("Submit Final Report");
+            Assert.That(FindGameObject("Report Outcome").GetComponentInChildren<Text>().text, Does.Contain("food-web cascade"));
             Click("Reasoning food_web_cascade");
+            Assert.That(FindButton("Reasoning food_web_cascade").transform.Find("Selected Check"), Is.Not.Null);
+            Click("Submit Final Report");
+            Assert.That(FindGameObject("Report Outcome").GetComponentInChildren<Text>().text, Does.Contain("scientific limitation"));
             Click("Limitation L01_NONDETECTION_LIMITATION");
+            Assert.That(FindButton("Limitation L01_NONDETECTION_LIMITATION").transform.Find("Selected Check"), Is.Not.Null);
+            Assert.That(reportScroll.verticalNormalizedPosition, Is.EqualTo(0.35f).Within(0.02f),
+                "Selecting Report answers must preserve the current scroll position.");
             Assert.That(FindButton("Submit Final Report").GetComponents<Shadow>().Length, Is.EqualTo(1));
             Assert.That(FindButton("Submit Final Report").GetComponent<Outline>(), Is.Null);
+            Assert.That(FindButton("Submit Final Report").GetComponent<RectTransform>().rect.size, Is.EqualTo(new Vector2(104f, 30f)));
             Click("Submit Final Report");
             Assert.That(controller.State.ConclusionStatus, Is.EqualTo(InvestigationV2ConclusionStatus.Correct));
             InvestigationGameResult bridgeResult = InvestigationV2SessionBridge.LastResult;
@@ -430,6 +586,16 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(bridgeResult.selectedHypothesisId, Is.EqualTo("longline"));
             Assert.That(bridgeResult.finalSubmissionAttempts, Is.EqualTo(1));
             Assert.That(bridgeResult.missteps, Is.Zero);
+            Assert.That(FindGameObject("Report Outcome").GetComponent<Image>().color, Is.EqualTo((Color)InvestigationV2Theme.ReportSuccess));
+            Assert.That(FindGameObject("Report Metadata").GetComponent<Text>().text, Does.Contain("Revision 1"));
+            Assert.That(FindGameObject("Report Metadata").GetComponent<Text>().text, Does.Not.Contain("Final attempts"));
+            Assert.That(FindButton("Back To Simulator"), Is.Null);
+            Assert.That(FindButton("Restart V2 Case"), Is.Null);
+            Assert.That(FindButton("Restart Completed Case"), Is.Not.Null);
+            Click("Restart Completed Case");
+            Assert.That(InvestigationV2SessionBridge.LastResult, Is.Null,
+                "Starting another investigation must clear the previous completed result.");
+            Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
         }
 
         [UnityTest]
@@ -439,8 +605,31 @@ namespace EDNA.Investigation.V2.Tests
             InvestigationV2MotionSettings.SetReducedMotion(false);
             yield return LoadV2Scene();
             InvestigationV2Controller controller = Object.FindAnyObjectByType<InvestigationV2Controller>();
-            Click("Difficulty Toggle");
+            Button difficulty = FindButton("Difficulty Toggle");
+            Color difficultyBaseColor = difficulty.targetGraphic.color;
+            Assert.That(difficulty.colors.selectedColor, Is.EqualTo(difficulty.colors.normalColor),
+                "Selection focus must not leave a persistent tint on a clicked button.");
+            Assert.That(difficulty.colors.pressedColor, Is.Not.EqualTo(difficulty.colors.normalColor),
+                "The short press feedback must remain visible.");
+            EventSystem.current.SetSelectedGameObject(difficulty.gameObject);
+            yield return null;
+            Assert.That(difficulty.transform.Find("Focus Ring").gameObject.activeSelf, Is.True,
+                "Keyboard selection must show the focus ring.");
+            EventSystem.current.SetSelectedGameObject(null);
+            PointerEventData pointer = new PointerEventData(EventSystem.current)
+            {
+                button = PointerEventData.InputButton.Left,
+                position = RectTransformUtility.WorldToScreenPoint(null, difficulty.transform.position)
+            };
+            ExecuteEvents.Execute(difficulty.gameObject, pointer, ExecuteEvents.pointerDownHandler);
+            ExecuteEvents.Execute(difficulty.gameObject, pointer, ExecuteEvents.pointerUpHandler);
+            ExecuteEvents.Execute(difficulty.gameObject, pointer, ExecuteEvents.pointerClickHandler);
             Assert.That(controller.State.Difficulty, Is.EqualTo(InvestigationV2Difficulty.Hard));
+            yield return new WaitForSecondsRealtime(0.15f);
+            Assert.That(difficulty.targetGraphic.color, Is.EqualTo(difficultyBaseColor),
+                "Difficulty must return to its normal background after the press ends.");
+            Assert.That(difficulty.transform.Find("Focus Ring").gameObject.activeSelf, Is.False,
+                "Pointer selection must not leave a persistent focus highlight.");
             Click("Motion Toggle");
             Assert.That(InvestigationV2MotionSettings.ReducedMotion, Is.True);
             Click("Species Marker shark");
@@ -470,6 +659,17 @@ namespace EDNA.Investigation.V2.Tests
             yield return null;
         }
 
+        private static IEnumerator WaitForCondition(Func<bool> condition, float timeoutSeconds, string failureMessage)
+        {
+            float elapsed = 0f;
+            while (!condition() && elapsed < timeoutSeconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+            Assert.That(condition(), Is.True, failureMessage);
+        }
+
         private static void Compare(string speciesId, string evidenceId, string judgementButtonName)
         {
             Click($"Prediction {speciesId}");
@@ -483,6 +683,82 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(button, Is.Not.Null, $"Button not found: {buttonName}");
             Assert.That(button.interactable, Is.True, $"Button is not interactable: {buttonName}");
             button.onClick.Invoke();
+        }
+
+        [UnityTest]
+        public IEnumerator V2Scene_WaterLayersSurroundTheInterfaceAndPassInput()
+        {
+            yield return LoadV2Scene();
+            Transform background = FindGameObject("V2 Deep Sea Background").transform;
+            int safeArea = background.Find("V2 Safe Area").GetSiblingIndex();
+
+            Assert.That(background.Find("Water Column").GetSiblingIndex(), Is.LessThan(safeArea));
+            Assert.That(background.Find("God Rays").GetSiblingIndex(), Is.LessThan(safeArea));
+            Assert.That(background.Find("Marine Snow Far").GetSiblingIndex(), Is.LessThan(safeArea));
+            Assert.That(background.Find("Marine Snow").GetSiblingIndex(), Is.LessThan(safeArea));
+            Assert.That(background.Find("Water Vignette").GetSiblingIndex(), Is.LessThan(safeArea),
+                "The vignette belongs behind the interface; in front it dims the Notebook paper and header text.");
+            Assert.That(background.Find("Marine Snow Foreground").GetSiblingIndex(), Is.GreaterThan(safeArea),
+                "Particulate has to pass in front of the scene too, or the seamount reads as a sticker on glass.");
+
+            // Every water layer is decoration: none of it may swallow a click.
+            string[] waterLayers =
+            {
+                "Water Column", "God Rays", "Marine Snow Far", "Marine Snow",
+                "Water Vignette", "Marine Snow Foreground",
+            };
+            for (int index = 0; index < waterLayers.Length; index++)
+            {
+                Graphic layer = background.Find(waterLayers[index]).GetComponent<Graphic>();
+                Assert.That(layer.raycastTarget, Is.False, $"{waterLayers[index]} must not block input.");
+            }
+
+            // The survey maps stay translucent so the water column and its
+            // particles carry through instead of stopping at the panel edge.
+            Assert.That(FindGameObject("Current Seamount").GetComponent<Image>().color.a, Is.LessThan(1f));
+            Assert.That(FindGameObject("Historical Seamount").GetComponent<Image>().color.a, Is.LessThan(1f));
+
+            InvestigationV2VignetteGraphic vignette = background.Find("Water Vignette")
+                .GetComponent<InvestigationV2VignetteGraphic>();
+            AssertGraphicMeshCoversRectCorners(vignette);
+        }
+
+        [UnityTest]
+        public IEnumerator V2Scene_ReducedMotionFreezesAmbientWaterAnimation()
+        {
+            bool reducedMotionBefore = InvestigationV2MotionSettings.ReducedMotion;
+            InvestigationV2MotionSettings.SetReducedMotion(true);
+            yield return LoadV2Scene();
+            yield return null;
+
+            string[] animatedLayers =
+            {
+                "God Rays", "Marine Snow Far", "Marine Snow", "Marine Snow Foreground",
+            };
+            Vector3[][] frozenVertices = new Vector3[animatedLayers.Length][];
+            for (int index = 0; index < animatedLayers.Length; index++)
+            {
+                Graphic graphic = FindGameObject(animatedLayers[index]).GetComponent<Graphic>();
+                frozenVertices[index] = ReadGraphicVertices(graphic);
+                Assert.That(frozenVertices[index].Length, Is.GreaterThan(0));
+            }
+
+            yield return new WaitForSecondsRealtime(0.2f);
+            for (int index = 0; index < animatedLayers.Length; index++)
+            {
+                Graphic graphic = FindGameObject(animatedLayers[index]).GetComponent<Graphic>();
+                AssertVerticesUnchanged(frozenVertices[index], ReadGraphicVertices(graphic), animatedLayers[index]);
+            }
+
+            InvestigationV2MotionSettings.SetReducedMotion(false);
+            yield return new WaitForSecondsRealtime(0.2f);
+            for (int index = 0; index < animatedLayers.Length; index++)
+            {
+                Graphic graphic = FindGameObject(animatedLayers[index]).GetComponent<Graphic>();
+                AssertAnyVertexMoved(frozenVertices[index], ReadGraphicVertices(graphic), animatedLayers[index]);
+            }
+
+            InvestigationV2MotionSettings.SetReducedMotion(reducedMotionBefore);
         }
 
         private static Button FindButton(string name)
@@ -541,21 +817,68 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(Mathf.Abs(childRect.yMin - parentRect.yMin), Is.LessThan(1f));
         }
 
+        private static void AssertSameRow(string leftName, string rightName)
+        {
+            RectTransform left = FindGameObject(leftName).GetComponent<RectTransform>();
+            RectTransform right = FindGameObject(rightName).GetComponent<RectTransform>();
+            Vector3 leftCenter = left.TransformPoint(left.rect.center);
+            Vector3 rightCenter = right.TransformPoint(right.rect.center);
+            Assert.That(leftCenter.x, Is.LessThan(rightCenter.x));
+            Assert.That(Mathf.Abs(leftCenter.y - rightCenter.y), Is.LessThan(3f));
+        }
+
+        private static void AssertSectionsDoNotOverlap(string firstName, string secondName)
+        {
+            Rect first = WorldRect(FindGameObject(firstName).GetComponent<RectTransform>());
+            Rect second = WorldRect(FindGameObject(secondName).GetComponent<RectTransform>());
+            Assert.That(first.Overlaps(second), Is.False, $"{firstName} overlaps {secondName}.");
+        }
+
+        private static void AssertChildrenStayInsideLayout(string layoutName)
+        {
+            RectTransform layout = FindGameObject(layoutName).GetComponent<RectTransform>();
+            Rect parentRect = WorldRect(layout);
+            for (int index = 0; index < layout.childCount; index++)
+            {
+                Rect childRect = WorldRect(layout.GetChild(index).GetComponent<RectTransform>());
+                Assert.That(childRect.xMin, Is.GreaterThanOrEqualTo(parentRect.xMin - 0.5f), $"{layoutName} child {index} overflows left.");
+                Assert.That(childRect.xMax, Is.LessThanOrEqualTo(parentRect.xMax + 0.5f), $"{layoutName} child {index} overflows right.");
+                Assert.That(childRect.yMin, Is.GreaterThanOrEqualTo(parentRect.yMin - 0.5f), $"{layoutName} child {index} overflows bottom.");
+                Assert.That(childRect.yMax, Is.LessThanOrEqualTo(parentRect.yMax + 0.5f), $"{layoutName} child {index} overflows top.");
+            }
+        }
+
         private static void AssertMapMarkerReadability(string buttonName, Color backdrop)
         {
             Button marker = FindButton(buttonName);
             Assert.That(marker.GetComponent<RectTransform>().rect.width, Is.GreaterThanOrEqualTo(44f));
             Assert.That(marker.GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(44f));
-            Image plate = marker.transform.Find("Marker Label Plate").GetComponent<Image>();
-            Assert.That(plate, Is.Not.Null);
+            Assert.That(marker.transform.Find("Marker Label Plate"), Is.Null,
+                "Species labels should remain frameless over the seamount.");
             Text name = marker.transform.Find("Species Name").GetComponent<Text>();
             Text stateLabel = marker.transform.Find("Observation").GetComponent<Text>();
             Assert.That(name.fontSize, Is.GreaterThanOrEqualTo(13));
             Assert.That(stateLabel.fontSize, Is.GreaterThanOrEqualTo(12));
+            Outline nameOutline = name.GetComponent<Outline>();
+            Outline stateOutline = stateLabel.GetComponent<Outline>();
+            Assert.That(nameOutline, Is.Not.Null);
+            Assert.That(stateOutline, Is.Not.Null);
+            Assert.That(nameOutline.effectDistance.magnitude, Is.GreaterThanOrEqualTo(1.4f));
+            Assert.That(stateOutline.effectDistance.magnitude, Is.GreaterThanOrEqualTo(1.4f));
+            Assert.That(Mathf.Max(ContrastRatio(name.color, backdrop), ContrastRatio(name.color, nameOutline.effectColor)),
+                Is.GreaterThanOrEqualTo(4.5f), $"{buttonName} name lacks a readable text/outline pair.");
+            Assert.That(Mathf.Max(ContrastRatio(stateLabel.color, backdrop), ContrastRatio(stateLabel.color, stateOutline.effectColor)),
+                Is.GreaterThanOrEqualTo(4.5f), $"{buttonName} state lacks a readable text/outline pair.");
 
-            Color composedPlate = Composite(plate.color, backdrop);
-            Assert.That(ContrastRatio(name.color, composedPlate), Is.GreaterThanOrEqualTo(4.5f), $"{buttonName} name contrast is too low.");
-            Assert.That(ContrastRatio(stateLabel.color, composedPlate), Is.GreaterThanOrEqualTo(4.5f), $"{buttonName} state contrast is too low.");
+            Color foregroundParticle = new Color(1f, 1f, 1f, InvestigationV2Theme.MarineSnowForegroundMaxAlpha);
+            Color snowCoveredName = Composite(foregroundParticle, name.color);
+            Color snowCoveredState = Composite(foregroundParticle, stateLabel.color);
+            Color snowCoveredNameOutline = Composite(foregroundParticle, nameOutline.effectColor);
+            Color snowCoveredStateOutline = Composite(foregroundParticle, stateOutline.effectColor);
+            Assert.That(ContrastRatio(snowCoveredName, snowCoveredNameOutline), Is.GreaterThanOrEqualTo(4.5f),
+                $"{buttonName} name contrast fails under the brightest foreground marine snow.");
+            Assert.That(ContrastRatio(snowCoveredState, snowCoveredStateOutline), Is.GreaterThanOrEqualTo(4.5f),
+                $"{buttonName} state contrast fails under the brightest foreground marine snow.");
         }
 
         private static Texture2D LoadSeamountSourceTexture()
@@ -565,6 +888,92 @@ namespace EDNA.Investigation.V2.Tests
             Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             Assert.That(ImageConversion.LoadImage(texture, File.ReadAllBytes(path), false), Is.True);
             return texture;
+        }
+
+        /// <summary>
+        /// The survey maps are translucent, so the brightest surface a marker
+        /// label can land on includes every bright layer behind the map. Contrast
+        /// has to hold against the maximum configured god ray, caustic and two
+        /// background marine-snow layers, not against the map fill on its own.
+        /// </summary>
+        private static Color BrightestMapSurface(Color mapFill)
+        {
+            Color background = InvestigationV2Theme.WaterTop;
+            background = Composite(InvestigationV2Theme.GodRay, background);
+            background = Composite(InvestigationV2Theme.Caustic, background);
+            background = Composite(new Color(1f, 1f, 1f, InvestigationV2Theme.MarineSnowFarMaxAlpha), background);
+            background = Composite(new Color(1f, 1f, 1f, InvestigationV2Theme.MarineSnowNearMaxAlpha), background);
+            return Composite(mapFill, background);
+        }
+
+        private static float MeanOpaqueSpriteLuminance(Texture2D texture, float alphaThreshold)
+        {
+            Color32[] pixels = texture.GetPixels32();
+            double total = 0d;
+            int count = 0;
+            for (int index = 0; index < pixels.Length; index++)
+            {
+                if (pixels[index].a / 255f <= alphaThreshold) continue;
+                total += RelativeLuminance(pixels[index]);
+                count++;
+            }
+
+            Assert.That(count, Is.GreaterThan(0), "The seamount texture contains no opaque rock pixels.");
+            return (float)(total / count);
+        }
+
+        private static void AssertGraphicMeshCoversRectCorners(Graphic graphic)
+        {
+            Vector3[] vertices = ReadGraphicVertices(graphic);
+            Rect rect = graphic.rectTransform.rect;
+            Vector2[] corners =
+            {
+                new Vector2(rect.xMin, rect.yMin),
+                new Vector2(rect.xMax, rect.yMin),
+                new Vector2(rect.xMax, rect.yMax),
+                new Vector2(rect.xMin, rect.yMax),
+            };
+
+            for (int cornerIndex = 0; cornerIndex < corners.Length; cornerIndex++)
+            {
+                bool found = false;
+                for (int vertexIndex = 0; vertexIndex < vertices.Length; vertexIndex++)
+                {
+                    if (((Vector2)vertices[vertexIndex] - corners[cornerIndex]).sqrMagnitude > 0.01f) continue;
+                    found = true;
+                    break;
+                }
+                Assert.That(found, Is.True, $"The vignette mesh does not cover rect corner {corners[cornerIndex]}.");
+            }
+        }
+
+        private static Vector3[] ReadGraphicVertices(Graphic graphic)
+        {
+            Canvas.ForceUpdateCanvases();
+            Mesh mesh = graphic.canvasRenderer.GetMesh();
+            Assert.That(mesh, Is.Not.Null, $"{graphic.name} has no rendered mesh.");
+            return mesh.vertices;
+        }
+
+        private static void AssertVerticesUnchanged(Vector3[] expected, Vector3[] actual, string layerName)
+        {
+            Assert.That(actual.Length, Is.EqualTo(expected.Length), $"{layerName} mesh size changed under Reduced Motion.");
+            for (int index = 0; index < expected.Length; index++)
+            {
+                Assert.That((actual[index] - expected[index]).sqrMagnitude, Is.LessThan(0.0001f),
+                    $"{layerName} continued moving under Reduced Motion.");
+            }
+        }
+
+        private static void AssertAnyVertexMoved(Vector3[] before, Vector3[] after, string layerName)
+        {
+            Assert.That(after.Length, Is.EqualTo(before.Length), $"{layerName} mesh size changed after resuming motion.");
+            for (int index = 0; index < before.Length; index++)
+            {
+                if ((after[index] - before[index]).sqrMagnitude <= 0.0001f) continue;
+                return;
+            }
+            Assert.Fail($"{layerName} did not resume moving after Reduced Motion was disabled.");
         }
 
         private static Color BrightestSeamountBackdrop(Texture2D texture, Color mapColor)
@@ -611,7 +1020,7 @@ namespace EDNA.Investigation.V2.Tests
             string[] depthLines = { "Depth Line SHALLOW", "Depth Line MID", "Depth Line DEEP" };
             for (int speciesIndex = 0; speciesIndex < speciesIds.Length; speciesIndex++)
             {
-                Rect labelRect = WorldRect(FindButton(prefix + speciesIds[speciesIndex]).transform.Find("Marker Label Plate").GetComponent<RectTransform>());
+                Rect labelRect = MarkerLabelRect(FindButton(prefix + speciesIds[speciesIndex]));
                 for (int lineIndex = 0; lineIndex < depthLines.Length; lineIndex++)
                 {
                     Rect lineRect = WorldRect(map.Find(depthLines[lineIndex]).GetComponent<RectTransform>());
@@ -627,10 +1036,10 @@ namespace EDNA.Investigation.V2.Tests
             string[] speciesIds = { "shark", "tuna", "krill", "sea_star", "mussel" };
             for (int first = 0; first < speciesIds.Length; first++)
             {
-                Rect firstRect = WorldRect(FindButton(prefix + speciesIds[first]).transform.Find("Marker Label Plate").GetComponent<RectTransform>());
+                Rect firstRect = MarkerLabelRect(FindButton(prefix + speciesIds[first]));
                 for (int second = first + 1; second < speciesIds.Length; second++)
                 {
-                    Rect secondRect = WorldRect(FindButton(prefix + speciesIds[second]).transform.Find("Marker Label Plate").GetComponent<RectTransform>());
+                    Rect secondRect = MarkerLabelRect(FindButton(prefix + speciesIds[second]));
                     Assert.That(firstRect.Overlaps(secondRect), Is.False,
                         $"{prefix}{speciesIds[first]} label overlaps {prefix}{speciesIds[second]}.");
                 }
@@ -642,6 +1051,17 @@ namespace EDNA.Investigation.V2.Tests
             Vector3[] corners = new Vector3[4];
             rectTransform.GetWorldCorners(corners);
             return Rect.MinMaxRect(corners[0].x, corners[0].y, corners[2].x, corners[2].y);
+        }
+
+        private static Rect MarkerLabelRect(Button marker)
+        {
+            Rect name = WorldRect(marker.transform.Find("Species Name").GetComponent<RectTransform>());
+            Rect state = WorldRect(marker.transform.Find("Observation").GetComponent<RectTransform>());
+            return Rect.MinMaxRect(
+                Mathf.Min(name.xMin, state.xMin),
+                Mathf.Min(name.yMin, state.yMin),
+                Mathf.Max(name.xMax, state.xMax),
+                Mathf.Max(name.yMax, state.yMax));
         }
 
         private static Color Composite(Color foreground, Color background)

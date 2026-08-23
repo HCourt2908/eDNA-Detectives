@@ -303,6 +303,23 @@ namespace EDNA.Investigation.V2.Tests
         }
 
         [Test]
+        public void IncompleteFinalReport_ReturnsSpecificFeedbackWithoutPenaltyAndEditsRestoreDraftState()
+        {
+            InvestigationV2State state = PrepareProvisionalReadyState();
+            Assert.That(updater.TrySubmitProvisional(state, "bottom_trawling", out _), Is.True);
+            Assert.That(updater.TryReviewConfirmation(state, out _), Is.True);
+
+            InvestigationV2ConclusionResult incomplete = updater.SubmitFinal(state);
+            Assert.That(incomplete.Status, Is.EqualTo(InvestigationV2ConclusionStatus.InsufficientEvidence));
+            Assert.That(incomplete.Feedback, Does.Contain("Choose a final cause"));
+            Assert.That(state.FinalSubmissionAttemptCount, Is.Zero);
+            Assert.That(state.MisstepCount, Is.Zero);
+
+            Assert.That(updater.TrySetFinalThreat(state, "longline", out _), Is.True);
+            Assert.That(state.ConclusionStatus, Is.EqualTo(InvestigationV2ConclusionStatus.NotSubmitted));
+        }
+
+        [Test]
         public void WrongFinalCause_ExplainsWhyOverlapNeedsBenthicAndRovEvidence()
         {
             InvestigationV2State state = PrepareCompleteReport("bottom_trawling");
@@ -383,6 +400,7 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(state.MisstepCount, Is.EqualTo(1));
 
             Assert.That(updater.TrySetFinalThreat(state, "longline", out _), Is.True);
+            Assert.That(state.ConclusionStatus, Is.EqualTo(InvestigationV2ConclusionStatus.NotSubmitted));
             InvestigationV2ConclusionResult correct = updater.SubmitFinal(state);
             Assert.That(correct.Status, Is.EqualTo(InvestigationV2ConclusionStatus.Correct));
             Assert.That(state.FinalSubmissionAttemptCount, Is.EqualTo(2));

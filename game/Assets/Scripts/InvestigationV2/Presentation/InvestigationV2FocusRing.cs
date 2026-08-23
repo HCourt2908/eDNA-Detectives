@@ -6,9 +6,11 @@ namespace EDNA.Investigation.V2
 {
     [DisallowMultipleComponent]
     [RequireComponent(typeof(RectTransform))]
-    public sealed class InvestigationV2FocusRing : MonoBehaviour, ISelectHandler, IDeselectHandler
+    public sealed class InvestigationV2FocusRing : MonoBehaviour, ISelectHandler, IDeselectHandler, IPointerDownHandler
     {
         private GameObject ring;
+
+        public bool SelectedByPointer { get; private set; }
 
         public void Configure(float radius, Color color)
         {
@@ -40,16 +42,25 @@ namespace EDNA.Investigation.V2
 
         public void OnSelect(BaseEventData eventData)
         {
-            if (ring != null) ring.SetActive(true);
+            SelectedByPointer = eventData is PointerEventData;
+            if (ring != null) ring.SetActive(!SelectedByPointer);
+        }
+
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            SelectedByPointer = true;
+            if (ring != null) ring.SetActive(false);
         }
 
         public void OnDeselect(BaseEventData eventData)
         {
+            SelectedByPointer = false;
             if (ring != null) ring.SetActive(false);
         }
 
         private void OnDisable()
         {
+            SelectedByPointer = false;
             if (ring != null) ring.SetActive(false);
         }
     }

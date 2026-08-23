@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 
@@ -7,15 +6,15 @@ namespace EDNA.Investigation.V2.Editor
 {
     public static class InvestigationV2BuildValidator
     {
+        private const string ScenePath = "Assets/Scenes/InvestigationSceneV2.unity";
         public const string DefaultOutputPath = "/private/tmp/edna-investigation-v2-webgl";
         public const string MacOsOutputPath = "/private/tmp/edna-investigation-v2-macos.app";
 
         public static void BuildWebGlFromCommandLine()
         {
-            List<string> scenes = GetEnabledScenes();
             BuildPlayerOptions options = new BuildPlayerOptions
             {
-                scenes = scenes.ToArray(),
+                scenes = new[] { ScenePath },
                 locationPathName = DefaultOutputPath,
                 target = BuildTarget.WebGL,
                 options = BuildOptions.Development
@@ -30,10 +29,9 @@ namespace EDNA.Investigation.V2.Editor
 
         public static void BuildMacOsFromCommandLine()
         {
-            List<string> scenes = new List<string> { "Assets/Scenes/InvestigationSceneV2.unity" };
             BuildPlayerOptions options = new BuildPlayerOptions
             {
-                scenes = scenes.ToArray(),
+                scenes = new[] { ScenePath },
                 locationPathName = MacOsOutputPath,
                 target = BuildTarget.StandaloneOSX,
                 options = BuildOptions.Development
@@ -46,16 +44,5 @@ namespace EDNA.Investigation.V2.Editor
             UnityEngine.Debug.Log($"Investigation V2 macOS validation build succeeded at {MacOsOutputPath}");
         }
 
-        private static List<string> GetEnabledScenes()
-        {
-            List<string> scenes = new List<string>();
-            EditorBuildSettingsScene[] configuredScenes = EditorBuildSettings.scenes;
-            for (int index = 0; index < configuredScenes.Length; index++)
-            {
-                if (configuredScenes[index].enabled) scenes.Add(configuredScenes[index].path);
-            }
-            if (scenes.Count == 0) throw new InvalidOperationException("No enabled scenes are available for validation.");
-            return scenes;
-        }
     }
 }

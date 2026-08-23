@@ -122,7 +122,7 @@ namespace EDNA.Investigation.V2
             RectTransform map = CreatePanel(
                 historical ? "Historical Seamount" : "Current Seamount",
                 parent,
-                historical ? new Color32(11, 43, 61, 255) : InvestigationV2Theme.Deep,
+                historical ? InvestigationV2Theme.MapSurfaceHistorical : InvestigationV2Theme.MapSurface,
                 InvestigationV2Theme.CardRadius);
 
             Text title = CreateText(
@@ -259,10 +259,9 @@ namespace EDNA.Investigation.V2
                 Anchor(missing.rectTransform, 0.18f, 0.43f, 0.82f, 0.98f, 0f, 0f, 0f, -2f);
             }
 
-            RectTransform labelPlate = CreatePanel("Marker Label Plate", marker.transform, InvestigationV2Theme.MapLabelPlate, 8f);
-            Anchor(labelPlate, 0.02f, 0.01f, 0.98f, 0.51f, 0f, 0f, 0f, 0f);
             Text name = CreateText("Species Name", marker.transform, species.DisplayName, 13, FontStyle.Bold, InvestigationV2Theme.TextPrimary, TextAnchor.MiddleCenter, InvestigationV2Theme.DisplayFont);
             Anchor(name.rectTransform, 0f, 0.31f, 1f, 0.51f, 6f, 0f, -6f, 0f);
+            EnsureOutline(name.gameObject, new Color32(1, 8, 16, 245), new Vector2(1.5f, -1.5f));
             Color stateColor = !historical && observation != null && observation.ClaimType == ObservationClaimType.NotDetected
                 ? InvestigationV2Theme.Danger
                 : !historical && observation != null && observation.ClaimType == ObservationClaimType.ChangedDepthOrDistribution
@@ -270,6 +269,7 @@ namespace EDNA.Investigation.V2
                     : InvestigationV2Theme.TextSecondary;
             Text stateLabel = CreateText("Observation", marker.transform, detail, 12, FontStyle.Bold, stateColor, TextAnchor.UpperCenter, InvestigationV2Theme.BodyFont);
             Anchor(stateLabel.rectTransform, 0f, 0.02f, 1f, 0.31f, 6f, 1f, -6f, 0f);
+            EnsureOutline(stateLabel.gameObject, new Color32(1, 8, 16, 245), new Vector2(1.5f, -1.5f));
 
             InvestigationV2HoverTooltipTrigger tooltipTrigger = marker.gameObject.AddComponent<InvestigationV2HoverTooltipTrigger>();
             tooltipTrigger.Configure(

@@ -14,6 +14,18 @@ namespace EDNA.Investigation.V2
     {
         private enum ButtonVisualStyle { Primary, PaperPrimary, Secondary, Tertiary, Stage, Choice, PaperChoice, Danger }
 
+        private readonly struct FocusSnapshot
+        {
+            public FocusSnapshot(bool hadFocus, string objectName)
+            {
+                HadFocus = hadFocus;
+                ObjectName = objectName ?? string.Empty;
+            }
+
+            public bool HadFocus { get; }
+            public string ObjectName { get; }
+        }
+
         private static readonly Vector2 LandscapeReferenceResolution = new Vector2(1280f, 720f);
         private static readonly Vector2 PortraitReferenceResolution = new Vector2(720f, 1280f);
         private const float OuterMargin = 8f;
@@ -65,6 +77,9 @@ namespace EDNA.Investigation.V2
         private InvestigationV2StatusTone statusTone = InvestigationV2StatusTone.Guide;
         private readonly HashSet<string> animatedThreatIds = new HashSet<string>(StringComparer.Ordinal);
         private bool built;
+        private bool viewportRefreshScheduled;
+        private Vector2 lastViewportSize = new Vector2(-1f, -1f);
+        private bool restartConfirmationPending;
         private bool hasRenderedPhase;
         private InvestigationV2Phase lastRenderedPhase;
 
@@ -117,6 +132,7 @@ namespace EDNA.Investigation.V2
             pendingTappedSpecies = null;
             HideSpeciesTooltip();
             animatedThreatIds.Clear();
+            restartConfirmationPending = false;
             hasRenderedPhase = false;
             contentScroll?.StopMovement();
             if (contentScroll != null) contentScroll.verticalNormalizedPosition = 1f;
@@ -154,6 +170,14 @@ namespace EDNA.Investigation.V2
         {
             if (!built) return;
             ConfigureCanvasForCurrentViewport();
+            RectTransform root = GetComponent<RectTransform>();
+            if (root == null) return;
+            Vector2 currentSize = root.rect.size;
+            if ((currentSize - lastViewportSize).sqrMagnitude < 0.25f) return;
+            lastViewportSize = currentSize;
+            if (!Application.isPlaying || state == null || viewportRefreshScheduled) return;
+            viewportRefreshScheduled = true;
+            StartCoroutine(RefreshAfterViewportChange());
         }
 
         private void EnsureUi()
@@ -176,17 +200,63 @@ namespace EDNA.Investigation.V2
             CanvasScaler scaler = GetComponent<CanvasScaler>();
             if (scaler == null) scaler = gameObject.AddComponent<CanvasScaler>();
             ConfigureCanvasForCurrentViewport();
+            lastViewportSize = rootRect.rect.size;
             if (GetComponent<GraphicRaycaster>() == null) gameObject.AddComponent<GraphicRaycaster>();
 
             RectTransform background = CreatePanel("V2 Deep Sea Background", transform, InvestigationV2Theme.Background, 0f);
             Stretch(background, 0f, 0f, 0f, 0f);
-            InvestigationV2MarineSnowGraphic snow = CreateGraphic<InvestigationV2MarineSnowGraphic>("Marine Snow", background);
-            Stretch(snow.rectTransform, 0f, 0f, 0f, 0f);
-            snow.color = Color.white;
+
+            // Water is built as a stack, back to front. Sibling order is the
+            // render order, so everything before "V2 Safe Area" sits behind the
+            // interface and everything after it sits in front.
+            InvestigationV2WaterColumnGraphic waterColumn =
+                CreateGraphic<InvestigationV2WaterColumnGraphic>("Water Column", background);
+            Stretch(waterColumn.rectTransform, 0f, 0f, 0f, 0f);
+            waterColumn.color = Color.white;
+
+            InvestigationV2GodRayGraphic godRays = CreateGraphic<InvestigationV2GodRayGraphic>("God Rays", background);
+            Stretch(godRays.rectTransform, 0f, 0f, 0f, 0f);
+            godRays.color = Color.white;
+
+            CreateMarineSnowLayer(
+                "Marine Snow Far",
+                background,
+                30,
+                new Vector2(1f, 2.2f),
+                4f,
+                new Vector2(0.10f, InvestigationV2Theme.MarineSnowFarMaxAlpha),
+                6f,
+                0x9E3779B9u);
+            CreateMarineSnowLayer(
+                "Marine Snow",
+                background,
+                20,
+                new Vector2(2f, 3.4f),
+                9f,
+                new Vector2(0.20f, InvestigationV2Theme.MarineSnowNearMaxAlpha),
+                11f,
+                0x85EBCA6Bu);
+
+            InvestigationV2VignetteGraphic vignette = CreateGraphic<InvestigationV2VignetteGraphic>("Water Vignette", background);
+            Stretch(vignette.rectTransform, 0f, 0f, 0f, 0f);
+            vignette.color = Color.white;
 
             RectTransform safeAreaRoot = CreatePanel("V2 Safe Area", background, new Color(0f, 0f, 0f, 0f), 0f);
             Stretch(safeAreaRoot, 0f, 0f, 0f, 0f);
             safeAreaRoot.gameObject.AddComponent<InvestigationV2SafeAreaFitter>();
+
+            // In front of the interface. Deliberately sparse, large and faint:
+            // enough for something to pass between the player and the scene,
+            // few enough that it never competes with text.
+            CreateMarineSnowLayer(
+                "Marine Snow Foreground",
+                background,
+                7,
+                new Vector2(4.5f, 8f),
+                19f,
+                new Vector2(0.09f, InvestigationV2Theme.MarineSnowForegroundMaxAlpha),
+                16f,
+                0xC2B2AE35u);
 
             RectTransform header = CreatePanel("V2 Header", safeAreaRoot, new Color32(8, 36, 54, 248), InvestigationV2Theme.SmallRadius);
             Anchor(header, 0f, 1f, 1f, 1f, OuterMargin, -132f, -OuterMargin, -OuterMargin);
@@ -281,24 +351,36 @@ namespace EDNA.Investigation.V2
             contentScroll.content = contentRoot;
 
             footerRoot = CreatePanel("V2 Footer", safeAreaRoot, new Color32(4, 18, 28, 245), InvestigationV2Theme.SmallRadius);
-            Anchor(footerRoot, 0f, 0f, 1f, 0f, OuterMargin, OuterMargin, -OuterMargin, OuterMargin + 70f);
+            Anchor(footerRoot, 0f, 0f, 1f, 0f, OuterMargin, OuterMargin, -OuterMargin, OuterMargin + 44f);
             AddSubtleOutline(footerRoot, new Color32(95, 212, 214, 45));
             footerLeft = CreatePanel("Footer Left", footerRoot, new Color(0f, 0f, 0f, 0f), 0f);
-            Anchor(footerLeft, 0f, 0f, 0.5f, 1f, 10f, 8f, -4f, -8f);
+            Anchor(footerLeft, 0f, 0f, 0.5f, 1f, 10f, 4f, -4f, -4f);
             HorizontalLayoutGroup leftLayout = footerLeft.gameObject.AddComponent<HorizontalLayoutGroup>();
             leftLayout.spacing = 8f; leftLayout.childAlignment = TextAnchor.MiddleLeft;
             leftLayout.childControlWidth = false; leftLayout.childControlHeight = true;
-            leftLayout.childForceExpandWidth = false; leftLayout.childForceExpandHeight = true;
+            leftLayout.childForceExpandWidth = false; leftLayout.childForceExpandHeight = false;
             footerRight = CreatePanel("Footer Right", footerRoot, new Color(0f, 0f, 0f, 0f), 0f);
-            Anchor(footerRight, 0.5f, 0f, 1f, 1f, 4f, 8f, -10f, -8f);
+            Anchor(footerRight, 0.5f, 0f, 1f, 1f, 4f, 4f, -10f, -4f);
             HorizontalLayoutGroup rightLayout = footerRight.gameObject.AddComponent<HorizontalLayoutGroup>();
             rightLayout.spacing = 8f; rightLayout.childAlignment = TextAnchor.MiddleRight;
             rightLayout.childControlWidth = false; rightLayout.childControlHeight = true;
-            rightLayout.childForceExpandWidth = false; rightLayout.childForceExpandHeight = true;
+            rightLayout.childForceExpandWidth = false; rightLayout.childForceExpandHeight = false;
         }
 
         private void RenderAll()
         {
+            FocusSnapshot focusSnapshot = CaptureFocus();
+            bool preservePhaseScroll = state != null && hasRenderedPhase && state.Phase == lastRenderedPhase;
+            float previousPageScroll = preservePhaseScroll && contentScroll != null
+                ? contentScroll.verticalNormalizedPosition
+                : 1f;
+            ScrollRect previousNotebookScroll = preservePhaseScroll
+                ? FindActiveScrollRect(contentRoot, "Notebook Entry Scroll")
+                : null;
+            float previousNotebookPosition = previousNotebookScroll == null
+                ? 1f
+                : previousNotebookScroll.verticalNormalizedPosition;
+
             HideSpeciesTooltip();
             StopAllCoroutines();
             ResetPageEntranceVisuals();
@@ -320,12 +402,26 @@ namespace EDNA.Investigation.V2
             Canvas.ForceUpdateCanvases();
             LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
             ShowPendingTappedSpeciesTooltip();
-            if (contentScroll != null && contentScroll.verticalNormalizedPosition < 0f) contentScroll.verticalNormalizedPosition = 1f;
+            if (contentScroll != null)
+            {
+                contentScroll.StopMovement();
+                contentScroll.verticalNormalizedPosition = preservePhaseScroll ? previousPageScroll : 1f;
+            }
+            if (preservePhaseScroll)
+            {
+                ScrollRect currentNotebookScroll = FindActiveScrollRect(contentRoot, "Notebook Entry Scroll");
+                if (currentNotebookScroll != null)
+                {
+                    currentNotebookScroll.StopMovement();
+                    currentNotebookScroll.verticalNormalizedPosition = previousNotebookPosition;
+                }
+            }
             if (state != null)
             {
                 lastRenderedPhase = state.Phase;
                 hasRenderedPhase = true;
             }
+            ScheduleFocusRestore(focusSnapshot);
             if (animatePhaseChange && !InvestigationV2MotionSettings.ReducedMotion) StartCoroutine(AnimatePageEntrance());
         }
 
@@ -343,15 +439,15 @@ namespace EDNA.Investigation.V2
             if (footerRoot != null) footerRoot.gameObject.SetActive(report);
             if (footerRoot != null && report)
             {
-                Anchor(footerRoot, 0f, 0f, 1f, 0f, OuterMargin, OuterMargin, -OuterMargin, OuterMargin + 70f);
+                Anchor(footerRoot, 0f, 0f, 1f, 0f, OuterMargin, OuterMargin, -OuterMargin, OuterMargin + 44f);
             }
             if (footerLeft != null && report)
-                Anchor(footerLeft, 0f, 0f, 0.5f, 1f, 10f, 8f, -4f, -8f);
+                Anchor(footerLeft, 0f, 0f, 0.5f, 1f, 10f, 4f, -4f, -4f);
             if (footerRight != null && report)
-                Anchor(footerRight, 0.5f, 0f, 1f, 1f, 4f, 8f, -10f, -8f);
+                Anchor(footerRight, 0.5f, 0f, 1f, 1f, 4f, 4f, -10f, -4f);
             if (contentPanel != null)
             {
-                float bottom = report ? 84f : OuterMargin;
+                float bottom = report ? 58f : OuterMargin;
                 Anchor(contentPanel, 0f, 0f, 1f, 1f, OuterMargin, bottom, -OuterMargin, -138f);
             }
         }
@@ -522,6 +618,7 @@ namespace EDNA.Investigation.V2
             ColorBlock colors = button.colors;
             colors.normalColor = Color.white;
             colors.highlightedColor = Color.white;
+            colors.selectedColor = colors.normalColor;
             colors.pressedColor = new Color(0.92f, 0.92f, 0.92f, 1f);
             colors.disabledColor = new Color(1f, 1f, 1f, 0.36f);
             colors.fadeDuration = 0.12f;
@@ -571,6 +668,22 @@ namespace EDNA.Investigation.V2
             shadow.effectColor = color;
             shadow.effectDistance = distance;
             shadow.useGraphicAlpha = true;
+        }
+
+        private static void CreateMarineSnowLayer(
+            string name,
+            Transform parent,
+            int count,
+            Vector2 sizeRange,
+            float speed,
+            Vector2 alphaRange,
+            float sway,
+            uint seed)
+        {
+            InvestigationV2MarineSnowGraphic layer = CreateGraphic<InvestigationV2MarineSnowGraphic>(name, parent);
+            Stretch(layer.rectTransform, 0f, 0f, 0f, 0f);
+            layer.color = Color.white;
+            layer.Configure(count, sizeRange, speed, alphaRange, sway, seed);
         }
 
         private static RectTransform CreatePanel(string name, Transform parent, Color color, float radius)
@@ -724,6 +837,93 @@ namespace EDNA.Investigation.V2
                 if (Application.isPlaying) Destroy(child);
                 else DestroyImmediate(child);
             }
+        }
+
+        private static ScrollRect FindActiveScrollRect(Transform root, string objectName)
+        {
+            if (root == null) return null;
+            ScrollRect[] scrollRects = root.GetComponentsInChildren<ScrollRect>();
+            for (int index = 0; index < scrollRects.Length; index++)
+            {
+                if (scrollRects[index].name == objectName) return scrollRects[index];
+            }
+            return null;
+        }
+
+        private FocusSnapshot CaptureFocus()
+        {
+            if (EventSystem.current == null || EventSystem.current.currentSelectedGameObject == null)
+                return default;
+
+            GameObject selected = EventSystem.current.currentSelectedGameObject;
+            if (selected.transform != transform && !selected.transform.IsChildOf(transform)) return default;
+            InvestigationV2FocusRing focusRing = selected.GetComponent<InvestigationV2FocusRing>();
+            if (focusRing != null && focusRing.SelectedByPointer) return default;
+            return new FocusSnapshot(true, selected.name);
+        }
+
+        private IEnumerator RefreshAfterViewportChange()
+        {
+            yield return null;
+            viewportRefreshScheduled = false;
+            if (!built || state == null) yield break;
+            RenderAll();
+        }
+
+        private void ScheduleFocusRestore(FocusSnapshot snapshot)
+        {
+            if (!snapshot.HadFocus || !Application.isPlaying) return;
+            StartCoroutine(RestoreFocusNextFrame(snapshot));
+        }
+
+        private IEnumerator RestoreFocusNextFrame(FocusSnapshot snapshot)
+        {
+            yield return null;
+            if (EventSystem.current == null) yield break;
+
+            Button target = FindInteractableButton(snapshot.ObjectName);
+            if (target == null && snapshot.ObjectName == "Review ROV Follow-up")
+                target = FindInteractableButton("Submit Final Report");
+            if (target == null && snapshot.ObjectName == "Restart V2 Case")
+                target = FindInteractableButton("Cancel Restart V2 Case");
+            if (target == null && snapshot.ObjectName == "Cancel Restart V2 Case")
+                target = FindInteractableButton("Restart V2 Case");
+            if (target == null) target = FindFirstInteractableButton(contentRoot);
+            if (target == null) target = FindFirstInteractableButton(footerRight);
+            if (target == null) target = FindFirstInteractableButton(stageRoot);
+            if (target == null) yield break;
+
+            EventSystem.current.SetSelectedGameObject(null);
+            EventSystem.current.SetSelectedGameObject(target.gameObject);
+        }
+
+        private Button FindInteractableButton(string objectName)
+        {
+            if (string.IsNullOrEmpty(objectName)) return null;
+            Button[] buttons = GetComponentsInChildren<Button>(true);
+            for (int index = 0; index < buttons.Length; index++)
+            {
+                Button button = buttons[index];
+                if (button.gameObject.activeInHierarchy
+                    && button.interactable
+                    && button.name == objectName)
+                {
+                    return button;
+                }
+            }
+            return null;
+        }
+
+        private static Button FindFirstInteractableButton(Transform root)
+        {
+            if (root == null) return null;
+            Button[] buttons = root.GetComponentsInChildren<Button>(true);
+            for (int index = 0; index < buttons.Length; index++)
+            {
+                if (buttons[index].gameObject.activeInHierarchy && buttons[index].interactable)
+                    return buttons[index];
+            }
+            return null;
         }
 
         private static void EnsureEventSystem()

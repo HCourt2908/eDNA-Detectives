@@ -17,10 +17,15 @@ namespace EDNA.Investigation.V2
             LastResult = result;
         }
 
+        public static void ClearResult()
+        {
+            LastResult = null;
+        }
+
         public static void Clear()
         {
             PendingInput = null;
-            LastResult = null;
+            ClearResult();
         }
     }
 }

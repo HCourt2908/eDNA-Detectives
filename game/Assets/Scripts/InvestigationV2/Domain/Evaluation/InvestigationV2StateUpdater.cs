@@ -283,6 +283,7 @@ namespace EDNA.Investigation.V2.Domain
                 return false;
             }
             state.FinalThreatId = threatId;
+            state.ConclusionStatus = InvestigationV2ConclusionStatus.NotSubmitted;
             return true;
         }
 
@@ -301,6 +302,7 @@ namespace EDNA.Investigation.V2.Domain
                 return false;
             }
             state.SetEvidenceSelected(evidenceId, selected);
+            state.ConclusionStatus = InvestigationV2ConclusionStatus.NotSubmitted;
             return true;
         }
 
@@ -313,6 +315,7 @@ namespace EDNA.Investigation.V2.Domain
                 return false;
             }
             state.SelectedReasoningId = reasoningId;
+            state.ConclusionStatus = InvestigationV2ConclusionStatus.NotSubmitted;
             return true;
         }
 
@@ -325,6 +328,7 @@ namespace EDNA.Investigation.V2.Domain
                 return false;
             }
             state.SelectedLimitationId = limitationId;
+            state.ConclusionStatus = InvestigationV2ConclusionStatus.NotSubmitted;
             return true;
         }
 

@@ -115,7 +115,7 @@ namespace EDNA.Investigation.V2
         private void RenderSimulationNavigation(RectTransform parent, SimulationResult simulation)
         {
             RectTransform navigation = CreatePanel("Simulation Navigation", parent, new Color(0f, 0f, 0f, 0f), 0f);
-            AddLayout(navigation, 44f, 1f);
+            AddLayout(navigation, 28f, 1f);
             HorizontalLayoutGroup navigationLayout = navigation.gameObject.AddComponent<HorizontalLayoutGroup>();
             navigationLayout.padding = new RectOffset(0, 0, 0, 0);
             navigationLayout.spacing = 4f;
@@ -125,25 +125,25 @@ namespace EDNA.Investigation.V2
             navigationLayout.childForceExpandWidth = false;
             navigationLayout.childForceExpandHeight = false;
 
-            Button back = CreateButton("Back To Observe", navigation, "← Notebook", ButtonVisualStyle.Tertiary, () => setPhase?.Invoke(InvestigationV2Phase.Observe), out _);
-            ConfigureCompactNavigationButton(back, 110f);
+            Button back = CreateButton("Back To Observe", navigation, "← Back to notebook", ButtonVisualStyle.Tertiary, () => setPhase?.Invoke(InvestigationV2Phase.Observe), out _);
+            ConfigureCompactNavigationButton(back, 124f);
 
             InvestigationV2Readiness readiness = new InvestigationV2ConclusionEvaluator().EvaluateReadiness(caseDefinition, state);
             if (readiness.CanEnterProvisional)
             {
                 Button report = CreateButton("Write Provisional Report", navigation, "Write first idea →", ButtonVisualStyle.Primary, () => submitProvisional?.Invoke(selectedThreatId), out _);
-                ConfigureCompactNavigationButton(report, 160f);
+                ConfigureCompactNavigationButton(report, 148f);
             }
             else
             {
                 RectTransform gate = CreatePanel("Report Gate Hint", navigation, new Color32(14, 51, 72, 225), 10f);
-                gate.sizeDelta = new Vector2(310f, 22f);
+                gate.sizeDelta = new Vector2(310f, 28f);
                 LayoutElement gateLayout = gate.gameObject.AddComponent<LayoutElement>();
                 gateLayout.minWidth = 210f;
                 gateLayout.preferredWidth = 310f;
                 gateLayout.flexibleWidth = 1f;
-                gateLayout.minHeight = 22f;
-                gateLayout.preferredHeight = 22f;
+                gateLayout.minHeight = 28f;
+                gateLayout.preferredHeight = 28f;
                 AddPanelAccent(gate, InvestigationV2Theme.Primary, 2f);
                 Text guidance = CreateText(
                     "Comparison Gate",
@@ -165,14 +165,14 @@ namespace EDNA.Investigation.V2
             LayoutElement layout = button.GetComponent<LayoutElement>();
             layout.minWidth = width;
             layout.preferredWidth = width;
-            layout.minHeight = 44f;
-            layout.preferredHeight = 44f;
-            button.GetComponent<RectTransform>().sizeDelta = new Vector2(width, 44f);
+            layout.minHeight = 28f;
+            layout.preferredHeight = 28f;
+            button.GetComponent<RectTransform>().sizeDelta = new Vector2(width, 28f);
             Text label = button.GetComponentInChildren<Text>();
             if (label != null)
             {
                 label.fontSize = 11;
-                Anchor(label.rectTransform, 0f, 0f, 1f, 0f, 8f, 0f, -8f, 22f);
+                Stretch(label.rectTransform, 6f, 2f, -6f, -2f);
             }
 
             Image rootImage = button.GetComponent<Image>();
@@ -182,7 +182,7 @@ namespace EDNA.Investigation.V2
             Shadow rootShadow = button.GetComponent<Shadow>();
             if (rootShadow != null) rootShadow.enabled = false;
             RectTransform surface = CreatePanel("Compact Navigation Surface", button.transform, surfaceColor, 11f);
-            Anchor(surface, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 22f);
+            Stretch(surface, 0f, 0f, 0f, 0f);
             surface.SetAsFirstSibling();
             AddSingleShadow(surface.gameObject, InvestigationV2Theme.PrimaryShadow, new Vector2(2f, -2f));
             button.targetGraphic = surface.GetComponent<Image>();
@@ -370,10 +370,10 @@ namespace EDNA.Investigation.V2
             EnsureOutline(chip.gameObject, InvestigationV2Theme.BorderSoft, new Vector2(1f, -1f));
             RectTransform accent = CreatePanel("Indicator Accent", chip, accentColor, 1f);
             Anchor(accent, 0f, 0.18f, 0f, 0.82f, 0f, 0f, 3f, 0f);
-            Text title = CreateText("Indicator Label", chip, label, 10, FontStyle.Bold, accentColor, TextAnchor.LowerLeft, InvestigationV2Theme.DataFont);
-            Anchor(title.rectTransform, 0f, 0.52f, 1f, 1f, 7f, 0f, -4f, 0f);
-            Text detail = CreateText("Indicator Value", chip, value, 11, FontStyle.Bold, InvestigationV2Theme.TextPrimary, TextAnchor.UpperLeft, InvestigationV2Theme.BodyFont);
-            Anchor(detail.rectTransform, 0f, 0f, 1f, 0.52f, 7f, 0f, -4f, 0f);
+            Text title = CreateText("Indicator Label", chip, label, 12, FontStyle.Bold, accentColor, TextAnchor.MiddleLeft, InvestigationV2Theme.DataFont);
+            Anchor(title.rectTransform, 0f, 0.55f, 1f, 1f, 7f, 0f, -4f, 0f);
+            Text detail = CreateText("Indicator Value", chip, value, 14, FontStyle.Bold, InvestigationV2Theme.TextPrimary, TextAnchor.MiddleLeft, InvestigationV2Theme.BodyFont);
+            Anchor(detail.rectTransform, 0f, 0f, 1f, 0.58f, 7f, 0f, -4f, 0f);
         }
 
         private static string CompactIndicatorValue(string value)

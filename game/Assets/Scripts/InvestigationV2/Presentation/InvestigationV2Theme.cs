@@ -29,9 +29,33 @@ namespace EDNA.Investigation.V2
         public static readonly Color32 PaperBorder = new Color32(116, 142, 155, 255);
         public static readonly Color32 PaperSelected = new Color32(217, 236, 243, 255);
         public static readonly Color32 PaperSelectedBorder = new Color32(27, 109, 138, 255);
-        public static readonly Color32 MapLabelPlate = new Color32(4, 18, 28, 232);
+        public static readonly Color32 ReportGuide = new Color32(220, 235, 243, 255);
+        public static readonly Color32 ReportSuccess = new Color32(215, 245, 229, 255);
+        public static readonly Color32 ReportError = new Color32(255, 229, 225, 255);
         public static readonly Color32 PrimaryShadow = new Color32(0, 0, 0, 82);
         public static readonly Color32 PaperShadow = new Color32(18, 48, 67, 46);
+
+        // Water column, top to bottom. A flat fill gives the scene no light
+        // direction, which is what made the deep sea read as a single dark
+        // rectangle rather than a body of water.
+        public static readonly Color32 WaterTop = new Color32(18, 63, 89, 255);
+        public static readonly Color32 WaterUpper = new Color32(10, 43, 63, 255);
+        public static readonly Color32 WaterLower = new Color32(5, 24, 38, 255);
+        public static readonly Color32 WaterFloor = new Color32(1, 8, 16, 255);
+
+        // Light and particulate. All three stay very low alpha on purpose: the
+        // cue reads as water at a whisper and as stage lighting at any strength.
+        public static readonly Color32 GodRay = new Color32(95, 212, 214, 16);
+        public static readonly Color32 Caustic = new Color32(140, 235, 238, 19);
+        public static readonly Color32 Vignette = new Color32(1, 6, 12, 148);
+        public const float MarineSnowFarMaxAlpha = 0.17f;
+        public const float MarineSnowNearMaxAlpha = 0.31f;
+        public const float MarineSnowForegroundMaxAlpha = 0.15f;
+
+        // Semi-transparent so the water column and its particles carry through
+        // the survey maps instead of stopping at an opaque panel edge.
+        public static readonly Color32 MapSurface = new Color32(8, 36, 54, 168);
+        public static readonly Color32 MapSurfaceHistorical = new Color32(11, 43, 61, 168);
 
         public const float ShellRadius = 20f;
         public const float CardRadius = 16f;
