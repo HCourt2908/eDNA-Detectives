@@ -75,34 +75,41 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(notebookColor.b, Is.GreaterThan(0.92f));
             RectTransform historicalPlot = historicalMap.Find("Seamount Plot Area").GetComponent<RectTransform>();
             RectTransform currentPlot = currentMap.Find("Seamount Plot Area").GetComponent<RectTransform>();
-            Image historicalMountain = historicalPlot.Find("Seamount Sprite").GetComponent<Image>();
-            Image currentMountain = currentPlot.Find("Seamount Sprite").GetComponent<Image>();
+            RectTransform historicalVisualClip = historicalPlot.Find("Seamount Visual Clip").GetComponent<RectTransform>();
+            RectTransform currentVisualClip = currentPlot.Find("Seamount Visual Clip").GetComponent<RectTransform>();
+            Image historicalMountain = historicalVisualClip.Find("Seamount Sprite").GetComponent<Image>();
+            Image currentMountain = currentVisualClip.Find("Seamount Sprite").GetComponent<Image>();
             Assert.That(view.SeamountSprite, Is.Not.Null);
             Assert.That(historicalMountain.sprite, Is.SameAs(view.SeamountSprite));
             Assert.That(currentMountain.sprite, Is.SameAs(view.SeamountSprite));
             Assert.That(historicalMountain.sprite, Is.SameAs(currentMountain.sprite));
             Assert.That(historicalPlot.anchorMin, Is.EqualTo(currentPlot.anchorMin));
             Assert.That(historicalPlot.anchorMax, Is.EqualTo(currentPlot.anchorMax));
-            Assert.That(historicalPlot.Find("Seamount Foot Fog"), Is.Not.Null);
-            Assert.That(currentPlot.Find("Seamount Foot Fog"), Is.Not.Null);
-            Assert.That(historicalPlot.Find("Seamount Silhouette Fallback"), Is.Null);
-            Assert.That(currentPlot.Find("Seamount Silhouette Fallback"), Is.Null);
+            Assert.That(historicalVisualClip.GetComponent<RectMask2D>(), Is.Not.Null);
+            Assert.That(currentVisualClip.GetComponent<RectMask2D>(), Is.Not.Null);
+            Assert.That(historicalVisualClip.anchorMin, Is.EqualTo(Vector2.zero));
+            Assert.That(historicalVisualClip.anchorMax, Is.EqualTo(Vector2.one));
+            Assert.That(historicalVisualClip.Find("Seamount Foot Fog"), Is.Not.Null);
+            Assert.That(currentVisualClip.Find("Seamount Foot Fog"), Is.Not.Null);
+            Assert.That(historicalVisualClip.Find("Seamount Silhouette Fallback"), Is.Null);
+            Assert.That(currentVisualClip.Find("Seamount Silhouette Fallback"), Is.Null);
             Assert.That(FindButton("Historical Species Marker shark").interactable, Is.True);
             Assert.That(FindButton("Species Marker shark").interactable, Is.True);
             Assert.That(FindButton("Historical Species Marker shark").transform.parent, Is.SameAs(historicalPlot));
             Assert.That(FindButton("Species Marker shark").transform.parent, Is.SameAs(currentPlot));
+            Assert.That(FindButton("Species Marker shark").transform.IsChildOf(currentVisualClip), Is.False);
             Assert.That(FindButton("Species Marker shark").transform.Find("Marker Halo"), Is.Null);
             Assert.That(FindButton("Species Marker shark").transform.Find("Missing Signal"), Is.Not.Null);
             Assert.That(FindButton("Species Marker tuna").transform.Find("Group Member Left"), Is.Not.Null);
-            Assert.That(FindButton("Species Marker shark").transform.Find("Paper Clay Inner Face"), Is.Null);
             Assert.That(FindButton("Continue To Simulate").transform.parent.name, Is.EqualTo("Investigation Notebook"));
             RectTransform continueButton = FindButton("Continue To Simulate").GetComponent<RectTransform>();
             Assert.That(continueButton.anchorMin.x, Is.EqualTo(0.25f).Within(0.001f));
             Assert.That(continueButton.anchorMax.x, Is.EqualTo(0.75f).Within(0.001f));
             Assert.That(FindButton("Continue To Simulate").GetComponentInChildren<Text>().horizontalOverflow, Is.EqualTo(HorizontalWrapMode.Wrap));
+            Shadow notebookPrimaryShadow = FindButton("Continue To Simulate").GetComponent<Shadow>();
             Assert.That(FindButton("Continue To Simulate").GetComponents<Shadow>().Length, Is.EqualTo(1));
+            Assert.That(notebookPrimaryShadow.effectColor, Is.EqualTo((Color)InvestigationV2Theme.PaperShadow));
             Assert.That(FindButton("Continue To Simulate").GetComponent<Outline>(), Is.Null);
-            Assert.That(FindButton("Continue To Simulate").transform.Find("Paper Clay Inner Face"), Is.Null);
             Assert.That(GameObject.Find("Species Facts Hint"), Is.Null);
             Texture2D sourceSeamount = LoadSeamountSourceTexture();
             Color historicalBackdrop = BrightestSeamountBackdrop(sourceSeamount, new Color32(11, 43, 61, 255));
@@ -127,7 +134,6 @@ namespace EDNA.Investigation.V2.Tests
             Object.DestroyImmediate(sourceSeamount);
             Button observeStage = FindButton("Stage Observe");
             Assert.That(observeStage.GetComponents<Shadow>().Length, Is.EqualTo(1));
-            Assert.That(observeStage.transform.Find("Paper Clay Inner Face"), Is.Null);
             GameObject focusRing = observeStage.transform.Find("Focus Ring").gameObject;
             Assert.That(focusRing.activeSelf, Is.False);
             EventSystem.current.SetSelectedGameObject(observeStage.gameObject);
@@ -334,7 +340,7 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationV2Phase.Simulate));
             AssertActivePageHeadingSharesRow();
             Assert.That(FindGameObject("V2 Footer").activeSelf, Is.False);
-            Assert.That(FindButton("Back To Observe").GetComponentInChildren<Text>().fontSize, Is.EqualTo(12));
+            Assert.That(FindButton("Back To Observe").GetComponentInChildren<Text>().fontSize, Is.EqualTo(11));
             Assert.That(FindGameObject("V2 Content").GetComponent<RectTransform>().offsetMin.y, Is.EqualTo(8f).Within(0.1f));
             RectTransform modelColumn = FindGameObject("Simulation Models").GetComponent<RectTransform>();
             RectTransform comparisonColumn = FindGameObject("Comparison Workspace").GetComponent<RectTransform>();
@@ -343,9 +349,16 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindGameObject("Threat Choices").transform.IsChildOf(modelColumn), Is.True);
             Assert.That(FindGameObject("Simulation Navigation").transform.IsChildOf(comparisonColumn), Is.True);
             Assert.That(FindButton("Back To Observe").transform.IsChildOf(FindGameObject("Simulation Navigation").transform), Is.True);
+            Assert.That(FindGameObject("Simulation Navigation").GetComponent<RectTransform>().rect.height, Is.EqualTo(44f).Within(0.1f));
+            Assert.That(FindButton("Back To Observe").GetComponent<RectTransform>().rect.height, Is.EqualTo(44f).Within(0.1f));
+            Assert.That(FindButton("Back To Observe").GetComponent<RectTransform>().rect.width, Is.EqualTo(110f).Within(0.1f));
+            Assert.That(FindButton("Back To Observe").GetComponentInChildren<Text>().rectTransform.rect.height, Is.EqualTo(22f).Within(0.1f));
+            AssertBottomAligned(FindButton("Back To Observe").GetComponent<RectTransform>(), FindGameObject("Simulation Navigation").GetComponent<RectTransform>());
+            Assert.That(FindGameObject("Report Gate Hint").GetComponent<RectTransform>().rect.height, Is.EqualTo(22f).Within(0.1f));
+            AssertBottomAligned(FindGameObject("Report Gate Hint").GetComponent<RectTransform>(), FindGameObject("Simulation Navigation").GetComponent<RectTransform>());
+            Assert.That(comparisonColumn.GetComponent<VerticalLayoutGroup>().padding.bottom, Is.EqualTo(4));
             Assert.That(FindButton("Threat longline").transform.Find("Threat Status"), Is.Null);
             Assert.That(FindButton("Threat longline").GetComponents<Shadow>().Length, Is.EqualTo(1));
-            Assert.That(FindButton("Threat longline").transform.Find("Paper Clay Inner Face"), Is.Null);
             AssertSimulateContentFitsViewport();
 
             Click("Run Selected Model");
@@ -377,6 +390,8 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(controller.State.AcceptedComparisonCount, Is.EqualTo(4));
             Assert.That(FindButton("Write Provisional Report").GetComponents<Shadow>().Length, Is.EqualTo(1));
             Assert.That(FindButton("Write Provisional Report").GetComponent<Outline>(), Is.Null);
+            Assert.That(FindButton("Write Provisional Report").GetComponent<RectTransform>().rect.height, Is.EqualTo(44f).Within(0.1f));
+            Assert.That(FindButton("Write Provisional Report").transform.Find("Compact Navigation Surface").GetComponent<RectTransform>().rect.height, Is.EqualTo(22f).Within(0.1f));
             Click("Write Provisional Report");
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationV2Phase.Report));
             AssertActivePageHeadingSharesRow();
@@ -388,8 +403,8 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindGameObject("Survey Report Paper").GetComponent<RectTransform>().rect.height, Is.LessThan(700f));
             Assert.That(FindButton("Final Cause longline").GetComponents<Shadow>().Length, Is.EqualTo(1));
             Assert.That(FindButton("Final Cause longline").GetComponent<Outline>(), Is.Null);
-            Assert.That(FindButton("Final Cause longline").transform.Find("Paper Clay Inner Face"), Is.Null);
             Assert.That(FindButton("Final Cause longline").transform.Find("Paper Choice Face"), Is.Not.Null);
+            Assert.That(ContrastRatio(InvestigationV2Theme.PaperBorder, InvestigationV2Theme.Paper), Is.GreaterThanOrEqualTo(3f));
             Assert.That(controller.State.ProvisionalThreatId, Is.EqualTo("bottom_trawling"));
             Assert.That(controller.State.FinalThreatId, Is.Empty);
             Assert.That(controller.State.HasDiscoveredObservation("E07_FISHING_LINE"), Is.False);
@@ -516,6 +531,14 @@ namespace EDNA.Investigation.V2.Tests
             Canvas.ForceUpdateCanvases();
             Assert.That(scroll.content.rect.height, Is.LessThanOrEqualTo(scroll.viewport.rect.height + 1f));
             Assert.That(scroll.content.rect.width, Is.LessThanOrEqualTo(scroll.viewport.rect.width + 1f));
+        }
+
+        private static void AssertBottomAligned(RectTransform child, RectTransform parent)
+        {
+            Canvas.ForceUpdateCanvases();
+            Rect childRect = WorldRect(child);
+            Rect parentRect = WorldRect(parent);
+            Assert.That(Mathf.Abs(childRect.yMin - parentRect.yMin), Is.LessThan(1f));
         }
 
         private static void AssertMapMarkerReadability(string buttonName, Color backdrop)

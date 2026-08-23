@@ -12,7 +12,7 @@ namespace EDNA.Investigation.V2
     [DisallowMultipleComponent]
     public sealed partial class InvestigationV2RuntimeView : MonoBehaviour
     {
-        private enum ButtonVisualStyle { Primary, Secondary, Tertiary, Stage, Choice, PaperChoice, Danger }
+        private enum ButtonVisualStyle { Primary, PaperPrimary, Secondary, Tertiary, Stage, Choice, PaperChoice, Danger }
 
         private static readonly Vector2 LandscapeReferenceResolution = new Vector2(1280f, 720f);
         private static readonly Vector2 PortraitReferenceResolution = new Vector2(720f, 1280f);
@@ -507,6 +507,7 @@ namespace EDNA.Investigation.V2
             switch (style)
             {
                 case ButtonVisualStyle.Primary: background = InvestigationV2Theme.Accent; foreground = InvestigationV2Theme.OnAccent; break;
+                case ButtonVisualStyle.PaperPrimary: background = InvestigationV2Theme.Accent; foreground = InvestigationV2Theme.OnAccent; break;
                 case ButtonVisualStyle.Tertiary: background = new Color(0f, 0f, 0f, 0f); foreground = InvestigationV2Theme.TextMuted; break;
                 case ButtonVisualStyle.Secondary: background = InvestigationV2Theme.SurfaceRaised; foreground = InvestigationV2Theme.TextPrimary; break;
                 case ButtonVisualStyle.Stage: background = new Color32(22, 69, 94, 225); foreground = InvestigationV2Theme.TextPrimary; radius = 16f; break;
@@ -534,10 +535,12 @@ namespace EDNA.Investigation.V2
 
             if (style == ButtonVisualStyle.Primary)
                 AddSingleShadow(buttonObject, InvestigationV2Theme.PrimaryShadow, new Vector2(3f, -3f));
+            else if (style == ButtonVisualStyle.PaperPrimary)
+                AddSingleShadow(buttonObject, InvestigationV2Theme.PaperShadow, new Vector2(3f, -3f));
             else if (style == ButtonVisualStyle.PaperChoice)
                 ConfigurePaperChoiceButton(buttonObject, button, radius);
 
-            bool primaryAction = style == ButtonVisualStyle.Primary;
+            bool primaryAction = style == ButtonVisualStyle.Primary || style == ButtonVisualStyle.PaperPrimary;
             labelText = CreateText("Label", buttonObject.transform, label, primaryAction ? 17 : 15, FontStyle.Bold, foreground, TextAnchor.MiddleCenter, InvestigationV2Theme.DisplayFont);
             Stretch(labelText.rectTransform, 10f, 4f, -10f, -4f);
             labelText.horizontalOverflow = HorizontalWrapMode.Wrap;

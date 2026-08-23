@@ -18,6 +18,7 @@
 *.booproj
 *.svd
 game/mono_crash.*.json
+game/mono_crash.*.blob
 game/ProjectSettings/SceneTemplateSettings.json
 
 # OS files

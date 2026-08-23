@@ -53,7 +53,7 @@ namespace EDNA.Investigation.V2
 
             int remaining = Mathf.Max(0, caseDefinition.MinimumObserveDiscoveries - state.DiscoveredObservationIds.Count);
             string nextLabel = remaining == 0 ? "Try causes →" : $"Record {remaining} more";
-            Button next = CreateButton("Continue To Simulate", notebook, nextLabel, ButtonVisualStyle.Primary, () => setPhase?.Invoke(InvestigationV2Phase.Simulate), out _);
+            Button next = CreateButton("Continue To Simulate", notebook, nextLabel, ButtonVisualStyle.PaperPrimary, () => setPhase?.Invoke(InvestigationV2Phase.Simulate), out _);
             next.GetComponent<LayoutElement>().ignoreLayout = true;
             Anchor(next.GetComponent<RectTransform>(), 0.25f, 0f, 0.75f, 0f, 0f, 8f, 0f, 58f);
             next.interactable = remaining == 0;
@@ -138,7 +138,10 @@ namespace EDNA.Investigation.V2
 
             RectTransform plotArea = CreatePanel("Seamount Plot Area", map, new Color(0f, 0f, 0f, 0f), 0f);
             Anchor(plotArea, 0.08f, 0.08f, 0.92f, 0.86f, 0f, 0f, 0f, 0f);
-            CreateSeamountVisual(plotArea);
+            RectTransform visualClip = CreatePanel("Seamount Visual Clip", plotArea, new Color(0f, 0f, 0f, 0f), 0f);
+            Stretch(visualClip, 0f, 0f, 0f, 0f);
+            visualClip.gameObject.AddComponent<RectMask2D>();
+            CreateSeamountVisual(visualClip);
             CreateDepthLabel(map, "SHALLOW", 0.66f);
             CreateDepthLabel(map, "MID", 0.38f);
             CreateDepthLabel(map, "DEEP", 0.10f);

@@ -91,7 +91,7 @@ namespace EDNA.Investigation.V2
 
             RectTransform comparisonColumn = CreatePanel("Comparison Workspace", workspace, InvestigationV2Theme.SurfaceQuiet, InvestigationV2Theme.SmallRadius);
             VerticalLayoutGroup comparisonLayout = comparisonColumn.gameObject.AddComponent<VerticalLayoutGroup>();
-            comparisonLayout.padding = new RectOffset(10, 10, 10, 10);
+            comparisonLayout.padding = new RectOffset(10, 10, 10, 4);
             comparisonLayout.spacing = 8f;
             comparisonLayout.childControlWidth = true;
             comparisonLayout.childControlHeight = true;
@@ -115,34 +115,35 @@ namespace EDNA.Investigation.V2
         private void RenderSimulationNavigation(RectTransform parent, SimulationResult simulation)
         {
             RectTransform navigation = CreatePanel("Simulation Navigation", parent, new Color(0f, 0f, 0f, 0f), 0f);
-            AddLayout(navigation, 34f, 1f);
+            AddLayout(navigation, 44f, 1f);
             HorizontalLayoutGroup navigationLayout = navigation.gameObject.AddComponent<HorizontalLayoutGroup>();
-            navigationLayout.spacing = 6f;
-            navigationLayout.childAlignment = TextAnchor.MiddleCenter;
+            navigationLayout.padding = new RectOffset(0, 0, 0, 0);
+            navigationLayout.spacing = 4f;
+            navigationLayout.childAlignment = TextAnchor.LowerCenter;
             navigationLayout.childControlWidth = true;
-            navigationLayout.childControlHeight = true;
+            navigationLayout.childControlHeight = false;
             navigationLayout.childForceExpandWidth = false;
-            navigationLayout.childForceExpandHeight = true;
+            navigationLayout.childForceExpandHeight = false;
 
-            Button back = CreateButton("Back To Observe", navigation, "← Back to notebook", ButtonVisualStyle.Tertiary, () => setPhase?.Invoke(InvestigationV2Phase.Observe), out _);
-            ConfigureCompactFooterButton(back, 150f);
+            Button back = CreateButton("Back To Observe", navigation, "← Notebook", ButtonVisualStyle.Tertiary, () => setPhase?.Invoke(InvestigationV2Phase.Observe), out _);
+            ConfigureCompactNavigationButton(back, 110f);
 
             InvestigationV2Readiness readiness = new InvestigationV2ConclusionEvaluator().EvaluateReadiness(caseDefinition, state);
             if (readiness.CanEnterProvisional)
             {
-                Button report = CreateButton("Write Provisional Report", navigation, "Write my first idea →", ButtonVisualStyle.Primary, () => submitProvisional?.Invoke(selectedThreatId), out _);
-                ConfigureCompactFooterButton(report, 200f);
+                Button report = CreateButton("Write Provisional Report", navigation, "Write first idea →", ButtonVisualStyle.Primary, () => submitProvisional?.Invoke(selectedThreatId), out _);
+                ConfigureCompactNavigationButton(report, 160f);
             }
             else
             {
                 RectTransform gate = CreatePanel("Report Gate Hint", navigation, new Color32(14, 51, 72, 225), 10f);
-                gate.sizeDelta = new Vector2(360f, 30f);
+                gate.sizeDelta = new Vector2(310f, 22f);
                 LayoutElement gateLayout = gate.gameObject.AddComponent<LayoutElement>();
-                gateLayout.minWidth = 250f;
-                gateLayout.preferredWidth = 360f;
+                gateLayout.minWidth = 210f;
+                gateLayout.preferredWidth = 310f;
                 gateLayout.flexibleWidth = 1f;
-                gateLayout.minHeight = 30f;
-                gateLayout.preferredHeight = 30f;
+                gateLayout.minHeight = 22f;
+                gateLayout.preferredHeight = 22f;
                 AddPanelAccent(gate, InvestigationV2Theme.Primary, 2f);
                 Text guidance = CreateText(
                     "Comparison Gate",
@@ -150,25 +151,41 @@ namespace EDNA.Investigation.V2
                     simulation == null
                         ? "TO REPORT · Run a model, then compare its predictions with evidence"
                         : $"TO REPORT · {BuildSimulationGateLabel()}",
-                    11,
+                    10,
                     FontStyle.Bold,
                     InvestigationV2Theme.TextSecondary,
                     TextAnchor.MiddleCenter,
-                    InvestigationV2Theme.BodyFont);
-                Stretch(guidance.rectTransform, 10f, 2f, -10f, -2f);
+                    InvestigationV2Theme.DataFont);
+                Stretch(guidance.rectTransform, 8f, 1f, -8f, -1f);
             }
         }
 
-        private static void ConfigureCompactFooterButton(Button button, float width)
+        private static void ConfigureCompactNavigationButton(Button button, float width)
         {
             LayoutElement layout = button.GetComponent<LayoutElement>();
             layout.minWidth = width;
             layout.preferredWidth = width;
-            layout.minHeight = 28f;
-            layout.preferredHeight = 30f;
-            button.GetComponent<RectTransform>().sizeDelta = new Vector2(width, 30f);
+            layout.minHeight = 44f;
+            layout.preferredHeight = 44f;
+            button.GetComponent<RectTransform>().sizeDelta = new Vector2(width, 44f);
             Text label = button.GetComponentInChildren<Text>();
-            if (label != null) label.fontSize = 12;
+            if (label != null)
+            {
+                label.fontSize = 11;
+                Anchor(label.rectTransform, 0f, 0f, 1f, 0f, 8f, 0f, -8f, 22f);
+            }
+
+            Image rootImage = button.GetComponent<Image>();
+            if (rootImage == null || rootImage.color.a <= 0.01f) return;
+            Color surfaceColor = rootImage.color;
+            rootImage.color = new Color(0f, 0f, 0f, 0f);
+            Shadow rootShadow = button.GetComponent<Shadow>();
+            if (rootShadow != null) rootShadow.enabled = false;
+            RectTransform surface = CreatePanel("Compact Navigation Surface", button.transform, surfaceColor, 11f);
+            Anchor(surface, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 22f);
+            surface.SetAsFirstSibling();
+            AddSingleShadow(surface.gameObject, InvestigationV2Theme.PrimaryShadow, new Vector2(2f, -2f));
+            button.targetGraphic = surface.GetComponent<Image>();
         }
 
         private void RenderModelPreview(RectTransform parent, ThreatSimulationDefinition threat)
@@ -387,7 +404,7 @@ namespace EDNA.Investigation.V2
                 InvestigationV2Theme.DisplayFont);
             AddLayout(comparisonHeading.rectTransform, 30f, 1f);
 
-            float pairingHeight = Mathf.Clamp(workspaceHeight - 166f, 176f, 304f);
+            float pairingHeight = Mathf.Clamp(workspaceHeight - 170f, 172f, 300f);
             RectTransform pairing = new GameObject("Prediction Observation Pairing", typeof(RectTransform), typeof(InvestigationV2ResponsiveSplitLayout)).GetComponent<RectTransform>();
             pairing.SetParent(parent, false);
             InvestigationV2ResponsiveSplitLayout split = pairing.GetComponent<InvestigationV2ResponsiveSplitLayout>();
