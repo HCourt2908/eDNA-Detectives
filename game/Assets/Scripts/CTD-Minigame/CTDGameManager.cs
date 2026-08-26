@@ -7,6 +7,7 @@ using UnityEngine.UI;
 
 public enum CTDGameState
 {
+    Map,
     Intro,
     Cleaning,
     Planning,
@@ -43,11 +44,13 @@ public class CTDGameManager : MonoBehaviour
     public Button replayButton;
     public Button continueButton;
     public string dnaSceneName = "Petri-Dish-Game";
+    public RosetteMapHub mapHub;
 
     public CTDGameState CurrentState { get; private set; }
 
     private readonly GameObject[] panels = new GameObject[7];
     private string selectedLocation = "Station A";
+    private int selectedLocationIndex;
     private CTDSampleRecord[] completedSamples;
 
     private void Awake()
@@ -59,6 +62,14 @@ public class CTDGameManager : MonoBehaviour
         panels[4] = samplingPanel;
         panels[5] = recoveryPanel;
         panels[6] = completePanel;
+
+        if (mapHub == null)
+        {
+            mapHub = gameObject.AddComponent<RosetteMapHub>();
+        }
+
+        mapHub.Initialise(FindAnyObjectByType<Canvas>());
+        mapHub.ReadyToDeploy += HandleMapReady;
 
         beginButton.onClick.AddListener(BeginMission);
         cleaningMinigame.Completed += OpenPlanning;
@@ -76,8 +87,16 @@ public class CTDGameManager : MonoBehaviour
 
     private void Start()
     {
-        ShowPanel(introPanel);
-        CurrentState = CTDGameState.Intro;
+        CurrentState = CTDGameState.Map;
+        mapHub.Show();
+    }
+
+    private void HandleMapReady(int locationIndex)
+    {
+        selectedLocationIndex = Mathf.Clamp(locationIndex, 0, 25);
+        selectedLocation = $"Station {(char)('A' + selectedLocationIndex)}";
+        mapHub.Hide();
+        BeginMission();
     }
 
     private void BeginMission()
@@ -91,7 +110,7 @@ public class CTDGameManager : MonoBehaviour
     {
         CurrentState = CTDGameState.Planning;
         ShowPanel(planningPanel);
-        SelectLocation(0);
+        SelectLocation(selectedLocationIndex % Mathf.Max(1, locationButtons.Length));
     }
 
     private void SelectLocation(int index)
@@ -205,6 +224,11 @@ public class CTDGameManager : MonoBehaviour
 
     private void ShowPanel(GameObject panelToShow)
     {
+        if (mapHub != null)
+        {
+            mapHub.Hide();
+        }
+
         foreach (GameObject panel in panels)
         {
             panel.SetActive(panel == panelToShow);
