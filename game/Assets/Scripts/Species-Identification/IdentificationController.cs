@@ -5,58 +5,34 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
-public enum SymbolType
-{
-    Square,
-    Diamond,
-    Rhombus,
-    Triangle,
-    Semicircle,
-    Circle,
-    Plus,
-    Cross,
-    Hexagon,
-    Star,
-    Pentagon
-}
-
 public class sampleController : MonoBehaviour
 {
     [SerializeField] List<SymbolPrefab> symbolPrefabs;
     [SerializeField] RectTransform symbolSpace;
 
-    [SerializeField] List<string> buttonTexts;
-    [SerializeField] RectTransform buttonSpace;
+    List<string> buttonTexts;
+    [SerializeField] RectTransform buttonContent;
     [SerializeField] Button buttonPrefab;
-    public List<Button> buttons;
+    public List<Button> buttons = new();
 
     [SerializeField] string correctOption;
 
     [SerializeField] List<SymbolType> currentSequence;
+    [SerializeField] private PuzzleGenerator puzzleGenerator;
 
     public float padding = 25f;
     public float symbolSize = 75f;
-    float buttonSize = 100f;
 
-    private Dictionary<List<SymbolType>, string> possibleSequences = new()
-    {
-        {new() {SymbolType.Diamond, SymbolType.Rhombus}, "Algae"},
-        {new() {SymbolType.Square, SymbolType.Triangle, SymbolType.Pentagon}, "Shark"},
-        {new() {SymbolType.Square, SymbolType.Triangle, SymbolType.Star}, "Tuna"},
-        {new() {SymbolType.Square, SymbolType.Semicircle, SymbolType.Hexagon}, "Sea Lion"},
-        {new() {SymbolType.Square, SymbolType.Circle, SymbolType.Cross}, "Seagull"},
-        {new() {SymbolType.Square, SymbolType.Circle, SymbolType.Plus}, "Albatross"}
-    };
+
 
     public void Start()
     {
-        KeyValuePair<List<SymbolType>, string> selected = possibleSequences.ElementAt(Random.Range(0, possibleSequences.Count));
+        puzzleGenerator.GeneratePuzzle();
 
-        currentSequence = new List<SymbolType>(selected.Key);
-        correctOption = selected.Value;
+        currentSequence = new List<SymbolType>(puzzleGenerator.CurrentSequence);
+        correctOption = puzzleGenerator.CorrectSpecies.name;
 
-        buttonTexts = new List<string>();
-        buttonTexts.AddRange(new[] {"Albatross", "Seagull", "Sea Lion", "Tuna", "Shark", "Algae"});
+        buttonTexts = SpeciesDatabase.AllSpecies.Select(s => s.name).ToList();
 
         DisplaySymbols();
         DisplayButtons();
@@ -91,50 +67,25 @@ public class sampleController : MonoBehaviour
 
     public void DisplayButtons()
     {
-        foreach (Transform child in buttonSpace) Destroy(child.gameObject);
-
-        int count = buttonTexts.Count;
-
-        if (count == 0) return;
-
-        float width = buttonSpace.rect.width;
-        float height = buttonSpace.rect.height;
-
-        int columns = 2;
-        int rows = Mathf.CeilToInt(count / 2f);
-        
-        float leftX = padding + buttonSize / 2f;
-        float rightX = width - padding - buttonSize /2f;
-
-        float firstY = height - padding - buttonSize / 2f;
-        float lastY = padding + buttonSize / 2f;
-
-        for (int i = 0; i < count; i++)
+        foreach (Transform child in buttonContent)
         {
-            Button button = Instantiate(buttonPrefab, buttonSpace);
-            RectTransform rect = button.GetComponent<RectTransform>();
+            Destroy(child.gameObject);
+        }
 
-            int row = i / columns;
-            int column = i % columns;
+        buttons.Clear();
 
-            float x = 0f;
-            if (row == rows - 1 && count % 2 == 1) x = width / 2f;
-            else if (column == 0) x = leftX;
-            else x = rightX;
+        foreach (string buttonText in buttonTexts)
+        {
+            Button button = Instantiate(buttonPrefab, buttonContent);
 
-            float y = 0f;
-            if (rows == 1) y = height / 2f;
-            else y = Mathf.Lerp(firstY, lastY, (float)row / (rows-1));
-
-            rect.anchoredPosition = new Vector2(x - width / 2f, y - height / 2f);
-
-            string buttonText = buttonTexts[i];
             button.GetComponentInChildren<TMPro.TMP_Text>().text = buttonText;
+
             button.onClick.AddListener(() => CheckCorrectness(button, buttonText));
+
             buttons.Add(button);
         }
 
-        EventSystem.current.SetSelectedGameObject(buttons[0].gameObject);
+        if (buttons.Count > 0) EventSystem.current.SetSelectedGameObject(buttons[0].gameObject);
 
     }
 
