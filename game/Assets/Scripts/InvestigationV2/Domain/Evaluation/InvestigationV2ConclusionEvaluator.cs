@@ -11,34 +11,45 @@ namespace EDNA.Investigation.V2.Domain
             if (caseDefinition == null) throw new ArgumentNullException(nameof(caseDefinition));
             if (state == null) throw new ArgumentNullException(nameof(state));
 
-            bool requiredThreatsCompared = true;
-            for (int index = 0; index < caseDefinition.RequiredComparedThreatIds.Count; index++)
+            bool requiredObjectivesComplete = true;
+            string missingObjectiveId = string.Empty;
+            string missingEvidenceId = string.Empty;
+            if (caseDefinition.InvestigationObjectives.Count > 0)
             {
-                string threatId = caseDefinition.RequiredComparedThreatIds[index];
-                if (!state.HasTriedThreat(threatId)
-                    || state.AcceptedComparisonCountForThreat(threatId) < caseDefinition.RequiredComparisonsPerThreat)
+                for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
                 {
-                    requiredThreatsCompared = false;
+                    InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
+                    if (objective == null || !objective.Required || state.HasCompletedObjective(objective.ObjectiveId)) continue;
+                    requiredObjectivesComplete = false;
+                    missingObjectiveId = objective.ObjectiveId;
+                    InvestigationV2ObservationDefinition evidence = caseDefinition.FindObservation(objective.RequiredEvidenceId);
+                    if (!state.HasDiscoveredObservation(objective.RequiredEvidenceId)
+                        && evidence != null
+                        && (evidence.UnlockStage == EvidenceUnlockStage.Observe
+                            || evidence.UnlockStage == EvidenceUnlockStage.Always))
+                    {
+                        missingEvidenceId = objective.RequiredEvidenceId;
+                    }
                     break;
                 }
-
-                InvestigationV2RequiredComparisonSpeciesDefinition requiredSpecies = caseDefinition.FindRequiredComparisonSpecies(threatId);
-                if (requiredSpecies == null) continue;
-                for (int speciesIndex = 0; speciesIndex < requiredSpecies.RequiredComparisonSpeciesIds.Count; speciesIndex++)
+            }
+            else
+            {
+                // Defensive compatibility for direct domain callers that bypass
+                // validation. The runtime Controller rejects objective-less cases
+                // through InvestigationV2CaseValidator before this path is reachable.
+                for (int index = 0; index < caseDefinition.RequiredComparedThreatIds.Count; index++)
                 {
-                    PredictionComparisonRecord comparison = state.FindComparison(
-                        threatId,
-                        requiredSpecies.RequiredComparisonSpeciesIds[speciesIndex]);
-                    if (comparison == null || !comparison.CountsTowardProgress)
+                    string threatId = caseDefinition.RequiredComparedThreatIds[index];
+                    if (!state.HasTriedThreat(threatId)
+                        || state.AcceptedComparisonCountForThreat(threatId) < caseDefinition.RequiredComparisonsPerThreat)
                     {
-                        requiredThreatsCompared = false;
+                        requiredObjectivesComplete = false;
                         break;
                     }
                 }
-                if (!requiredThreatsCompared) break;
             }
 
-            bool minimumComparisonsComplete = state.AcceptedComparisonCount >= caseDefinition.MinimumCompletedComparisons;
             bool provisionalSubmitted = !string.IsNullOrEmpty(state.ProvisionalThreatId);
             bool confirmationReviewed = state.ConfirmationReviewed;
             bool finalCauseSelected = caseDefinition.FindThreat(state.FinalThreatId) != null;
@@ -49,6 +60,23 @@ namespace EDNA.Investigation.V2.Domain
                 if (state.HasSelectedEvidence(caseDefinition.ConfirmationEvidenceIds[evidenceIndex])) confirmationEvidenceCount++;
             }
             bool confirmationEvidenceIncluded = confirmationEvidenceCount >= caseDefinition.MinimumConfirmationEvidenceInReport;
+            bool evidenceCategoriesComplete = true;
+            EvidenceCategory missingEvidenceCategory = EvidenceCategory.General;
+            for (int requirementIndex = 0; requirementIndex < caseDefinition.EvidenceCategoryRequirements.Count; requirementIndex++)
+            {
+                InvestigationV2EvidenceCategoryRequirement requirement = caseDefinition.EvidenceCategoryRequirements[requirementIndex];
+                if (requirement == null) continue;
+                int selectedInCategory = 0;
+                for (int evidenceIndex = 0; evidenceIndex < state.SelectedReportEvidenceIds.Count; evidenceIndex++)
+                {
+                    InvestigationV2ObservationDefinition observation = caseDefinition.FindObservation(state.SelectedReportEvidenceIds[evidenceIndex]);
+                    if (observation != null && observation.Category == requirement.Category) selectedInCategory++;
+                }
+                if (selectedInCategory >= requirement.MinimumCount) continue;
+                evidenceCategoriesComplete = false;
+                missingEvidenceCategory = requirement.Category;
+                break;
+            }
             bool reasoningComplete = string.Equals(
                 state.SelectedReasoningId,
                 caseDefinition.RequiredReasoningId,
@@ -57,13 +85,16 @@ namespace EDNA.Investigation.V2.Domain
                 && caseDefinition.FindLimitation(state.SelectedLimitationId) != null;
 
             return new InvestigationV2Readiness(
-                requiredThreatsCompared,
-                minimumComparisonsComplete,
+                requiredObjectivesComplete,
+                missingObjectiveId,
+                missingEvidenceId,
                 provisionalSubmitted,
                 confirmationReviewed,
                 finalCauseSelected,
                 evidenceComplete,
                 confirmationEvidenceIncluded,
+                evidenceCategoriesComplete,
+                missingEvidenceCategory,
                 reasoningComplete,
                 limitationComplete);
         }
@@ -78,7 +109,7 @@ namespace EDNA.Investigation.V2.Domain
             {
                 return new InvestigationV2ConclusionResult(
                     InvestigationV2ConclusionStatus.InsufficientEvidence,
-                    BuildReadinessFeedback(readiness));
+                    BuildReadinessFeedback(caseDefinition, readiness));
             }
 
             if (caseDefinition.FindThreat(selectedThreatId) == null)
@@ -101,12 +132,23 @@ namespace EDNA.Investigation.V2.Domain
             return new InvestigationV2ConclusionResult(InvestigationV2ConclusionStatus.Correct, success);
         }
 
-        private static string BuildReadinessFeedback(InvestigationV2Readiness readiness)
+        private static string BuildReadinessFeedback(
+            InvestigationV2CaseDefinition caseDefinition,
+            InvestigationV2Readiness readiness)
         {
-            if (!readiness.RequiredThreatsCompared)
-                return "Compare both long-line fishing and bottom trawling, including their shared food-web predictions.";
-            if (!readiness.MinimumComparisonsComplete)
-                return "Complete more prediction–observation comparisons before writing a report.";
+            if (!readiness.RequiredObjectivesComplete)
+            {
+                if (!string.IsNullOrEmpty(readiness.MissingEvidenceId))
+                {
+                    InvestigationV2ObservationDefinition observation = caseDefinition.FindObservation(readiness.MissingEvidenceId);
+                    string subject = observation == null ? readiness.MissingEvidenceId : observation.DisplayName;
+                    return $"Return to Observe and record the missing evidence: {subject}.";
+                }
+                InvestigationV2ObjectiveDefinition objective = caseDefinition.FindObjective(readiness.MissingObjectiveId);
+                return objective == null
+                    ? "Complete the remaining investigation objective before writing a report."
+                    : $"Complete this investigation question first: {objective.QuestionPrompt}";
+            }
             if (!readiness.ProvisionalSubmitted)
                 return "Submit a provisional explanation before reviewing confirmation evidence.";
             if (!readiness.ConfirmationReviewed)
@@ -114,14 +156,29 @@ namespace EDNA.Investigation.V2.Domain
             if (!readiness.FinalCauseSelected)
                 return "Choose a final cause after reviewing the ROV evidence.";
             if (!readiness.EvidenceComplete)
-                return "Select at least two observations for the evidence section.";
+                return $"Select at least {caseDefinition.MinimumReportEvidence} observations for the evidence section.";
             if (!readiness.ConfirmationEvidenceIncluded)
                 return "Include at least one ROV confirmation observation in the report.";
+            if (!readiness.EvidenceCategoriesComplete)
+                return $"Add more {EvidenceCategoryLabel(readiness.MissingEvidenceCategory)} evidence to the report.";
             if (!readiness.ReasoningComplete)
                 return "Explain the shark–tuna–krill food-web cascade.";
             if (!readiness.LimitationComplete)
                 return "Record one scientific limitation, such as non-detection not proving complete absence.";
             return "The report is not ready yet.";
+        }
+
+        private static string EvidenceCategoryLabel(EvidenceCategory category)
+        {
+            switch (category)
+            {
+                case EvidenceCategory.FoodWeb: return "food-web";
+                case EvidenceCategory.Benthic: return "benthic";
+                case EvidenceCategory.Confirmation: return "ROV confirmation";
+                case EvidenceCategory.Environmental: return "environmental";
+                case EvidenceCategory.Alternative: return "alternative-cause";
+                default: return "required";
+            }
         }
     }
 }

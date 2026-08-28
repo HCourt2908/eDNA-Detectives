@@ -170,45 +170,72 @@ namespace EDNA.Investigation.V2.Domain
             string evidenceId,
             ComparisonJudgement judgement)
         {
+            return Compare(
+                state,
+                threatId,
+                PredictionTargetKind.Species,
+                speciesId,
+                evidenceId,
+                judgement);
+        }
+
+        public PredictionComparisonRecord Compare(
+            InvestigationV2State state,
+            string threatId,
+            PredictionTargetKind targetKind,
+            string targetId,
+            string evidenceId,
+            ComparisonJudgement judgement)
+        {
             if (state == null) throw new ArgumentNullException(nameof(state));
             if (!state.HasTriedThreat(threatId))
             {
                 return new PredictionComparisonRecord(
                     threatId,
-                    speciesId,
+                    targetKind,
+                    targetId,
                     evidenceId,
                     judgement,
                     ComparisonEvaluationOutcome.Incorrect,
-                    "Run this model before comparing its predictions.");
+                    "Run this model before comparing its predictions.",
+                    ComparisonProgressRole.ContextOnly,
+                    string.Empty);
             }
 
             if (!state.HasDiscoveredObservation(evidenceId))
             {
                 return new PredictionComparisonRecord(
                     threatId,
-                    speciesId,
+                    targetKind,
+                    targetId,
                     evidenceId,
                     judgement,
                     ComparisonEvaluationOutcome.Incorrect,
-                    "Discover this observation before using it in a comparison.");
+                    "Discover this observation before using it in a comparison.",
+                    ComparisonProgressRole.ContextOnly,
+                    string.Empty);
             }
 
-            PredictionComparisonRecord accepted = state.FindComparison(threatId, speciesId);
-            if (accepted != null && accepted.CountsTowardProgress)
+            PredictionComparisonRecord accepted = state.FindComparison(threatId, targetKind, targetId);
+            if (accepted != null && accepted.LocksComparison)
             {
                 return new PredictionComparisonRecord(
                     accepted.ThreatId,
-                    accepted.SpeciesId,
+                    accepted.TargetKind,
+                    accepted.TargetId,
                     accepted.EvidenceId,
                     accepted.Judgement,
                     accepted.Outcome,
-                    $"Comparison already saved and locked. {accepted.Feedback}");
+                    $"Comparison already saved and locked. {accepted.Feedback}",
+                    accepted.ProgressRole,
+                    accepted.ObjectiveId);
             }
 
             PredictionComparisonRecord record = comparisonEvaluator.Evaluate(
                 caseDefinition,
                 threatId,
-                speciesId,
+                targetKind,
+                targetId,
                 evidenceId,
                 judgement);
             state.RecordComparison(record);

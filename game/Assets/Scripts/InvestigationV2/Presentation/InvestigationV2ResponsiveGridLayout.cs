@@ -8,16 +8,23 @@ namespace EDNA.Investigation.V2
     {
         [SerializeField, Min(1)] private int wideColumns = 4;
         [SerializeField, Min(1)] private int mediumColumns = 2;
-        [SerializeField, Min(40f)] private float cellHeight = 112f;
+        [SerializeField, Min(1)] private int narrowColumns = 1;
+        [SerializeField, Min(20f)] private float cellHeight = 112f;
         [SerializeField, Min(0f)] private float spacing = 10f;
         [SerializeField, Min(200f)] private float wideBreakpoint = 900f;
         [SerializeField, Min(200f)] private float mediumBreakpoint = 520f;
 
         public void Configure(int wide, int medium, float height, float gap)
         {
+            Configure(wide, medium, 1, height, gap);
+        }
+
+        public void Configure(int wide, int medium, int narrow, float height, float gap)
+        {
             wideColumns = Mathf.Max(1, wide);
             mediumColumns = Mathf.Max(1, medium);
-            cellHeight = Mathf.Max(40f, height);
+            narrowColumns = Mathf.Max(1, narrow);
+            cellHeight = Mathf.Max(20f, height);
             spacing = Mathf.Max(0f, gap);
             SetDirty();
         }
@@ -59,7 +66,7 @@ namespace EDNA.Investigation.V2
         {
             if (width >= wideBreakpoint) return wideColumns;
             if (width >= mediumBreakpoint) return mediumColumns;
-            return 1;
+            return narrowColumns;
         }
     }
 }

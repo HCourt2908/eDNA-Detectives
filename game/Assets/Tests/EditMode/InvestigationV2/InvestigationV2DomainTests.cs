@@ -55,7 +55,8 @@ namespace EDNA.Investigation.V2.Tests
             {
                 Assert.That(caseDefinition.Threats[index].SpeciesPredictions, Has.Count.EqualTo(5));
             }
-            Assert.That(caseDefinition.ComparisonRules, Has.Count.EqualTo(20));
+            Assert.That(caseDefinition.ComparisonRules, Has.Count.EqualTo(21));
+            Assert.That(caseDefinition.InvestigationObjectives, Has.Count.EqualTo(8));
         }
 
         [Test]
@@ -172,6 +173,58 @@ namespace EDNA.Investigation.V2.Tests
         }
 
         [Test]
+        public void AcceptedNotEnoughEvidence_DoesNotLockAndCanBeReplaced()
+        {
+            InvestigationV2State state = CreateSimulationReadyState();
+            RunModel(state, "longline");
+            PredictionComparisonRecord cautious = updater.Compare(
+                state,
+                "longline",
+                "sea_star",
+                "E03_KRILL_NONDETECTION",
+                ComparisonJudgement.NotEnoughEvidence);
+            Assert.That(cautious.IsAccepted, Is.True);
+            Assert.That(cautious.LocksComparison, Is.False);
+            Assert.That(cautious.CompletesObjective, Is.False);
+
+            PredictionComparisonRecord decisive = updater.Compare(
+                state,
+                "longline",
+                "sea_star",
+                "E04_BENTHIC_STABLE",
+                ComparisonJudgement.Match);
+            Assert.That(decisive.LocksComparison, Is.True, decisive.Feedback);
+            Assert.That(decisive.CompletesObjective, Is.True, decisive.Feedback);
+            Assert.That(state.FindComparison("longline", "sea_star").EvidenceId, Is.EqualTo("E04_BENTHIC_STABLE"));
+        }
+
+        [Test]
+        public void AcceptedContextOnly_LocksButDoesNotCompleteObjective()
+        {
+            InvestigationV2State state = CreateSimulationReadyState();
+            RunModel(state, "longline");
+            PredictionComparisonRecord context = updater.Compare(
+                state,
+                "longline",
+                "mussel",
+                "E06_PLASTIC_INDICATOR_STABLE",
+                ComparisonJudgement.Match);
+            Assert.That(context.IsAccepted, Is.True);
+            Assert.That(context.LocksComparison, Is.True);
+            Assert.That(context.CompletesObjective, Is.False);
+            Assert.That(context.ProgressRole, Is.EqualTo(ComparisonProgressRole.ContextOnly));
+
+            PredictionComparisonRecord replay = updater.Compare(
+                state,
+                "longline",
+                "mussel",
+                "E06_PLASTIC_INDICATOR_STABLE",
+                ComparisonJudgement.Mismatch);
+            Assert.That(replay.Judgement, Is.EqualTo(ComparisonJudgement.Match));
+            Assert.That(replay.Feedback, Does.Contain("locked").IgnoreCase);
+        }
+
+        [Test]
         public void AcceptedComparison_IsLockedAndCannotRegressOrAddMissteps()
         {
             InvestigationV2State state = CreateSimulationReadyState();
@@ -199,7 +252,7 @@ namespace EDNA.Investigation.V2.Tests
         }
 
         [Test]
-        public void SimulateStage_RequiresFourObservedFindings()
+        public void SimulateStage_RequiresAllFiveObservedFindings()
         {
             InvestigationV2State state = updater.CreateInitialState();
             Discover(state, "E01_SHARK_NONDETECTION");
@@ -207,7 +260,45 @@ namespace EDNA.Investigation.V2.Tests
             Discover(state, "E03_KRILL_NONDETECTION");
             Assert.That(updater.TrySetPhase(state, InvestigationV2Phase.Simulate, out _), Is.False);
             Discover(state, "E04_BENTHIC_STABLE");
+            Assert.That(updater.TrySetPhase(state, InvestigationV2Phase.Simulate, out _), Is.False);
+            Discover(state, "E06_PLASTIC_INDICATOR_STABLE");
             Assert.That(updater.TrySetPhase(state, InvestigationV2Phase.Simulate, out _), Is.True);
+        }
+
+        [Test]
+        public void MissingKrillEvidence_IsReportedByObjectiveReadiness()
+        {
+            InvestigationV2CaseDefinition clone = UnityEngine.Object.Instantiate(caseDefinition);
+            try
+            {
+                SerializedObject serialized = new SerializedObject(clone);
+                serialized.FindProperty("minimumObserveDiscoveries").intValue = 4;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                InvestigationV2StateUpdater cloneUpdater = new InvestigationV2StateUpdater(clone);
+                InvestigationV2State state = cloneUpdater.CreateInitialState();
+                DiscoverWith(cloneUpdater, state, "E01_SHARK_NONDETECTION");
+                DiscoverWith(cloneUpdater, state, "E02_TUNA_WIDER_DETECTION");
+                DiscoverWith(cloneUpdater, state, "E04_BENTHIC_STABLE");
+                DiscoverWith(cloneUpdater, state, "E06_PLASTIC_INDICATOR_STABLE");
+                Assert.That(cloneUpdater.TrySetPhase(state, InvestigationV2Phase.Simulate, out _), Is.True);
+                RunWith(cloneUpdater, state, "warming");
+                Assert.That(cloneUpdater.Compare(state, "warming", PredictionTargetKind.Temperature, "temperature", "E05_TEMPERATURE_NORMAL", ComparisonJudgement.Mismatch).CompletesObjective, Is.True);
+                RunWith(cloneUpdater, state, "plastic");
+                Assert.That(cloneUpdater.Compare(state, "plastic", "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch).CompletesObjective, Is.True);
+                RunWith(cloneUpdater, state, "longline");
+                Assert.That(cloneUpdater.Compare(state, "longline", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match).CompletesObjective, Is.True);
+                Assert.That(cloneUpdater.Compare(state, "longline", "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match).CompletesObjective, Is.True);
+
+                InvestigationV2Readiness readiness = cloneUpdater.EvaluateReadiness(state);
+                Assert.That(readiness.CanEnterProvisional, Is.False);
+                Assert.That(readiness.MissingObjectiveId, Is.EqualTo("longline_krill"));
+                Assert.That(readiness.MissingEvidenceId, Is.EqualTo("E03_KRILL_NONDETECTION"));
+                Assert.That(cloneUpdater.TrySetPhase(state, InvestigationV2Phase.Observe, out _), Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(clone);
+            }
         }
 
         [Test]
@@ -221,24 +312,20 @@ namespace EDNA.Investigation.V2.Tests
         }
 
         [Test]
-        public void ProvisionalGate_RejectsFourSharedComparisonsUntilSeaStarIsComparedForBothThreats()
+        public void ProvisionalGate_RejectsSeaStarAndMusselOnlyShortcut()
         {
             InvestigationV2State state = CreateSimulationReadyState();
             RunModel(state, "longline");
-            AssertAccepted(updater.Compare(state, "longline", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match));
-            AssertAccepted(updater.Compare(state, "longline", "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match));
-            RunModel(state, "bottom_trawling");
-            AssertAccepted(updater.Compare(state, "bottom_trawling", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match));
-            AssertAccepted(updater.Compare(state, "bottom_trawling", "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match));
-
-            InvestigationV2Readiness sharedOnly = updater.EvaluateReadiness(state);
-            Assert.That(sharedOnly.MinimumComparisonsComplete, Is.True);
-            Assert.That(sharedOnly.RequiredThreatsCompared, Is.False);
-            Assert.That(sharedOnly.CanEnterProvisional, Is.False);
-
             AssertAccepted(updater.Compare(state, "longline", "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match));
+            PredictionComparisonRecord longlineMussel = updater.Compare(state, "longline", "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Match);
+            Assert.That(longlineMussel.LocksComparison, Is.True);
+            Assert.That(longlineMussel.CompletesObjective, Is.False);
+            RunModel(state, "bottom_trawling");
             AssertAccepted(updater.Compare(state, "bottom_trawling", "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch));
-            Assert.That(updater.EvaluateReadiness(state).CanEnterProvisional, Is.True);
+            PredictionComparisonRecord trawlMussel = updater.Compare(state, "bottom_trawling", "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Match);
+            Assert.That(trawlMussel.LocksComparison, Is.True);
+            Assert.That(trawlMussel.CompletesObjective, Is.False);
+            Assert.That(updater.EvaluateReadiness(state).CanEnterProvisional, Is.False);
         }
 
         [Test]
@@ -281,16 +368,21 @@ namespace EDNA.Investigation.V2.Tests
         }
 
         [Test]
-        public void WarmingModel_UnlocksTemperatureObservationWithoutBecomingAReportGate()
+        public void WarmingModel_UnlocksTemperatureObjectiveEvidence()
         {
             InvestigationV2State state = updater.CreateInitialState();
             Assert.That(state.HasDiscoveredObservation("E05_TEMPERATURE_NORMAL"), Is.False);
-            Discover(state, "E01_SHARK_NONDETECTION");
-            Discover(state, "E02_TUNA_WIDER_DETECTION");
-            Discover(state, "E03_KRILL_NONDETECTION");
-            Discover(state, "E04_BENTHIC_STABLE");
+            DiscoverCoreObservations(state);
             RunModel(state, "warming");
             Assert.That(state.HasDiscoveredObservation("E05_TEMPERATURE_NORMAL"), Is.True);
+            PredictionComparisonRecord comparison = updater.Compare(
+                state,
+                "warming",
+                PredictionTargetKind.Temperature,
+                "temperature",
+                "E05_TEMPERATURE_NORMAL",
+                ComparisonJudgement.Mismatch);
+            Assert.That(comparison.CompletesObjective, Is.True, comparison.Feedback);
         }
 
         [Test]
@@ -391,6 +483,64 @@ namespace EDNA.Investigation.V2.Tests
         }
 
         [Test]
+        public void Report_RequiresFoodWebBenthicAndRovEvidenceCategories()
+        {
+            InvestigationV2State state = PrepareProvisionalReadyState();
+            Assert.That(updater.TrySubmitProvisional(state, "longline", out _), Is.True);
+            Assert.That(updater.TryReviewConfirmation(state, out _), Is.True);
+            Assert.That(updater.TrySetFinalThreat(state, "longline", out _), Is.True);
+            Assert.That(updater.TrySetReasoning(state, "food_web_cascade", out _), Is.True);
+            Assert.That(updater.TrySetLimitation(state, "L01_NONDETECTION_LIMITATION", out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E01_SHARK_NONDETECTION", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E02_TUNA_WIDER_DETECTION", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E07_FISHING_LINE", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E08_SEAFLOOR_INTACT", true, out _), Is.True);
+
+            InvestigationV2Readiness missingBenthic = updater.EvaluateReadiness(state);
+            Assert.That(missingBenthic.EvidenceComplete, Is.True);
+            Assert.That(missingBenthic.EvidenceCategoriesComplete, Is.False);
+            Assert.That(missingBenthic.MissingEvidenceCategory, Is.EqualTo(EvidenceCategory.Benthic));
+            Assert.That(missingBenthic.CanSubmitFinal, Is.False);
+
+            Assert.That(updater.TrySetReportEvidence(state, "E04_BENTHIC_STABLE", true, out _), Is.True);
+            Assert.That(updater.EvaluateReadiness(state).CanSubmitFinal, Is.True);
+        }
+
+        [Test]
+        public void QaCheckpoint_ReportReady_MatchesManualRouteSnapshot()
+        {
+            InvestigationV2State manual = PrepareProvisionalReadyState();
+            Assert.That(updater.TrySubmitProvisional(manual, "longline", out _), Is.True);
+            InvestigationV2State checkpoint = InvestigationV2QaStateFactory.Create(
+                caseDefinition,
+                InvestigationV2QaCheckpoint.ReportReady);
+            Assert.That(CanonicalSnapshot(checkpoint), Is.EqualTo(CanonicalSnapshot(manual)));
+            Assert.That(updater.EvaluateReadiness(checkpoint).CanEnterProvisional, Is.True);
+            Assert.That(new InvestigationV2CaseValidator().Validate(caseDefinition), Is.Empty);
+        }
+
+        [Test]
+        public void QaCheckpoint_FinalReady_MatchesManualRouteSnapshot()
+        {
+            InvestigationV2State manual = PrepareProvisionalReadyState();
+            Assert.That(updater.TrySubmitProvisional(manual, "longline", out _), Is.True);
+            Assert.That(updater.TryReviewConfirmation(manual, out _), Is.True);
+            Assert.That(updater.TrySetFinalThreat(manual, "longline", out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(manual, "E01_SHARK_NONDETECTION", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(manual, "E02_TUNA_WIDER_DETECTION", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(manual, "E04_BENTHIC_STABLE", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(manual, "E07_FISHING_LINE", true, out _), Is.True);
+            Assert.That(updater.TrySetReasoning(manual, "food_web_cascade", out _), Is.True);
+            Assert.That(updater.TrySetLimitation(manual, "L01_NONDETECTION_LIMITATION", out _), Is.True);
+
+            InvestigationV2State checkpoint = InvestigationV2QaStateFactory.Create(
+                caseDefinition,
+                InvestigationV2QaCheckpoint.FinalReportReady);
+            Assert.That(CanonicalSnapshot(checkpoint), Is.EqualTo(CanonicalSnapshot(manual)));
+            Assert.That(updater.EvaluateReadiness(checkpoint).CanSubmitFinal, Is.True);
+        }
+
+        [Test]
         public void WrongFinalReport_AddsAttemptAndMisstepBeforeCorrectRetry()
         {
             InvestigationV2State state = PrepareCompleteReport("bottom_trawling");
@@ -414,6 +564,8 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(updater.TryReviewConfirmation(state, out _), Is.True);
             Assert.That(updater.TrySetFinalThreat(state, finalThreatId, out _), Is.True);
             Assert.That(updater.TrySetReportEvidence(state, "E01_SHARK_NONDETECTION", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E02_TUNA_WIDER_DETECTION", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E04_BENTHIC_STABLE", true, out _), Is.True);
             Assert.That(updater.TrySetReportEvidence(state, "E07_FISHING_LINE", true, out _), Is.True);
             Assert.That(updater.TrySetReasoning(state, "food_web_cascade", out _), Is.True);
             Assert.That(updater.TrySetLimitation(state, "L01_NONDETECTION_LIMITATION", out _), Is.True);
@@ -423,27 +575,36 @@ namespace EDNA.Investigation.V2.Tests
         private InvestigationV2State PrepareProvisionalReadyState()
         {
             InvestigationV2State state = updater.CreateInitialState();
-            Discover(state, "E01_SHARK_NONDETECTION");
-            Discover(state, "E02_TUNA_WIDER_DETECTION");
-            Discover(state, "E03_KRILL_NONDETECTION");
-            Discover(state, "E04_BENTHIC_STABLE");
+            DiscoverCoreObservations(state);
+            RunModel(state, "warming");
+            AssertObjective(updater.Compare(state, "warming", PredictionTargetKind.Temperature, "temperature", "E05_TEMPERATURE_NORMAL", ComparisonJudgement.Mismatch));
+            RunModel(state, "plastic");
+            AssertObjective(updater.Compare(state, "plastic", "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch));
             RunModel(state, "longline");
-            AssertAccepted(updater.Compare(state, "longline", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match));
-            AssertAccepted(updater.Compare(state, "longline", "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match));
+            AssertObjective(updater.Compare(state, "longline", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match));
+            AssertObjective(updater.Compare(state, "longline", "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match));
+            AssertObjective(updater.Compare(state, "longline", "krill", "E03_KRILL_NONDETECTION", ComparisonJudgement.Match));
+            AssertObjective(updater.Compare(state, "longline", "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match));
             RunModel(state, "bottom_trawling");
-            AssertAccepted(updater.Compare(state, "bottom_trawling", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match));
-            AssertAccepted(updater.Compare(state, "bottom_trawling", "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch));
+            AssertObjective(updater.Compare(state, "bottom_trawling", "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match));
+            AssertObjective(updater.Compare(state, "bottom_trawling", "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch));
             return state;
         }
 
         private InvestigationV2State CreateSimulationReadyState()
         {
             InvestigationV2State state = updater.CreateInitialState();
+            DiscoverCoreObservations(state);
+            return state;
+        }
+
+        private void DiscoverCoreObservations(InvestigationV2State state)
+        {
             Discover(state, "E01_SHARK_NONDETECTION");
             Discover(state, "E02_TUNA_WIDER_DETECTION");
             Discover(state, "E03_KRILL_NONDETECTION");
             Discover(state, "E04_BENTHIC_STABLE");
-            return state;
+            Discover(state, "E06_PLASTIC_INDICATOR_STABLE");
         }
 
         private void RunModel(InvestigationV2State state, string threatId)
@@ -457,9 +618,63 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(updater.TryDiscoverObservation(state, evidenceId, out string feedback), Is.True, feedback);
         }
 
+        private static void DiscoverWith(
+            InvestigationV2StateUpdater targetUpdater,
+            InvestigationV2State state,
+            string evidenceId)
+        {
+            Assert.That(targetUpdater.TryDiscoverObservation(state, evidenceId, out string feedback), Is.True, feedback);
+        }
+
+        private static void RunWith(
+            InvestigationV2StateUpdater targetUpdater,
+            InvestigationV2State state,
+            string threatId)
+        {
+            Assert.That(targetUpdater.TryRunThreat(state, threatId, out SimulationResult result, out string feedback), Is.True, feedback);
+            Assert.That(result, Is.Not.Null);
+        }
+
         private static void AssertAccepted(PredictionComparisonRecord record)
         {
-            Assert.That(record.CountsTowardProgress, Is.True, record.Feedback);
+            Assert.That(record.LocksComparison, Is.True, record.Feedback);
+        }
+
+        private static void AssertObjective(PredictionComparisonRecord record)
+        {
+            Assert.That(record.CompletesObjective, Is.True, record.Feedback);
+        }
+
+        private static string CanonicalSnapshot(InvestigationV2State state)
+        {
+            List<string> observations = new List<string>(state.DiscoveredObservationIds);
+            observations.Sort(StringComparer.Ordinal);
+            List<string> threats = new List<string>(state.TriedThreatIds);
+            threats.Sort(StringComparer.Ordinal);
+            List<string> comparisons = new List<string>();
+            for (int index = 0; index < state.ComparisonRecords.Count; index++)
+            {
+                PredictionComparisonRecord record = state.ComparisonRecords[index];
+                comparisons.Add($"{record.ThreatId}/{record.TargetKind}/{record.TargetId}/{record.EvidenceId}/{record.Judgement}/{record.Outcome}/{record.ObjectiveId}");
+            }
+            comparisons.Sort(StringComparer.Ordinal);
+            List<string> evidence = new List<string>(state.SelectedReportEvidenceIds);
+            evidence.Sort(StringComparer.Ordinal);
+            return string.Join("|", new[]
+            {
+                state.Phase.ToString(),
+                string.Join(",", observations),
+                string.Join(",", threats),
+                string.Join(",", comparisons),
+                state.ProvisionalThreatId,
+                state.ConfirmationReviewed.ToString(),
+                state.FinalThreatId,
+                string.Join(",", evidence),
+                state.SelectedReasoningId,
+                state.SelectedLimitationId,
+                state.MisstepCount.ToString(),
+                state.FinalSubmissionAttemptCount.ToString()
+            });
         }
 
         private static void AssertSpriteImporterUsesTransparency(UnityEngine.Sprite sprite)

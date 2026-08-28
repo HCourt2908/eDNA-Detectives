@@ -38,7 +38,7 @@ namespace EDNA.Investigation.V2
         private Action<InvestigationV2Difficulty> setDifficulty;
         private Action<string> discoverObservation;
         private Action<string> runThreat;
-        private Action<string, string, string, ComparisonJudgement> compare;
+        private Action<string, PredictionTargetKind, string, string, ComparisonJudgement> compare;
         private Action<string> submitProvisional;
         private Action reviewConfirmation;
         private Action<string> setFinalThreat;
@@ -66,6 +66,7 @@ namespace EDNA.Investigation.V2
         private Text motionText;
 
         private string selectedThreatId = string.Empty;
+        private PredictionTargetKind selectedPredictionTargetKind = PredictionTargetKind.Species;
         private string selectedPredictionSpeciesId = string.Empty;
         private string selectedObservationId = string.Empty;
         private string pendingTappedSpeciesId = string.Empty;
@@ -93,7 +94,7 @@ namespace EDNA.Investigation.V2
             Action<InvestigationV2Difficulty> onSetDifficulty,
             Action<string> onDiscoverObservation,
             Action<string> onRunThreat,
-            Action<string, string, string, ComparisonJudgement> onCompare,
+            Action<string, PredictionTargetKind, string, string, ComparisonJudgement> onCompare,
             Action<string> onSubmitProvisional,
             Action onReviewConfirmation,
             Action<string> onSetFinalThreat,
@@ -125,6 +126,7 @@ namespace EDNA.Investigation.V2
         public void ResetPresentationState()
         {
             selectedThreatId = string.Empty;
+            selectedPredictionTargetKind = PredictionTargetKind.Species;
             selectedPredictionSpeciesId = string.Empty;
             selectedObservationId = string.Empty;
             pendingTappedSpeciesId = string.Empty;
@@ -477,7 +479,7 @@ namespace EDNA.Investigation.V2
                 CreateStageButton("2 · Simulate", InvestigationV2Phase.Simulate);
                 CreateStageButton("3 · Report", InvestigationV2Phase.Report);
                 string revisions = state.MisstepCount > 0 ? $"    REVISIONS {state.MisstepCount}" : string.Empty;
-                metricsText.text = $"CASE PROGRESS    OBS {state.DiscoveredObservationIds.Count}/{caseDefinition.MinimumObserveDiscoveries}    MODELS {state.TriedThreatIds.Count}/{caseDefinition.Threats.Count}    COMPARES {state.AcceptedComparisonCount}{revisions}";
+                metricsText.text = $"CASE PROGRESS    OBS {state.DiscoveredObservationIds.Count}/{caseDefinition.MinimumObserveDiscoveries}    MODELS {state.TriedThreatIds.Count}/{caseDefinition.Threats.Count}    QUESTIONS {state.CompletedObjectiveCount}/{RequiredObjectiveCount()}{revisions}";
                 difficultyText.text = state.Difficulty == InvestigationV2Difficulty.Easy ? "Easy" : "Hard";
             }
             else
@@ -521,6 +523,17 @@ namespace EDNA.Investigation.V2
                 button.GetComponentInChildren<Text>().color = InvestigationV2Theme.TextPrimary;
                 EnsureOutline(button.gameObject, InvestigationV2Theme.Primary, new Vector2(3f, -3f));
             }
+        }
+
+        private int RequiredObjectiveCount()
+        {
+            int count = 0;
+            for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
+            {
+                InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
+                if (objective != null && objective.Required) count++;
+            }
+            return count;
         }
 
         private IEnumerator AnimatePageEntrance()

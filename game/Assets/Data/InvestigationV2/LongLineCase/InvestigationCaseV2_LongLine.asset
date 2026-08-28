@@ -34,6 +34,7 @@ MonoBehaviour:
     unlockThreatId: 
     confidence: 2
     claimType: 1
+    category: 1
     confidenceReason: Repeated high-quality non-detection is stronger than one sample,
       but it still does not prove absence.
   - evidenceId: E02_TUNA_WIDER_DETECTION
@@ -46,6 +47,7 @@ MonoBehaviour:
     unlockThreatId: 
     confidence: 1
     claimType: 2
+    category: 1
     confidenceReason: Wider detection is consistent with expansion but does not directly
       measure abundance.
   - evidenceId: E03_KRILL_NONDETECTION
@@ -58,6 +60,7 @@ MonoBehaviour:
     unlockThreatId: 
     confidence: 2
     claimType: 1
+    category: 1
     confidenceReason: The pattern supports a decline hypothesis but does not prove
       a population count.
   - evidenceId: E04_BENTHIC_STABLE
@@ -70,6 +73,7 @@ MonoBehaviour:
     unlockThreatId: 
     confidence: 1
     claimType: 4
+    category: 2
     confidenceReason: Repeated detection across the same sites supports stability,
       pending ROV confirmation of habitat condition.
   - evidenceId: E05_TEMPERATURE_NORMAL
@@ -82,6 +86,7 @@ MonoBehaviour:
     unlockThreatId: warming
     confidence: 1
     claimType: 5
+    category: 4
     confidenceReason: A normal profile challenges warming but cannot rule it out
       alone.
   - evidenceId: E06_PLASTIC_INDICATOR_STABLE
@@ -94,6 +99,7 @@ MonoBehaviour:
     unlockThreatId: 
     confidence: 1
     claimType: 4
+    category: 5
     confidenceReason: This challenges a broad plastic-impact pattern but cannot rule
       it out alone.
   - evidenceId: E07_FISHING_LINE
@@ -106,6 +112,7 @@ MonoBehaviour:
     unlockThreatId: 
     confidence: 2
     claimType: 6
+    category: 3
     confidenceReason: A physical gear observation confirms an already-developed long-line
       hypothesis.
   - evidenceId: E08_SEAFLOOR_INTACT
@@ -117,6 +124,7 @@ MonoBehaviour:
     unlockThreatId: 
     confidence: 2
     claimType: 6
+    category: 3
     confidenceReason: The intact habitat strongly challenges bottom trawling alongside
       the stable benthic eDNA pattern.
   - evidenceId: L01_NONDETECTION_LIMITATION
@@ -129,6 +137,7 @@ MonoBehaviour:
     unlockThreatId: 
     confidence: 2
     claimType: 7
+    category: 0
     confidenceReason: This scientific limitation is always available in the final
       report.
   threats:
@@ -568,6 +577,7 @@ MonoBehaviour:
           make progress.
   - threatId: plastic
     speciesId: mussel
+    progressRole: 1
     observationOptions:
     - evidenceId: E06_PLASTIC_INDICATOR_STABLE
       resolutions:
@@ -616,6 +626,7 @@ MonoBehaviour:
           make progress.
   - threatId: longline
     speciesId: shark
+    progressRole: 2
     observationOptions:
     - evidenceId: E01_SHARK_NONDETECTION
       resolutions:
@@ -664,6 +675,7 @@ MonoBehaviour:
           make progress.
   - threatId: longline
     speciesId: tuna
+    progressRole: 2
     observationOptions:
     - evidenceId: E02_TUNA_WIDER_DETECTION
       resolutions:
@@ -712,6 +724,7 @@ MonoBehaviour:
           make progress.
   - threatId: longline
     speciesId: krill
+    progressRole: 2
     observationOptions:
     - evidenceId: E03_KRILL_NONDETECTION
       resolutions:
@@ -760,6 +773,7 @@ MonoBehaviour:
           make progress.
   - threatId: longline
     speciesId: sea_star
+    progressRole: 4
     observationOptions:
     - evidenceId: E04_BENTHIC_STABLE
       resolutions:
@@ -904,6 +918,7 @@ MonoBehaviour:
           make progress.
   - threatId: bottom_trawling
     speciesId: tuna
+    progressRole: 3
     observationOptions:
     - evidenceId: E02_TUNA_WIDER_DETECTION
       resolutions:
@@ -1000,6 +1015,7 @@ MonoBehaviour:
           make progress.
   - threatId: bottom_trawling
     speciesId: sea_star
+    progressRole: 4
     observationOptions:
     - evidenceId: E04_BENTHIC_STABLE
       resolutions:
@@ -1094,7 +1110,132 @@ MonoBehaviour:
         feedback: Reasonable, but this unrelated observation does not complete the
           comparison. Choose evidence that directly tests the predicted species to
           make progress.
-  minimumObserveDiscoveries: 4
+  - threatId: warming
+    speciesId:
+    targetKind: 1
+    targetId: temperature
+    progressRole: 1
+    observationOptions:
+    - evidenceId: E05_TEMPERATURE_NORMAL
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: Compare the model's expected temperature pattern with the historical-range
+          CTD observation.
+      - judgement: 1
+        outcome: 0
+        feedback: 'Accepted: the historical-range CTD profile challenges the warming
+          model''s expected temperature or depth-shift pattern.'
+      - judgement: 2
+        outcome: 2
+        feedback: The CTD profile directly tests this temperature prediction. Decide
+          whether it matches or challenges the model.
+    - evidenceId: E04_BENTHIC_STABLE
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation does not directly test the model's temperature prediction.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation does not directly test the model's temperature prediction.
+      - judgement: 2
+        outcome: 0
+        feedback: Reasonable, but this observation does not complete the temperature
+          comparison.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation does not directly test the model's temperature prediction.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation does not directly test the model's temperature prediction.
+      - judgement: 2
+        outcome: 0
+        feedback: Reasonable, but this observation does not complete the temperature
+          comparison.
+  investigationObjectives:
+  - objectiveId: warming_temperature
+    questionId: warming
+    questionPrompt: Could warming explain the pattern?
+    threatId: warming
+    targetKind: 1
+    targetId: temperature
+    requiredEvidenceId: E05_TEMPERATURE_NORMAL
+    requiredJudgement: 1
+    progressRole: 1
+    required: 1
+  - objectiveId: plastic_mussel
+    questionId: plastic
+    questionPrompt: Does plastic fit the indicator species?
+    threatId: plastic
+    targetKind: 0
+    targetId: mussel
+    requiredEvidenceId: E06_PLASTIC_INDICATOR_STABLE
+    requiredJudgement: 1
+    progressRole: 1
+    required: 1
+  - objectiveId: longline_shark
+    questionId: food_web
+    questionPrompt: Can fishing trigger the food-web changes?
+    threatId: longline
+    targetKind: 0
+    targetId: shark
+    requiredEvidenceId: E01_SHARK_NONDETECTION
+    requiredJudgement: 0
+    progressRole: 2
+    required: 1
+  - objectiveId: longline_tuna
+    questionId: food_web
+    questionPrompt: Can fishing trigger the food-web changes?
+    threatId: longline
+    targetKind: 0
+    targetId: tuna
+    requiredEvidenceId: E02_TUNA_WIDER_DETECTION
+    requiredJudgement: 0
+    progressRole: 2
+    required: 1
+  - objectiveId: longline_krill
+    questionId: food_web
+    questionPrompt: Can fishing trigger the food-web changes?
+    threatId: longline
+    targetKind: 0
+    targetId: krill
+    requiredEvidenceId: E03_KRILL_NONDETECTION
+    requiredJudgement: 0
+    progressRole: 2
+    required: 1
+  - objectiveId: bottom_tuna
+    questionId: overlap
+    questionPrompt: Why do two fishing models partly match?
+    threatId: bottom_trawling
+    targetKind: 0
+    targetId: tuna
+    requiredEvidenceId: E02_TUNA_WIDER_DETECTION
+    requiredJudgement: 0
+    progressRole: 3
+    required: 1
+  - objectiveId: longline_seastar
+    questionId: benthic
+    questionPrompt: Which clue separates the fishing models?
+    threatId: longline
+    targetKind: 0
+    targetId: sea_star
+    requiredEvidenceId: E04_BENTHIC_STABLE
+    requiredJudgement: 0
+    progressRole: 4
+    required: 1
+  - objectiveId: bottom_seastar
+    questionId: benthic
+    questionPrompt: Which clue separates the fishing models?
+    threatId: bottom_trawling
+    targetKind: 0
+    targetId: sea_star
+    requiredEvidenceId: E04_BENTHIC_STABLE
+    requiredJudgement: 1
+    progressRole: 4
+    required: 1
+  minimumObserveDiscoveries: 5
   requiredComparedThreatIds:
   - longline
   - bottom_trawling
@@ -1106,12 +1247,19 @@ MonoBehaviour:
     requiredComparisonSpeciesIds:
     - sea_star
   requiredComparisonsPerThreat: 2
-  minimumCompletedComparisons: 4
+  minimumCompletedComparisons: 8
   correctThreatId: longline
   confirmationEvidenceIds:
   - E07_FISHING_LINE
   - E08_SEAFLOOR_INTACT
-  minimumReportEvidence: 2
+  minimumReportEvidence: 4
+  evidenceCategoryRequirements:
+  - category: 1
+    minimumCount: 2
+  - category: 2
+    minimumCount: 1
+  - category: 3
+    minimumCount: 1
   minimumConfirmationEvidenceInReport: 1
   minimumReportLimitations: 1
   requiredReasoningId: food_web_cascade

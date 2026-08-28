@@ -197,6 +197,7 @@ namespace EDNA.Investigation.V2.Tests
             Click("Species Marker tuna");
             Click("Species Marker krill");
             Click("Species Marker sea_star");
+            Click("Species Marker mussel");
             Click("Continue To Simulate");
             Click("Run Selected Model");
             Assert.That(GameObject.Find("Comparison Guide"), Is.Null);
@@ -320,6 +321,7 @@ namespace EDNA.Investigation.V2.Tests
             Click("Species Marker tuna");
             Click("Species Marker krill");
             Click("Species Marker sea_star");
+            Click("Species Marker mussel");
             Click("Continue To Simulate");
             Click("Threat bottom_trawling");
             Click("Run Selected Model");
@@ -387,11 +389,12 @@ namespace EDNA.Investigation.V2.Tests
             Click("Species Marker tuna");
             Click("Species Marker krill");
             Click("Species Marker sea_star");
+            Click("Species Marker mussel");
             InvestigationV2Controller controller = Object.FindAnyObjectByType<InvestigationV2Controller>();
-            Assert.That(controller.State.DiscoveredObservationIds, Has.Count.EqualTo(4));
+            Assert.That(controller.State.DiscoveredObservationIds, Has.Count.EqualTo(5));
             Click("Continue To Simulate");
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationV2Phase.Simulate));
-            AssertActivePageHeadingSharesRow();
+            AssertSimulateColumnsUseIndependentHeaderHeights();
             Assert.That(FindGameObject("V2 Footer").activeSelf, Is.False);
             Assert.That(FindButton("Back To Observe").GetComponentInChildren<Text>().fontSize, Is.EqualTo(11));
             Assert.That(FindButton("Back To Observe").GetComponentInChildren<Text>().text, Is.EqualTo("← Back to notebook"));
@@ -411,10 +414,23 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindGameObject("Report Gate Hint").GetComponent<RectTransform>().rect.height, Is.EqualTo(28f).Within(0.1f));
             AssertBottomAligned(FindGameObject("Report Gate Hint").GetComponent<RectTransform>(), FindGameObject("Simulation Navigation").GetComponent<RectTransform>());
             Assert.That(comparisonColumn.GetComponent<VerticalLayoutGroup>().padding.bottom, Is.EqualTo(4));
-            Assert.That(FindButton("Threat longline").transform.Find("Threat Status"), Is.Null);
+            Assert.That(FindButton("Threat longline").transform.Find("Threat Status"), Is.Not.Null);
+            Assert.That(FindGameObject("Case Questions"), Is.Not.Null);
             Assert.That(FindButton("Threat longline").GetComponents<Shadow>().Length, Is.EqualTo(1));
-            AssertSimulateContentFitsViewport();
+            AssertSimulateWorkspaceWidthFits();
+            AssertSimulatePageFitsViewportHeight();
 
+            Click("Threat warming");
+            Click("Run Selected Model");
+            Assert.That(controller.State.HasDiscoveredObservation("E05_TEMPERATURE_NORMAL"), Is.True);
+            Assert.That(FindButton("Prediction Target Temperature temperature"), Is.Not.Null);
+            CompareTarget("Prediction Target Temperature temperature", "E05_TEMPERATURE_NORMAL", "Judge Mismatch");
+
+            Click("Threat plastic");
+            Click("Run Selected Model");
+            Compare("mussel", "E06_PLASTIC_INDICATOR_STABLE", "Judge Mismatch");
+
+            Click("Threat longline");
             Click("Run Selected Model");
             Assert.That(controller.State.HasTriedThreat("longline"), Is.True);
             Assert.That(FindButton("Threat longline").transform.Find("Threat Tried"), Is.Not.Null);
@@ -429,6 +445,19 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(temperatureValue.fontSize, Is.EqualTo(14));
             Assert.That(temperatureLabel.rectTransform.TransformPoint(temperatureLabel.rectTransform.rect.center).y,
                 Is.GreaterThan(temperatureValue.rectTransform.TransformPoint(temperatureValue.rectTransform.rect.center).y + 4f));
+            AssertModelIndicatorTextVisible("TEMP");
+            AssertModelIndicatorTextVisible("SEAFLOOR");
+            AssertModelIndicatorTextVisible("LOOK FOR");
+            AssertFullBorderAccent(temperatureIndicator, InvestigationV2Theme.Primary);
+            AssertFullBorderAccent(FindGameObject("Model Indicator SEAFLOOR").transform, InvestigationV2Theme.Success);
+            AssertFullBorderAccent(FindGameObject("Model Indicator LOOK FOR").transform, InvestigationV2Theme.Accent);
+            Assert.That(temperatureIndicator.Find("Indicator Accent"), Is.Null);
+            Transform predictionSelection = FindGameObject("Prediction Selection").transform;
+            Transform observationSelection = FindGameObject("Observation Selection").transform;
+            AssertFullBorderAccent(predictionSelection, InvestigationV2Theme.Primary);
+            AssertFullBorderAccent(observationSelection, InvestigationV2Theme.Accent);
+            Assert.That(predictionSelection.Find("Panel Accent"), Is.Null);
+            Assert.That(observationSelection.Find("Panel Accent"), Is.Null);
             Click("Prediction shark");
             Text sharkObservationLabel = FindButton("Observation E01_SHARK_NONDETECTION").GetComponentInChildren<Text>();
             Assert.That(sharkObservationLabel.supportRichText, Is.True);
@@ -449,20 +478,31 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindGameObject("Reference Indicators").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(64f));
             Assert.That(FindButton("Prediction sea_star").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(44f));
             Assert.That(FindButton("Prediction mussel").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(44f));
-            AssertSimulateContentFitsViewport();
+            AssertSimulateWorkspaceWidthFits();
+            AssertSimulatePageFitsViewportHeight();
             Image sharkArtwork = FindButton("Prediction shark").transform.Find("Species Artwork").GetComponent<Image>();
             Assert.That(sharkArtwork.sprite, Is.Not.Null);
             Compare("shark", "E01_SHARK_NONDETECTION", "Judge Match");
             Assert.That(FindButton("Prediction shark").transform.Find("Comparison Locked").GetComponent<Image>().sprite, Is.Not.Null);
+            Compare("tuna", "E02_TUNA_WIDER_DETECTION", "Judge Match");
+            Compare("krill", "E03_KRILL_NONDETECTION", "Judge Match");
             Compare("sea_star", "E04_BENTHIC_STABLE", "Judge Match");
 
             Click("Threat bottom_trawling");
             Click("Run Selected Model");
             Assert.That(controller.State.HasTriedThreat("bottom_trawling"), Is.True);
-            Compare("shark", "E01_SHARK_NONDETECTION", "Judge Match");
+            Compare("tuna", "E02_TUNA_WIDER_DETECTION", "Judge Match");
             Compare("sea_star", "E04_BENTHIC_STABLE", "Judge Mismatch");
 
-            Assert.That(controller.State.AcceptedComparisonCount, Is.EqualTo(4));
+            Assert.That(controller.State.CompletedObjectiveCount, Is.EqualTo(8));
+            Assert.That(controller.State.AcceptedComparisonCount, Is.EqualTo(8));
+            Transform completedQuestionGrid = FindGameObject("Case Question Grid").transform;
+            for (int questionIndex = 0; questionIndex < completedQuestionGrid.childCount; questionIndex++)
+            {
+                Transform child = completedQuestionGrid.GetChild(questionIndex);
+                if (!child.name.StartsWith("Case Question ", StringComparison.Ordinal)) continue;
+                Assert.That(child.Find("Question Status").GetComponent<Image>().sprite, Is.EqualTo(InvestigationV2StatusIconLibrary.Check));
+            }
             Assert.That(FindButton("Write Provisional Report").GetComponents<Shadow>().Length, Is.EqualTo(1));
             Assert.That(FindButton("Write Provisional Report").GetComponent<Outline>(), Is.Null);
             Assert.That(FindButton("Write Provisional Report").GetComponent<RectTransform>().rect.height, Is.EqualTo(28f).Within(0.1f));
@@ -475,6 +515,9 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindButton("Back To Simulator").GetComponent<RectTransform>().rect.size, Is.EqualTo(new Vector2(126f, 30f)));
             Assert.That(FindButton("Restart V2 Case").GetComponent<RectTransform>().rect.size, Is.EqualTo(new Vector2(100f, 30f)));
             Assert.That(FindButton("Review ROV Follow-up").GetComponent<RectTransform>().rect.size, Is.EqualTo(new Vector2(104f, 30f)));
+            Transform sealedConfirmation = FindGameObject("ROV Confirmation").transform;
+            AssertFullBorderAccent(sealedConfirmation, InvestigationV2Theme.Primary);
+            Assert.That(sealedConfirmation.Find("Panel Accent"), Is.Null);
             Canvas.ForceUpdateCanvases();
             RectTransform reportLeft = FindGameObject("Report Cause And Reasoning").GetComponent<RectTransform>();
             RectTransform reportRight = FindGameObject("Report Evidence And Limitation").GetComponent<RectTransform>();
@@ -533,6 +576,9 @@ namespace EDNA.Investigation.V2.Tests
                 "Reviewing the ROV follow-up must not jump the Report back to the top.");
             AssertSameRow("ROV Title", "ROV Detail");
             Assert.That(FindGameObject("ROV Confirmation").GetComponent<RectTransform>().rect.height, Is.EqualTo(154f).Within(0.1f));
+            Transform reviewedConfirmation = FindGameObject("ROV Confirmation").transform;
+            AssertFullBorderAccent(reviewedConfirmation, InvestigationV2Theme.Success);
+            Assert.That(reviewedConfirmation.Find("Panel Accent"), Is.Null);
             Rect rovSummary = WorldRect(FindGameObject("ROV Title").GetComponent<RectTransform>());
             Rect rovEvidence = WorldRect(FindGameObject("ROV Evidence").GetComponent<RectTransform>());
             Assert.That(rovSummary.yMin - rovEvidence.yMax, Is.InRange(0f, 9f),
@@ -665,18 +711,22 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindButton("Final Cause longline").transform.Find("Selected Check"), Is.Not.Null);
 
             Click("Submit Final Report");
-            Assert.That(FindGameObject("Report Outcome").GetComponentInChildren<Text>().text, Does.Contain("Select at least two observations"));
+            Assert.That(FindGameObject("Report Outcome").GetComponentInChildren<Text>().text, Does.Contain("Select at least 4 observations"));
             Click("Report Evidence E01_SHARK_NONDETECTION");
             yield return null;
             Assert.That(FindButton("Report Evidence E01_SHARK_NONDETECTION").transform.Find("Selected Check"), Is.Not.Null);
             Click("Report Evidence E02_TUNA_WIDER_DETECTION");
-            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("Selected 2 / 2 minimum"));
-            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("ROV 0 / 1 minimum"));
+            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("Selected 2 / 4"));
+            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("FOOD WEB 2 / 2"));
+            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("BENTHIC 0 / 1"));
+            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("ROV 0 / 1"));
             Click("Submit Final Report");
-            Assert.That(FindGameObject("Report Outcome").GetComponentInChildren<Text>().text, Does.Contain("ROV confirmation"));
+            Assert.That(FindGameObject("Report Outcome").GetComponentInChildren<Text>().text, Does.Contain("Select at least 4 observations"));
+            Click("Report Evidence E04_BENTHIC_STABLE");
             Click("Report Evidence E07_FISHING_LINE");
-            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("Selected 3 / 2 minimum"));
-            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("ROV 1 / 1 minimum"));
+            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("Selected 4 / 4"));
+            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("BENTHIC 1 / 1"));
+            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("ROV 1 / 1"));
             Click("Submit Final Report");
             Assert.That(FindGameObject("Report Outcome").GetComponentInChildren<Text>().text, Does.Contain("food-web cascade"));
             Click("Reasoning food_web_cascade");
@@ -753,7 +803,8 @@ namespace EDNA.Investigation.V2.Tests
             Click("Species Marker tuna");
             Click("Species Marker krill");
             Click("Species Marker sea_star");
-            Assert.That(controller.State.DiscoveredObservationIds, Has.Count.EqualTo(4));
+            Click("Species Marker mussel");
+            Assert.That(controller.State.DiscoveredObservationIds, Has.Count.EqualTo(5));
             Click("Continue To Simulate");
             Click("Threat plastic");
             Click("Run Selected Model");
@@ -790,6 +841,13 @@ namespace EDNA.Investigation.V2.Tests
         private static void Compare(string speciesId, string evidenceId, string judgementButtonName)
         {
             Click($"Prediction {speciesId}");
+            Click($"Observation {evidenceId}");
+            Click(judgementButtonName);
+        }
+
+        private static void CompareTarget(string targetButtonName, string evidenceId, string judgementButtonName)
+        {
+            Click(targetButtonName);
             Click($"Observation {evidenceId}");
             Click(judgementButtonName);
         }
@@ -918,12 +976,97 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(block.GetComponent<RectTransform>().rect.height, Is.EqualTo(expectedHeight).Within(0.1f));
         }
 
-        private static void AssertSimulateContentFitsViewport()
+        private static void AssertSimulateWorkspaceWidthFits()
         {
             ScrollRect scroll = FindGameObject("V2 Content").GetComponent<ScrollRect>();
             Canvas.ForceUpdateCanvases();
-            Assert.That(scroll.content.rect.height, Is.LessThanOrEqualTo(scroll.viewport.rect.height + 1f));
             Assert.That(scroll.content.rect.width, Is.LessThanOrEqualTo(scroll.viewport.rect.width + 1f));
+        }
+
+        private static void AssertSimulatePageFitsViewportHeight()
+        {
+            ScrollRect scroll = FindGameObject("V2 Content").GetComponent<ScrollRect>();
+            Canvas.ForceUpdateCanvases();
+            Rect viewport = WorldRect(scroll.viewport);
+            Rect workspace = WorldRect(FindGameObject("Simulate Workspace").GetComponent<RectTransform>());
+            Assert.That(workspace.height, Is.LessThanOrEqualTo(viewport.height + 1f),
+                "The compact Simulate workspace should fit in one landscape viewport.");
+            Assert.That(workspace.yMin, Is.GreaterThanOrEqualTo(viewport.yMin - 1f));
+            Assert.That(WorldRect(FindGameObject("Simulation Models").GetComponent<RectTransform>()).yMin,
+                Is.GreaterThanOrEqualTo(viewport.yMin - 1f));
+            Assert.That(WorldRect(FindGameObject("Simulation Navigation").GetComponent<RectTransform>()).yMin,
+                Is.GreaterThanOrEqualTo(viewport.yMin - 1f));
+        }
+
+        private static void AssertSimulateColumnsUseIndependentHeaderHeights()
+        {
+            Canvas.ForceUpdateCanvases();
+            RectTransform workspace = FindGameObject("Simulate Workspace").GetComponent<RectTransform>();
+            RectTransform leftColumn = FindGameObject("Simulate Left Column").GetComponent<RectTransform>();
+            RectTransform rightColumn = FindGameObject("Simulate Right Column").GetComponent<RectTransform>();
+            RectTransform introduction = FindGameObject("Simulate Introduction").GetComponent<RectTransform>();
+            RectTransform questions = FindGameObject("Case Questions").GetComponent<RectTransform>();
+            RectTransform models = FindGameObject("Simulation Models").GetComponent<RectTransform>();
+            RectTransform comparison = FindGameObject("Comparison Workspace").GetComponent<RectTransform>();
+            RectTransform title = FindGameObject("Simulate Title").GetComponent<RectTransform>();
+            RectTransform description = FindGameObject("Simulate Description").GetComponent<RectTransform>();
+            RectTransform questionGrid = FindGameObject("Case Question Grid").GetComponent<RectTransform>();
+            Assert.That(leftColumn.parent, Is.EqualTo(workspace));
+            Assert.That(rightColumn.parent, Is.EqualTo(workspace));
+            Assert.That(introduction.parent, Is.EqualTo(leftColumn));
+            Assert.That(questions.parent, Is.EqualTo(rightColumn));
+            Assert.That(models.parent, Is.EqualTo(leftColumn));
+            Assert.That(comparison.parent, Is.EqualTo(rightColumn));
+            Assert.That(leftColumn.position.x, Is.LessThan(rightColumn.position.x));
+            Assert.That(Mathf.Abs(leftColumn.rect.width - rightColumn.rect.width), Is.LessThan(3f));
+            Assert.That(introduction.rect.height, Is.EqualTo(42f).Within(0.5f));
+            Assert.That(questions.rect.height, Is.EqualTo(110f).Within(0.5f));
+            Assert.That(WorldRect(introduction).yMax, Is.EqualTo(WorldRect(questions).yMax).Within(1f));
+            Assert.That(WorldRect(models).yMax, Is.LessThan(WorldRect(introduction).yMin));
+            Assert.That(WorldRect(comparison).yMax, Is.LessThan(WorldRect(questions).yMin));
+            Assert.That(title.rect.width, Is.LessThanOrEqualTo(introduction.rect.width + 0.5f));
+            Assert.That(description.rect.width, Is.LessThanOrEqualTo(introduction.rect.width + 0.5f));
+            Assert.That(questionGrid.parent, Is.EqualTo(questions));
+            Assert.That(questionGrid.childCount, Is.EqualTo(5));
+            Assert.That(questionGrid.GetComponent<InvestigationV2ResponsiveGridLayout>(), Is.Not.Null);
+            Rect firstQuestion = WorldRect(questionGrid.GetChild(0).GetComponent<RectTransform>());
+            Rect secondQuestion = WorldRect(questionGrid.GetChild(1).GetComponent<RectTransform>());
+            Rect thirdQuestion = WorldRect(questionGrid.GetChild(2).GetComponent<RectTransform>());
+            Rect fourthQuestion = WorldRect(questionGrid.GetChild(3).GetComponent<RectTransform>());
+            Assert.That(firstQuestion.center.y, Is.EqualTo(secondQuestion.center.y).Within(1f));
+            Assert.That(thirdQuestion.center.y, Is.EqualTo(fourthQuestion.center.y).Within(1f));
+            Assert.That(firstQuestion.center.x, Is.LessThan(secondQuestion.center.x));
+            Assert.That(thirdQuestion.center.x, Is.LessThan(fourthQuestion.center.x));
+            Assert.That(thirdQuestion.center.y, Is.LessThan(firstQuestion.center.y));
+            for (int index = 0; index < questionGrid.childCount; index++)
+            {
+                Transform child = questionGrid.GetChild(index);
+                if (!child.name.StartsWith("Case Question ", StringComparison.Ordinal)) continue;
+                Text prompt = child.Find("Question Prompt").GetComponent<Text>();
+                Assert.That(prompt.text, Is.Not.Empty);
+                Assert.That(prompt.fontSize, Is.EqualTo(13));
+                Assert.That(prompt.rectTransform.rect.height + 0.5f, Is.GreaterThanOrEqualTo(prompt.preferredHeight),
+                    $"Case question text is clipped: {prompt.text}");
+            }
+        }
+
+        private static void AssertModelIndicatorTextVisible(string indicatorId)
+        {
+            Transform indicator = FindGameObject($"Model Indicator {indicatorId}").transform;
+            Text label = indicator.Find("Indicator Label").GetComponent<Text>();
+            Text value = indicator.Find("Indicator Value").GetComponent<Text>();
+            Assert.That(label.text, Is.Not.Empty);
+            Assert.That(value.text, Is.Not.Empty);
+            Assert.That(label.rectTransform.rect.height, Is.GreaterThan(8f));
+            Assert.That(value.rectTransform.rect.height, Is.GreaterThan(8f));
+        }
+
+        private static void AssertFullBorderAccent(Transform target, Color expectedColor)
+        {
+            Outline outline = target.GetComponent<Outline>();
+            Assert.That(outline, Is.Not.Null);
+            Assert.That(outline.effectColor, Is.EqualTo(expectedColor));
+            Assert.That(outline.effectDistance, Is.EqualTo(new Vector2(2f, -2f)));
         }
 
         private static void AssertBottomAligned(RectTransform child, RectTransform parent)

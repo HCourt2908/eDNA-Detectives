@@ -69,13 +69,45 @@ namespace EDNA.Investigation.V2.Domain
 
         public PredictionComparisonRecord FindComparison(string threatId, string speciesId)
         {
+            return FindComparison(threatId, PredictionTargetKind.Species, speciesId);
+        }
+
+        public PredictionComparisonRecord FindComparison(
+            string threatId,
+            PredictionTargetKind targetKind,
+            string targetId)
+        {
             for (int index = 0; index < comparisonRecords.Count; index++)
             {
                 PredictionComparisonRecord record = comparisonRecords[index];
                 if (string.Equals(record.ThreatId, threatId, StringComparison.Ordinal)
-                    && string.Equals(record.SpeciesId, speciesId, StringComparison.Ordinal)) return record;
+                    && record.TargetKind == targetKind
+                    && string.Equals(record.TargetId, targetId, StringComparison.Ordinal)) return record;
             }
             return null;
+        }
+
+        public bool HasCompletedObjective(string objectiveId)
+        {
+            if (string.IsNullOrEmpty(objectiveId)) return false;
+            for (int index = 0; index < comparisonRecords.Count; index++)
+            {
+                PredictionComparisonRecord record = comparisonRecords[index];
+                if (record.CompletesObjective
+                    && string.Equals(record.ObjectiveId, objectiveId, StringComparison.Ordinal)) return true;
+            }
+            return false;
+        }
+
+        public int CompletedObjectiveCount
+        {
+            get
+            {
+                int count = 0;
+                for (int index = 0; index < comparisonRecords.Count; index++)
+                    if (comparisonRecords[index].CompletesObjective) count++;
+                return count;
+            }
         }
 
         internal void DiscoverObservation(string evidenceId)
@@ -105,11 +137,12 @@ namespace EDNA.Investigation.V2.Domain
             {
                 PredictionComparisonRecord existing = comparisonRecords[index];
                 if (string.Equals(existing.ThreatId, record.ThreatId, StringComparison.Ordinal)
-                    && string.Equals(existing.SpeciesId, record.SpeciesId, StringComparison.Ordinal))
+                    && existing.TargetKind == record.TargetKind
+                    && string.Equals(existing.TargetId, record.TargetId, StringComparison.Ordinal))
                 {
-                    // An accepted scientific judgement is a committed notebook entry.
-                    // It can be reviewed, but cannot be replaced or made to regress.
-                    if (existing.CountsTowardProgress) return false;
+                    // A decisive accepted judgement is committed. A scientifically
+                    // acceptable NotEnoughEvidence remains revisable and never locks.
+                    if (existing.LocksComparison) return false;
                     comparisonRecords.RemoveAt(index);
                 }
             }

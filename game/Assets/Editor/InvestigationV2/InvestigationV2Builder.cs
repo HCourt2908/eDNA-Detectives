@@ -160,14 +160,16 @@ namespace EDNA.Investigation.V2.Editor
             SetObservations(caseObject);
             SetObjectArray(caseObject, "threats", threats);
             SetComparisonRules(caseObject, threats, species);
-            SetInteger(caseObject, "minimumObserveDiscoveries", 4);
+            SetInvestigationObjectives(caseObject);
+            SetInteger(caseObject, "minimumObserveDiscoveries", 5);
             SetStringArray(caseObject, "requiredComparedThreatIds", new[] { "longline", "bottom_trawling" });
             SetRequiredComparisonSpecies(caseObject);
             SetInteger(caseObject, "requiredComparisonsPerThreat", 2);
-            SetInteger(caseObject, "minimumCompletedComparisons", 4);
+            SetInteger(caseObject, "minimumCompletedComparisons", 8);
             SetString(caseObject, "correctThreatId", "longline");
             SetStringArray(caseObject, "confirmationEvidenceIds", new[] { "E07_FISHING_LINE", "E08_SEAFLOOR_INTACT" });
-            SetInteger(caseObject, "minimumReportEvidence", 2);
+            SetInteger(caseObject, "minimumReportEvidence", 4);
+            SetEvidenceCategoryRequirements(caseObject);
             SetInteger(caseObject, "minimumConfirmationEvidenceInReport", 1);
             SetInteger(caseObject, "minimumReportLimitations", 1);
             SetString(caseObject, "requiredReasoningId", "food_web_cascade");
@@ -369,15 +371,15 @@ namespace EDNA.Investigation.V2.Editor
         {
             SerializedProperty array = caseObject.FindProperty("observations");
             array.arraySize = 9;
-            SetObservation(array.GetArrayElementAtIndex(0), "E01_SHARK_NONDETECTION", "Shark repeatedly not detected", "Shark DNA was not detected in several high-quality samples across the surveyed depths.", "shark", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, V2EvidenceConfidence.High, ObservationClaimType.NotDetected, "Repeated high-quality non-detection is stronger than one sample, but it still does not prove absence.");
-            SetObservation(array.GetArrayElementAtIndex(1), "E02_TUNA_WIDER_DETECTION", "Tuna detected at more sites", "Tuna DNA was detected across more survey locations than in the historical baseline.", "tuna", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, V2EvidenceConfidence.Medium, ObservationClaimType.ChangedDepthOrDistribution, "Wider detection is consistent with expansion but does not directly measure abundance.");
-            SetObservation(array.GetArrayElementAtIndex(2), "E03_KRILL_NONDETECTION", "Krill repeatedly not detected", "Krill DNA was not detected in several high-quality samples where it was historically expected.", "krill", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, V2EvidenceConfidence.High, ObservationClaimType.NotDetected, "The pattern supports a decline hypothesis but does not prove a population count.");
-            SetObservation(array.GetArrayElementAtIndex(3), "E04_BENTHIC_STABLE", "Sea star remains stable", "The benthic indicator was repeatedly detected at its historical deep sites.", "sea_star", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, V2EvidenceConfidence.Medium, ObservationClaimType.MatchesBaseline, "Repeated detection across the same sites supports stability, pending ROV confirmation of habitat condition.");
-            SetObservation(array.GetArrayElementAtIndex(4), "E05_TEMPERATURE_NORMAL", "Temperature remains in the historical range", "The multi-depth CTD profile remains within the historical range and no coherent depth-shift pattern appears.", "shark", ObservationSource.CTDLog, EvidenceUnlockStage.OnThreatRun, "warming", V2EvidenceConfidence.Medium, ObservationClaimType.EnvironmentalReading, "A normal profile challenges warming but cannot rule it out alone.");
-            SetObservation(array.GetArrayElementAtIndex(5), "E06_PLASTIC_INDICATOR_STABLE", "Filter-feeding mussel remains stable", "The plastic-sensitive reference species remains detected at its historical sites.", "mussel", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, V2EvidenceConfidence.Medium, ObservationClaimType.MatchesBaseline, "This challenges a broad plastic-impact pattern but cannot rule it out alone.");
-            SetObservation(array.GetArrayElementAtIndex(6), "E07_FISHING_LINE", "Fishing line recorded near shark habitat", "ROV footage shows fishing line near the area where sharks were historically recorded.", "shark", ObservationSource.ROV, EvidenceUnlockStage.AfterProvisional, string.Empty, V2EvidenceConfidence.High, ObservationClaimType.PhysicalObservation, "A physical gear observation confirms an already-developed long-line hypothesis.");
-            SetObservation(array.GetArrayElementAtIndex(7), "E08_SEAFLOOR_INTACT", "Seafloor remains intact", "ROV footage shows no obvious trawl marks or broad habitat damage.", "sea_star", ObservationSource.ROV, EvidenceUnlockStage.AfterProvisional, string.Empty, V2EvidenceConfidence.High, ObservationClaimType.PhysicalObservation, "The intact habitat strongly challenges bottom trawling alongside the stable benthic eDNA pattern.");
-            SetObservation(array.GetArrayElementAtIndex(8), "L01_NONDETECTION_LIMITATION", "Not detected does not mean gone", "eDNA non-detection does not prove complete absence; sampling and detection limits remain.", string.Empty, ObservationSource.Methodology, EvidenceUnlockStage.Always, string.Empty, V2EvidenceConfidence.High, ObservationClaimType.MethodologicalLimitation, "This scientific limitation is always available in the final report.");
+            SetObservation(array.GetArrayElementAtIndex(0), "E01_SHARK_NONDETECTION", "Shark repeatedly not detected", "Shark DNA was not detected in several high-quality samples across the surveyed depths.", "shark", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, V2EvidenceConfidence.High, ObservationClaimType.NotDetected, EvidenceCategory.FoodWeb, "Repeated high-quality non-detection is stronger than one sample, but it still does not prove absence.");
+            SetObservation(array.GetArrayElementAtIndex(1), "E02_TUNA_WIDER_DETECTION", "Tuna detected at more sites", "Tuna DNA was detected across more survey locations than in the historical baseline.", "tuna", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, V2EvidenceConfidence.Medium, ObservationClaimType.ChangedDepthOrDistribution, EvidenceCategory.FoodWeb, "Wider detection is consistent with expansion but does not directly measure abundance.");
+            SetObservation(array.GetArrayElementAtIndex(2), "E03_KRILL_NONDETECTION", "Krill repeatedly not detected", "Krill DNA was not detected in several high-quality samples where it was historically expected.", "krill", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, V2EvidenceConfidence.High, ObservationClaimType.NotDetected, EvidenceCategory.FoodWeb, "The pattern supports a decline hypothesis but does not prove a population count.");
+            SetObservation(array.GetArrayElementAtIndex(3), "E04_BENTHIC_STABLE", "Sea star remains stable", "The benthic indicator was repeatedly detected at its historical deep sites.", "sea_star", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, V2EvidenceConfidence.Medium, ObservationClaimType.MatchesBaseline, EvidenceCategory.Benthic, "Repeated detection across the same sites supports stability, pending ROV confirmation of habitat condition.");
+            SetObservation(array.GetArrayElementAtIndex(4), "E05_TEMPERATURE_NORMAL", "Temperature remains in the historical range", "The multi-depth CTD profile remains within the historical range and no coherent depth-shift pattern appears.", "shark", ObservationSource.CTDLog, EvidenceUnlockStage.OnThreatRun, "warming", V2EvidenceConfidence.Medium, ObservationClaimType.EnvironmentalReading, EvidenceCategory.Environmental, "A normal profile challenges warming but cannot rule it out alone.");
+            SetObservation(array.GetArrayElementAtIndex(5), "E06_PLASTIC_INDICATOR_STABLE", "Filter-feeding mussel remains stable", "The plastic-sensitive reference species remains detected at its historical sites.", "mussel", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, V2EvidenceConfidence.Medium, ObservationClaimType.MatchesBaseline, EvidenceCategory.Alternative, "This challenges a broad plastic-impact pattern but cannot rule it out alone.");
+            SetObservation(array.GetArrayElementAtIndex(6), "E07_FISHING_LINE", "Fishing line recorded near shark habitat", "ROV footage shows fishing line near the area where sharks were historically recorded.", "shark", ObservationSource.ROV, EvidenceUnlockStage.AfterProvisional, string.Empty, V2EvidenceConfidence.High, ObservationClaimType.PhysicalObservation, EvidenceCategory.Confirmation, "A physical gear observation confirms an already-developed long-line hypothesis.");
+            SetObservation(array.GetArrayElementAtIndex(7), "E08_SEAFLOOR_INTACT", "Seafloor remains intact", "ROV footage shows no obvious trawl marks or broad habitat damage.", "sea_star", ObservationSource.ROV, EvidenceUnlockStage.AfterProvisional, string.Empty, V2EvidenceConfidence.High, ObservationClaimType.PhysicalObservation, EvidenceCategory.Confirmation, "The intact habitat strongly challenges bottom trawling alongside the stable benthic eDNA pattern.");
+            SetObservation(array.GetArrayElementAtIndex(8), "L01_NONDETECTION_LIMITATION", "Not detected does not mean gone", "eDNA non-detection does not prove complete absence; sampling and detection limits remain.", string.Empty, ObservationSource.Methodology, EvidenceUnlockStage.Always, string.Empty, V2EvidenceConfidence.High, ObservationClaimType.MethodologicalLimitation, EvidenceCategory.General, "This scientific limitation is always available in the final report.");
         }
 
         private static void SetObservation(
@@ -391,6 +393,7 @@ namespace EDNA.Investigation.V2.Editor
             string unlockThreatId,
             V2EvidenceConfidence confidence,
             ObservationClaimType claimType,
+            EvidenceCategory category,
             string confidenceReason)
         {
             property.FindPropertyRelative("evidenceId").stringValue = id;
@@ -402,6 +405,7 @@ namespace EDNA.Investigation.V2.Editor
             property.FindPropertyRelative("unlockThreatId").stringValue = unlockThreatId;
             property.FindPropertyRelative("confidence").enumValueIndex = (int)confidence;
             property.FindPropertyRelative("claimType").enumValueIndex = (int)claimType;
+            property.FindPropertyRelative("category").enumValueIndex = (int)category;
             property.FindPropertyRelative("confidenceReason").stringValue = confidenceReason;
         }
 
@@ -411,7 +415,7 @@ namespace EDNA.Investigation.V2.Editor
             IReadOnlyList<InvestigationV2SpeciesDefinition> species)
         {
             SerializedProperty rules = caseObject.FindProperty("comparisonRules");
-            rules.arraySize = threats.Count * species.Count;
+            rules.arraySize = threats.Count * species.Count + 1;
             int ruleIndex = 0;
             for (int threatIndex = 0; threatIndex < threats.Count; threatIndex++)
             {
@@ -423,6 +427,9 @@ namespace EDNA.Investigation.V2.Editor
                     SerializedProperty rule = rules.GetArrayElementAtIndex(ruleIndex++);
                     rule.FindPropertyRelative("threatId").stringValue = threat.ThreatId;
                     rule.FindPropertyRelative("speciesId").stringValue = speciesDefinition.SpeciesId;
+                    rule.FindPropertyRelative("targetKind").enumValueIndex = (int)PredictionTargetKind.Species;
+                    rule.FindPropertyRelative("targetId").stringValue = speciesDefinition.SpeciesId;
+                    rule.FindPropertyRelative("progressRole").enumValueIndex = (int)ProgressRoleFor(threat.ThreatId, speciesDefinition.SpeciesId);
                     string[] candidates = CandidateEvidence(speciesDefinition.SpeciesId);
                     SerializedProperty options = rule.FindPropertyRelative("observationOptions");
                     options.arraySize = candidates.Length;
@@ -437,6 +444,79 @@ namespace EDNA.Investigation.V2.Editor
                             candidates[optionIndex]);
                     }
                 }
+            }
+
+            SetTemperatureComparisonRule(rules.GetArrayElementAtIndex(ruleIndex));
+        }
+
+        private static ComparisonProgressRole ProgressRoleFor(string threatId, string speciesId)
+        {
+            if (threatId == "plastic" && speciesId == "mussel") return ComparisonProgressRole.AlternativeCauseCheck;
+            if (threatId == "longline" && (speciesId == "shark" || speciesId == "tuna" || speciesId == "krill"))
+                return ComparisonProgressRole.FoodWebCascade;
+            if (threatId == "bottom_trawling" && speciesId == "tuna") return ComparisonProgressRole.SharedPrediction;
+            if ((threatId == "longline" || threatId == "bottom_trawling") && speciesId == "sea_star")
+                return ComparisonProgressRole.BenthicDiscriminator;
+            return ComparisonProgressRole.ContextOnly;
+        }
+
+        private static void SetTemperatureComparisonRule(SerializedProperty rule)
+        {
+            rule.FindPropertyRelative("threatId").stringValue = "warming";
+            rule.FindPropertyRelative("speciesId").stringValue = string.Empty;
+            rule.FindPropertyRelative("targetKind").enumValueIndex = (int)PredictionTargetKind.Temperature;
+            rule.FindPropertyRelative("targetId").stringValue = "temperature";
+            rule.FindPropertyRelative("progressRole").enumValueIndex = (int)ComparisonProgressRole.AlternativeCauseCheck;
+            SerializedProperty options = rule.FindPropertyRelative("observationOptions");
+            options.arraySize = 3;
+            SetTemperatureOption(options.GetArrayElementAtIndex(0), "E05_TEMPERATURE_NORMAL", ComparisonJudgement.Mismatch,
+                "Accepted: the historical-range CTD profile challenges the warming model's expected temperature or depth-shift pattern.");
+            SetUnrelatedOption(options.GetArrayElementAtIndex(1), "E04_BENTHIC_STABLE");
+            SetUnrelatedOption(options.GetArrayElementAtIndex(2), "E01_SHARK_NONDETECTION");
+        }
+
+        private static void SetTemperatureOption(
+            SerializedProperty option,
+            string evidenceId,
+            ComparisonJudgement acceptedJudgement,
+            string acceptedFeedback)
+        {
+            option.FindPropertyRelative("evidenceId").stringValue = evidenceId;
+            SerializedProperty resolutions = option.FindPropertyRelative("resolutions");
+            resolutions.arraySize = 3;
+            for (int index = 0; index < 3; index++)
+            {
+                ComparisonJudgement judgement = (ComparisonJudgement)index;
+                SerializedProperty resolution = resolutions.GetArrayElementAtIndex(index);
+                resolution.FindPropertyRelative("judgement").enumValueIndex = index;
+                bool accepted = judgement == acceptedJudgement;
+                resolution.FindPropertyRelative("outcome").enumValueIndex = accepted
+                    ? (int)ComparisonEvaluationOutcome.Accepted
+                    : (int)ComparisonEvaluationOutcome.Incorrect;
+                resolution.FindPropertyRelative("feedback").stringValue = accepted
+                    ? acceptedFeedback
+                    : judgement == ComparisonJudgement.NotEnoughEvidence
+                        ? "The CTD profile directly tests this temperature prediction. Decide whether it matches or challenges the model."
+                        : "Compare the model's expected temperature pattern with the historical-range CTD observation.";
+            }
+        }
+
+        private static void SetUnrelatedOption(SerializedProperty option, string evidenceId)
+        {
+            option.FindPropertyRelative("evidenceId").stringValue = evidenceId;
+            SerializedProperty resolutions = option.FindPropertyRelative("resolutions");
+            resolutions.arraySize = 3;
+            for (int index = 0; index < 3; index++)
+            {
+                ComparisonJudgement judgement = (ComparisonJudgement)index;
+                SerializedProperty resolution = resolutions.GetArrayElementAtIndex(index);
+                resolution.FindPropertyRelative("judgement").enumValueIndex = index;
+                resolution.FindPropertyRelative("outcome").enumValueIndex = judgement == ComparisonJudgement.NotEnoughEvidence
+                    ? (int)ComparisonEvaluationOutcome.Accepted
+                    : (int)ComparisonEvaluationOutcome.Incorrect;
+                resolution.FindPropertyRelative("feedback").stringValue = judgement == ComparisonJudgement.NotEnoughEvidence
+                    ? "Reasonable, but this observation does not complete the temperature comparison."
+                    : "This observation does not directly test the model's temperature prediction.";
             }
         }
 
@@ -568,6 +648,62 @@ namespace EDNA.Investigation.V2.Editor
                 case "E06_PLASTIC_INDICATOR_STABLE": return "mussel";
                 default: return string.Empty;
             }
+        }
+
+        private static void SetInvestigationObjectives(SerializedObject caseObject)
+        {
+            SerializedProperty objectives = caseObject.FindProperty("investigationObjectives");
+            objectives.arraySize = 8;
+            SetObjective(objectives.GetArrayElementAtIndex(0), "warming_temperature", "warming", "Could warming explain the pattern?", "warming", PredictionTargetKind.Temperature, "temperature", "E05_TEMPERATURE_NORMAL", ComparisonJudgement.Mismatch, ComparisonProgressRole.AlternativeCauseCheck);
+            SetObjective(objectives.GetArrayElementAtIndex(1), "plastic_mussel", "plastic", "Does plastic fit the indicator species?", "plastic", PredictionTargetKind.Species, "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch, ComparisonProgressRole.AlternativeCauseCheck);
+            SetObjective(objectives.GetArrayElementAtIndex(2), "longline_shark", "food_web", "Can fishing trigger the food-web changes?", "longline", PredictionTargetKind.Species, "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match, ComparisonProgressRole.FoodWebCascade);
+            SetObjective(objectives.GetArrayElementAtIndex(3), "longline_tuna", "food_web", "Can fishing trigger the food-web changes?", "longline", PredictionTargetKind.Species, "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match, ComparisonProgressRole.FoodWebCascade);
+            SetObjective(objectives.GetArrayElementAtIndex(4), "longline_krill", "food_web", "Can fishing trigger the food-web changes?", "longline", PredictionTargetKind.Species, "krill", "E03_KRILL_NONDETECTION", ComparisonJudgement.Match, ComparisonProgressRole.FoodWebCascade);
+            SetObjective(objectives.GetArrayElementAtIndex(5), "bottom_tuna", "overlap", "Why do two fishing models partly match?", "bottom_trawling", PredictionTargetKind.Species, "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match, ComparisonProgressRole.SharedPrediction);
+            SetObjective(objectives.GetArrayElementAtIndex(6), "longline_seastar", "benthic", "Which clue separates the fishing models?", "longline", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match, ComparisonProgressRole.BenthicDiscriminator);
+            SetObjective(objectives.GetArrayElementAtIndex(7), "bottom_seastar", "benthic", "Which clue separates the fishing models?", "bottom_trawling", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch, ComparisonProgressRole.BenthicDiscriminator);
+        }
+
+        private static void SetObjective(
+            SerializedProperty property,
+            string objectiveId,
+            string questionId,
+            string questionPrompt,
+            string threatId,
+            PredictionTargetKind targetKind,
+            string targetId,
+            string evidenceId,
+            ComparisonJudgement judgement,
+            ComparisonProgressRole role)
+        {
+            property.FindPropertyRelative("objectiveId").stringValue = objectiveId;
+            property.FindPropertyRelative("questionId").stringValue = questionId;
+            property.FindPropertyRelative("questionPrompt").stringValue = questionPrompt;
+            property.FindPropertyRelative("threatId").stringValue = threatId;
+            property.FindPropertyRelative("targetKind").enumValueIndex = (int)targetKind;
+            property.FindPropertyRelative("targetId").stringValue = targetId;
+            property.FindPropertyRelative("requiredEvidenceId").stringValue = evidenceId;
+            property.FindPropertyRelative("requiredJudgement").enumValueIndex = (int)judgement;
+            property.FindPropertyRelative("progressRole").enumValueIndex = (int)role;
+            property.FindPropertyRelative("required").boolValue = true;
+        }
+
+        private static void SetEvidenceCategoryRequirements(SerializedObject caseObject)
+        {
+            SerializedProperty requirements = caseObject.FindProperty("evidenceCategoryRequirements");
+            requirements.arraySize = 3;
+            SetEvidenceCategoryRequirement(requirements.GetArrayElementAtIndex(0), EvidenceCategory.FoodWeb, 2);
+            SetEvidenceCategoryRequirement(requirements.GetArrayElementAtIndex(1), EvidenceCategory.Benthic, 1);
+            SetEvidenceCategoryRequirement(requirements.GetArrayElementAtIndex(2), EvidenceCategory.Confirmation, 1);
+        }
+
+        private static void SetEvidenceCategoryRequirement(
+            SerializedProperty property,
+            EvidenceCategory category,
+            int minimumCount)
+        {
+            property.FindPropertyRelative("category").enumValueIndex = (int)category;
+            property.FindPropertyRelative("minimumCount").intValue = minimumCount;
         }
 
         private static void SetLimitations(SerializedObject caseObject)

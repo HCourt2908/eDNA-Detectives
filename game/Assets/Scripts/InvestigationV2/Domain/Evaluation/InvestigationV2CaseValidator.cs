@@ -93,6 +93,26 @@ namespace EDNA.Investigation.V2.Domain
                 }
             }
 
+            for (int ruleIndex = 0; ruleIndex < caseDefinition.ComparisonRules.Count; ruleIndex++)
+            {
+                PredictionComparisonRuleDefinition rule = caseDefinition.ComparisonRules[ruleIndex];
+                if (rule == null || rule.TargetKind == PredictionTargetKind.Species) continue;
+                if (!threatIds.Contains(rule.ThreatId))
+                    errors.Add($"Non-species comparison {ruleIndex} references unknown threat {rule.ThreatId}.");
+                if (string.IsNullOrWhiteSpace(rule.TargetId))
+                    errors.Add($"Non-species comparison {rule.ThreatId} is missing a target ID.");
+                if (rule.ObservationOptions.Count < 1 || rule.ObservationOptions.Count > 4)
+                    errors.Add($"Comparison {rule.ThreatId}/{rule.TargetKind}/{rule.TargetId} must expose 1–4 candidate observations.");
+                for (int optionIndex = 0; optionIndex < rule.ObservationOptions.Count; optionIndex++)
+                {
+                    ObservationComparisonOptionDefinition option = rule.ObservationOptions[optionIndex];
+                    if (option == null || caseDefinition.FindObservation(option.EvidenceId) == null)
+                        errors.Add($"Comparison {rule.ThreatId}/{rule.TargetKind}/{rule.TargetId} references an unknown observation.");
+                    else if (option.Resolutions.Count != 3)
+                        errors.Add($"Comparison {rule.ThreatId}/{rule.TargetKind}/{rule.TargetId}/{option.EvidenceId} must resolve all three judgements.");
+                }
+            }
+
             HashSet<string> evidenceIds = new HashSet<string>(StringComparer.Ordinal);
             for (int index = 0; index < caseDefinition.Observations.Count; index++)
             {
@@ -132,6 +152,89 @@ namespace EDNA.Investigation.V2.Domain
             if (caseDefinition.RequiredComparedThreatIds.Count < 2) errors.Add("At least two overlapping threats must be required for comparison.");
             if (caseDefinition.MinimumCompletedComparisons < caseDefinition.RequiredComparisonsPerThreat * caseDefinition.RequiredComparedThreatIds.Count)
                 errors.Add("Minimum completed comparisons cannot be lower than the required per-threat total.");
+
+            if (caseDefinition.InvestigationObjectives.Count > 0)
+            {
+                HashSet<string> objectiveIds = new HashSet<string>(StringComparer.Ordinal);
+                for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
+                {
+                    InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
+                    if (objective == null || string.IsNullOrWhiteSpace(objective.ObjectiveId))
+                    {
+                        errors.Add($"Investigation objective {index} is missing an ID.");
+                        continue;
+                    }
+                    if (!objectiveIds.Add(objective.ObjectiveId))
+                        errors.Add($"Duplicate investigation objective ID: {objective.ObjectiveId}.");
+                    if (string.IsNullOrWhiteSpace(objective.QuestionId) || string.IsNullOrWhiteSpace(objective.QuestionPrompt))
+                        errors.Add($"Objective {objective.ObjectiveId} is missing its case-question label.");
+                    if (!threatIds.Contains(objective.ThreatId))
+                        errors.Add($"Objective {objective.ObjectiveId} references unknown threat {objective.ThreatId}.");
+                    InvestigationV2ObservationDefinition evidence = caseDefinition.FindObservation(objective.RequiredEvidenceId);
+                    if (evidence == null)
+                    {
+                        errors.Add($"Objective {objective.ObjectiveId} references unknown evidence {objective.RequiredEvidenceId}.");
+                        continue;
+                    }
+                    if (evidence.UnlockStage == EvidenceUnlockStage.AfterProvisional)
+                        errors.Add($"Objective {objective.ObjectiveId} depends on evidence that unlocks after provisional report.");
+                    if (evidence.UnlockStage == EvidenceUnlockStage.OnThreatRun
+                        && !string.Equals(evidence.UnlockThreatId, objective.ThreatId, StringComparison.Ordinal))
+                    {
+                        errors.Add($"Objective {objective.ObjectiveId} depends on evidence unlocked by a different threat.");
+                    }
+                    PredictionComparisonRuleDefinition rule = caseDefinition.FindComparisonRule(
+                        objective.ThreatId,
+                        objective.TargetKind,
+                        objective.TargetId);
+                    if (rule == null)
+                    {
+                        errors.Add($"Objective {objective.ObjectiveId} has no comparison rule.");
+                        continue;
+                    }
+                    if (rule.ProgressRole != objective.ProgressRole)
+                        errors.Add($"Objective {objective.ObjectiveId} progress role does not match its comparison rule.");
+                    ObservationComparisonOptionDefinition option = rule.FindOption(objective.RequiredEvidenceId);
+                    JudgementResolutionDefinition resolution = option?.FindResolution(objective.RequiredJudgement);
+                    if (resolution == null || resolution.Outcome == ComparisonEvaluationOutcome.Incorrect
+                        || objective.RequiredJudgement == ComparisonJudgement.NotEnoughEvidence)
+                    {
+                        errors.Add($"Objective {objective.ObjectiveId} does not resolve to an accepted decisive judgement.");
+                    }
+                }
+            }
+            else
+            {
+                errors.Add("Investigation V2 requires data-driven investigation objectives.");
+            }
+
+            if (caseDefinition.MinimumObserveDiscoveries < 5)
+                errors.Add("The Long-line vertical slice must require all five Observe findings before Simulate.");
+
+            int minimumCategoryTotal = 0;
+            HashSet<EvidenceCategory> requiredCategories = new HashSet<EvidenceCategory>();
+            for (int index = 0; index < caseDefinition.EvidenceCategoryRequirements.Count; index++)
+            {
+                InvestigationV2EvidenceCategoryRequirement requirement = caseDefinition.EvidenceCategoryRequirements[index];
+                if (requirement == null) continue;
+                if (requirement.Category == EvidenceCategory.General)
+                    errors.Add("Report evidence requirements cannot use the General category.");
+                if (!requiredCategories.Add(requirement.Category))
+                    errors.Add($"Duplicate report evidence category requirement: {requirement.Category}.");
+                int available = 0;
+                for (int evidenceIndex = 0; evidenceIndex < caseDefinition.Observations.Count; evidenceIndex++)
+                {
+                    InvestigationV2ObservationDefinition observation = caseDefinition.Observations[evidenceIndex];
+                    if (observation != null && observation.Category == requirement.Category) available++;
+                }
+                if (available < requirement.MinimumCount)
+                    errors.Add($"Report category {requirement.Category} requires {requirement.MinimumCount} but only {available} observations exist.");
+                minimumCategoryTotal += requirement.MinimumCount;
+            }
+            if (caseDefinition.EvidenceCategoryRequirements.Count == 0)
+                errors.Add("The final report requires evidence category requirements.");
+            if (caseDefinition.MinimumReportEvidence < minimumCategoryTotal)
+                errors.Add("minimumReportEvidence cannot be lower than the sum of category minimums.");
 
             for (int index = 0; index < caseDefinition.ConfirmationEvidenceIds.Count; index++)
             {

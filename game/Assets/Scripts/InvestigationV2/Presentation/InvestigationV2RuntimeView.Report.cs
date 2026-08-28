@@ -68,8 +68,10 @@ namespace EDNA.Investigation.V2
                 InvestigationV2Theme.SurfaceQuiet,
                 state.ConfirmationReviewed ? 154f : 96f,
                 InvestigationV2Theme.SmallRadius);
-            EnsureOutline(confirmation.gameObject, InvestigationV2Theme.BorderSoft, new Vector2(1f, -1f));
-            AddPanelAccent(confirmation, state.ConfirmationReviewed ? InvestigationV2Theme.Success : InvestigationV2Theme.Primary);
+            EnsureOutline(
+                confirmation.gameObject,
+                state.ConfirmationReviewed ? InvestigationV2Theme.Success : InvestigationV2Theme.Primary,
+                new Vector2(2f, -2f));
             Text title = CreateText(
                 "ROV Title",
                 confirmation,
@@ -267,13 +269,23 @@ namespace EDNA.Investigation.V2
             }
             bool evidenceMinimumMet = state.SelectedReportEvidenceIds.Count >= caseDefinition.MinimumReportEvidence;
             bool confirmationMinimumMet = confirmationSelected >= caseDefinition.MinimumConfirmationEvidenceInReport;
+            bool categoriesComplete = true;
+            string categoryProgress = string.Empty;
+            for (int requirementIndex = 0; requirementIndex < caseDefinition.EvidenceCategoryRequirements.Count; requirementIndex++)
+            {
+                InvestigationV2EvidenceCategoryRequirement requirement = caseDefinition.EvidenceCategoryRequirements[requirementIndex];
+                if (requirement == null) continue;
+                int selectedCount = CountSelectedEvidenceInCategory(requirement.Category);
+                if (selectedCount < requirement.MinimumCount) categoriesComplete = false;
+                categoryProgress += $"  ·  {EvidenceCategoryShortLabel(requirement.Category)} {selectedCount} / {requirement.MinimumCount}";
+            }
             Text progress = CreateText(
                 "Evidence Progress",
                 section,
-                $"Selected {state.SelectedReportEvidenceIds.Count} / {caseDefinition.MinimumReportEvidence} minimum  ·  ROV {confirmationSelected} / {caseDefinition.MinimumConfirmationEvidenceInReport} minimum",
+                $"Selected {state.SelectedReportEvidenceIds.Count} / {caseDefinition.MinimumReportEvidence}{categoryProgress}",
                 12,
                 FontStyle.Bold,
-                evidenceMinimumMet && confirmationMinimumMet
+                evidenceMinimumMet && confirmationMinimumMet && categoriesComplete
                     ? InvestigationV2Theme.PaperSelectedBorder
                     : InvestigationV2Theme.PaperMuted,
                 TextAnchor.MiddleLeft,
@@ -305,6 +317,30 @@ namespace EDNA.Investigation.V2
                     selected ? InvestigationV2Theme.PaperSelectedBorder : InvestigationV2Theme.PaperMuted);
                 Anchor(icon.rectTransform, 0f, 0f, 0f, 1f, 10f, 14f, 36f, -14f);
                 StylePaperChoice(button, selected);
+            }
+        }
+
+        private int CountSelectedEvidenceInCategory(EvidenceCategory category)
+        {
+            int count = 0;
+            for (int index = 0; index < state.SelectedReportEvidenceIds.Count; index++)
+            {
+                InvestigationV2ObservationDefinition observation = caseDefinition.FindObservation(state.SelectedReportEvidenceIds[index]);
+                if (observation != null && observation.Category == category) count++;
+            }
+            return count;
+        }
+
+        private static string EvidenceCategoryShortLabel(EvidenceCategory category)
+        {
+            switch (category)
+            {
+                case EvidenceCategory.FoodWeb: return "FOOD WEB";
+                case EvidenceCategory.Benthic: return "BENTHIC";
+                case EvidenceCategory.Confirmation: return "ROV";
+                case EvidenceCategory.Environmental: return "ENV";
+                case EvidenceCategory.Alternative: return "ALTERNATIVE";
+                default: return "EVIDENCE";
             }
         }
 

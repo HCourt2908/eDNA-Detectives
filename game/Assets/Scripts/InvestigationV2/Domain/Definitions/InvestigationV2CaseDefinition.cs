@@ -38,6 +38,42 @@ namespace EDNA.Investigation.V2.Domain
         public IReadOnlyList<string> RequiredComparisonSpeciesIds => requiredComparisonSpeciesIds;
     }
 
+    [Serializable]
+    public sealed class InvestigationV2ObjectiveDefinition
+    {
+        [SerializeField] private string objectiveId = string.Empty;
+        [SerializeField] private string questionId = string.Empty;
+        [SerializeField] private string questionPrompt = string.Empty;
+        [SerializeField] private string threatId = string.Empty;
+        [SerializeField] private PredictionTargetKind targetKind = PredictionTargetKind.Species;
+        [SerializeField] private string targetId = string.Empty;
+        [SerializeField] private string requiredEvidenceId = string.Empty;
+        [SerializeField] private ComparisonJudgement requiredJudgement;
+        [SerializeField] private ComparisonProgressRole progressRole;
+        [SerializeField] private bool required = true;
+
+        public string ObjectiveId => objectiveId;
+        public string QuestionId => questionId;
+        public string QuestionPrompt => questionPrompt;
+        public string ThreatId => threatId;
+        public PredictionTargetKind TargetKind => targetKind;
+        public string TargetId => targetId;
+        public string RequiredEvidenceId => requiredEvidenceId;
+        public ComparisonJudgement RequiredJudgement => requiredJudgement;
+        public ComparisonProgressRole ProgressRole => progressRole;
+        public bool Required => required;
+    }
+
+    [Serializable]
+    public sealed class InvestigationV2EvidenceCategoryRequirement
+    {
+        [SerializeField] private EvidenceCategory category;
+        [SerializeField, Min(1)] private int minimumCount = 1;
+
+        public EvidenceCategory Category => category;
+        public int MinimumCount => Mathf.Max(1, minimumCount);
+    }
+
     [CreateAssetMenu(menuName = "eDNA Detectives/Investigation V2/Case", fileName = "InvestigationCaseV2_")]
     public sealed class InvestigationV2CaseDefinition : ScriptableObject
     {
@@ -48,6 +84,7 @@ namespace EDNA.Investigation.V2.Domain
         [SerializeField] private List<InvestigationV2ObservationDefinition> observations = new List<InvestigationV2ObservationDefinition>();
         [SerializeField] private List<ThreatSimulationDefinition> threats = new List<ThreatSimulationDefinition>();
         [SerializeField] private List<PredictionComparisonRuleDefinition> comparisonRules = new List<PredictionComparisonRuleDefinition>();
+        [SerializeField] private List<InvestigationV2ObjectiveDefinition> investigationObjectives = new List<InvestigationV2ObjectiveDefinition>();
         [SerializeField, Min(1)] private int minimumObserveDiscoveries = 4;
         [SerializeField] private List<string> requiredComparedThreatIds = new List<string>();
         [SerializeField] private List<InvestigationV2RequiredComparisonSpeciesDefinition> requiredComparisonSpecies = new List<InvestigationV2RequiredComparisonSpeciesDefinition>();
@@ -56,6 +93,7 @@ namespace EDNA.Investigation.V2.Domain
         [SerializeField] private string correctThreatId = string.Empty;
         [SerializeField] private List<string> confirmationEvidenceIds = new List<string>();
         [SerializeField, Min(1)] private int minimumReportEvidence = 2;
+        [SerializeField] private List<InvestigationV2EvidenceCategoryRequirement> evidenceCategoryRequirements = new List<InvestigationV2EvidenceCategoryRequirement>();
         [SerializeField, Min(1)] private int minimumConfirmationEvidenceInReport = 1;
         [SerializeField, Min(1)] private int minimumReportLimitations = 1;
         [SerializeField] private string requiredReasoningId = "food_web_cascade";
@@ -70,6 +108,7 @@ namespace EDNA.Investigation.V2.Domain
         public IReadOnlyList<InvestigationV2ObservationDefinition> Observations => observations;
         public IReadOnlyList<ThreatSimulationDefinition> Threats => threats;
         public IReadOnlyList<PredictionComparisonRuleDefinition> ComparisonRules => comparisonRules;
+        public IReadOnlyList<InvestigationV2ObjectiveDefinition> InvestigationObjectives => investigationObjectives;
         public int MinimumObserveDiscoveries => Mathf.Max(1, minimumObserveDiscoveries);
         public IReadOnlyList<string> RequiredComparedThreatIds => requiredComparedThreatIds;
         public IReadOnlyList<InvestigationV2RequiredComparisonSpeciesDefinition> RequiredComparisonSpecies => requiredComparisonSpecies;
@@ -78,6 +117,7 @@ namespace EDNA.Investigation.V2.Domain
         public string CorrectThreatId => correctThreatId;
         public IReadOnlyList<string> ConfirmationEvidenceIds => confirmationEvidenceIds;
         public int MinimumReportEvidence => Mathf.Max(1, minimumReportEvidence);
+        public IReadOnlyList<InvestigationV2EvidenceCategoryRequirement> EvidenceCategoryRequirements => evidenceCategoryRequirements;
         public int MinimumConfirmationEvidenceInReport => Mathf.Max(1, minimumConfirmationEvidenceInReport);
         public int MinimumReportLimitations => Mathf.Max(1, minimumReportLimitations);
         public string RequiredReasoningId => requiredReasoningId;
@@ -117,15 +157,65 @@ namespace EDNA.Investigation.V2.Domain
 
         public PredictionComparisonRuleDefinition FindComparisonRule(string threatId, string speciesId)
         {
+            return FindComparisonRule(threatId, PredictionTargetKind.Species, speciesId);
+        }
+
+        public PredictionComparisonRuleDefinition FindComparisonRule(
+            string threatId,
+            PredictionTargetKind targetKind,
+            string targetId)
+        {
             for (int index = 0; index < comparisonRules.Count; index++)
             {
                 PredictionComparisonRuleDefinition definition = comparisonRules[index];
-                if (definition != null
-                    && string.Equals(definition.ThreatId, threatId, StringComparison.Ordinal)
-                    && string.Equals(definition.SpeciesId, speciesId, StringComparison.Ordinal))
+                if (definition != null && definition.Matches(threatId, targetKind, targetId))
                 {
                     return definition;
                 }
+            }
+            return null;
+        }
+
+        public InvestigationV2ObjectiveDefinition FindObjective(string objectiveId)
+        {
+            for (int index = 0; index < investigationObjectives.Count; index++)
+            {
+                InvestigationV2ObjectiveDefinition objective = investigationObjectives[index];
+                if (objective != null && string.Equals(objective.ObjectiveId, objectiveId, StringComparison.Ordinal))
+                    return objective;
+            }
+            return null;
+        }
+
+        public InvestigationV2ObjectiveDefinition FindObjectiveForComparison(
+            string threatId,
+            PredictionTargetKind targetKind,
+            string targetId,
+            string evidenceId,
+            ComparisonJudgement judgement)
+        {
+            for (int index = 0; index < investigationObjectives.Count; index++)
+            {
+                InvestigationV2ObjectiveDefinition objective = investigationObjectives[index];
+                if (objective != null
+                    && string.Equals(objective.ThreatId, threatId, StringComparison.Ordinal)
+                    && objective.TargetKind == targetKind
+                    && string.Equals(objective.TargetId, targetId, StringComparison.Ordinal)
+                    && string.Equals(objective.RequiredEvidenceId, evidenceId, StringComparison.Ordinal)
+                    && objective.RequiredJudgement == judgement)
+                {
+                    return objective;
+                }
+            }
+            return null;
+        }
+
+        public InvestigationV2EvidenceCategoryRequirement FindEvidenceCategoryRequirement(EvidenceCategory category)
+        {
+            for (int index = 0; index < evidenceCategoryRequirements.Count; index++)
+            {
+                InvestigationV2EvidenceCategoryRequirement requirement = evidenceCategoryRequirements[index];
+                if (requirement != null && requirement.Category == category) return requirement;
             }
             return null;
         }

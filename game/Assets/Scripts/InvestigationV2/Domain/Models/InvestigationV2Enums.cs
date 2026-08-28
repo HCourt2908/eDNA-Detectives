@@ -77,6 +77,33 @@ namespace EDNA.Investigation.V2.Domain
         Incorrect = 2
     }
 
+    public enum PredictionTargetKind
+    {
+        Species = 0,
+        Temperature = 1,
+        Seafloor = 2,
+        PhysicalConfirmation = 3
+    }
+
+    public enum ComparisonProgressRole
+    {
+        ContextOnly = 0,
+        AlternativeCauseCheck = 1,
+        FoodWebCascade = 2,
+        SharedPrediction = 3,
+        BenthicDiscriminator = 4
+    }
+
+    public enum EvidenceCategory
+    {
+        General = 0,
+        FoodWeb = 1,
+        Benthic = 2,
+        Confirmation = 3,
+        Environmental = 4,
+        Alternative = 5
+    }
+
     public enum InvestigationV2ConclusionStatus
     {
         NotSubmitted = 0,

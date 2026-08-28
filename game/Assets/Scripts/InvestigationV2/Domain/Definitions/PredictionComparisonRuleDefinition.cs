@@ -45,11 +45,26 @@ namespace EDNA.Investigation.V2.Domain
     {
         [SerializeField] private string threatId = string.Empty;
         [SerializeField] private string speciesId = string.Empty;
+        [SerializeField] private PredictionTargetKind targetKind = PredictionTargetKind.Species;
+        [SerializeField] private string targetId = string.Empty;
+        [SerializeField] private ComparisonProgressRole progressRole = ComparisonProgressRole.ContextOnly;
         [SerializeField] private List<ObservationComparisonOptionDefinition> observationOptions = new List<ObservationComparisonOptionDefinition>();
 
         public string ThreatId => threatId;
         public string SpeciesId => speciesId;
+        public PredictionTargetKind TargetKind => targetKind;
+        public string TargetId => string.IsNullOrEmpty(targetId) && targetKind == PredictionTargetKind.Species
+            ? speciesId
+            : targetId;
+        public ComparisonProgressRole ProgressRole => progressRole;
         public IReadOnlyList<ObservationComparisonOptionDefinition> ObservationOptions => observationOptions;
+
+        public bool Matches(string candidateThreatId, PredictionTargetKind candidateKind, string candidateTargetId)
+        {
+            return string.Equals(threatId, candidateThreatId, StringComparison.Ordinal)
+                && targetKind == candidateKind
+                && string.Equals(TargetId, candidateTargetId, StringComparison.Ordinal);
+        }
 
         public ObservationComparisonOptionDefinition FindOption(string evidenceId)
         {
