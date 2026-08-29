@@ -156,6 +156,13 @@ namespace EDNA.Investigation.V2.Editor
             SetString(caseObject, "caseId", "investigation_v2_longline_01");
             SetString(caseObject, "displayName", "The Missing Predator");
             SetString(caseObject, "briefing", "A modern eDNA survey shows a repeated shark non-detection, tuna at more sites, and repeated krill non-detection. Compare overlapping ecosystem models before writing a report.");
+            SetSurveyContext(
+                caseObject,
+                "survey_12",
+                "Survey 12",
+                "seamount_a",
+                "Seamount A",
+                "Processed eDNA results from shallow, mid and deep samples");
             SetObjectArray(caseObject, "species", species);
             SetObservations(caseObject);
             SetObjectArray(caseObject, "threats", threats);
@@ -843,6 +850,22 @@ namespace EDNA.Investigation.V2.Editor
         private static void SetInteger(SerializedObject serialized, string propertyName, int value)
         {
             serialized.FindProperty(propertyName).intValue = value;
+        }
+
+        private static void SetSurveyContext(
+            SerializedObject serialized,
+            string surveyId,
+            string surveyDisplayName,
+            string siteId,
+            string siteDisplayName,
+            string processedSampleSummary)
+        {
+            SerializedProperty context = serialized.FindProperty("surveyContext");
+            context.FindPropertyRelative("surveyId").stringValue = surveyId;
+            context.FindPropertyRelative("surveyDisplayName").stringValue = surveyDisplayName;
+            context.FindPropertyRelative("siteId").stringValue = siteId;
+            context.FindPropertyRelative("siteDisplayName").stringValue = siteDisplayName;
+            context.FindPropertyRelative("processedSampleSummary").stringValue = processedSampleSummary;
         }
 
         private static void SetStringArray(SerializedObject serialized, string propertyName, IReadOnlyList<string> values)

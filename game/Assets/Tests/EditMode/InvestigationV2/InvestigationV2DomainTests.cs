@@ -465,6 +465,14 @@ namespace EDNA.Investigation.V2.Tests
             InvestigationGameInput input = new InvestigationGameInput
             {
                 caseId = caseDefinition.CaseId,
+                surveyContext = new InvestigationSurveyContextData
+                {
+                    surveyId = "upstream_survey_42",
+                    surveyDisplayName = "Survey 42",
+                    siteId = "waypoint_c",
+                    siteDisplayName = "Waypoint C",
+                    processedSampleSummary = "Processed samples from three depth bands"
+                },
                 discoveredObservationIds = new List<string>
                 {
                     "E01_SHARK_NONDETECTION",
@@ -472,9 +480,23 @@ namespace EDNA.Investigation.V2.Tests
                     "E05_TEMPERATURE_NORMAL",
                     "L01_NONDETECTION_LIMITATION",
                     "E07_FISHING_LINE"
+                },
+                environmentalObservations = new List<InvestigationExternalObservationData>
+                {
+                    new InvestigationExternalObservationData { observationId = "E05_TEMPERATURE_NORMAL" },
+                    new InvestigationExternalObservationData { observationId = "E01_SHARK_NONDETECTION" }
+                },
+                physicalObservations = new List<InvestigationExternalObservationData>
+                {
+                    new InvestigationExternalObservationData { observationId = "E07_FISHING_LINE" }
                 }
             };
             Assert.That(updater.TryApplyExternalInput(state, input, out _), Is.True);
+            Assert.That(state.SurveyId, Is.EqualTo("upstream_survey_42"));
+            Assert.That(state.SurveyDisplayName, Is.EqualTo("Survey 42"));
+            Assert.That(state.SiteId, Is.EqualTo("waypoint_c"));
+            Assert.That(state.SiteDisplayName, Is.EqualTo("Waypoint C"));
+            Assert.That(state.ProcessedSampleSummary, Is.EqualTo("Processed samples from three depth bands"));
             Assert.That(state.HasDiscoveredObservation("E01_SHARK_NONDETECTION"), Is.True);
             Assert.That(state.HasDiscoveredObservation("E02_TUNA_WIDER_DETECTION"), Is.True);
             Assert.That(state.HasDiscoveredObservation("L01_NONDETECTION_LIMITATION"), Is.True);

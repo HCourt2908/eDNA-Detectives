@@ -10,9 +10,12 @@ namespace EDNA.Investigation.V2
         private void RenderReport()
         {
             ThreatSimulationDefinition provisional = caseDefinition.FindThreat(state.ProvisionalThreatId);
+            bool caseClosed = state.ConclusionStatus == InvestigationV2ConclusionStatus.Correct;
             CreateHeading(
-                state.ConfirmationReviewed ? "Finish your report for OceanX" : "Write your first idea",
-                state.ConfirmationReviewed
+                caseClosed ? "Case closed" : state.ConfirmationReviewed ? "Finish your report for OceanX" : "Write your first idea",
+                caseClosed
+                    ? "Review how the survey, ecosystem model and follow-up evidence support your conclusion."
+                    : state.ConfirmationReviewed
                     ? "Use the ROV observations to re-check your first idea, then complete every report section."
                     : $"Your provisional explanation is {provisional?.DisplayName ?? "not selected"}. The same ROV follow-up appears for every provisional choice.");
 
@@ -138,10 +141,15 @@ namespace EDNA.Investigation.V2
             string attemptText = state.FinalSubmissionAttemptCount == 0
                 ? string.Empty
                 : $" · Revision {state.FinalSubmissionAttemptCount}";
-            Text metadata = CreateText("Report Metadata", paper, $"Researcher: You · Site: Seamount A · Survey 12{attemptText}", 13, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.MiddleLeft, InvestigationV2Theme.DataFont);
+            Text metadata = CreateText("Report Metadata", paper, $"Researcher: You · Site: {state.SiteDisplayName} · {state.SurveyDisplayName}{attemptText}", 13, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.MiddleLeft, InvestigationV2Theme.DataFont);
             AddLayout(metadata.rectTransform, 28f, 1f);
 
             CreateReportOutcome(paper);
+            if (state.ConclusionStatus == InvestigationV2ConclusionStatus.Correct)
+            {
+                CreateCaseClosedSummary(paper);
+                return;
+            }
 
             RectTransform columns = new GameObject("Report Columns", typeof(RectTransform), typeof(InvestigationV2ResponsiveSplitLayout)).GetComponent<RectTransform>();
             columns.SetParent(paper, false);
@@ -198,7 +206,9 @@ namespace EDNA.Investigation.V2
             Text outcome = CreateText(
                 "Outcome Text",
                 feedback,
-                statusMessage,
+                state.ConclusionStatus == InvestigationV2ConclusionStatus.Correct
+                    ? "Report accepted. Your evidence supports a complete explanation."
+                    : statusMessage,
                 15,
                 FontStyle.Bold,
                 InvestigationV2Theme.PaperInk,
@@ -208,6 +218,121 @@ namespace EDNA.Investigation.V2
             LayoutElement outcomeLayout = outcome.gameObject.AddComponent<LayoutElement>();
             outcomeLayout.minWidth = 0f;
             outcomeLayout.flexibleWidth = 1f;
+        }
+
+        private void CreateCaseClosedSummary(Transform parent)
+        {
+            ThreatSimulationDefinition finalThreat = caseDefinition.FindThreat(state.FinalThreatId);
+            InvestigationV2ReasoningDefinition reasoning = caseDefinition.FindReasoning(state.SelectedReasoningId);
+            InvestigationV2LimitationDefinition limitation = caseDefinition.FindLimitation(state.SelectedLimitationId);
+
+            RectTransform summary = CreatePanel("Case Closed Summary", parent, InvestigationV2Theme.PaperRaised, InvestigationV2Theme.SmallRadius);
+            EnsureOutline(summary.gameObject, InvestigationV2Theme.PaperSelectedBorder, new Vector2(2f, -2f));
+            VerticalLayoutGroup layout = summary.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(16, 16, 14, 14);
+            layout.spacing = 8f;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+
+            Text title = CreateText(
+                "Case Closed Title",
+                summary,
+                $"CASE CLOSED · {finalThreat?.DisplayName ?? "Best-supported cause recorded"}",
+                22,
+                FontStyle.Bold,
+                InvestigationV2Theme.PaperInk,
+                TextAnchor.MiddleLeft,
+                InvestigationV2Theme.DisplayFont);
+            ConfigureContentDrivenText(title);
+
+            Text explanation = CreateText(
+                "Case Closed Explanation",
+                summary,
+                string.IsNullOrWhiteSpace(caseDefinition.SuccessFeedback)
+                    ? "The report connects the ecosystem model to several independent kinds of evidence."
+                    : caseDefinition.SuccessFeedback,
+                14,
+                FontStyle.Normal,
+                InvestigationV2Theme.PaperInk,
+                TextAnchor.MiddleLeft,
+                InvestigationV2Theme.BodyFont);
+            ConfigureContentDrivenText(explanation);
+
+            CreateDebriefRow(
+                summary,
+                "FOOD-WEB MECHANISM",
+                reasoning?.DisplayName ?? "Ecosystem mechanism recorded",
+                reasoning?.Explanation ?? string.Empty,
+                InvestigationV2Theme.Success);
+            CreateDebriefRow(
+                summary,
+                "BENTHIC CHECK",
+                FindEvidenceSummary(EvidenceCategory.Benthic, "Benthic evidence was included"),
+                "This is the key check that separates selective fishing from a cause that damages the seafloor.",
+                InvestigationV2Theme.Primary);
+            CreateDebriefRow(
+                summary,
+                "ROV FOLLOW-UP",
+                BuildConfirmationSummary(),
+                "Physical observations strengthen the explanation developed from eDNA and the ecosystem model.",
+                InvestigationV2Theme.Accent);
+            CreateDebriefRow(
+                summary,
+                "SCIENTIFIC CAUTION",
+                limitation?.DisplayName ?? "Uncertainty recorded",
+                limitation?.Explanation ?? string.Empty,
+                InvestigationV2Theme.Focus);
+        }
+
+        private static void CreateDebriefRow(
+            Transform parent,
+            string heading,
+            string statement,
+            string explanation,
+            Color accent)
+        {
+            RectTransform row = CreatePanel($"Debrief {heading}", parent, new Color32(247, 250, 251, 255), InvestigationV2Theme.SmallRadius);
+            EnsureOutline(row.gameObject, accent, new Vector2(2f, -2f));
+            VerticalLayoutGroup layout = row.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(14, 12, 8, 8);
+            layout.spacing = 2f;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+
+            Text label = CreateText("Debrief Heading", row, heading, 11, FontStyle.Bold, InvestigationV2Theme.PaperMuted, TextAnchor.MiddleLeft, InvestigationV2Theme.DataFont);
+            ConfigureContentDrivenText(label);
+            Text value = CreateText("Debrief Statement", row, statement, 16, FontStyle.Bold, InvestigationV2Theme.PaperInk, TextAnchor.MiddleLeft, InvestigationV2Theme.DisplayFont);
+            ConfigureContentDrivenText(value);
+            if (string.IsNullOrWhiteSpace(explanation)) return;
+            Text detail = CreateText("Debrief Explanation", row, explanation, 12, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.MiddleLeft, InvestigationV2Theme.BodyFont);
+            ConfigureContentDrivenText(detail);
+        }
+
+        private string FindEvidenceSummary(EvidenceCategory category, string fallback)
+        {
+            for (int index = 0; index < state.SelectedReportEvidenceIds.Count; index++)
+            {
+                InvestigationV2ObservationDefinition observation = caseDefinition.FindObservation(state.SelectedReportEvidenceIds[index]);
+                if (observation != null && observation.Category == category) return observation.DisplayName;
+            }
+            return fallback;
+        }
+
+        private string BuildConfirmationSummary()
+        {
+            string result = string.Empty;
+            for (int index = 0; index < caseDefinition.ConfirmationEvidenceIds.Count; index++)
+            {
+                InvestigationV2ObservationDefinition observation = caseDefinition.FindObservation(caseDefinition.ConfirmationEvidenceIds[index]);
+                if (observation == null || !state.HasDiscoveredObservation(observation.EvidenceId)) continue;
+                if (!string.IsNullOrEmpty(result)) result += " · ";
+                result += observation.DisplayName;
+            }
+            return string.IsNullOrEmpty(result) ? "ROV follow-up reviewed" : result;
         }
 
         private static RectTransform CreateReportColumn(string name, Transform parent)

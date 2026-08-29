@@ -17,6 +17,12 @@ MonoBehaviour:
   briefing: A modern eDNA survey shows a repeated shark non-detection, tuna at more
     sites, and repeated krill non-detection. Compare overlapping ecosystem models
     before writing a report.
+  surveyContext:
+    surveyId: survey_12
+    surveyDisplayName: Survey 12
+    siteId: seamount_a
+    siteDisplayName: Seamount A
+    processedSampleSummary: Processed eDNA results from shallow, mid and deep samples
   species:
   - {fileID: 11400000, guid: 42c221d64c5d6458dba439c97f2be05d, type: 2}
   - {fileID: 11400000, guid: 03f540c5eefc349cb8b6060d611964bb, type: 2}

@@ -20,7 +20,9 @@ namespace EDNA.Investigation.V2.Domain
 
         public InvestigationV2State CreateInitialState()
         {
-            return new InvestigationV2State();
+            InvestigationV2State state = new InvestigationV2State();
+            state.ApplySurveyContext(caseDefinition.SurveyContext);
+            return state;
         }
 
         public bool TryApplyExternalInput(InvestigationV2State state, InvestigationGameInput input, out string feedback)
@@ -38,23 +40,69 @@ namespace EDNA.Investigation.V2.Domain
                 return false;
             }
 
+            state.ApplySurveyContext(input.surveyContext);
             int applied = 0;
-            for (int index = 0; index < input.discoveredObservationIds.Count; index++)
+            if (input.discoveredObservationIds != null)
             {
-                InvestigationV2ObservationDefinition observation = caseDefinition.FindObservation(input.discoveredObservationIds[index]);
-                if (observation == null
-                    || (observation.UnlockStage != EvidenceUnlockStage.Observe
-                        && observation.UnlockStage != EvidenceUnlockStage.Always))
+                for (int index = 0; index < input.discoveredObservationIds.Count; index++)
                 {
-                    continue;
+                    if (TryImportMappedObservation(state, input.discoveredObservationIds[index], null)) applied++;
                 }
-                state.DiscoverObservation(observation.EvidenceId);
-                applied++;
             }
-            feedback = applied == 0
-                ? "External input contained no directly mapped V2 observations; authored demo evidence remains available."
-                : $"Imported {applied} observation(s) from the previous mini-games.";
+            applied += ImportExternalObservationList(state, input.environmentalObservations, ObservationSource.CTDLog);
+            applied += ImportExternalObservationList(state, input.physicalObservations, ObservationSource.ROV);
+
+            bool hasContext = HasSurveyContext(input.surveyContext);
+            feedback = applied > 0
+                ? $"Imported {applied} observation(s) from the previous mini-games."
+                : hasContext
+                    ? "Imported the survey context. No case observations were mapped, so authored demo evidence remains available."
+                    : "External input contained no directly mapped V2 observations; authored demo evidence remains available.";
             return true;
+        }
+
+        private int ImportExternalObservationList(
+            InvestigationV2State state,
+            System.Collections.Generic.IReadOnlyList<InvestigationExternalObservationData> observations,
+            ObservationSource expectedSource)
+        {
+            if (observations == null) return 0;
+            int imported = 0;
+            for (int index = 0; index < observations.Count; index++)
+            {
+                InvestigationExternalObservationData external = observations[index];
+                if (external != null && TryImportMappedObservation(state, external.observationId, expectedSource)) imported++;
+            }
+            return imported;
+        }
+
+        private bool TryImportMappedObservation(
+            InvestigationV2State state,
+            string evidenceId,
+            ObservationSource? expectedSource)
+        {
+            InvestigationV2ObservationDefinition observation = caseDefinition.FindObservation(evidenceId);
+            if (observation == null
+                || (expectedSource.HasValue && observation.Source != expectedSource.Value)
+                || (observation.UnlockStage != EvidenceUnlockStage.Observe
+                    && observation.UnlockStage != EvidenceUnlockStage.Always)
+                || state.HasDiscoveredObservation(observation.EvidenceId))
+            {
+                return false;
+            }
+
+            state.DiscoverObservation(observation.EvidenceId);
+            return true;
+        }
+
+        private static bool HasSurveyContext(InvestigationSurveyContextData context)
+        {
+            return context != null
+                && (!string.IsNullOrWhiteSpace(context.surveyId)
+                    || !string.IsNullOrWhiteSpace(context.surveyDisplayName)
+                    || !string.IsNullOrWhiteSpace(context.siteId)
+                    || !string.IsNullOrWhiteSpace(context.siteDisplayName)
+                    || !string.IsNullOrWhiteSpace(context.processedSampleSummary));
         }
 
         public bool TrySetPhase(InvestigationV2State state, InvestigationV2Phase phase, out string feedback)

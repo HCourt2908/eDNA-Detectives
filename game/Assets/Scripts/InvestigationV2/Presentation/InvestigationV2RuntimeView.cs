@@ -50,6 +50,7 @@ namespace EDNA.Investigation.V2
         private Action<bool> setReducedMotion;
 
         private RectTransform stageRoot;
+        private Text caseSubtitleText;
         private Text metricsText;
         private RectTransform statusPanelRoot;
         private Text statusText;
@@ -83,6 +84,7 @@ namespace EDNA.Investigation.V2
         private bool restartConfirmationPending;
         private bool hasRenderedPhase;
         private InvestigationV2Phase lastRenderedPhase;
+        private InvestigationV2ConclusionStatus lastRenderedConclusionStatus = InvestigationV2ConclusionStatus.NotSubmitted;
 
         public InvestigationV2State State => state;
         public RectTransform ContentRoot => contentRoot;
@@ -136,6 +138,7 @@ namespace EDNA.Investigation.V2
             animatedThreatIds.Clear();
             restartConfirmationPending = false;
             hasRenderedPhase = false;
+            lastRenderedConclusionStatus = InvestigationV2ConclusionStatus.NotSubmitted;
             contentScroll?.StopMovement();
             if (contentScroll != null) contentScroll.verticalNormalizedPosition = 1f;
         }
@@ -266,8 +269,8 @@ namespace EDNA.Investigation.V2
 
             Text brand = CreateText("Brand", header, "ECOSYSTEM DETECTIVE", 23, FontStyle.Bold, InvestigationV2Theme.TextPrimary, TextAnchor.UpperLeft, InvestigationV2Theme.DisplayFont);
             Anchor(brand.rectTransform, 0f, 0.56f, 0.42f, 1f, 14f, 0f, 0f, -8f);
-            Text subtitle = CreateText("Case Subtitle", header, "LONG-LINE CASE // SEAMOUNT SURVEY 12", 11, FontStyle.Normal, InvestigationV2Theme.TextMuted, TextAnchor.LowerLeft, InvestigationV2Theme.DataFont);
-            Anchor(subtitle.rectTransform, 0f, 0.56f, 0.42f, 1f, 14f, 5f, 0f, -36f);
+            caseSubtitleText = CreateText("Case Subtitle", header, string.Empty, 11, FontStyle.Normal, InvestigationV2Theme.TextMuted, TextAnchor.LowerLeft, InvestigationV2Theme.DataFont);
+            Anchor(caseSubtitleText.rectTransform, 0f, 0.56f, 0.42f, 1f, 14f, 5f, 0f, -36f);
 
             metricsText = CreateText("Metrics", header, "", 14, FontStyle.Normal, InvestigationV2Theme.TextSecondary, TextAnchor.UpperRight, InvestigationV2Theme.DataFont);
             Anchor(metricsText.rectTransform, 0.42f, 0.60f, 0.78f, 1f, 0f, 0f, -8f, -14f);
@@ -372,7 +375,16 @@ namespace EDNA.Investigation.V2
         private void RenderAll()
         {
             FocusSnapshot focusSnapshot = CaptureFocus();
-            bool preservePhaseScroll = state != null && hasRenderedPhase && state.Phase == lastRenderedPhase;
+            bool enteringCaseClosed = state != null
+                && hasRenderedPhase
+                && state.Phase == InvestigationV2Phase.Report
+                && lastRenderedPhase == InvestigationV2Phase.Report
+                && state.ConclusionStatus == InvestigationV2ConclusionStatus.Correct
+                && lastRenderedConclusionStatus != InvestigationV2ConclusionStatus.Correct;
+            bool preservePhaseScroll = state != null
+                && hasRenderedPhase
+                && state.Phase == lastRenderedPhase
+                && !enteringCaseClosed;
             float previousPageScroll = preservePhaseScroll && contentScroll != null
                 ? contentScroll.verticalNormalizedPosition
                 : 1f;
@@ -422,9 +434,11 @@ namespace EDNA.Investigation.V2
             if (state != null)
             {
                 lastRenderedPhase = state.Phase;
+                lastRenderedConclusionStatus = state.ConclusionStatus;
                 hasRenderedPhase = true;
             }
-            ScheduleFocusRestore(focusSnapshot);
+            if (enteringCaseClosed) StartCoroutine(FocusCaseClosedActionNextFrame());
+            else ScheduleFocusRestore(focusSnapshot);
             if (animatePhaseChange && !InvestigationV2MotionSettings.ReducedMotion) StartCoroutine(AnimatePageEntrance());
         }
 
@@ -481,10 +495,12 @@ namespace EDNA.Investigation.V2
                 string revisions = state.MisstepCount > 0 ? $"    REVISIONS {state.MisstepCount}" : string.Empty;
                 metricsText.text = $"CASE PROGRESS    OBS {state.DiscoveredObservationIds.Count}/{caseDefinition.MinimumObserveDiscoveries}    MODELS {state.TriedThreatIds.Count}/{caseDefinition.Threats.Count}    QUESTIONS {state.CompletedObjectiveCount}/{RequiredObjectiveCount()}{revisions}";
                 difficultyText.text = state.Difficulty == InvestigationV2Difficulty.Easy ? "Easy" : "Hard";
+                caseSubtitleText.text = $"{caseDefinition.DisplayName.ToUpperInvariant()} // {state.SiteDisplayName.ToUpperInvariant()} // {state.SurveyDisplayName.ToUpperInvariant()}";
             }
             else
             {
                 metricsText.text = "CASE ERROR";
+                caseSubtitleText.text = "CASE UNAVAILABLE";
             }
             motionText.text = InvestigationV2MotionSettings.ReducedMotion ? "Motion: Reduced" : "Motion: Full";
             bool hasStatusMessage = !string.IsNullOrWhiteSpace(statusMessage);
@@ -493,13 +509,15 @@ namespace EDNA.Investigation.V2
                 && state.ConclusionStatus == InvestigationV2ConclusionStatus.InsufficientEvidence
                 && statusTone == InvestigationV2StatusTone.Guide
                 && hasStatusMessage;
+            bool showImportNotice = statusTone == InvestigationV2StatusTone.Notice && hasStatusMessage;
             bool showStatus = (statusTone == InvestigationV2StatusTone.Warning && hasStatusMessage)
+                || showImportNotice
                 || showReportDiagnostic;
             statusPanelRoot.gameObject.SetActive(showStatus);
             if (showStatus)
             {
                 statusText.text = statusMessage;
-                statusAccent.color = showReportDiagnostic
+                statusAccent.color = showReportDiagnostic || showImportNotice
                     ? InvestigationV2Theme.Primary
                     : InvestigationV2Theme.Danger;
                 statusPanelRoot.SetAsLastSibling();
@@ -916,6 +934,16 @@ namespace EDNA.Investigation.V2
             if (target == null) target = FindFirstInteractableButton(stageRoot);
             if (target == null) yield break;
 
+            EventSystem.current.SetSelectedGameObject(null);
+            EventSystem.current.SetSelectedGameObject(target.gameObject);
+        }
+
+        private IEnumerator FocusCaseClosedActionNextFrame()
+        {
+            yield return null;
+            if (EventSystem.current == null) yield break;
+            Button target = FindInteractableButton("Restart Completed Case");
+            if (target == null) yield break;
             EventSystem.current.SetSelectedGameObject(null);
             EventSystem.current.SetSelectedGameObject(target.gameObject);
         }

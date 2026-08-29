@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using EDNA.Core;
 using UnityEngine;
 
 namespace EDNA.Investigation.V2.Domain
@@ -80,6 +81,7 @@ namespace EDNA.Investigation.V2.Domain
         [SerializeField] private string caseId = string.Empty;
         [SerializeField] private string displayName = string.Empty;
         [SerializeField, TextArea(2, 6)] private string briefing = string.Empty;
+        [SerializeField] private InvestigationSurveyContextData surveyContext = new InvestigationSurveyContextData();
         [SerializeField] private List<InvestigationV2SpeciesDefinition> species = new List<InvestigationV2SpeciesDefinition>();
         [SerializeField] private List<InvestigationV2ObservationDefinition> observations = new List<InvestigationV2ObservationDefinition>();
         [SerializeField] private List<ThreatSimulationDefinition> threats = new List<ThreatSimulationDefinition>();
@@ -104,6 +106,7 @@ namespace EDNA.Investigation.V2.Domain
         public string CaseId => caseId;
         public string DisplayName => displayName;
         public string Briefing => briefing;
+        public InvestigationSurveyContextData SurveyContext => surveyContext;
         public IReadOnlyList<InvestigationV2SpeciesDefinition> Species => species;
         public IReadOnlyList<InvestigationV2ObservationDefinition> Observations => observations;
         public IReadOnlyList<ThreatSimulationDefinition> Threats => threats;

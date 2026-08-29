@@ -232,9 +232,7 @@ namespace EDNA.Investigation.V2
                 Text guidance = CreateText(
                     "Comparison Gate",
                     gate,
-                    simulation == null
-                        ? "TO REPORT · Run a model, then compare its predictions with evidence"
-                        : $"TO REPORT · {BuildSimulationGateLabel()}",
+                    $"TO REPORT · {BuildSimulationGateLabel()}",
                     10,
                     FontStyle.Bold,
                     InvestigationV2Theme.TextSecondary,
@@ -253,7 +251,15 @@ namespace EDNA.Investigation.V2
             layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
-            Text heading = CreateText("Case Questions Heading", panel, "CASE QUESTIONS", 11, FontStyle.Bold, InvestigationV2Theme.Primary, TextAnchor.MiddleLeft, InvestigationV2Theme.DataFont);
+            Text heading = CreateText(
+                "Case Questions Heading",
+                panel,
+                state.Difficulty == InvestigationV2Difficulty.Easy ? "CASE QUESTIONS · GUIDED" : "CASE QUESTIONS · INDEPENDENT",
+                11,
+                FontStyle.Bold,
+                InvestigationV2Theme.Primary,
+                TextAnchor.MiddleLeft,
+                InvestigationV2Theme.DataFont);
             AddLayout(heading.rectTransform, 16f, 1f);
 
             RectTransform grid = new GameObject("Case Question Grid", typeof(RectTransform), typeof(InvestigationV2ResponsiveGridLayout)).GetComponent<RectTransform>();
@@ -263,17 +269,28 @@ namespace EDNA.Investigation.V2
             gridLayout.Configure(2, 2, 2, 24f, 2f);
 
             HashSet<string> shownQuestionIds = new HashSet<string>(StringComparer.Ordinal);
+            InvestigationV2ObjectiveDefinition guidedObjective = state.Difficulty == InvestigationV2Difficulty.Easy
+                ? FindNextGuidedObjective()
+                : null;
             for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
             {
                 InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
                 if (objective == null || !objective.Required || !shownQuestionIds.Add(objective.QuestionId)) continue;
                 bool complete = IsQuestionComplete(objective.QuestionId);
-                RectTransform row = CreatePanel($"Case Question {objective.QuestionId}", grid, new Color(0f, 0f, 0f, 0f), 0f);
+                bool easyNext = !complete
+                    && guidedObjective != null
+                    && string.Equals(objective.QuestionId, guidedObjective.QuestionId, StringComparison.Ordinal);
+                RectTransform row = CreatePanel(
+                    $"Case Question {objective.QuestionId}",
+                    grid,
+                    easyNext ? new Color32(27, 82, 115, 150) : new Color(0f, 0f, 0f, 0f),
+                    easyNext ? 6f : 0f);
+                if (easyNext) EnsureOutline(row.gameObject, InvestigationV2Theme.Primary, new Vector2(1f, -1f));
                 Image icon = CreateStatusIcon(
                     "Question Status",
                     row,
                     complete ? InvestigationV2StatusIconLibrary.Check : InvestigationV2StatusIconLibrary.Question,
-                    complete ? InvestigationV2Theme.Success : InvestigationV2Theme.Unknown);
+                    complete ? InvestigationV2Theme.Success : easyNext ? InvestigationV2Theme.Primary : InvestigationV2Theme.Unknown);
                 Anchor(icon.rectTransform, 0f, 0f, 0f, 1f, 0f, 3f, 16f, -3f);
                 Text prompt = CreateText("Question Prompt", row, objective.QuestionPrompt, 13, FontStyle.Bold, complete ? InvestigationV2Theme.TextPrimary : InvestigationV2Theme.TextSecondary, TextAnchor.MiddleLeft, InvestigationV2Theme.BodyFont);
                 prompt.verticalOverflow = VerticalWrapMode.Overflow;
@@ -303,7 +320,12 @@ namespace EDNA.Investigation.V2
                 InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
                 if (objective == null || !objective.Required || !string.Equals(objective.ThreatId, threatId, StringComparison.Ordinal)) continue;
                 hasRequired = true;
-                if (!state.HasCompletedObjective(objective.ObjectiveId)) return "CHECK EVIDENCE";
+                if (!state.HasCompletedObjective(objective.ObjectiveId))
+                {
+                    return state.Difficulty == InvestigationV2Difficulty.Easy
+                        ? $"CHECK {ObjectiveTargetStatusLabel(objective)}"
+                        : "CHECK EVIDENCE";
+                }
             }
             if (!hasRequired) return "MODEL RUN";
             return string.Equals(threatId, caseDefinition.CorrectThreatId, StringComparison.Ordinal)
@@ -886,7 +908,7 @@ namespace EDNA.Investigation.V2
                 else if (state.Difficulty == InvestigationV2Difficulty.Easy
                     && IsDirectObservationForSelectedTarget(observation))
                 {
-                    EnsureOutline(button.gameObject, InvestigationV2Theme.BorderStrong, new Vector2(1f, -1f));
+                    StyleGuidedObservation(button, label);
                 }
                 shown++;
             }
@@ -965,26 +987,63 @@ namespace EDNA.Investigation.V2
                 && string.Equals(observation.RelatedSpeciesId, selectedPredictionSpeciesId, StringComparison.Ordinal);
         }
 
+        private static void StyleGuidedObservation(Button button, Text label)
+        {
+            EnsureOutline(button.gameObject, InvestigationV2Theme.Primary, new Vector2(1f, -1f));
+            label.rectTransform.offsetMax = new Vector2(-62f, label.rectTransform.offsetMax.y);
+            RectTransform badge = CreatePanel("Guided Clue Badge", button.transform, InvestigationV2Theme.Deep, 6f);
+            Anchor(badge, 1f, 0.5f, 1f, 0.5f, -58f, -11f, -8f, 11f);
+            EnsureOutline(badge.gameObject, InvestigationV2Theme.Primary, new Vector2(1f, -1f));
+            Text badgeLabel = CreateText(
+                "Guided Clue Label",
+                badge,
+                "GUIDE",
+                9,
+                FontStyle.Bold,
+                InvestigationV2Theme.Primary,
+                TextAnchor.MiddleCenter,
+                InvestigationV2Theme.DataFont);
+            Stretch(badgeLabel.rectTransform, 3f, 1f, -3f, -1f);
+        }
+
         private string BuildSimulationGateLabel()
         {
             if (caseDefinition.InvestigationObjectives.Count > 0)
             {
-                for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
+                if (state.Difficulty == InvestigationV2Difficulty.Hard)
                 {
-                    InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
-                    if (objective == null || !objective.Required || state.HasCompletedObjective(objective.ObjectiveId)) continue;
-                    InvestigationV2ObservationDefinition requiredEvidence = caseDefinition.FindObservation(objective.RequiredEvidenceId);
-                    if (!state.HasDiscoveredObservation(objective.RequiredEvidenceId)
+                    for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
+                    {
+                        InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
+                        if (objective == null || !objective.Required || state.HasCompletedObjective(objective.ObjectiveId)) continue;
+                        InvestigationV2ObservationDefinition evidence = caseDefinition.FindObservation(objective.RequiredEvidenceId);
+                        if (evidence != null
+                            && !state.HasDiscoveredObservation(evidence.EvidenceId)
+                            && (evidence.UnlockStage == EvidenceUnlockStage.Observe || evidence.UnlockStage == EvidenceUnlockStage.Always))
+                        {
+                            return "Return to Observe: one required finding is missing";
+                        }
+                        if (!state.HasTriedThreat(objective.ThreatId)) return "Run another untested cause";
+                        return "Use the remaining Case Questions to choose a comparison";
+                    }
+                    return "Complete the remaining Case Questions";
+                }
+
+                InvestigationV2ObjectiveDefinition guidedObjective = FindNextGuidedObjective();
+                if (guidedObjective != null)
+                {
+                    InvestigationV2ObservationDefinition requiredEvidence = caseDefinition.FindObservation(guidedObjective.RequiredEvidenceId);
+                    if (!state.HasDiscoveredObservation(guidedObjective.RequiredEvidenceId)
                         && requiredEvidence != null
                         && (requiredEvidence.UnlockStage == EvidenceUnlockStage.Observe
                             || requiredEvidence.UnlockStage == EvidenceUnlockStage.Always))
                     {
-                        return $"Record {MissingEvidenceSubject(objective.RequiredEvidenceId)} in Observe";
+                        return $"Record {MissingEvidenceSubject(guidedObjective.RequiredEvidenceId)} in Observe";
                     }
-                    ThreatSimulationDefinition threat = caseDefinition.FindThreat(objective.ThreatId);
-                    if (!state.HasTriedThreat(objective.ThreatId))
-                        return $"Run {threat?.DisplayName ?? objective.ThreatId}";
-                    return ObjectiveActionLabel(objective, threat);
+                    ThreatSimulationDefinition threat = caseDefinition.FindThreat(guidedObjective.ThreatId);
+                    if (!state.HasTriedThreat(guidedObjective.ThreatId))
+                        return $"Run {threat?.DisplayName ?? guidedObjective.ThreatId}";
+                    return ObjectiveActionLabel(guidedObjective, threat);
                 }
                 return "Complete the required investigation questions";
             }
@@ -996,10 +1055,59 @@ namespace EDNA.Investigation.V2
             InvestigationV2ObjectiveDefinition objective,
             ThreatSimulationDefinition threat)
         {
-            string target;
-            if (objective.TargetKind == PredictionTargetKind.Temperature) target = "temperature";
-            else target = caseDefinition.FindSpecies(objective.TargetId)?.DisplayName ?? objective.TargetId;
+            string target = ObjectiveTargetDisplayName(objective);
             return $"Compare {target} for {threat?.DisplayName ?? objective.ThreatId}";
+        }
+
+        private InvestigationV2ObjectiveDefinition FindNextGuidedObjective()
+        {
+            if (!string.IsNullOrEmpty(selectedThreatId))
+            {
+                for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
+                {
+                    InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
+                    if (objective != null
+                        && objective.Required
+                        && string.Equals(objective.ThreatId, selectedThreatId, StringComparison.Ordinal)
+                        && !state.HasCompletedObjective(objective.ObjectiveId))
+                    {
+                        return objective;
+                    }
+                }
+            }
+
+            for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
+            {
+                InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
+                if (objective != null && objective.Required && !state.HasCompletedObjective(objective.ObjectiveId)) return objective;
+            }
+            return null;
+        }
+
+        private string ObjectiveTargetDisplayName(InvestigationV2ObjectiveDefinition objective)
+        {
+            if (objective == null) return "evidence";
+            switch (objective.TargetKind)
+            {
+                case PredictionTargetKind.Temperature: return "temperature";
+                case PredictionTargetKind.Seafloor: return "seafloor";
+                case PredictionTargetKind.PhysicalConfirmation: return "follow-up";
+                default: return caseDefinition.FindSpecies(objective.TargetId)?.DisplayName ?? objective.TargetId;
+            }
+        }
+
+        private static string ObjectiveTargetStatusLabel(InvestigationV2ObjectiveDefinition objective)
+        {
+            if (objective == null) return "CLUE";
+            switch (objective.TargetKind)
+            {
+                case PredictionTargetKind.Temperature: return "TEMP";
+                case PredictionTargetKind.Seafloor: return "SEAFLOOR";
+                case PredictionTargetKind.PhysicalConfirmation: return "FOLLOW-UP";
+                default: return string.IsNullOrWhiteSpace(objective.TargetId)
+                    ? "SPECIES"
+                    : objective.TargetId.Replace('_', ' ').ToUpperInvariant();
+            }
         }
 
         private string FindDefaultThreatId()

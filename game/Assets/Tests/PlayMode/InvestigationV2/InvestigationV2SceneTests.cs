@@ -42,6 +42,46 @@ namespace EDNA.Investigation.V2.Tests
         }
 
         [UnityTest]
+        public IEnumerator V2Scene_ExternalInputReportsImportStatusAndRejectsWrongCase()
+        {
+            InvestigationGameInput validInput = new InvestigationGameInput
+            {
+                caseId = "investigation_v2_longline_01",
+                surveyContext = new InvestigationSurveyContextData
+                {
+                    surveyId = "survey_from_ctd",
+                    surveyDisplayName = "CTD Survey",
+                    siteId = "waypoint_b",
+                    siteDisplayName = "Waypoint B"
+                }
+            };
+            validInput.discoveredObservationIds.Add("E01_SHARK_NONDETECTION");
+
+            try
+            {
+                InvestigationV2SessionBridge.SetInput(validInput);
+                yield return LoadV2Scene();
+                InvestigationV2Controller controller = Object.FindAnyObjectByType<InvestigationV2Controller>();
+                Assert.That(controller.State.HasDiscoveredObservation("E01_SHARK_NONDETECTION"), Is.True);
+                Assert.That(controller.State.SurveyId, Is.EqualTo("survey_from_ctd"));
+                GameObject notice = FindGameObject("Status Toast");
+                Assert.That(notice.activeSelf, Is.True);
+                Assert.That(notice.transform.Find("Status Message").GetComponent<Text>().text, Does.Contain("Imported 1 observation"));
+                Assert.That(notice.transform.Find("Status Accent").GetComponent<Image>().color,
+                    Is.EqualTo((Color)InvestigationV2Theme.Primary));
+
+                InvestigationV2SessionBridge.SetInput(new InvestigationGameInput { caseId = "wrong_case" });
+                yield return LoadV2Scene();
+                Assert.That(FindGameObject("Fatal Error").GetComponent<Text>().text,
+                    Does.Contain("External input targets case wrong_case"));
+            }
+            finally
+            {
+                InvestigationV2SessionBridge.Clear();
+            }
+        }
+
+        [UnityTest]
         public IEnumerator V2Scene_BootstrapsObserveCanvasAndAccessibleControls()
         {
             yield return LoadV2Scene();
@@ -380,12 +420,16 @@ namespace EDNA.Investigation.V2.Tests
         {
             InvestigationV2SessionBridge.Clear();
             yield return LoadV2Scene();
+            Assert.That(FindGameObject("Case Subtitle").GetComponent<Text>().text, Does.Contain("SEAMOUNT A"));
+            Assert.That(FindGameObject("Case Subtitle").GetComponent<Text>().text, Does.Contain("SURVEY 12"));
             Button observePrimary = FindButton("Continue To Simulate");
             Assert.That(observePrimary.colors.highlightedColor, Is.EqualTo(new Color(0.96f, 0.96f, 0.96f, 1f)),
                 "Paper buttons should darken slightly on hover.");
             Assert.That(observePrimary.colors.selectedColor, Is.EqualTo(observePrimary.colors.normalColor),
                 "A clicked paper button must not retain its hover tint.");
             Click("Species Marker shark");
+            Assert.That(FindGameObject("Notebook E01_SHARK_NONDETECTION").transform.Find("Source").GetComponent<Text>().text,
+                Does.StartWith("eDNA ·"));
             Click("Species Marker tuna");
             Click("Species Marker krill");
             Click("Species Marker sea_star");
@@ -416,11 +460,20 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(comparisonColumn.GetComponent<VerticalLayoutGroup>().padding.bottom, Is.EqualTo(4));
             Assert.That(FindButton("Threat longline").transform.Find("Threat Status"), Is.Not.Null);
             Assert.That(FindGameObject("Case Questions"), Is.Not.Null);
+            Assert.That(FindGameObject("Case Questions Heading").GetComponent<Text>().text, Does.Contain("GUIDED"));
+            Assert.That(FindGameObject("Case Question food_web").GetComponent<Outline>(), Is.Not.Null,
+                "Easy guidance should follow the currently selected Long-line cause.");
+            Assert.That(FindGameObject("Case Question warming").GetComponent<Outline>(), Is.Null);
+            Assert.That(FindGameObject("Comparison Gate").GetComponent<Text>().text, Does.Contain("Run Long-line fishing"));
             Assert.That(FindButton("Threat longline").GetComponents<Shadow>().Length, Is.EqualTo(1));
             AssertSimulateWorkspaceWidthFits();
             AssertSimulatePageFitsViewportHeight();
 
             Click("Threat warming");
+            Assert.That(FindGameObject("Case Question warming").GetComponent<Outline>(), Is.Not.Null,
+                "Changing cause should move Easy guidance to that cause's next objective.");
+            Assert.That(FindGameObject("Case Question food_web").GetComponent<Outline>(), Is.Null);
+            Assert.That(FindGameObject("Comparison Gate").GetComponent<Text>().text, Does.Contain("Run Ocean warming"));
             Click("Run Selected Model");
             Assert.That(controller.State.HasDiscoveredObservation("E05_TEMPERATURE_NORMAL"), Is.True);
             Assert.That(FindButton("Prediction Target Temperature temperature"), Is.Not.Null);
@@ -459,6 +512,12 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(predictionSelection.Find("Panel Accent"), Is.Null);
             Assert.That(observationSelection.Find("Panel Accent"), Is.Null);
             Click("Prediction shark");
+            Button guidedSharkObservation = FindButton("Observation E01_SHARK_NONDETECTION");
+            Assert.That(guidedSharkObservation.GetComponent<Image>().color,
+                Is.Not.EqualTo((Color)InvestigationV2Theme.SurfaceRaised),
+                "A suggested clue must not use the selected-state fill.");
+            Assert.That(guidedSharkObservation.transform.Find("Guided Clue Badge"), Is.Not.Null);
+            Assert.That(guidedSharkObservation.transform.Find("Selected Evidence Check"), Is.Null);
             Text sharkObservationLabel = FindButton("Observation E01_SHARK_NONDETECTION").GetComponentInChildren<Text>();
             Assert.That(sharkObservationLabel.supportRichText, Is.True);
             Assert.That(sharkObservationLabel.text, Does.Contain("<b><color=#"));
@@ -740,18 +799,42 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindButton("Submit Final Report").GetComponents<Shadow>().Length, Is.EqualTo(1));
             Assert.That(FindButton("Submit Final Report").GetComponent<Outline>(), Is.Null);
             Assert.That(FindButton("Submit Final Report").GetComponent<RectTransform>().rect.size, Is.EqualTo(new Vector2(104f, 30f)));
+            reportScroll.verticalNormalizedPosition = 0.15f;
             Click("Submit Final Report");
+            yield return null;
             Assert.That(controller.State.ConclusionStatus, Is.EqualTo(InvestigationV2ConclusionStatus.Correct));
+            Assert.That(reportScroll.verticalNormalizedPosition, Is.EqualTo(1f).Within(0.02f),
+                "Entering Case Closed must start at the top instead of preserving the editable report's scroll position.");
+            Assert.That(EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Restart Completed Case"),
+                "Keyboard focus should move to the only Case Closed action after submission.");
             InvestigationGameResult bridgeResult = InvestigationV2SessionBridge.LastResult;
             Assert.That(bridgeResult, Is.Not.Null);
             Assert.That(bridgeResult.correct, Is.True);
             Assert.That(bridgeResult.completed, Is.True);
             Assert.That(bridgeResult.selectedHypothesisId, Is.EqualTo("longline"));
+            Assert.That(bridgeResult.surveyId, Is.EqualTo("survey_12"));
+            Assert.That(bridgeResult.siteId, Is.EqualTo("seamount_a"));
             Assert.That(bridgeResult.finalSubmissionAttempts, Is.EqualTo(1));
             Assert.That(bridgeResult.missteps, Is.Zero);
             Assert.That(FindGameObject("Report Outcome").GetComponent<Image>().color, Is.EqualTo((Color)InvestigationV2Theme.ReportSuccess));
             Assert.That(FindGameObject("Report Outcome").transform.Find("Outcome Icon").GetComponent<Image>().sprite,
                 Is.EqualTo(InvestigationV2StatusIconLibrary.Check));
+            Assert.That(FindGameObject("Case Closed Summary"), Is.Not.Null);
+            Text[] debriefTexts = FindGameObject("Case Closed Summary").GetComponentsInChildren<Text>();
+            for (int textIndex = 0; textIndex < debriefTexts.Length; textIndex++) AssertTextFitsItsRect(debriefTexts[textIndex]);
+            Assert.That(WorldRect(FindGameObject("Case Closed Summary").GetComponent<RectTransform>()).width,
+                Is.LessThanOrEqualTo(WorldRect(reportScroll.viewport).width + 1f));
+            Assert.That(FindGameObject("Case Closed Title").GetComponent<Text>().text, Does.Contain("Long-line fishing"));
+            Assert.That(FindGameObject("Debrief FOOD-WEB MECHANISM").transform.Find("Debrief Statement").GetComponent<Text>().text,
+                Does.Contain("Fewer sharks"));
+            Assert.That(FindGameObject("Debrief BENTHIC CHECK").transform.Find("Debrief Statement").GetComponent<Text>().text,
+                Does.Contain("Sea star remains stable"));
+            Assert.That(FindGameObject("Debrief ROV FOLLOW-UP").transform.Find("Debrief Statement").GetComponent<Text>().text,
+                Does.Contain("Fishing line recorded"));
+            Assert.That(FindGameObject("Debrief SCIENTIFIC CAUTION").transform.Find("Debrief Statement").GetComponent<Text>().text,
+                Does.Contain("Not detected does not mean gone"));
+            Assert.That(GameObject.Find("Report Columns"), Is.Null,
+                "A solved case should show the focused learning debrief instead of the editable report form.");
             Assert.That(FindGameObject("Report Metadata").GetComponent<Text>().text, Does.Contain("Revision 1"));
             Assert.That(FindGameObject("Report Metadata").GetComponent<Text>().text, Does.Not.Contain("Final attempts"));
             Assert.That(FindButton("Back To Simulator"), Is.Null);
@@ -808,9 +891,18 @@ namespace EDNA.Investigation.V2.Tests
             Click("Continue To Simulate");
             Click("Threat plastic");
             Click("Run Selected Model");
+            Assert.That(FindGameObject("Case Questions Heading").GetComponent<Text>().text, Does.Contain("INDEPENDENT"));
+            Assert.That(FindGameObject("Case Question warming").GetComponent<Outline>(), Is.Null,
+                "Hard mode should keep the Case Questions but remove the guided next-question highlight.");
+            Assert.That(FindGameObject("Comparison Gate").GetComponent<Text>().text, Does.Contain("Run another untested cause"));
+            Assert.That(FindButton("Threat plastic").transform.Find("Threat Status").GetComponent<Text>().text,
+                Is.EqualTo("CHECK EVIDENCE"));
             Button mussel = FindButton("Prediction mussel");
             Assert.That(mussel.transform.Find("Prediction").GetComponent<Text>().text, Is.EqualTo("Decrease"));
             Assert.That(mussel.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.LessThan(0.01f));
+            Click("Prediction mussel");
+            Assert.That(FindButton("Observation E06_PLASTIC_INDICATOR_STABLE").transform.Find("Guided Clue Badge"), Is.Null,
+                "Hard mode should not label a candidate as the guided clue.");
             controller.SendMessage("HandleRestart", SendMessageOptions.DontRequireReceiver);
             // Public UI restart is exercised in Report; verify initial scene reload reset instead.
             yield return SceneManager.LoadSceneAsync("InvestigationSceneV2", LoadSceneMode.Single);

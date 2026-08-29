@@ -9,9 +9,12 @@ namespace EDNA.Investigation.V2
     {
         private void RenderObserve()
         {
+            string processedSummary = string.IsNullOrWhiteSpace(state.ProcessedSampleSummary)
+                ? "Processed survey results"
+                : state.ProcessedSampleSummary;
             CreateHeading(
                 "What changed on this seamount?",
-                "Compare the 20-year baseline and today's survey side by side. Select unusual results on the current map to record them.");
+                $"{processedSummary}. Compare them with the 20-year baseline and record unusual results on today's survey.");
 
             RectTransform split = new GameObject("Observe Split", typeof(RectTransform), typeof(InvestigationV2ResponsiveSplitLayout)).GetComponent<RectTransform>();
             split.SetParent(contentRoot, false);
@@ -362,7 +365,7 @@ namespace EDNA.Investigation.V2
                     InvestigationV2Theme.DisplayFont);
                 title.supportRichText = true;
                 Anchor(title.rectTransform, 0f, 0.43f, 1f, 1f, 24f, 0f, -8f, 0f);
-                Text source = CreateText("Source", item, $"{observation.Source} · {observation.Confidence} confidence", 10, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.UpperLeft, InvestigationV2Theme.DataFont);
+                Text source = CreateText("Source", item, $"{ObservationSourceDisplayName(observation.Source)} · {observation.Confidence} confidence", 10, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.UpperLeft, InvestigationV2Theme.DataFont);
                 Anchor(source.rectTransform, 0f, 0f, 1f, 0.46f, 24f, 0f, -8f, 0f);
                 RectTransform paperLine = CreatePanel("Paper Line", item, new Color32(179, 214, 225, 210), 0f);
                 Anchor(paperLine, 0.04f, 0f, 0.96f, 0f, 0f, 0f, 0f, 2f);
@@ -372,6 +375,18 @@ namespace EDNA.Investigation.V2
             {
                 Text empty = CreateText("Notebook Empty", parent, "Select unusual results on the current survey map. Important observations are recorded automatically.", 14, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.UpperLeft, InvestigationV2Theme.BodyFont);
                 AddLayout(empty.rectTransform, 92f, 1f);
+            }
+        }
+
+        private static string ObservationSourceDisplayName(ObservationSource source)
+        {
+            switch (source)
+            {
+                case ObservationSource.EDNA: return "eDNA";
+                case ObservationSource.CTDLog: return "CTD sensor";
+                case ObservationSource.ROV: return "ROV";
+                case ObservationSource.Methodology: return "Method note";
+                default: return "Survey";
             }
         }
 

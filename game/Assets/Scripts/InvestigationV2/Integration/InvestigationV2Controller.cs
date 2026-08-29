@@ -11,6 +11,7 @@ namespace EDNA.Investigation.V2
     public enum InvestigationV2StatusTone
     {
         Guide,
+        Notice,
         Success,
         Warning
     }
@@ -71,12 +72,21 @@ namespace EDNA.Investigation.V2
         {
             InvestigationV2SessionBridge.ClearResult();
             state = updater.CreateInitialState();
+            string openingMessage = "Processed survey ready. Compare it with the historical baseline and record every unusual species pattern.";
+            InvestigationV2StatusTone openingTone = InvestigationV2StatusTone.Guide;
             if (InvestigationV2SessionBridge.PendingInput != null)
             {
-                updater.TryApplyExternalInput(state, InvestigationV2SessionBridge.PendingInput, out _);
+                if (!updater.TryApplyExternalInput(state, InvestigationV2SessionBridge.PendingInput, out string importFeedback))
+                {
+                    view.ResetPresentationState();
+                    view.ShowFatalError(importFeedback);
+                    return;
+                }
+                openingMessage = importFeedback;
+                openingTone = InvestigationV2StatusTone.Notice;
             }
             view.ResetPresentationState();
-            view.Refresh(state, "Start with today's survey and record every unusual species pattern.", InvestigationV2StatusTone.Guide);
+            view.Refresh(state, openingMessage, openingTone);
         }
 
         private void HandleSetPhase(InvestigationV2Phase phase)
@@ -95,8 +105,8 @@ namespace EDNA.Investigation.V2
         {
             updater.SetDifficulty(state, difficulty);
             view.Refresh(state, difficulty == InvestigationV2Difficulty.Easy
-                ? "Easy guidance enabled: relevant observations are highlighted and feedback is detailed."
-                : "Hard guidance enabled: candidate observations remain available without relevance highlighting.", InvestigationV2StatusTone.Guide);
+                ? "Easy guidance enabled: the next Case Question, related clues and exact next step are highlighted."
+                : "Hard guidance enabled: all evidence remains available, but guided targets are hidden.", InvestigationV2StatusTone.Guide);
         }
 
         private void HandleDiscoverObservation(string evidenceId)
@@ -187,6 +197,8 @@ namespace EDNA.Investigation.V2
                 InvestigationV2SessionBridge.PublishResult(new InvestigationGameResult
                 {
                     caseId = caseDefinition.CaseId,
+                    surveyId = state.SurveyId,
+                    siteId = state.SiteId,
                     selectedHypothesisId = state.FinalThreatId,
                     correct = result.Status == InvestigationV2ConclusionStatus.Correct,
                     evidenceIds = new List<string>(state.SelectedReportEvidenceIds),

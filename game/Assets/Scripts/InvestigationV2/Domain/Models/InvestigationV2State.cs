@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using EDNA.Core;
 
 namespace EDNA.Investigation.V2.Domain
 {
@@ -22,6 +23,11 @@ namespace EDNA.Investigation.V2.Domain
         public InvestigationV2ConclusionStatus ConclusionStatus { get; internal set; } = InvestigationV2ConclusionStatus.NotSubmitted;
         public int MisstepCount { get; internal set; }
         public int FinalSubmissionAttemptCount { get; internal set; }
+        public string SurveyId { get; private set; } = string.Empty;
+        public string SurveyDisplayName { get; private set; } = "Survey";
+        public string SiteId { get; private set; } = string.Empty;
+        public string SiteDisplayName { get; private set; } = "Survey site";
+        public string ProcessedSampleSummary { get; private set; } = "Processed eDNA survey results";
 
         public IReadOnlyList<string> DiscoveredObservationIds => discoveredObservationIds;
         public IReadOnlyList<string> TriedThreatIds => triedThreatIds;
@@ -115,6 +121,16 @@ namespace EDNA.Investigation.V2.Domain
             AddUnique(discoveredObservationIds, evidenceId);
         }
 
+        internal void ApplySurveyContext(InvestigationSurveyContextData context)
+        {
+            if (context == null) return;
+            SurveyId = Prefer(context.surveyId, SurveyId);
+            SurveyDisplayName = Prefer(context.surveyDisplayName, SurveyDisplayName);
+            SiteId = Prefer(context.siteId, SiteId);
+            SiteDisplayName = Prefer(context.siteDisplayName, SiteDisplayName);
+            ProcessedSampleSummary = Prefer(context.processedSampleSummary, ProcessedSampleSummary);
+        }
+
         internal void RecordSimulation(SimulationResult result)
         {
             if (result == null) return;
@@ -189,6 +205,11 @@ namespace EDNA.Investigation.V2.Domain
             {
                 if (string.Equals(values[index], value, StringComparison.Ordinal)) values.RemoveAt(index);
             }
+        }
+
+        private static string Prefer(string candidate, string fallback)
+        {
+            return string.IsNullOrWhiteSpace(candidate) ? fallback : candidate.Trim();
         }
     }
 }
