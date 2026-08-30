@@ -578,6 +578,12 @@ namespace EDNA.Investigation.V2.Tests
             AssertFullBorderAccent(sealedConfirmation, InvestigationV2Theme.Primary);
             Assert.That(sealedConfirmation.Find("Panel Accent"), Is.Null);
             Canvas.ForceUpdateCanvases();
+            AssertSameRow("Report Title", "Report Metadata");
+            Assert.That(FindGameObject("Report Title").transform.parent.name, Is.EqualTo("Report Header Row"));
+            Assert.That(FindGameObject("Report Metadata").transform.parent.name, Is.EqualTo("Report Header Row"));
+            Assert.That(FindGameObject("Report Header Row").GetComponent<RectTransform>().rect.height, Is.EqualTo(44f).Within(0.1f));
+            AssertTextFitsItsRect(FindGameObject("Report Title").GetComponent<Text>());
+            AssertTextFitsItsRect(FindGameObject("Report Metadata").GetComponent<Text>());
             RectTransform reportLeft = FindGameObject("Report Cause And Reasoning").GetComponent<RectTransform>();
             RectTransform reportRight = FindGameObject("Report Evidence And Limitation").GetComponent<RectTransform>();
             Assert.That(reportLeft.position.x, Is.LessThan(reportRight.position.x));

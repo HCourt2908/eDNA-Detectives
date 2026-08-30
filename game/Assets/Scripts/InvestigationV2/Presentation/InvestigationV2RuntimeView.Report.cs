@@ -136,13 +136,29 @@ namespace EDNA.Investigation.V2
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
 
-            Text title = CreateText("Report Title", paper, "Survey report", 25, FontStyle.Bold, InvestigationV2Theme.PaperInk, TextAnchor.MiddleLeft, InvestigationV2Theme.DisplayFont);
-            AddLayout(title.rectTransform, 44f, 1f);
+            RectTransform reportHeader = CreatePanel("Report Header Row", paper, new Color(0f, 0f, 0f, 0f), 0f);
+            AddLayout(reportHeader, 44f, 1f);
+            HorizontalLayoutGroup headerLayout = reportHeader.gameObject.AddComponent<HorizontalLayoutGroup>();
+            headerLayout.spacing = 12f;
+            headerLayout.childAlignment = TextAnchor.MiddleLeft;
+            headerLayout.childControlWidth = true;
+            headerLayout.childControlHeight = true;
+            headerLayout.childForceExpandWidth = false;
+            headerLayout.childForceExpandHeight = true;
+
+            Text title = CreateText("Report Title", reportHeader, "Survey report", 25, FontStyle.Bold, InvestigationV2Theme.PaperInk, TextAnchor.MiddleLeft, InvestigationV2Theme.DisplayFont);
+            LayoutElement titleLayout = title.gameObject.AddComponent<LayoutElement>();
+            titleLayout.minWidth = 170f;
+            titleLayout.preferredWidth = 190f;
             string attemptText = state.FinalSubmissionAttemptCount == 0
                 ? string.Empty
                 : $" · Revision {state.FinalSubmissionAttemptCount}";
-            Text metadata = CreateText("Report Metadata", paper, $"Researcher: You · Site: {state.SiteDisplayName} · {state.SurveyDisplayName}{attemptText}", 13, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.MiddleLeft, InvestigationV2Theme.DataFont);
-            AddLayout(metadata.rectTransform, 28f, 1f);
+            Text metadata = CreateText("Report Metadata", reportHeader, $"Researcher: You · Site: {state.SiteDisplayName} · {state.SurveyDisplayName}{attemptText}", 13, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.MiddleRight, InvestigationV2Theme.DataFont);
+            metadata.horizontalOverflow = HorizontalWrapMode.Overflow;
+            metadata.verticalOverflow = VerticalWrapMode.Overflow;
+            LayoutElement metadataLayout = metadata.gameObject.AddComponent<LayoutElement>();
+            metadataLayout.minWidth = 260f;
+            metadataLayout.flexibleWidth = 1f;
 
             CreateReportOutcome(paper);
             if (state.ConclusionStatus == InvestigationV2ConclusionStatus.Correct)
