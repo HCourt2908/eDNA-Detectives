@@ -70,8 +70,12 @@ namespace EDNA.Investigation.V2
 
         private void HandleRestart()
         {
+            InvestigationV2Difficulty retainedDifficulty = state == null
+                ? InvestigationV2Difficulty.Easy
+                : state.Difficulty;
             InvestigationV2SessionBridge.ClearResult();
             state = updater.CreateInitialState();
+            updater.SetDifficulty(state, retainedDifficulty);
             string openingMessage = "Processed survey ready. Compare it with the historical baseline and record every unusual species pattern.";
             InvestigationV2StatusTone openingTone = InvestigationV2StatusTone.Guide;
             if (InvestigationV2SessionBridge.PendingInput != null)

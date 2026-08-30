@@ -850,6 +850,7 @@ namespace EDNA.Investigation.V2.Tests
         public IEnumerator V2Scene_ReducedMotionDifficultyAndRestartRemainAvailable()
         {
             bool before = InvestigationV2MotionSettings.ReducedMotion;
+            InvestigationV2SessionBridge.Clear();
             InvestigationV2MotionSettings.SetReducedMotion(false);
             yield return LoadV2Scene();
             InvestigationV2Controller controller = Object.FindAnyObjectByType<InvestigationV2Controller>();
@@ -904,12 +905,20 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindButton("Observation E06_PLASTIC_INDICATOR_STABLE").transform.Find("Guided Clue Badge"), Is.Null,
                 "Hard mode should not label a candidate as the guided clue.");
             controller.SendMessage("HandleRestart", SendMessageOptions.DontRequireReceiver);
-            // Public UI restart is exercised in Report; verify initial scene reload reset instead.
+            Assert.That(controller.State.Difficulty, Is.EqualTo(InvestigationV2Difficulty.Hard),
+                "Restarting the current case should preserve the player's difficulty preference.");
+            Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
+            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationV2Phase.Observe));
+            Assert.That(FindButton("Difficulty Toggle").GetComponentInChildren<Text>().text, Is.EqualTo("Hard"));
+
+            // A new scene session has no previous state to retain and starts from the authored Easy default.
             yield return SceneManager.LoadSceneAsync("InvestigationSceneV2", LoadSceneMode.Single);
             yield return null;
             controller = Object.FindAnyObjectByType<InvestigationV2Controller>();
             Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
+            Assert.That(controller.State.Difficulty, Is.EqualTo(InvestigationV2Difficulty.Easy));
             InvestigationV2MotionSettings.SetReducedMotion(before);
+            InvestigationV2SessionBridge.Clear();
         }
 
         private static IEnumerator LoadV2Scene()
