@@ -1,120 +1,163 @@
-# eDNA Detectives
+# eDNA Detectives — Ecosystem Detective V2
 
-A Unity web-game prototype for the OceanX eDNA Detectives project.
+A Unity web-game vertical slice for the OceanX eDNA Detectives project. The current design is a three-stage ecosystem investigation in which players compare survey results, test competing causes, and build an evidence-based report.
 
-## Run Ecosystem Detective V2
+> V2 is the current implementation. The original five-stage V1 prototype remains in the repository as legacy reference only.
+
+## Quick start
 
 1. Open the `game` folder in Unity `6000.4.6f1`.
 2. Open `Assets/Scenes/InvestigationSceneV2.unity`.
 3. Press Play.
 
-V2 is isolated from the original prototype and implements the redesigned three-stage investigation:
+## Current gameplay flow
 
-1. **Observe** — compare the 20-year baseline seamount and today's seamount side by side, then hover, keyboard-focus, or tap a species for facts. Tapping a current marker also records its observation; tapping a historical marker only opens the facts. Notebook observations scroll inside their own reserved region while the compact stage CTA remains fixed and centered at the bottom.
-2. **Simulate** — use a compact 50/50 investigation workspace that fits in one landscape viewport: run all four causes and complete eight authored case objectives rather than filling a generic comparison count. Warming exposes a selectable Temperature prediction, Plastic uses the filter-feeding mussel as its indicator check, Long-line requires the full Shark → Tuna → Krill cascade, and Bottom trawling shares the tuna prediction before the Sea-star evidence separates the fishing models. Easy mode follows the currently selected cause, highlights its next Case Question, labels a directly related candidate as a `GUIDE` clue, and names the exact next action; Hard keeps the same evidence and judgement feedback but removes those guided targets.
-3. **Report** — submit a provisional cause, review the fixed ROV follow-up, then complete a responsive two-column survey paper: cause and reasoning on the left, evidence and scientific limitation on the right. The report requires four unique observations including at least two food-web, one benthic, and one ROV-confirmation item. Incorrect final submissions are recorded as revisions, and restarting an unfinished case requires explicit confirmation. A correct report replaces the editable form with a structured Case Closed debrief covering the cause, food-web mechanism, benthic discriminator, ROV follow-up and remaining scientific uncertainty.
+### 1 · Observe
 
-The V2 vertical slice uses a complete Long-line Fishing case with five species, four overlapping threats, a 20-cell species-prediction matrix plus a Temperature target, Easy/Hard guidance, reduced motion, confirmation evidence, and an objective-gated final report. Accepted scientific judgements, locked comparison slots, and objective progress are separate domain concepts: a reasonable `Not enough evidence` answer remains revisable, while a decisive Context-only comparison can lock without advancing the case.
+Players compare the same seamount **20 years ago** and **today**, divided into shallow, mid, and deep depth bands.
 
-The standalone case also exposes a small future-integration seam without depending on the CTD or DNA mini-games. Optional survey/site metadata can replace the authored `Survey 12` / `Seamount A` labels, mapped environmental and physical observation IDs are imported only when their authored unlock stage allows it, and the completed result returns the originating survey and site IDs. A successful import is surfaced as a neutral notice, while an input for the wrong case stops with a visible configuration error instead of silently falling back. Raw eDNA result interpretation remains outside the Detective domain so a later adapter can derive case observations without coupling the three games now.
+- Five case-relevant organisms appear at their habitat depths.
+- A current non-detection uses ghosted artwork and a dashed removal mark instead of an empty space.
+- Wider detection appears as a small group.
+- Hovering, keyboard-focusing, or tapping a marker opens its species facts.
+- Tapping a current marker records the observation; historical markers are read-only.
+- All five initial findings must be recorded before Simulate unlocks.
+- The field notebook records each finding in plain language with its evidence source and confidence.
 
-Development builds and the Unity Editor show four small QA checkpoint buttons along the bottom of the Game view (`QA Observe`, `QA Simulate`, `QA Report`, `QA Final`). They build valid states through the real domain API and are excluded from non-development players.
+### 2 · Simulate
 
-Observe and Report use a compact shared page heading. Simulate uses independent left and right columns: the original 42px explanation heading sits above the model workspace, while the 110px Case Questions panel sits above Prediction vs survey.
+Players test four competing explanations:
 
-Simulate keeps `Back to notebook` plus the report gate in a 28px compact row at the bottom of the right-hand comparison column. It does not reserve a full-width footer, leaving the left column's lower area available for the benthic animation. Report retains the larger final-submission footer.
+- Ocean warming
+- Plastic pollution
+- Long-line fishing
+- Bottom trawling
 
-Comparison feedback in Simulate no longer reserves a persistent row below the judgement buttons. Incorrect attempts use the existing three-second floating warning toast instead.
+Running a model reveals its temperature prediction, seafloor prediction, physical signs to look for, Shark → Tuna → Krill food-web response, and a separate benthic check for Sea star and Filter-feeding mussel.
 
-The V2 canvas uses adaptive 1280×720 landscape and 720×1280 portrait reference resolutions, width-matched scaling, pixel-perfect rendering, Safe Area fitting, and an 8px shell margin. Observe also adapts the seamount height on unusually short landscape viewports so its primary comparison remains on one screen. Guidance is normally hidden; invalid actions show a temporary three-second warning toast, while an incomplete report check uses a neutral in-view diagnostic toast instead of reserving a permanent status row.
+Players select one prediction, pair it with a recorded observation, and judge the relationship as:
 
-The visual system follows a biomimetic field-console direction: reduced corner radii, semantic low-contrast borders, cyan/coral panel accents, frameless species artwork, a pale field-notebook paper surface, concise model-indicator chips, local check/lock feedback, and a distinct yellow keyboard/controller focus ring. Observation status phrases keep the same semantic color language from the Notebook into the Simulate evidence choices, using brighter dark-surface variants for contrast. Whole-page entrance motion runs only when changing investigation stages; ordinary selections update in place.
+- **It matches**
+- **It doesn't match**
+- **Not enough evidence**
 
-Controls follow a hierarchy-specific treatment. Every coral Primary CTA uses the same solid fill and 17px label; dark surfaces use the dark `PrimaryShadow`, while the Notebook Primary uses the blue-grey `PaperShadow`. Dark secondary/stage controls use solid fills and a single crisp outline: inactive stages remain 2px, while the active stage uses a complete 3px cyan border instead of a bottom-only accent. Report paper choices use one shadow plus a `#748E9B` structural edge with at least 3:1 contrast against the paper and an inset paper face; they do not stack `Outline` and `Shadow` effects or use an imperceptible white bevel. Press scaling and decorative highlight strips remain disabled.
+A supported Match or Mismatch is committed and locked. A scientifically reasonable Not enough evidence judgement remains revisable and does not advance an objective by itself.
 
-Observe keeps only the `20 YEARS AGO` and `TODAY` map headings. Both surveys reuse the same deterministic, in-house Blender render of a flat-topped guyot, with code-drawn sediment mist softening the foot of the sprite. The Sprite and fog are isolated inside a `RectMask2D` visual clip, so an extreme aspect ratio cannot push the mountain into the depth-label region; species markers remain outside that mask. Species and the seamount share one plot coordinate system: water-column species sit over transparent water while benthic indicators sit on non-transparent rock. Wider detection uses a small icon group, while non-detection uses ghosted artwork with a dashed removal mark. Each frameless marker places its 13px name and 12px state directly over the scene with a compact deep-water text outline instead of a label plate. My Notebook uses pale cyan-white paper, blue-grey edging and shadow, coral bullets, ruled lines, and bold semantically colored status phrases instead of nested cards. The food-web cascade plays once at half speed; independent benthic predictions follow as a parallel pair using the same group-to-one or one-to-group visual grammar. Check, cross, question, and Report evidence marks use transparent Heroicons PNG assets rather than runtime-drawn glyphs; their MIT license and attribution are included with the assets.
+The case contains eight required investigation objectives grouped into five Case Questions. Easy mode follows the currently selected cause, prioritises the directly related `GUIDE` clue, and names the next action. Hard mode keeps the same evidence and scientific feedback but removes guided targets and shows the full candidate set.
 
-## Run Investigation V1 (legacy)
+### 3 · Report
 
-1. Open the `game` folder in Unity `6000.4.6f1`.
-2. Open `Assets/Scenes/InvestigationScene.unity`.
-3. Press Play.
+Players first submit a provisional explanation. Only then does the fixed ROV follow-up unlock:
 
-The original five-stage Investigation prototype is preserved as V1. A shared main menu and transitions between the three mini-games have not been integrated yet.
+- Fishing line recorded near shark habitat
+- Seafloor remains intact
 
-## How to play V1
+The same follow-up appears regardless of the provisional choice, so the game never changes its evidence to match the player's answer.
 
-1. **Case Files** — read the briefing and review each species profile.
-2. **Compare Data** — compare present-day eDNA samples with records from 20 years ago. Select a card and classify the change.
-3. **Build Hypothesis** — choose a theory, then assign identified findings as supporting or challenging evidence.
-4. **Plan Sample** — choose a site and depth for a follow-up sample. The prototype returns an immediate mock laboratory result.
-5. **Conclusion** — select the best-supported theory and submit it.
+The final survey report asks four plain-language questions:
 
-Incorrect classifications are recorded as missteps and that option is ruled out for the selected card. They do not end the game.
+- What do I think happened here?
+- How did that cause these changes?
+- What did I find that shows this?
+- What am I still not sure about?
 
-A successful conclusion needs:
+A valid report requires four unique findings, including at least two food-web observations, one benthic observation, and one ROV confirmation observation. It also requires the food-web mechanism and one scientific limitation. Incorrect submissions are recorded as revisions and explain which part of the pattern remains unsupported.
 
-- a supported hypothesis;
-- at least one completed follow-up sample; and
-- at least one challenging or uncertain finding.
+A correct report replaces the editable form with a **Case Closed** debrief covering the best-supported cause, food-web mechanism, benthic discriminator, ROV follow-up, and remaining uncertainty.
+
+## The Missing Predator case
+
+The current vertical slice investigates a repeated shark non-detection, tuna detected at more sites, repeated krill non-detection, and stable benthic indicators.
+
+Long-line fishing and bottom trawling deliberately share the same Shark ↓ / Tuna ↑ / Krill ↓ prediction. Players must use the stable Sea star evidence and intact seafloor to distinguish them. Fishing line near historical shark habitat then strengthens the best-supported Long-line explanation without treating eDNA non-detection as proof of complete absence.
+
+The case currently includes:
+
+- five species;
+- four threat models;
+- a complete 20-cell Threat × Species prediction matrix;
+- one additional temperature prediction target;
+- eight required comparison objectives;
+- two post-provisional ROV observations; and
+- an evidence-category-gated final report.
+
+## Difficulty, input, and accessibility
+
+- Easy and Hard change guidance, not the scientific rules or correct answer.
+- Restarting a case preserves the selected difficulty; a new scene session starts at Easy.
+- Full and reduced-motion modes are available from every stage.
+- Motion is disabled or simplified when reduced motion is active.
+- Pointer, keyboard, and touch interactions share the same gameplay path.
+- Species markers use generous hit targets and visible keyboard focus rings.
+- Selected, suggested, correct, incorrect, and uncertain states use shape or text in addition to colour.
+- The canvas supports adaptive landscape and portrait reference resolutions, Safe Area fitting, pixel-perfect rendering, responsive grids, and preserved scroll/focus state.
+- Invalid actions use a temporary warning toast. Incomplete-report checks use neutral guidance instead of failure styling.
+
+## Future mini-game integration
+
+V2 remains fully playable as a standalone case while exposing a small integration boundary through `EDNA.Core`:
+
+- optional survey and site metadata can replace the authored labels;
+- mapped environmental and physical observation IDs are imported only when their authored unlock stage permits it;
+- an input for the wrong case stops with a visible configuration error;
+- successful results return the case, survey, site, selected hypothesis, evidence IDs, revisions, and completion status; and
+- raw CTD/eDNA outputs remain outside the Detective domain until a dedicated adapter is agreed with the other mini-games.
 
 ## Screenshots
 
-### Ecosystem Detective V2 — Observe
+### Observe — compare the baseline and current survey
 
-![Ecosystem Detective V2 Observe screen with the shared rendered seamount](docs/images/investigation-v2-observe-seamount.png)
+![Ecosystem Detective V2 Observe screen showing historical and current seamount surveys beside the field notebook](docs/images/investigation-v2-observe-seamount.png)
 
-### Case Files
+### Simulate — choose and run a cause
 
-![Case Files screen](docs/images/investigation-case-files.png)
+![Ecosystem Detective V2 Simulate screen before running the selected Long-line fishing model](docs/images/investigation-v2-simulate-start.png)
 
-### Compare Data
+### Simulate — compare model predictions with survey evidence
 
-![Compare Data screen](docs/images/investigation-compare-data.png)
+![Ecosystem Detective V2 Simulate screen showing completed cause investigations, food-web predictions, benthic checks, and prediction-versus-survey controls](docs/images/investigation-v2-simulate-analysis.png)
 
-### Build Hypothesis
+### Report — assemble the final evidence-based explanation
 
-![Build Hypothesis screen](docs/images/investigation-build-hypothesis.png)
+![Ecosystem Detective V2 Report screen showing cause, reasoning, evidence, ROV follow-up, and scientific uncertainty sections](docs/images/investigation-v2-report.png)
 
-### Plan Sample
+## Development and validation
 
-![Plan Sample screen](docs/images/investigation-plan-sample.png)
+Development builds and the Unity Editor expose four QA checkpoints along the bottom of the Game view:
 
-### Conclusion
+- `QA Observe`
+- `QA Simulate`
+- `QA Report`
+- `QA Final`
 
-![Conclusion screen](docs/images/investigation-conclusion.png)
+These checkpoints construct valid states through the real domain API and are excluded from non-development players.
 
-## Gameplay flow
+Validation commands are available from the Unity menu:
 
-```mermaid
-flowchart TD
-    A[Read Case Files] --> B[Compare current and historical data]
-    B --> C{Classification correct?}
-    C -- No --> B
-    C -- Yes --> D[Unlock finding]
-    D --> E[Build and select a hypothesis]
-    E --> F[Plan a follow-up sample]
-    F --> G[Receive mock lab result]
-    G --> B
-    E --> H{Enough support, uncertainty, and sampling?}
-    H -- No --> B
-    H -- Yes --> I[Submit conclusion]
-    I --> J{Conclusion correct?}
-    J -- No --> B
-    J -- Yes --> K[Case solved]
-```
+- `eDNA Detectives > Validation > Run V2 EditMode Tests`
+- `eDNA Detectives > Validation > Run V2 PlayMode Tests`
 
-## Validation
+The V2 test assemblies are:
 
-From the Unity menu:
+- `EDNA.Investigation.V2.EditModeTests`
+- `EDNA.Investigation.V2.PlayModeTests`
 
-- `eDNA Detectives > Validation > Run EditMode Tests`
-- `eDNA Detectives > Validation > Run PlayMode Tests`
+The project also includes command-line development build validation for the standalone V2 scene.
 
-V2 also includes dedicated `EDNA.Investigation.V2.EditModeTests` and `EDNA.Investigation.V2.PlayModeTests` assemblies.
+## Project structure
 
-## Artwork credits
+- `game/Assets/Scripts/Core` — shared mini-game contracts and enums
+- `game/Assets/Scripts/InvestigationV2/Domain` — deterministic case rules and evaluation
+- `game/Assets/Scripts/InvestigationV2/Integration` — controller, session bridge, and QA state factory
+- `game/Assets/Scripts/InvestigationV2/Presentation` — runtime uGUI, responsive layouts, icons, and animation
+- `game/Assets/Data/InvestigationV2/LongLineCase` — species, threats, evidence, objectives, and report configuration
+- `game/Assets/Tests/EditMode/InvestigationV2` — domain and authoring validation
+- `game/Assets/Tests/PlayMode/InvestigationV2` — scene, UI, accessibility, and full-flow regression tests
 
-Investigation V2 uses transparent PNG artwork from [OpenMoji](https://openmoji.org/). All emojis are designed by OpenMoji, the open-source emoji and icon project, and are licensed under [CC BY-SA 4.0](game/Assets/Art/InvestigationV2/OpenMoji/LICENSE.txt). The per-file source codes are recorded in [ATTRIBUTION.md](game/Assets/Art/InvestigationV2/OpenMoji/ATTRIBUTION.md).
+## Artwork and licences
 
-The Observe seamount is an in-house deterministic Blender render. Its seed, source hashes, crop and downsampling recipe are recorded in [GENERATION.md](game/Assets/Art/InvestigationV2/Seamount/GENERATION.md); only the single approved hero angle is included in the Unity project.
+Investigation V2 uses transparent artwork from [OpenMoji](https://openmoji.org/), licensed under [CC BY-SA 4.0](game/Assets/Art/InvestigationV2/OpenMoji/LICENSE.txt). Per-file source codes and attribution are recorded in [ATTRIBUTION.md](game/Assets/Art/InvestigationV2/OpenMoji/ATTRIBUTION.md).
+
+Check, cross, question, lock, and Report evidence marks use transparent Heroicons assets under the included MIT licence.
+
+The Observe seamount is an in-house deterministic Blender render. Its source hashes, crop, seed, and downsampling recipe are recorded in [GENERATION.md](game/Assets/Art/InvestigationV2/Seamount/GENERATION.md).

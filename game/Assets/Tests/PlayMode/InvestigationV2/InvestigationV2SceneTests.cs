@@ -41,6 +41,23 @@ namespace EDNA.Investigation.V2.Tests
             }
         }
 
+        [Test]
+        public void ReportMetadata_CompactsUnboundedExternalDisplayNames()
+        {
+            MethodInfo compact = typeof(InvestigationV2RuntimeView).GetMethod(
+                "CompactReportMetadataValue",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(compact, Is.Not.Null);
+            string value = (string)compact.Invoke(null, new object[]
+            {
+                "North-East Seamount Expedition Waypoint C",
+                15,
+                "Survey site"
+            });
+            Assert.That(value, Has.Length.EqualTo(15));
+            Assert.That(value, Does.EndWith("…"));
+        }
+
         [UnityTest]
         public IEnumerator V2Scene_ExternalInputReportsImportStatusAndRejectsWrongCase()
         {
@@ -583,7 +600,11 @@ namespace EDNA.Investigation.V2.Tests
             Assert.That(FindGameObject("Report Metadata").transform.parent.name, Is.EqualTo("Report Header Row"));
             Assert.That(FindGameObject("Report Header Row").GetComponent<RectTransform>().rect.height, Is.EqualTo(44f).Within(0.1f));
             AssertTextFitsItsRect(FindGameObject("Report Title").GetComponent<Text>());
-            AssertTextFitsItsRect(FindGameObject("Report Metadata").GetComponent<Text>());
+            Text reportMetadata = FindGameObject("Report Metadata").GetComponent<Text>();
+            AssertTextFitsItsRect(reportMetadata);
+            Assert.That(reportMetadata.resizeTextForBestFit, Is.True);
+            Assert.That(reportMetadata.resizeTextMinSize, Is.EqualTo(10));
+            Assert.That(reportMetadata.resizeTextMaxSize, Is.EqualTo(13));
             RectTransform reportLeft = FindGameObject("Report Cause And Reasoning").GetComponent<RectTransform>();
             RectTransform reportRight = FindGameObject("Report Evidence And Limitation").GetComponent<RectTransform>();
             Assert.That(reportLeft.position.x, Is.LessThan(reportRight.position.x));

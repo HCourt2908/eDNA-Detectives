@@ -153,9 +153,14 @@ namespace EDNA.Investigation.V2
             string attemptText = state.FinalSubmissionAttemptCount == 0
                 ? string.Empty
                 : $" · Revision {state.FinalSubmissionAttemptCount}";
-            Text metadata = CreateText("Report Metadata", reportHeader, $"Researcher: You · Site: {state.SiteDisplayName} · {state.SurveyDisplayName}{attemptText}", 13, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.MiddleRight, InvestigationV2Theme.DataFont);
+            string compactSite = CompactReportMetadataValue(state.SiteDisplayName, 15, "Survey site");
+            string compactSurvey = CompactReportMetadataValue(state.SurveyDisplayName, 13, "Survey");
+            Text metadata = CreateText("Report Metadata", reportHeader, $"Researcher: You · Site: {compactSite} · {compactSurvey}{attemptText}", 13, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.MiddleRight, InvestigationV2Theme.DataFont);
             metadata.horizontalOverflow = HorizontalWrapMode.Overflow;
             metadata.verticalOverflow = VerticalWrapMode.Overflow;
+            metadata.resizeTextForBestFit = true;
+            metadata.resizeTextMinSize = 10;
+            metadata.resizeTextMaxSize = 13;
             LayoutElement metadataLayout = metadata.gameObject.AddComponent<LayoutElement>();
             metadataLayout.minWidth = 260f;
             metadataLayout.flexibleWidth = 1f;
@@ -180,6 +185,13 @@ namespace EDNA.Investigation.V2
             CreateReportEvidenceSection(rightColumn);
             CreateReportLimitationSection(rightColumn);
             FitReportColumns(split, columns, leftColumn, rightColumn);
+        }
+
+        private static string CompactReportMetadataValue(string value, int maximumCharacters, string fallback)
+        {
+            string normalized = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+            if (normalized.Length <= maximumCharacters) return normalized;
+            return normalized.Substring(0, Mathf.Max(1, maximumCharacters - 1)).TrimEnd() + "…";
         }
 
         private void CreateReportOutcome(Transform parent)

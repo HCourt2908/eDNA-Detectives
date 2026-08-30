@@ -875,12 +875,10 @@ namespace EDNA.Investigation.V2
                 selectedPredictionSpeciesId);
             bool comparisonLocked = lockedComparison != null && lockedComparison.LocksComparison;
             int maxCandidates = state.Difficulty == InvestigationV2Difficulty.Easy ? 3 : 4;
-            int shown = 0;
-            for (int index = 0; index < rule.ObservationOptions.Count && shown < maxCandidates; index++)
+            List<InvestigationV2ObservationDefinition> candidates = BuildVisibleObservationCandidates(rule, maxCandidates);
+            for (int index = 0; index < candidates.Count; index++)
             {
-                ObservationComparisonOptionDefinition option = rule.ObservationOptions[index];
-                InvestigationV2ObservationDefinition observation = option == null ? null : caseDefinition.FindObservation(option.EvidenceId);
-                if (observation == null || !state.HasDiscoveredObservation(observation.EvidenceId)) continue;
+                InvestigationV2ObservationDefinition observation = candidates[index];
                 Button button = CreateButton(
                     $"Observation {observation.EvidenceId}",
                     panel,
@@ -910,13 +908,57 @@ namespace EDNA.Investigation.V2
                 {
                     StyleGuidedObservation(button, label);
                 }
-                shown++;
             }
-            if (shown == 0)
+            if (candidates.Count == 0)
             {
                 Text none = CreateText("No Candidates", panel, "Return to Observe and record more evidence for this prediction.", 14, FontStyle.Normal, InvestigationV2Theme.TextSecondary, TextAnchor.UpperLeft, InvestigationV2Theme.BodyFont);
                 AddLayout(none.rectTransform, 48f, 1f);
             }
+        }
+
+        private List<InvestigationV2ObservationDefinition> BuildVisibleObservationCandidates(
+            PredictionComparisonRuleDefinition rule,
+            int maximum)
+        {
+            List<InvestigationV2ObservationDefinition> candidates = new List<InvestigationV2ObservationDefinition>(maximum);
+            if (state.Difficulty == InvestigationV2Difficulty.Easy)
+            {
+                AddVisibleObservationCandidates(rule, candidates, maximum, true);
+            }
+            AddVisibleObservationCandidates(rule, candidates, maximum, false);
+            return candidates;
+        }
+
+        private void AddVisibleObservationCandidates(
+            PredictionComparisonRuleDefinition rule,
+            List<InvestigationV2ObservationDefinition> candidates,
+            int maximum,
+            bool directOnly)
+        {
+            for (int index = 0; index < rule.ObservationOptions.Count && candidates.Count < maximum; index++)
+            {
+                ObservationComparisonOptionDefinition option = rule.ObservationOptions[index];
+                InvestigationV2ObservationDefinition observation = option == null ? null : caseDefinition.FindObservation(option.EvidenceId);
+                if (observation == null
+                    || !state.HasDiscoveredObservation(observation.EvidenceId)
+                    || ContainsObservation(candidates, observation.EvidenceId)
+                    || (directOnly && !IsDirectObservationForSelectedTarget(observation)))
+                {
+                    continue;
+                }
+                candidates.Add(observation);
+            }
+        }
+
+        private static bool ContainsObservation(
+            IReadOnlyList<InvestigationV2ObservationDefinition> observations,
+            string evidenceId)
+        {
+            for (int index = 0; index < observations.Count; index++)
+            {
+                if (string.Equals(observations[index].EvidenceId, evidenceId, StringComparison.Ordinal)) return true;
+            }
+            return false;
         }
 
         private static string SimulationObservationLabel(InvestigationV2ObservationDefinition observation)
