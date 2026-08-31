@@ -22,7 +22,7 @@ Players compare the same seamount **20 years ago** and **today**, divided into s
 - Hovering, keyboard-focusing, or tapping a marker opens its species facts.
 - Tapping a current marker records the observation; historical markers are read-only.
 - All five initial findings must be recorded before Simulate unlocks.
-- The field notebook records each finding in plain language with its evidence source and confidence.
+- The field notebook records each finding in plain language with its evidence source and confidence, grouped into **Food-web pattern** and **Stable controls**.
 
 ### 2 · Simulate
 
@@ -43,7 +43,7 @@ Players select one prediction, pair it with a recorded observation, and judge th
 
 A supported Match or Mismatch is committed and locked. A scientifically reasonable Not enough evidence judgement remains revisable and does not advance an objective by itself.
 
-The case contains eight required investigation objectives grouped into five Case Questions. Easy mode follows the currently selected cause, prioritises the directly related `GUIDE` clue, and names the next action. Hard mode keeps the same evidence and scientific feedback but removes guided targets and shows the full candidate set.
+The case contains eight required investigation objectives grouped into five Case Questions. The first six screen warming and plastic, establish the Shark → Tuna → Krill cascade, and show why the two fishing models partly overlap. The Sea star discriminator remains hidden until after the provisional explanation and ROV follow-up. Easy mode follows the currently selected cause, prioritises the directly related `GUIDE` clue, and names the next action. Hard mode keeps the same evidence and scientific feedback but removes guided targets and shows the full candidate set.
 
 ### 3 · Report
 
@@ -52,7 +52,7 @@ Players first submit a provisional explanation. Only then does the fixed ROV fol
 - Fishing line recorded near shark habitat
 - Seafloor remains intact
 
-The same follow-up appears regardless of the provisional choice, so the game never changes its evidence to match the player's answer.
+The same follow-up appears regardless of the provisional choice, so the game never changes its evidence to match the player's answer. The intact-seafloor clue then sends the player back to Simulate for a focused Sea star comparison under Long-line fishing and Bottom trawling. Completing those final two objectives unlocks the final report.
 
 The final survey report asks four plain-language questions:
 
@@ -61,7 +61,7 @@ The final survey report asks four plain-language questions:
 - What did I find that shows this?
 - What am I still not sure about?
 
-A valid report requires four unique findings, including at least two food-web observations, one benthic observation, and one ROV confirmation observation. It also requires the food-web mechanism and one scientific limitation. Incorrect submissions are recorded as revisions and explain which part of the pattern remains unsupported.
+A valid report requires all eight comparison objectives plus four unique findings, including at least two food-web observations, one benthic observation, and one ROV confirmation observation. It also requires the food-web mechanism and one scientific limitation. Incorrect submissions are recorded as revisions and explain which part of the pattern remains unsupported.
 
 A correct report replaces the editable form with a **Case Closed** debrief covering the best-supported cause, food-web mechanism, benthic discriminator, ROV follow-up, and remaining uncertainty.
 

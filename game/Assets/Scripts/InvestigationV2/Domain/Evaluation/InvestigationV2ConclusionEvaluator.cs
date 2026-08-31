@@ -11,6 +11,9 @@ namespace EDNA.Investigation.V2.Domain
             if (caseDefinition == null) throw new ArgumentNullException(nameof(caseDefinition));
             if (state == null) throw new ArgumentNullException(nameof(state));
 
+            bool provisionalObjectivesComplete = true;
+            string missingProvisionalObjectiveId = string.Empty;
+            string missingProvisionalEvidenceId = string.Empty;
             bool requiredObjectivesComplete = true;
             string missingObjectiveId = string.Empty;
             string missingEvidenceId = string.Empty;
@@ -21,16 +24,25 @@ namespace EDNA.Investigation.V2.Domain
                     InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
                     if (objective == null || !objective.Required || state.HasCompletedObjective(objective.ObjectiveId)) continue;
                     requiredObjectivesComplete = false;
-                    missingObjectiveId = objective.ObjectiveId;
                     InvestigationV2ObservationDefinition evidence = caseDefinition.FindObservation(objective.RequiredEvidenceId);
-                    if (!state.HasDiscoveredObservation(objective.RequiredEvidenceId)
+                    string unavailableEvidenceId = !state.HasDiscoveredObservation(objective.RequiredEvidenceId)
                         && evidence != null
                         && (evidence.UnlockStage == EvidenceUnlockStage.Observe
-                            || evidence.UnlockStage == EvidenceUnlockStage.Always))
+                            || evidence.UnlockStage == EvidenceUnlockStage.Always)
+                        ? objective.RequiredEvidenceId
+                        : string.Empty;
+                    if (string.IsNullOrEmpty(missingObjectiveId))
                     {
-                        missingEvidenceId = objective.RequiredEvidenceId;
+                        missingObjectiveId = objective.ObjectiveId;
+                        missingEvidenceId = unavailableEvidenceId;
                     }
-                    break;
+                    if (objective.ProgressRole != ComparisonProgressRole.BenthicDiscriminator
+                        && string.IsNullOrEmpty(missingProvisionalObjectiveId))
+                    {
+                        provisionalObjectivesComplete = false;
+                        missingProvisionalObjectiveId = objective.ObjectiveId;
+                        missingProvisionalEvidenceId = unavailableEvidenceId;
+                    }
                 }
             }
             else
@@ -45,6 +57,7 @@ namespace EDNA.Investigation.V2.Domain
                         || state.AcceptedComparisonCountForThreat(threatId) < caseDefinition.RequiredComparisonsPerThreat)
                     {
                         requiredObjectivesComplete = false;
+                        provisionalObjectivesComplete = false;
                         break;
                     }
                 }
@@ -85,6 +98,9 @@ namespace EDNA.Investigation.V2.Domain
                 && caseDefinition.FindLimitation(state.SelectedLimitationId) != null;
 
             return new InvestigationV2Readiness(
+                provisionalObjectivesComplete,
+                missingProvisionalObjectiveId,
+                missingProvisionalEvidenceId,
                 requiredObjectivesComplete,
                 missingObjectiveId,
                 missingEvidenceId,
@@ -136,6 +152,10 @@ namespace EDNA.Investigation.V2.Domain
             InvestigationV2CaseDefinition caseDefinition,
             InvestigationV2Readiness readiness)
         {
+            if (!readiness.ProvisionalSubmitted)
+                return "Submit a provisional explanation before reviewing confirmation evidence.";
+            if (!readiness.ConfirmationReviewed)
+                return "Review the ROV follow-up before finalising the report.";
             if (!readiness.RequiredObjectivesComplete)
             {
                 if (!string.IsNullOrEmpty(readiness.MissingEvidenceId))
@@ -146,13 +166,9 @@ namespace EDNA.Investigation.V2.Domain
                 }
                 InvestigationV2ObjectiveDefinition objective = caseDefinition.FindObjective(readiness.MissingObjectiveId);
                 return objective == null
-                    ? "Complete the remaining investigation objective before writing a report."
-                    : $"Complete this investigation question first: {objective.QuestionPrompt}";
+                    ? "Return to Simulate and complete the follow-up comparison."
+                    : $"Return to Simulate and complete this follow-up question: {objective.QuestionPrompt}";
             }
-            if (!readiness.ProvisionalSubmitted)
-                return "Submit a provisional explanation before reviewing confirmation evidence.";
-            if (!readiness.ConfirmationReviewed)
-                return "Review the ROV follow-up before finalising the report.";
             if (!readiness.FinalCauseSelected)
                 return "Choose a final cause after reviewing the ROV evidence.";
             if (!readiness.EvidenceComplete)

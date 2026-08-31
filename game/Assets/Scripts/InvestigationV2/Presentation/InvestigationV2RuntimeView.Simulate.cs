@@ -23,13 +23,13 @@ namespace EDNA.Investigation.V2
 
         private void RenderSimulate()
         {
-            if (string.IsNullOrEmpty(selectedThreatId)) selectedThreatId = FindDefaultThreatId();
-            ThreatSimulationDefinition selectedThreat = caseDefinition.FindThreat(selectedThreatId);
-            if (selectedThreat == null && caseDefinition.Threats.Count > 0)
+            if (string.IsNullOrEmpty(selectedThreatId)
+                && !string.IsNullOrEmpty(state.ActiveThreatId)
+                && caseDefinition.FindThreat(state.ActiveThreatId) != null)
             {
-                selectedThreat = caseDefinition.Threats[0];
-                selectedThreatId = selectedThreat.ThreatId;
+                selectedThreatId = state.ActiveThreatId;
             }
+            ThreatSimulationDefinition selectedThreat = caseDefinition.FindThreat(selectedThreatId);
 
             SimulationResult simulation = selectedThreat != null ? state.FindSimulation(selectedThreat.ThreatId) : null;
             const float modelPanelHeight = 293f;
@@ -213,33 +213,48 @@ namespace EDNA.Investigation.V2
             Button back = CreateButton("Back To Observe", navigation, backLabel, ButtonVisualStyle.Tertiary, () => setPhase?.Invoke(InvestigationV2Phase.Observe), out _);
             ConfigureCompactNavigationButton(back, string.IsNullOrEmpty(readiness.MissingEvidenceId) ? 124f : 210f);
 
-            if (readiness.CanEnterProvisional)
+            if (string.IsNullOrEmpty(state.ProvisionalThreatId) && readiness.CanEnterProvisional)
             {
                 Button report = CreateButton("Write Provisional Report", navigation, "Write first idea →", ButtonVisualStyle.Primary, () => submitProvisional?.Invoke(selectedThreatId), out _);
                 ConfigureCompactNavigationButton(report, 148f);
             }
+            else if (!string.IsNullOrEmpty(state.ProvisionalThreatId) && !state.ConfirmationReviewed)
+            {
+                Button review = CreateButton("Return To ROV", navigation, "Review ROV →", ButtonVisualStyle.Primary, () => setPhase?.Invoke(InvestigationV2Phase.Report), out _);
+                ConfigureCompactNavigationButton(review, 132f);
+            }
+            else if (state.ConfirmationReviewed && readiness.RequiredObjectivesComplete)
+            {
+                Button report = CreateButton("Return To Final Report", navigation, "Return to report →", ButtonVisualStyle.Primary, () => setPhase?.Invoke(InvestigationV2Phase.Report), out _);
+                ConfigureCompactNavigationButton(report, 148f);
+            }
             else
             {
-                RectTransform gate = CreatePanel("Report Gate Hint", navigation, new Color32(14, 51, 72, 225), 10f);
-                gate.sizeDelta = new Vector2(310f, 28f);
-                LayoutElement gateLayout = gate.gameObject.AddComponent<LayoutElement>();
-                gateLayout.minWidth = 210f;
-                gateLayout.preferredWidth = 310f;
-                gateLayout.flexibleWidth = 1f;
-                gateLayout.minHeight = 28f;
-                gateLayout.preferredHeight = 28f;
-                AddPanelAccent(gate, InvestigationV2Theme.Primary, 2f);
-                Text guidance = CreateText(
-                    "Comparison Gate",
-                    gate,
-                    $"TO REPORT · {BuildSimulationGateLabel()}",
-                    10,
-                    FontStyle.Bold,
-                    InvestigationV2Theme.TextSecondary,
-                    TextAnchor.MiddleCenter,
-                    InvestigationV2Theme.DataFont);
-                Stretch(guidance.rectTransform, 8f, 1f, -8f, -1f);
+                CreateSimulationGate(navigation);
             }
+        }
+
+        private void CreateSimulationGate(Transform navigation)
+        {
+            RectTransform gate = CreatePanel("Report Gate Hint", navigation, new Color32(14, 51, 72, 225), 10f);
+            gate.sizeDelta = new Vector2(310f, 28f);
+            LayoutElement gateLayout = gate.gameObject.AddComponent<LayoutElement>();
+            gateLayout.minWidth = 210f;
+            gateLayout.preferredWidth = 310f;
+            gateLayout.flexibleWidth = 1f;
+            gateLayout.minHeight = 28f;
+            gateLayout.preferredHeight = 28f;
+            AddPanelAccent(gate, InvestigationV2Theme.Primary, 2f);
+            Text guidance = CreateText(
+                "Comparison Gate",
+                gate,
+                $"TO REPORT · {BuildSimulationGateLabel()}",
+                10,
+                FontStyle.Bold,
+                InvestigationV2Theme.TextSecondary,
+                TextAnchor.MiddleCenter,
+                InvestigationV2Theme.DataFont);
+            Stretch(guidance.rectTransform, 8f, 1f, -8f, -1f);
         }
 
         private void PopulateCaseQuestions(RectTransform panel)
@@ -275,7 +290,7 @@ namespace EDNA.Investigation.V2
             for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
             {
                 InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
-                if (objective == null || !objective.Required || !shownQuestionIds.Add(objective.QuestionId)) continue;
+                if (!IsObjectiveVisible(objective) || !shownQuestionIds.Add(objective.QuestionId)) continue;
                 bool complete = IsQuestionComplete(objective.QuestionId);
                 bool easyNext = !complete
                     && guidedObjective != null
@@ -315,11 +330,17 @@ namespace EDNA.Investigation.V2
         {
             if (!state.HasTriedThreat(threatId)) return "NOT TESTED";
             bool hasRequired = false;
+            bool hasUnavailableObjective = false;
             for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
             {
                 InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
                 if (objective == null || !objective.Required || !string.Equals(objective.ThreatId, threatId, StringComparison.Ordinal)) continue;
                 hasRequired = true;
+                if (!IsObjectiveVisible(objective))
+                {
+                    if (!state.HasCompletedObjective(objective.ObjectiveId)) hasUnavailableObjective = true;
+                    continue;
+                }
                 if (!state.HasCompletedObjective(objective.ObjectiveId))
                 {
                     return state.Difficulty == InvestigationV2Difficulty.Easy
@@ -328,6 +349,7 @@ namespace EDNA.Investigation.V2
                 }
             }
             if (!hasRequired) return "MODEL RUN";
+            if (hasUnavailableObjective) return "STILL POSSIBLE";
             return string.Equals(threatId, caseDefinition.CorrectThreatId, StringComparison.Ordinal)
                 ? "STILL POSSIBLE"
                 : "CHALLENGED";
@@ -375,7 +397,9 @@ namespace EDNA.Investigation.V2
             LayoutElement previewLayout = AddLayout(preview, 156f, 1f);
             previewLayout.flexibleHeight = 1f;
 
-            RectTransform artwork = CreateThreatArtwork("Scenario Artwork", preview, threat);
+            RectTransform artwork = threat == null
+                ? CreateScenarioPlaceholderArtwork(preview)
+                : CreateThreatArtwork("Scenario Artwork", preview, threat);
             Anchor(artwork, 0f, 0f, 0.16f, 1f, 14f, 16f, -2f, -16f);
 
             Text summary = CreateText(
@@ -396,8 +420,19 @@ namespace EDNA.Investigation.V2
                 ButtonVisualStyle.Primary,
                 () => runThreat?.Invoke(selectedThreatId),
                 out _);
+            run.interactable = threat != null;
             Anchor(run.GetComponent<RectTransform>(), 0.75f, 0.22f, 1f, 0.78f, 4f, 0f, -14f, 0f);
             run.GetComponent<LayoutElement>().ignoreLayout = true;
+        }
+
+        private static RectTransform CreateScenarioPlaceholderArtwork(Transform parent)
+        {
+            Image image = CreateGraphic<Image>("Scenario Placeholder Artwork", parent);
+            image.sprite = InvestigationV2ScenarioIconLibrary.Investigate;
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+            image.color = Color.white;
+            return image.rectTransform;
         }
 
         private void CreateThreatButton(RectTransform parent, ThreatSimulationDefinition threat)
@@ -528,7 +563,15 @@ namespace EDNA.Investigation.V2
             indicatorLayout.childControlHeight = true;
             indicatorLayout.childForceExpandWidth = true;
             indicatorLayout.childForceExpandHeight = false;
-            Text indicatorLabel = CreateText("Indicator Heading", indicators, "BENTHIC CHECK · SELECT A SPECIES", 11, FontStyle.Bold, InvestigationV2Theme.Primary, TextAnchor.UpperLeft, InvestigationV2Theme.DataFont);
+            Text indicatorLabel = CreateText(
+                "Indicator Heading",
+                indicators,
+                state.ConfirmationReviewed ? "BENTHIC CHECK · SELECT A SPECIES" : "BENTHIC CHECK · SEA STAR UNLOCKS AFTER ROV",
+                11,
+                FontStyle.Bold,
+                InvestigationV2Theme.Primary,
+                TextAnchor.UpperLeft,
+                InvestigationV2Theme.DataFont);
             Anchor(indicatorLabel.rectTransform, 0f, 1f, 1f, 1f, 10f, -18f, -8f, -2f);
             indicatorLabel.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
             string[] indicatorIds = { "sea_star", "mussel" };
@@ -542,7 +585,7 @@ namespace EDNA.Investigation.V2
                 nodeLayout.minWidth = 180f;
                 nodeLayout.preferredWidth = 0f;
                 nodeLayout.flexibleWidth = 1f;
-                benthicTargets.Add(CreatePredictionAnimationTarget(node, prediction));
+                if (state.ConfirmationReviewed) benthicTargets.Add(CreatePredictionAnimationTarget(node, prediction));
             }
 
             if (!animatedThreatIds.Contains(simulation.ThreatId))
@@ -700,6 +743,9 @@ namespace EDNA.Investigation.V2
             float height,
             bool compact)
         {
+            bool followUpLocked = string.Equals(prediction.SpeciesId, "sea_star", StringComparison.Ordinal)
+                && !state.ConfirmationReviewed;
+            PredictionState displayState = followUpLocked ? PredictionState.Unknown : prediction.PredictedState;
             Button button = CreateButton(
                 $"Prediction {prediction.SpeciesId}",
                 parent,
@@ -715,6 +761,7 @@ namespace EDNA.Investigation.V2
                 },
                 out Text hidden);
             hidden.gameObject.SetActive(false);
+            button.interactable = !followUpLocked;
             LayoutElement layout = button.GetComponent<LayoutElement>();
             layout.preferredHeight = height;
             layout.minHeight = height;
@@ -724,7 +771,7 @@ namespace EDNA.Investigation.V2
             bool selected = selectedPredictionTargetKind == PredictionTargetKind.Species
                 && string.Equals(selectedPredictionSpeciesId, prediction.SpeciesId, StringComparison.Ordinal);
             button.GetComponent<Image>().color = selected ? InvestigationV2Theme.SurfaceRaised : InvestigationV2Theme.Surface;
-            Color stateColor = PredictionStateColor(prediction.PredictedState);
+            Color stateColor = PredictionStateColor(displayState);
             PredictionComparisonRecord comparisonRecord = state.FindComparison(selectedThreatId, PredictionTargetKind.Species, prediction.SpeciesId);
             bool comparisonLocked = comparisonRecord != null && comparisonRecord.LocksComparison;
             EnsureOutline(
@@ -738,7 +785,7 @@ namespace EDNA.Investigation.V2
                 Anchor(artwork, 0f, 0f, 0.34f, 1f, 12f, 9f, -4f, -9f);
                 Text title = CreateText("Name", button.transform, species.DisplayName, 14, FontStyle.Bold, InvestigationV2Theme.TextPrimary, TextAnchor.LowerLeft, InvestigationV2Theme.DisplayFont);
                 Anchor(title.rectTransform, 0.35f, 0.44f, 1f, 1f, 8f, 0f, -8f, -6f);
-                Text stateLabel = CreateText("Prediction", button.transform, PredictionLabel(prediction.PredictedState), 13, FontStyle.Bold, stateColor, TextAnchor.UpperLeft, InvestigationV2Theme.DataFont);
+                Text stateLabel = CreateText("Prediction", button.transform, followUpLocked ? "ROV first" : PredictionLabel(displayState), 13, FontStyle.Bold, stateColor, TextAnchor.UpperLeft, InvestigationV2Theme.DataFont);
                 Anchor(stateLabel.rectTransform, 0.35f, 0f, 1f, 0.46f, 8f, 5f, -8f, 0f);
             }
             else
@@ -746,18 +793,18 @@ namespace EDNA.Investigation.V2
                 Anchor(artwork, 0f, 0.36f, 1f, 1f, 34f, 0f, -34f, -8f);
                 Text title = CreateText("Name", button.transform, species.DisplayName, 15, FontStyle.Bold, InvestigationV2Theme.TextPrimary, TextAnchor.MiddleCenter, InvestigationV2Theme.DisplayFont);
                 Anchor(title.rectTransform, 0f, 0.18f, 1f, 0.42f, 4f, 0f, -4f, 0f);
-                Text stateLabel = CreateText("Prediction", button.transform, PredictionLabel(prediction.PredictedState), 13, FontStyle.Bold, stateColor, TextAnchor.UpperCenter, InvestigationV2Theme.DataFont);
+                Text stateLabel = CreateText("Prediction", button.transform, followUpLocked ? "ROV first" : PredictionLabel(displayState), 13, FontStyle.Bold, stateColor, TextAnchor.UpperCenter, InvestigationV2Theme.DataFont);
                 Anchor(stateLabel.rectTransform, 0f, 0f, 1f, 0.20f, 4f, 0f, -4f, 0f);
             }
 
             CanvasGroup artworkGroup = artwork.gameObject.AddComponent<CanvasGroup>();
-            artwork.localScale = Vector3.one * FinalArtworkScale(prediction.PredictedState);
-            artworkGroup.alpha = FinalArtworkAlpha(prediction.PredictedState);
+            artwork.localScale = Vector3.one * FinalArtworkScale(displayState);
+            artworkGroup.alpha = FinalArtworkAlpha(displayState);
 
             Text changeIndicator = CreateText(
                 "Change Indicator",
                 button.transform,
-                PredictionStateSymbol(prediction.PredictedState),
+                PredictionStateSymbol(displayState),
                 compact ? 20 : 30,
                 FontStyle.Bold,
                 stateColor,
@@ -766,10 +813,10 @@ namespace EDNA.Investigation.V2
             if (compact) Anchor(changeIndicator.rectTransform, 0.83f, 0.42f, 1f, 1f, 0f, 0f, -8f, -4f);
             else Anchor(changeIndicator.rectTransform, 0.75f, 0.62f, 1f, 1f, 0f, 0f, -10f, -6f);
 
-            if ((prediction.PredictedState == PredictionState.Increase || prediction.PredictedState == PredictionState.Decrease)
+            if ((displayState == PredictionState.Increase || displayState == PredictionState.Decrease)
                 && species.Icon != null)
             {
-                float finalCrowdAlpha = prediction.PredictedState == PredictionState.Increase ? 0.58f : 0f;
+                float finalCrowdAlpha = displayState == PredictionState.Increase ? 0.58f : 0f;
                 if (compact)
                 {
                     CreateCrowdMember(button.transform, species.Icon, "Crowd Member 1", 0.00f, 0.50f, 0.14f, 0.80f, finalCrowdAlpha);
@@ -1050,6 +1097,7 @@ namespace EDNA.Investigation.V2
 
         private string BuildSimulationGateLabel()
         {
+            if (string.IsNullOrEmpty(selectedThreatId)) return "Choose a cause to investigate";
             if (caseDefinition.InvestigationObjectives.Count > 0)
             {
                 if (state.Difficulty == InvestigationV2Difficulty.Hard)
@@ -1057,7 +1105,7 @@ namespace EDNA.Investigation.V2
                     for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
                     {
                         InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
-                        if (objective == null || !objective.Required || state.HasCompletedObjective(objective.ObjectiveId)) continue;
+                        if (!IsObjectiveVisible(objective) || state.HasCompletedObjective(objective.ObjectiveId)) continue;
                         InvestigationV2ObservationDefinition evidence = caseDefinition.FindObservation(objective.RequiredEvidenceId);
                         if (evidence != null
                             && !state.HasDiscoveredObservation(evidence.EvidenceId)
@@ -1109,7 +1157,7 @@ namespace EDNA.Investigation.V2
                 {
                     InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
                     if (objective != null
-                        && objective.Required
+                        && IsObjectiveVisible(objective)
                         && string.Equals(objective.ThreatId, selectedThreatId, StringComparison.Ordinal)
                         && !state.HasCompletedObjective(objective.ObjectiveId))
                     {
@@ -1121,7 +1169,7 @@ namespace EDNA.Investigation.V2
             for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
             {
                 InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
-                if (objective != null && objective.Required && !state.HasCompletedObjective(objective.ObjectiveId)) return objective;
+                if (IsObjectiveVisible(objective) && !state.HasCompletedObjective(objective.ObjectiveId)) return objective;
             }
             return null;
         }
@@ -1150,17 +1198,6 @@ namespace EDNA.Investigation.V2
                     ? "SPECIES"
                     : objective.TargetId.Replace('_', ' ').ToUpperInvariant();
             }
-        }
-
-        private string FindDefaultThreatId()
-        {
-            if (!string.IsNullOrEmpty(state.ActiveThreatId) && caseDefinition.FindThreat(state.ActiveThreatId) != null) return state.ActiveThreatId;
-            for (int index = 0; index < caseDefinition.Threats.Count; index++)
-            {
-                ThreatSimulationDefinition threat = caseDefinition.Threats[index];
-                if (threat != null && threat.GlyphKind == ThreatGlyphKind.LongLine) return threat.ThreatId;
-            }
-            return caseDefinition.Threats.Count > 0 ? caseDefinition.Threats[0].ThreatId : string.Empty;
         }
 
         private PredictionAnimationTarget CreatePredictionAnimationTarget(Button node, SimulationPrediction prediction)

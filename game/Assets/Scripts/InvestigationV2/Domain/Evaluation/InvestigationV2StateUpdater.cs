@@ -264,6 +264,23 @@ namespace EDNA.Investigation.V2.Domain
                     string.Empty);
             }
 
+            PredictionComparisonRuleDefinition availableRule = caseDefinition.FindComparisonRule(threatId, targetKind, targetId);
+            if (availableRule != null
+                && availableRule.ProgressRole == ComparisonProgressRole.BenthicDiscriminator
+                && !state.ConfirmationReviewed)
+            {
+                return new PredictionComparisonRecord(
+                    threatId,
+                    targetKind,
+                    targetId,
+                    evidenceId,
+                    judgement,
+                    ComparisonEvaluationOutcome.Incorrect,
+                    "Submit a first idea and review the ROV follow-up before using this benthic comparison.",
+                    availableRule.ProgressRole,
+                    string.Empty);
+            }
+
             PredictionComparisonRecord accepted = state.FindComparison(threatId, targetKind, targetId);
             if (accepted != null && accepted.LocksComparison)
             {

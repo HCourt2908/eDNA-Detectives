@@ -11,10 +11,18 @@ namespace EDNA.Investigation.V2
         {
             ThreatSimulationDefinition provisional = caseDefinition.FindThreat(state.ProvisionalThreatId);
             bool caseClosed = state.ConclusionStatus == InvestigationV2ConclusionStatus.Correct;
+            InvestigationV2Readiness readiness = new InvestigationV2ConclusionEvaluator().EvaluateReadiness(caseDefinition, state);
+            bool needsFollowUpComparison = state.ConfirmationReviewed && !readiness.RequiredObjectivesComplete;
             CreateHeading(
-                caseClosed ? "Case closed" : state.ConfirmationReviewed ? "Finish your report for OceanX" : "Write your first idea",
+                caseClosed
+                    ? "Case closed"
+                    : needsFollowUpComparison
+                        ? "Re-test the close match"
+                        : state.ConfirmationReviewed ? "Finish your report for OceanX" : "Write your first idea",
                 caseClosed
                     ? "Review how the survey, ecosystem model and follow-up evidence support your conclusion."
+                    : needsFollowUpComparison
+                        ? "Use the intact seafloor clue to compare Sea star under both fishing models, then return to the report."
                     : state.ConfirmationReviewed
                     ? "Use the ROV observations to re-check your first idea, then complete every report section."
                     : $"Your provisional explanation is {provisional?.DisplayName ?? "not selected"}. The same ROV follow-up appears for every provisional choice.");
@@ -50,16 +58,23 @@ namespace EDNA.Investigation.V2
             }
             else
             {
-                InvestigationV2Readiness readiness = new InvestigationV2ConclusionEvaluator().EvaluateReadiness(caseDefinition, state);
-                Button submit = CreateButton(
-                    "Submit Final Report",
-                    footerRight,
-                    readiness.CanSubmitFinal ? "Send report" : "Check my report",
-                    ButtonVisualStyle.Primary,
-                    () => submitFinal?.Invoke(),
-                    out _);
-                submit.interactable = true;
-                ConfigureReportFooterButton(submit, readiness.CanSubmitFinal ? 104f : 116f);
+                if (!readiness.RequiredObjectivesComplete)
+                {
+                    Button retest = CreateButton("Re-test Fishing Models", footerRight, "Re-test models →", ButtonVisualStyle.Primary, () => setPhase?.Invoke(InvestigationV2Phase.Simulate), out _);
+                    ConfigureReportFooterButton(retest, 126f);
+                }
+                else
+                {
+                    Button submit = CreateButton(
+                        "Submit Final Report",
+                        footerRight,
+                        readiness.CanSubmitFinal ? "Send report" : "Check my report",
+                        ButtonVisualStyle.Primary,
+                        () => submitFinal?.Invoke(),
+                        out _);
+                    submit.interactable = true;
+                    ConfigureReportFooterButton(submit, readiness.CanSubmitFinal ? 104f : 116f);
+                }
             }
         }
 
@@ -90,7 +105,7 @@ namespace EDNA.Investigation.V2
                 "ROV Detail",
                 confirmation,
                 state.ConfirmationReviewed
-                    ? "The follow-up found the same two observations regardless of your provisional explanation."
+                    ? "The follow-up found the same two observations. Use them to re-test the two fishing models before finalising the report."
                     : "Submit a provisional explanation first. Reviewing the ROV footage will not change based on which cause you selected.",
                 14,
                 FontStyle.Normal,

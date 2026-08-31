@@ -115,6 +115,9 @@ namespace EDNA.Investigation.V2.Domain
     public sealed class InvestigationV2Readiness
     {
         public InvestigationV2Readiness(
+            bool provisionalObjectivesComplete,
+            string missingProvisionalObjectiveId,
+            string missingProvisionalEvidenceId,
             bool requiredObjectivesComplete,
             string missingObjectiveId,
             string missingEvidenceId,
@@ -128,6 +131,9 @@ namespace EDNA.Investigation.V2.Domain
             bool reasoningComplete,
             bool limitationComplete)
         {
+            ProvisionalObjectivesComplete = provisionalObjectivesComplete;
+            MissingProvisionalObjectiveId = missingProvisionalObjectiveId ?? string.Empty;
+            MissingProvisionalEvidenceId = missingProvisionalEvidenceId ?? string.Empty;
             RequiredObjectivesComplete = requiredObjectivesComplete;
             MissingObjectiveId = missingObjectiveId ?? string.Empty;
             MissingEvidenceId = missingEvidenceId ?? string.Empty;
@@ -142,11 +148,14 @@ namespace EDNA.Investigation.V2.Domain
             LimitationComplete = limitationComplete;
         }
 
+        public bool ProvisionalObjectivesComplete { get; }
+        public string MissingProvisionalObjectiveId { get; }
+        public string MissingProvisionalEvidenceId { get; }
         public bool RequiredObjectivesComplete { get; }
         public string MissingObjectiveId { get; }
         public string MissingEvidenceId { get; }
-        public bool RequiredThreatsCompared => RequiredObjectivesComplete;
-        public bool MinimumComparisonsComplete => RequiredObjectivesComplete;
+        public bool RequiredThreatsCompared => ProvisionalObjectivesComplete;
+        public bool MinimumComparisonsComplete => ProvisionalObjectivesComplete;
         public bool ProvisionalSubmitted { get; }
         public bool ConfirmationReviewed { get; }
         public bool FinalCauseSelected { get; }
@@ -156,8 +165,8 @@ namespace EDNA.Investigation.V2.Domain
         public EvidenceCategory MissingEvidenceCategory { get; }
         public bool ReasoningComplete { get; }
         public bool LimitationComplete { get; }
-        public bool CanEnterProvisional => RequiredObjectivesComplete;
-        public bool CanSubmitFinal => CanEnterProvisional
+        public bool CanEnterProvisional => ProvisionalObjectivesComplete;
+        public bool CanSubmitFinal => RequiredObjectivesComplete
             && ProvisionalSubmitted
             && ConfirmationReviewed
             && FinalCauseSelected

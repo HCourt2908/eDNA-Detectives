@@ -156,6 +156,8 @@ namespace EDNA.Investigation.V2.Domain
             if (caseDefinition.InvestigationObjectives.Count > 0)
             {
                 HashSet<string> objectiveIds = new HashSet<string>(StringComparer.Ordinal);
+                int provisionalObjectiveCount = 0;
+                int followUpObjectiveCount = 0;
                 for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
                 {
                     InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
@@ -166,6 +168,11 @@ namespace EDNA.Investigation.V2.Domain
                     }
                     if (!objectiveIds.Add(objective.ObjectiveId))
                         errors.Add($"Duplicate investigation objective ID: {objective.ObjectiveId}.");
+                    if (objective.Required)
+                    {
+                        if (objective.ProgressRole == ComparisonProgressRole.BenthicDiscriminator) followUpObjectiveCount++;
+                        else provisionalObjectiveCount++;
+                    }
                     if (string.IsNullOrWhiteSpace(objective.QuestionId) || string.IsNullOrWhiteSpace(objective.QuestionPrompt))
                         errors.Add($"Objective {objective.ObjectiveId} is missing its case-question label.");
                     if (!threatIds.Contains(objective.ThreatId))
@@ -202,6 +209,10 @@ namespace EDNA.Investigation.V2.Domain
                         errors.Add($"Objective {objective.ObjectiveId} does not resolve to an accepted decisive judgement.");
                     }
                 }
+                if (provisionalObjectiveCount == 0)
+                    errors.Add("The case requires at least one objective before the provisional explanation.");
+                if (followUpObjectiveCount == 0)
+                    errors.Add("The case requires at least one benthic discriminator objective after the ROV follow-up.");
             }
             else
             {

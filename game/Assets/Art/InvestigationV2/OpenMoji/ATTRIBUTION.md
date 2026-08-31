@@ -1,6 +1,6 @@
 # OpenMoji artwork
 
-The transparent PNG artwork in this folder is copied without visual modification from the OpenMoji project:
+The transparent PNG artwork used by Investigation V2 is copied without visual modification from the OpenMoji project. Most files live in this folder; the scenario placeholder is under `Assets/Resources/InvestigationV2/Icons/OpenMoji` so Unity can load it at runtime:
 
 - Project: https://openmoji.org
 - Source repository: https://github.com/hfg-gmuend/openmoji
@@ -24,5 +24,6 @@ Files and original OpenMoji codes:
 | `plastic.png` | `E0CC` | Plastic bottle |
 | `long-line.png` | `1F3A3` | Fishing pole |
 | `bottom-trawling.png` | `1FA8D` | Net with handle |
+| `Assets/Resources/InvestigationV2/Icons/OpenMoji/magnifying-glass.png` | `1F50D` | Magnifying glass tilted left |
 
 The local filenames only describe their role in the simplified educational model. The PNG artwork itself has not been redrawn or recoloured.

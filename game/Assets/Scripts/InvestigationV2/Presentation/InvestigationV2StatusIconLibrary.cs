@@ -17,4 +17,13 @@ namespace EDNA.Investigation.V2
             return Resources.Load<Sprite>($"InvestigationV2/Icons/Heroicons/{name}");
         }
     }
+
+    public static class InvestigationV2ScenarioIconLibrary
+    {
+        private static Sprite investigate;
+
+        public static Sprite Investigate => investigate != null
+            ? investigate
+            : investigate = Resources.Load<Sprite>("InvestigationV2/Icons/OpenMoji/magnifying-glass");
+    }
 }

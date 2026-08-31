@@ -493,7 +493,7 @@ namespace EDNA.Investigation.V2
                 CreateStageButton("2 · Simulate", InvestigationV2Phase.Simulate);
                 CreateStageButton("3 · Report", InvestigationV2Phase.Report);
                 string revisions = state.MisstepCount > 0 ? $"    REVISIONS {state.MisstepCount}" : string.Empty;
-                metricsText.text = $"CASE PROGRESS    OBS {state.DiscoveredObservationIds.Count}/{caseDefinition.MinimumObserveDiscoveries}    MODELS {state.TriedThreatIds.Count}/{caseDefinition.Threats.Count}    QUESTIONS {state.CompletedObjectiveCount}/{RequiredObjectiveCount()}{revisions}";
+                metricsText.text = $"CASE PROGRESS    FINDINGS {CountInitialFindings()}/{caseDefinition.MinimumObserveDiscoveries}    MODELS {state.TriedThreatIds.Count}/{caseDefinition.Threats.Count}    QUESTIONS {VisibleCompletedObjectiveCount()}/{VisibleRequiredObjectiveCount()}{revisions}";
                 difficultyText.text = state.Difficulty == InvestigationV2Difficulty.Easy ? "Easy" : "Hard";
                 caseSubtitleText.text = $"{caseDefinition.DisplayName.ToUpperInvariant()} // {state.SiteDisplayName.ToUpperInvariant()} // {state.SurveyDisplayName.ToUpperInvariant()}";
             }
@@ -543,13 +543,47 @@ namespace EDNA.Investigation.V2
             }
         }
 
-        private int RequiredObjectiveCount()
+        private int CountInitialFindings()
+        {
+            int count = 0;
+            for (int index = 0; index < state.DiscoveredObservationIds.Count; index++)
+            {
+                InvestigationV2ObservationDefinition observation = caseDefinition.FindObservation(state.DiscoveredObservationIds[index]);
+                if (observation != null
+                    && observation.UnlockStage == EvidenceUnlockStage.Observe
+                    && observation.Source != ObservationSource.Methodology)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private bool IsObjectiveVisible(InvestigationV2ObjectiveDefinition objective)
+        {
+            return objective != null
+                && objective.Required
+                && (objective.ProgressRole != ComparisonProgressRole.BenthicDiscriminator || state.ConfirmationReviewed);
+        }
+
+        private int VisibleRequiredObjectiveCount()
         {
             int count = 0;
             for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
             {
                 InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
-                if (objective != null && objective.Required) count++;
+                if (IsObjectiveVisible(objective)) count++;
+            }
+            return count;
+        }
+
+        private int VisibleCompletedObjectiveCount()
+        {
+            int count = 0;
+            for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
+            {
+                InvestigationV2ObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
+                if (IsObjectiveVisible(objective) && state.HasCompletedObjective(objective.ObjectiveId)) count++;
             }
             return count;
         }
@@ -905,10 +939,22 @@ namespace EDNA.Investigation.V2
 
         private IEnumerator RefreshAfterViewportChange()
         {
+            InvestigationV2Phase preservedPhase = state == null ? InvestigationV2Phase.Observe : state.Phase;
+            InvestigationV2ConclusionStatus preservedConclusion = state == null
+                ? InvestigationV2ConclusionStatus.NotSubmitted
+                : state.ConclusionStatus;
+            float preservedScroll = contentScroll == null ? 1f : contentScroll.verticalNormalizedPosition;
             yield return null;
             viewportRefreshScheduled = false;
             if (!built || state == null) yield break;
             RenderAll();
+            if (contentScroll != null
+                && state.Phase == preservedPhase
+                && state.ConclusionStatus == preservedConclusion)
+            {
+                contentScroll.StopMovement();
+                contentScroll.verticalNormalizedPosition = preservedScroll;
+            }
         }
 
         private void ScheduleFocusRestore(FocusSnapshot snapshot)

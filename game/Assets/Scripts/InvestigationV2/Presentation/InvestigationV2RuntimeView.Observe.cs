@@ -341,41 +341,81 @@ namespace EDNA.Investigation.V2
         private void RenderNotebookEntries(Transform parent)
         {
             int shown = 0;
-            for (int index = 0; index < state.DiscoveredObservationIds.Count; index++)
-            {
-                InvestigationV2ObservationDefinition observation = caseDefinition.FindObservation(state.DiscoveredObservationIds[index]);
-                if (observation == null || observation.Source == ObservationSource.Methodology) continue;
-                RectTransform item = CreatePanel($"Notebook {observation.EvidenceId}", parent, new Color(0f, 0f, 0f, 0f), 0f);
-                AddLayout(item, 58f, 1f);
-                Color evidenceColor = NotebookStateColor(observation.ClaimType);
-                RectTransform bullet = CreatePanel("Evidence Bullet", item, InvestigationV2Theme.Accent, 6f);
-                Anchor(bullet, 0f, 0.56f, 0f, 0.56f, 4f, -6f, 16f, 6f);
-                EnsureOutline(bullet.gameObject, new Color32(191, 80, 51, 220), new Vector2(1f, -1f));
-                InvestigationV2SpeciesDefinition species = caseDefinition.FindSpecies(observation.RelatedSpeciesId);
-                string stateLabel = NotebookStateLabel(observation.ClaimType);
-                string stateColor = ColorUtility.ToHtmlStringRGB(evidenceColor);
-                Text title = CreateText(
-                    "Observation",
-                    item,
-                    $"{species?.DisplayName ?? observation.DisplayName} <b><color=#{stateColor}>{stateLabel}</color></b>",
-                    14,
-                    FontStyle.Normal,
-                    InvestigationV2Theme.PaperInk,
-                    TextAnchor.LowerLeft,
-                    InvestigationV2Theme.DisplayFont);
-                title.supportRichText = true;
-                Anchor(title.rectTransform, 0f, 0.43f, 1f, 1f, 24f, 0f, -8f, 0f);
-                Text source = CreateText("Source", item, $"{ObservationSourceDisplayName(observation.Source)} · {observation.Confidence} confidence", 10, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.UpperLeft, InvestigationV2Theme.DataFont);
-                Anchor(source.rectTransform, 0f, 0f, 1f, 0.46f, 24f, 0f, -8f, 0f);
-                RectTransform paperLine = CreatePanel("Paper Line", item, new Color32(179, 214, 225, 210), 0f);
-                Anchor(paperLine, 0.04f, 0f, 0.96f, 0f, 0f, 0f, 0f, 2f);
-                shown++;
-            }
+            shown += RenderNotebookGroup(parent, "FOOD-WEB PATTERN", observation => observation.Category == EvidenceCategory.FoodWeb);
+            shown += RenderNotebookGroup(
+                parent,
+                "STABLE CONTROLS",
+                observation => observation.UnlockStage == EvidenceUnlockStage.Observe
+                    && (observation.Category == EvidenceCategory.Benthic || observation.Category == EvidenceCategory.Alternative));
+            shown += RenderNotebookGroup(
+                parent,
+                "FOLLOW-UP CLUES",
+                observation => observation.Category != EvidenceCategory.FoodWeb
+                    && !(observation.UnlockStage == EvidenceUnlockStage.Observe
+                        && (observation.Category == EvidenceCategory.Benthic || observation.Category == EvidenceCategory.Alternative)));
             if (shown == 0)
             {
                 Text empty = CreateText("Notebook Empty", parent, "Select unusual results on the current survey map. Important observations are recorded automatically.", 14, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.UpperLeft, InvestigationV2Theme.BodyFont);
                 AddLayout(empty.rectTransform, 92f, 1f);
             }
+        }
+
+        private int RenderNotebookGroup(
+            Transform parent,
+            string groupName,
+            Func<InvestigationV2ObservationDefinition, bool> belongsToGroup)
+        {
+            bool hasEntries = false;
+            for (int index = 0; index < state.DiscoveredObservationIds.Count; index++)
+            {
+                InvestigationV2ObservationDefinition observation = caseDefinition.FindObservation(state.DiscoveredObservationIds[index]);
+                if (observation != null && observation.Source != ObservationSource.Methodology && belongsToGroup(observation))
+                {
+                    hasEntries = true;
+                    break;
+                }
+            }
+            if (!hasEntries) return 0;
+
+            Text heading = CreateText($"Notebook Group {groupName}", parent, groupName, 10, FontStyle.Bold, InvestigationV2Theme.PaperSelectedBorder, TextAnchor.LowerLeft, InvestigationV2Theme.DataFont);
+            AddLayout(heading.rectTransform, 22f, 1f);
+            int shown = 0;
+            for (int index = 0; index < state.DiscoveredObservationIds.Count; index++)
+            {
+                InvestigationV2ObservationDefinition observation = caseDefinition.FindObservation(state.DiscoveredObservationIds[index]);
+                if (observation == null || observation.Source == ObservationSource.Methodology || !belongsToGroup(observation)) continue;
+                CreateNotebookEntry(parent, observation);
+                shown++;
+            }
+            return shown;
+        }
+
+        private void CreateNotebookEntry(Transform parent, InvestigationV2ObservationDefinition observation)
+        {
+            RectTransform item = CreatePanel($"Notebook {observation.EvidenceId}", parent, new Color(0f, 0f, 0f, 0f), 0f);
+            AddLayout(item, 58f, 1f);
+            Color evidenceColor = NotebookStateColor(observation.ClaimType);
+            RectTransform bullet = CreatePanel("Evidence Bullet", item, InvestigationV2Theme.Accent, 6f);
+            Anchor(bullet, 0f, 0.56f, 0f, 0.56f, 4f, -6f, 16f, 6f);
+            EnsureOutline(bullet.gameObject, new Color32(191, 80, 51, 220), new Vector2(1f, -1f));
+            InvestigationV2SpeciesDefinition species = caseDefinition.FindSpecies(observation.RelatedSpeciesId);
+            string stateLabel = NotebookStateLabel(observation.ClaimType);
+            string stateColor = ColorUtility.ToHtmlStringRGB(evidenceColor);
+            Text title = CreateText(
+                "Observation",
+                item,
+                $"{species?.DisplayName ?? observation.DisplayName} <b><color=#{stateColor}>{stateLabel}</color></b>",
+                14,
+                FontStyle.Normal,
+                InvestigationV2Theme.PaperInk,
+                TextAnchor.LowerLeft,
+                InvestigationV2Theme.DisplayFont);
+            title.supportRichText = true;
+            Anchor(title.rectTransform, 0f, 0.43f, 1f, 1f, 24f, 0f, -8f, 0f);
+            Text source = CreateText("Source", item, $"{ObservationSourceDisplayName(observation.Source)} · {observation.Confidence} confidence", 10, FontStyle.Normal, InvestigationV2Theme.PaperMuted, TextAnchor.UpperLeft, InvestigationV2Theme.DataFont);
+            Anchor(source.rectTransform, 0f, 0f, 1f, 0.46f, 24f, 0f, -8f, 0f);
+            RectTransform paperLine = CreatePanel("Paper Line", item, new Color32(179, 214, 225, 210), 0f);
+            Anchor(paperLine, 0.04f, 0f, 0.96f, 0f, 0f, 0f, 0f, 2f);
         }
 
         private static string ObservationSourceDisplayName(ObservationSource source)
