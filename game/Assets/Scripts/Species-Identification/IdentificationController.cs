@@ -4,6 +4,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 
 public class sampleController : MonoBehaviour
 {
@@ -21,13 +22,18 @@ public class sampleController : MonoBehaviour
     [SerializeField] private PuzzleGenerator puzzleGenerator;
 
     public float padding = 25f;
-    public float symbolSize = 75f;
+    public float symbolSize = 150f;
 
 
 
     public void Start()
     {
-        puzzleGenerator.GeneratePuzzle();
+        CreateRandomPuzzle();
+    }
+
+    public void CreateRandomPuzzle()
+    {
+        puzzleGenerator.GenerateRandomPuzzle();
 
         currentSequence = new List<SymbolType>(puzzleGenerator.CurrentSequence);
         correctOption = puzzleGenerator.CorrectSpecies.name;
@@ -36,7 +42,19 @@ public class sampleController : MonoBehaviour
 
         DisplaySymbols();
         DisplayButtons();
+    }
 
+    public void CreateSpecificPuzzle(string speciesName)
+    {
+        puzzleGenerator.GenerateSpecificPuzzle(speciesName);
+
+        currentSequence = new List<SymbolType>(puzzleGenerator.CurrentSequence);
+        correctOption = puzzleGenerator.CorrectSpecies.name;
+
+        buttonTexts = SpeciesDatabase.AllSpecies.Select(s => s.name).ToList();
+
+        DisplaySymbols();
+        DisplayButtons();
     }
 
     public void DisplaySymbols()
@@ -56,6 +74,8 @@ public class sampleController : MonoBehaviour
             GameObject symbol = Instantiate(prefab, symbolSpace);
 
             RectTransform rect = symbol.GetComponent<RectTransform>();
+
+            rect.sizeDelta = new Vector2(symbolSize, symbolSize);
 
             float xValue = 0f;
             if (count == 1) xValue = width / 2f;
@@ -85,7 +105,7 @@ public class sampleController : MonoBehaviour
             buttons.Add(button);
         }
 
-        if (buttons.Count > 0) EventSystem.current.SetSelectedGameObject(buttons[0].gameObject);
+        if (buttons.Count > 0 && Gamepad.current != null) EventSystem.current.SetSelectedGameObject(buttons[0].gameObject);
 
     }
 

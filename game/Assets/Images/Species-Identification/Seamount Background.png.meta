@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: e8372679e2cb45741b2bf471ee7c67d8
+guid: 8dc9b68c174428d4dba5cd6003299225
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -2959031026457025119
-    second: Tree of Life_0
+      213: -744287065100710708
+    second: Seamount Background 2_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -113,13 +113,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Tree of Life_0
+      name: Seamount Background 2_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 5512
-        height: 2788
+        width: 1672
+        height: 941
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 1a56ba485f86fe6d0800000000000000
-      internalID: -2959031026457025119
+      spriteID: ccc01c19bd2cba5f0800000000000000
+      internalID: -744287065100710708
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Tree of Life_0: -2959031026457025119
+      Seamount Background 2_0: -744287065100710708
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

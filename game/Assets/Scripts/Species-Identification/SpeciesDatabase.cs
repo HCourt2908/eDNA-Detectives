@@ -6,7 +6,7 @@ public static class SpeciesDatabase
     {
         new Species
         {
-            name = "1",
+            name = "Green Sea Urchin",
             sequence = new()
             {
                 SymbolType.Blue,
@@ -19,7 +19,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "2",
+            name = "Reef Manta Ray",
             sequence = new()
             {
                 SymbolType.Blue,
@@ -32,7 +32,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "3",
+            name = "Kitefin Shark",
             sequence = new()
             {
                 SymbolType.Blue,
@@ -45,7 +45,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "4",
+            name = "Great Hammerhead Shark",
             sequence = new()
             {
                 SymbolType.Blue,
@@ -58,7 +58,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "5",
+            name = "Orange Roughy",
             sequence = new()
             {
                 SymbolType.Blue,
@@ -71,7 +71,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "6",
+            name = "Pinecone Fish",
             sequence = new()
             {
                 SymbolType.Red,
@@ -84,7 +84,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "7",
+            name = "Atlantic Bluefin Tuna",
             sequence = new()
             {
                 SymbolType.Red,
@@ -97,7 +97,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "8",
+            name = "Atlantic Herring",
             sequence = new()
             {
                 SymbolType.Red,
@@ -110,7 +110,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "9",
+            name = "Spotted Lanternfish",
             sequence = new()
             {
                 SymbolType.Green,
@@ -123,7 +123,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "10",
+            name = "Northern Krill",
             sequence = new()
             {
                 SymbolType.Green,
@@ -136,7 +136,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "11",
+            name = "King Crab",
             sequence = new()
             {
                 SymbolType.Green,
@@ -149,7 +149,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "12",
+            name = "Warty Squid",
             sequence = new()
             {
                 SymbolType.Yellow,
@@ -162,7 +162,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "13",
+            name = "Flapjack Octopus",
             sequence = new()
             {
                 SymbolType.Yellow,
@@ -175,7 +175,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "14",
+            name = "Giant Pacific Octopus",
             sequence = new()
             {
                 SymbolType.Yellow,
@@ -188,7 +188,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "15",
+            name = "Bone Eating Worm",
             sequence = new()
             {
                 SymbolType.Yellow,
@@ -201,7 +201,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "16",
+            name = "Tree Bubblegum Coral",
             sequence = new()
             {
                 SymbolType.Yellow,
@@ -214,7 +214,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "17",
+            name = "Precious Coral",
             sequence = new()
             {
                 SymbolType.Purple,
@@ -227,7 +227,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "18",
+            name = "Zigzag Coral",
             sequence = new()
             {
                 SymbolType.Purple,
@@ -240,7 +240,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "19",
+            name = "Moon Jellyfish",
             sequence = new()
             {
                 SymbolType.Purple,
@@ -253,7 +253,7 @@ public static class SpeciesDatabase
 
         new Species
         {
-            name = "20",
+            name = "Phytoplankton",
             sequence = new()
             {
                 SymbolType.Purple,

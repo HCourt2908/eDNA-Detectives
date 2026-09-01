@@ -29,7 +29,7 @@ public class PuzzleGenerator : MonoBehaviour
         }
     }
 
-    public void GeneratePuzzle()
+    public void GenerateRandomPuzzle()
     {
         List<Species> species = SpeciesDatabase.AllSpecies;
 
@@ -63,6 +63,38 @@ public class PuzzleGenerator : MonoBehaviour
 
         Debug.LogError("Couldn't generate a " + difficulty + " puzzle with the current database");
 
+    }
+
+    public void GenerateSpecificPuzzle(string targetName)
+    {
+        List<Species> species = SpeciesDatabase.AllSpecies;
+
+        Species target = species.FirstOrDefault(s => s.name == targetName);
+
+        if (target == null) Debug.Log("Species with name " + targetName + " not found in database");
+
+        List<List<int>> combinations = new List<List<int>>();
+
+        GeneratePositionCombinations(0, MissingCount, new List<int>(), combinations);
+
+        combinations = combinations.OrderBy(x => Random.value).ToList();
+
+        foreach (List<int> missingPositions in combinations)
+        {
+            List<SymbolType> partialSequence = CreatePartialSequence(target, missingPositions);
+
+            List<Species> matches = FindMatchingSpecies(partialSequence);
+
+            if (matches.Count == 1)
+            {
+                CorrectSpecies = target;
+                CurrentSequence = partialSequence;
+
+                return;
+            }
+        }
+
+        Debug.LogError("Couldn't generate a " + difficulty + " puzzle with the current database");
     }
 
     private List<SymbolType> CreatePartialSequence(Species target, List<int> missingPositions)

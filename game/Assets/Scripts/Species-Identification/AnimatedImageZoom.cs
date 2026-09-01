@@ -17,8 +17,8 @@ public class AnimatedImageZoom : MonoBehaviour
     public float animationDuration = 0.3f;
 
     [Header("MaximumSize")]
-    public float maxWidth = 900f;
-    public float maxHeight = 500f;
+    public float maxWidth;
+    public float maxHeight;
 
     private RectTransform enlargedRect;
     private RectTransform originalRect;
@@ -32,6 +32,8 @@ public class AnimatedImageZoom : MonoBehaviour
     private void Awake()
     {
         enlargedRect = enlargedImage.GetComponent<RectTransform>();
+        maxWidth = enlargedRect.rect.width;
+        maxHeight = enlargedRect.rect.height;
 
         zoomOverlay.SetActive(false);
         
