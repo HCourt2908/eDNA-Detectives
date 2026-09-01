@@ -58,6 +58,11 @@ namespace EDNA.Investigation.Tests
             }
             Assert.That(caseDefinition.ComparisonRules, Has.Count.EqualTo(21));
             Assert.That(caseDefinition.InvestigationObjectives, Has.Count.EqualTo(8));
+            Assert.That(caseDefinition.FindSpecies("shark").MapDepthBand, Is.EqualTo(DepthBand.Shallow));
+            Assert.That(caseDefinition.FindSpecies("tuna").MapDepthBand, Is.EqualTo(DepthBand.Shallow));
+            Assert.That(caseDefinition.FindSpecies("krill").MapDepthBand, Is.EqualTo(DepthBand.Mid));
+            Assert.That(caseDefinition.FindSpecies("sea_star").MapDepthBand, Is.EqualTo(DepthBand.Deep));
+            Assert.That(caseDefinition.FindSpecies("mussel").MapDepthBand, Is.EqualTo(DepthBand.Deep));
         }
 
         [Test]
@@ -122,6 +127,7 @@ namespace EDNA.Investigation.Tests
                 SerializedProperty depths = speciesObject.FindProperty("preferredDepths");
                 depths.arraySize = 1;
                 depths.GetArrayElementAtIndex(0).enumValueIndex = (int)DepthBand.Mid;
+                speciesObject.FindProperty("mapDepthBand").enumValueIndex = (int)DepthBand.Mid;
                 speciesObject.ApplyModifiedPropertiesWithoutUndo();
 
                 SerializedObject caseObject = new SerializedObject(clone);
@@ -147,6 +153,38 @@ namespace EDNA.Investigation.Tests
             finally
             {
                 UnityEngine.Object.DestroyImmediate(backgroundSpecies);
+                UnityEngine.Object.DestroyImmediate(clone);
+            }
+        }
+
+        [Test]
+        public void Validator_RejectsMapDepthOutsidePreferredRange()
+        {
+            InvestigationCaseDefinition clone = UnityEngine.Object.Instantiate(caseDefinition);
+            InvestigationSpeciesDefinition invalidSpecies = UnityEngine.Object.Instantiate(caseDefinition.FindSpecies("sea_star"));
+            try
+            {
+                SerializedObject speciesObject = new SerializedObject(invalidSpecies);
+                speciesObject.FindProperty("mapDepthBand").enumValueIndex = (int)DepthBand.Shallow;
+                speciesObject.ApplyModifiedPropertiesWithoutUndo();
+
+                SerializedObject caseObject = new SerializedObject(clone);
+                SerializedProperty species = caseObject.FindProperty("species");
+                for (int index = 0; index < species.arraySize; index++)
+                {
+                    InvestigationSpeciesDefinition candidate = species.GetArrayElementAtIndex(index).objectReferenceValue as InvestigationSpeciesDefinition;
+                    if (candidate == null || candidate.SpeciesId != "sea_star") continue;
+                    species.GetArrayElementAtIndex(index).objectReferenceValue = invalidSpecies;
+                    break;
+                }
+                caseObject.ApplyModifiedPropertiesWithoutUndo();
+
+                List<string> errors = new InvestigationCaseValidator().Validate(clone);
+                Assert.That(errors, Has.Some.Contains("map depth Shallow is outside its preferred depth range"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(invalidSpecies);
                 UnityEngine.Object.DestroyImmediate(clone);
             }
         }

@@ -17,7 +17,7 @@ namespace EDNA.Investigation.Domain
         [SerializeField] private List<string> dietSpeciesIds = new List<string>();
         [SerializeField] private List<string> predatorSpeciesIds = new List<string>();
         [SerializeField] private List<string> sensitivityTags = new List<string>();
-        [SerializeField] private Vector2 mapPosition;
+        [SerializeField] private DepthBand mapDepthBand;
 
         public string SpeciesId => speciesId;
         public string DisplayName => displayName;
@@ -29,6 +29,6 @@ namespace EDNA.Investigation.Domain
         public IReadOnlyList<string> DietSpeciesIds => dietSpeciesIds;
         public IReadOnlyList<string> PredatorSpeciesIds => predatorSpeciesIds;
         public IReadOnlyList<string> SensitivityTags => sensitivityTags;
-        public Vector2 MapPosition => mapPosition;
+        public DepthBand MapDepthBand => mapDepthBand;
     }
 }

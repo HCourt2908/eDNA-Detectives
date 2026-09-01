@@ -50,7 +50,7 @@ namespace EDNA.Investigation.Editor
                 "Broad range; current temperature alone does not explain a repeated all-depth non-detection.",
                 new[] { "tuna" }, Array.Empty<string>(),
                 new[] { "LargePredator", "LongLineSensitive", "TrawlBycatch" },
-                new Vector2(0.32f, 0.95f));
+                DepthBand.Shallow);
             InvestigationSpeciesDefinition tuna = CreateSpecies(
                 "Species_Tuna.asset", "tuna", "Tuna",
                 "A mobile fish that eats krill and is normally preyed on by sharks in this simplified food web.",
@@ -59,7 +59,7 @@ namespace EDNA.Investigation.Editor
                 "Warm-affinity visitor; distribution can also respond to predator removal.",
                 new[] { "krill" }, new[] { "shark" },
                 new[] { "Mobile", "WarmAffinity", "FoodWeb" },
-                new Vector2(0.66f, 0.92f));
+                DepthBand.Shallow);
             InvestigationSpeciesDefinition krill = CreateSpecies(
                 "Species_Krill.asset", "krill", "Krill",
                 "A small prey species linking plankton production to larger fish.",
@@ -68,7 +68,7 @@ namespace EDNA.Investigation.Editor
                 "Sensitive to several pressures; non-detection alone cannot identify the cause.",
                 Array.Empty<string>(), new[] { "tuna" },
                 new[] { "Prey", "FoodWeb", "PlasticSensitive" },
-                new Vector2(0.18f, 0.72f));
+                DepthBand.Mid);
             InvestigationSpeciesDefinition seaStar = CreateSpecies(
                 "Species_SeaStar.asset", "sea_star", "Sea star",
                 "A benthic indicator used to test whether the seafloor community was disturbed.",
@@ -77,7 +77,7 @@ namespace EDNA.Investigation.Editor
                 "Broad temperature tolerance in this case.",
                 Array.Empty<string>(), Array.Empty<string>(),
                 new[] { "BenthicIndicator", "TrawlSensitive", "StableIndicator" },
-                new Vector2(0.40f, 0.24f));
+                DepthBand.Deep);
             InvestigationSpeciesDefinition mussel = CreateSpecies(
                 "Species_Mussel.asset", "mussel", "Filter-feeding mussel",
                 "A filter feeder used as a plastic-sensitive comparison species.",
@@ -86,7 +86,7 @@ namespace EDNA.Investigation.Editor
                 "Broad temperature tolerance; sensitive to suspended contaminants.",
                 Array.Empty<string>(), Array.Empty<string>(),
                 new[] { "FilterFeeder", "PlasticSensitive", "StableIndicator" },
-                new Vector2(0.72f, 0.24f));
+                DepthBand.Deep);
 
             InvestigationSpeciesDefinition[] species = { shark, tuna, krill, seaStar, mussel };
             ThreatSimulationDefinition warming = CreateThreat(
@@ -209,7 +209,7 @@ namespace EDNA.Investigation.Editor
             string[] dietIds,
             string[] predatorIds,
             string[] sensitivityTags,
-            Vector2 mapPosition)
+            DepthBand mapDepthBand)
         {
             InvestigationSpeciesDefinition asset = LoadOrCreate<InvestigationSpeciesDefinition>($"{DataRoot}/{fileName}");
             SerializedObject serialized = new SerializedObject(asset);
@@ -223,7 +223,7 @@ namespace EDNA.Investigation.Editor
             SetStringArray(serialized, "dietSpeciesIds", dietIds);
             SetStringArray(serialized, "predatorSpeciesIds", predatorIds);
             SetStringArray(serialized, "sensitivityTags", sensitivityTags);
-            serialized.FindProperty("mapPosition").vector2Value = mapPosition;
+            serialized.FindProperty("mapDepthBand").enumValueIndex = (int)mapDepthBand;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(asset);
             return asset;

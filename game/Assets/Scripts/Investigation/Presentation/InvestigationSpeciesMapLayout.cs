@@ -58,11 +58,7 @@ namespace EDNA.Investigation
 
         public static DepthBand ResolveDepthBand(InvestigationSpeciesDefinition species)
         {
-            if (species != null && species.PreferredDepths.Count > 0)
-                return species.PreferredDepths[0];
-            if (species == null) return DepthBand.Mid;
-            if (species.MapPosition.y >= 0.74f) return DepthBand.Shallow;
-            return species.MapPosition.y >= 0.38f ? DepthBand.Mid : DepthBand.Deep;
+            return species == null ? DepthBand.Mid : species.MapDepthBand;
         }
 
         public static bool IsBenthic(InvestigationSpeciesDefinition species)

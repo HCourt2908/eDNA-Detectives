@@ -26,6 +26,20 @@ namespace EDNA.Investigation.Domain
                     errors.Add($"Species {index} is missing an ID.");
                 else if (!speciesIds.Add(species.SpeciesId))
                     errors.Add($"Duplicate species ID: {species.SpeciesId}.");
+                if (species != null && species.PreferredDepths.Count > 0)
+                {
+                    bool supportsMapDepth = false;
+                    for (int depthIndex = 0; depthIndex < species.PreferredDepths.Count; depthIndex++)
+                    {
+                        if (species.PreferredDepths[depthIndex] == species.MapDepthBand)
+                        {
+                            supportsMapDepth = true;
+                            break;
+                        }
+                    }
+                    if (!supportsMapDepth)
+                        errors.Add($"Species {species.SpeciesId} map depth {species.MapDepthBand} is outside its preferred depth range.");
+                }
             }
 
             HashSet<string> threatIds = new HashSet<string>(StringComparer.Ordinal);

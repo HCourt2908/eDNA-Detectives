@@ -25,4 +25,4 @@ MonoBehaviour:
   - FilterFeeder
   - PlasticSensitive
   - StableIndicator
-  mapPosition: {x: 0.72, y: 0.24}
+  mapDepthBand: 2

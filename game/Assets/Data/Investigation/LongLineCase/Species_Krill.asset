@@ -27,4 +27,4 @@ MonoBehaviour:
   - Prey
   - FoodWeb
   - PlasticSensitive
-  mapPosition: {x: 0.18, y: 0.72}
+  mapDepthBand: 1

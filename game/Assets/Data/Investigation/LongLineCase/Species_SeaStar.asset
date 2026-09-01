@@ -26,4 +26,4 @@ MonoBehaviour:
   - BenthicIndicator
   - TrawlSensitive
   - StableIndicator
-  mapPosition: {x: 0.4, y: 0.24}
+  mapDepthBand: 2
