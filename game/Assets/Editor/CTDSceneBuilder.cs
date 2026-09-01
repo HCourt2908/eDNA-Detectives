@@ -25,7 +25,7 @@ public static class CTDSceneBuilder
     private const string DatabasePanelPath = "Assets/Art/Rosette-Deployment/Extracted/database_panel_frame.png";
     private const string WaypointPath = "Assets/Art/Rosette-Deployment/Extracted/single_waypoint_marker.png";
     private const string DeployFramePath = "Assets/Art/Rosette-Deployment/Extracted/deploy_button_frame.png";
-    private const string RosetteEntryPath = "Assets/Art/Rosette-Deployment/Launch/rosette_entry_ocean_animation.png";
+    private const string Stage3FramePath = "Assets/Art/Rosette-Deployment/UI/stage_3_0_observation_frame.png";
     private static readonly Color Navy = new Color(0.018f, 0.055f, 0.12f);
     private static readonly Color PanelBlue = new Color(0.035f, 0.13f, 0.22f, 0.96f);
     private static readonly Color Cyan = new Color(0.18f, 0.82f, 0.86f);
@@ -56,11 +56,27 @@ public static class CTDSceneBuilder
             canvas.transform,
             "LaunchPanel",
             "ROSETTE ENTRY",
-            out RectTransform launchRosette,
+            out _,
             out TMP_Text transitionStatusText,
             false);
-        ApplyBackground(launchPanel, RosetteEntryPath, Color.white);
+        ApplyBackground(launchPanel, UnderseaBackgroundPath, Color.white);
+        RosetteEntrySequence rosetteEntrySequence = launchPanel.AddComponent<RosetteEntrySequence>();
+        Button entryReadyButton = transitionStatusText.GetComponentInParent<Button>();
+        rosetteEntrySequence.readyLabel = transitionStatusText;
+        rosetteEntrySequence.readyButton = entryReadyButton;
+        RawImage animationSurface = CreateRawImage(
+            "AnimationSurface",
+            launchPanel.transform,
+            new Vector2(0f, 20f),
+            new Vector2(1920f, 1080f));
+        animationSurface.transform.SetAsFirstSibling();
+        rosetteEntrySequence.animationSurface = animationSurface;
+        CreateStage3Frame(launchPanel.transform);
+        entryReadyButton.transform.SetAsLastSibling();
+
         GameObject samplingPanel = CreateSamplingPanel(canvas.transform, out CTDSamplingController samplingController);
+        CreateStage3Frame(samplingPanel.transform);
+        samplingController.closeBottleButton.transform.SetAsLastSibling();
         GameObject recoveryPanel = CreateTransitionPanel(
             canvas.transform,
             "RecoveryPanel",
@@ -86,7 +102,7 @@ public static class CTDSceneBuilder
         manager.preparationSequence = preparationSequence;
         manager.cleaningMinigame = cleaningMinigame;
         manager.samplingController = samplingController;
-        manager.launchRosette = launchRosette;
+        manager.rosetteEntrySequence = rosetteEntrySequence;
         manager.recoveryRosette = recoveryRosette;
         manager.transitionStatusText = transitionStatusText;
         manager.completionSummaryText = completionSummary;
@@ -127,6 +143,7 @@ public static class CTDSceneBuilder
         Require(manager.cleaningMinigame, "CleaningMinigame");
         Require(manager.samplingController, "CTDSamplingController");
         Require(manager.preparationSequence, "EquipmentPreparationSequence");
+        Require(manager.rosetteEntrySequence, "RosetteEntrySequence");
         Require(manager.replayButton, "Replay button");
         Require(manager.continueButton, "Continue button");
 
@@ -559,17 +576,42 @@ public static class CTDSceneBuilder
         bool recovery)
     {
         GameObject panel = CreatePanel(panelName, parent, Navy);
+        if (!recovery)
+        {
+            rosette = null;
+            GameObject readyBorder = CreateImage(
+                "ReadyBorder",
+                panel.transform,
+                Color.white,
+                new Vector2(180f, -440f),
+                new Vector2(330f, 130f));
+            SetSprite(readyBorder, DeployFramePath);
+            readyBorder.GetComponent<Image>().preserveAspect = true;
+            Button readyButton = readyBorder.AddComponent<Button>();
+            readyButton.targetGraphic = readyBorder.GetComponent<Image>();
+            status = CreateText(
+                "ReadyLabel",
+                readyBorder.transform,
+                "READY",
+                34,
+                White,
+                Vector2.zero,
+                new Vector2(260f, 72f),
+                FontStyles.Bold);
+            return panel;
+        }
+
         CreateImage("Sea", panel.transform, new Color(1f, 1f, 1f, 0f), new Vector2(0f, -150f), new Vector2(1920f, 780f));
         CreateImage("Deck", panel.transform, new Color(1f, 1f, 1f, 0f), new Vector2(0f, 430f), new Vector2(1920f, 220f));
         CreateText("Title", panel.transform, title, 50, White, new Vector2(0f, 445f), new Vector2(1200f, 70f), FontStyles.Bold);
 
         GameObject cable = CreateImage("Cable", panel.transform, new Color(0.75f, 0.82f, 0.85f), new Vector2(0f, 80f), new Vector2(10f, 720f));
         cable.GetComponent<Image>().raycastTarget = false;
-        rosette = CreateRosetteGraphic(panel.transform, recovery ? "RecoveredRosette" : "LaunchRosette", new Vector2(0f, recovery ? -220f : 210f), null);
+        rosette = CreateRosetteGraphic(panel.transform, "RecoveredRosette", new Vector2(0f, -220f), null);
         status = CreateText(
             "Status",
             panel.transform,
-            recovery ? "Three samples secured — returning the CTD to deck" : "Deck crew secured — lowering the CTD rosette",
+            "Three samples secured — returning the CTD to deck",
             30,
             White,
             new Vector2(0f, -445f),
@@ -668,7 +710,17 @@ public static class CTDSceneBuilder
             new Vector2(900f, 70f),
             FontStyles.Bold);
 
-        Button closeButton = CreateButton("CloseBottleButton", panel.transform, "CLOSE BOTTLE", new Vector2(0f, -445f), new Vector2(470f, 95f), Green);
+        Button closeButton = CreateButton(
+            "CloseBottleButton",
+            panel.transform,
+            "CLOSE BOTTLE",
+            new Vector2(180f, -440f),
+            new Vector2(330f, 130f),
+            Color.white);
+        SetSprite(closeButton.gameObject, DeployFramePath);
+        closeButton.image.preserveAspect = true;
+        TMP_Text closeLabel = closeButton.GetComponentInChildren<TMP_Text>();
+        closeLabel.color = White;
 
         controller.oceanBackground = oceanImage;
         controller.depthGauge = gaugeRect;
@@ -807,6 +859,37 @@ public static class CTDSceneBuilder
         image.sprite = uiSprite;
         image.type = Image.Type.Sliced;
         return gameObject;
+    }
+
+    private static RawImage CreateRawImage(string name, Transform parent, Vector2 position, Vector2 size)
+    {
+        GameObject gameObject = CreateEmptyUI(name, parent);
+        RectTransform rect = gameObject.GetComponent<RectTransform>();
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = position;
+        rect.sizeDelta = size;
+
+        RawImage rawImage = gameObject.AddComponent<RawImage>();
+        rawImage.color = Color.white;
+        rawImage.raycastTarget = false;
+        return rawImage;
+    }
+
+    private static GameObject CreateStage3Frame(Transform parent)
+    {
+        GameObject frame = CreateImage(
+            "Stage3Frame",
+            parent,
+            Color.white,
+            Vector2.zero,
+            new Vector2(1920f, 1080f));
+        SetSprite(frame, Stage3FramePath);
+        Stretch(frame.GetComponent<RectTransform>());
+        frame.GetComponent<Image>().preserveAspect = true;
+        frame.GetComponent<Image>().raycastTarget = false;
+        frame.transform.SetAsLastSibling();
+        return frame;
     }
 
     private static TMP_Text CreateText(

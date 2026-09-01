@@ -36,12 +36,8 @@ public class CTDGameManager : MonoBehaviour
     public CleaningMinigame cleaningMinigame;
     public CTDSamplingController samplingController;
 
-    [Header("Launch animation")]
-    [Tooltip("These values are editable in the Inspector. They control only the launch motion, not the authored layout.")]
-    public RectTransform launchRosette;
-    public Vector2 launchStartPosition = new Vector2(0f, 210f);
-    public Vector2 launchEndPosition = new Vector2(0f, -220f);
-    [Min(0.1f)] public float launchDuration = 3f;
+    [Header("Rosette entry animation")]
+    public RosetteEntrySequence rosetteEntrySequence;
     public TMP_Text transitionStatusText;
 
     [Header("Completion")]
@@ -62,6 +58,17 @@ public class CTDGameManager : MonoBehaviour
         mapHub.ReadyToDeploy += BeginPreparation;
         preparationSequence.ReadyPressed += ContinueFromPreparation;
         cleaningMinigame.Completed += BeginLaunch;
+        if (rosetteEntrySequence == null)
+        {
+            rosetteEntrySequence = launchPanel.GetComponent<RosetteEntrySequence>();
+            if (rosetteEntrySequence == null)
+            {
+                rosetteEntrySequence = launchPanel.AddComponent<RosetteEntrySequence>();
+            }
+        }
+
+        rosetteEntrySequence.Configure(transitionStatusText);
+        rosetteEntrySequence.ReadyPressed += BeginSampling;
         samplingController.SamplingCompleted += BeginRecovery;
         replayButton.onClick.AddListener(Replay);
         continueButton.onClick.AddListener(ContinueToDNA);
@@ -105,23 +112,11 @@ public class CTDGameManager : MonoBehaviour
     {
         CurrentState = CTDGameState.Launching;
         ShowPanel(launchPanel);
-        StartCoroutine(PlayLaunch());
+        rosetteEntrySequence.Begin();
     }
 
-    private IEnumerator PlayLaunch()
+    private void BeginSampling()
     {
-        launchRosette.anchoredPosition = launchStartPosition;
-        transitionStatusText.text = "Rosette deployed — entering the water column";
-
-        float elapsed = 0f;
-        while (elapsed < launchDuration)
-        {
-            elapsed += Time.deltaTime;
-            float progress = Mathf.SmoothStep(0f, 1f, elapsed / launchDuration);
-            launchRosette.anchoredPosition = Vector2.Lerp(launchStartPosition, launchEndPosition, progress);
-            yield return null;
-        }
-
         CurrentState = CTDGameState.Sampling;
         ShowPanel(samplingPanel);
         samplingController.Begin($"Waypoint-{selectedLocationIndex + 1:00}");
