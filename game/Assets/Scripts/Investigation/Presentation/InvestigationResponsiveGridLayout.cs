@@ -3,143 +3,70 @@ using UnityEngine.UI;
 
 namespace EDNA.Investigation
 {
-    [ExecuteAlways]
     [DisallowMultipleComponent]
-    [RequireComponent(typeof(RectTransform), typeof(GridLayoutGroup))]
-    public sealed class InvestigationResponsiveGridLayout : MonoBehaviour
+    public sealed class InvestigationResponsiveGridLayout : LayoutGroup
     {
-        [SerializeField, Min(48f)] private float minimumCellWidth = 220f;
-        [SerializeField, Min(1)] private int maximumColumns = 1;
-        [SerializeField] private bool resizeHeightToRows;
+        [SerializeField, Min(1)] private int wideColumns = 4;
+        [SerializeField, Min(1)] private int mediumColumns = 2;
+        [SerializeField, Min(1)] private int narrowColumns = 1;
+        [SerializeField, Min(20f)] private float cellHeight = 112f;
+        [SerializeField, Min(0f)] private float spacing = 10f;
+        [SerializeField, Min(200f)] private float wideBreakpoint = 900f;
+        [SerializeField, Min(200f)] private float mediumBreakpoint = 520f;
 
-        private bool applyingLayout;
-
-        public int CurrentColumns
+        public void Configure(int wide, int medium, float height, float gap)
         {
-            get
+            Configure(wide, medium, 1, height, gap);
+        }
+
+        public void Configure(int wide, int medium, int narrow, float height, float gap)
+        {
+            wideColumns = Mathf.Max(1, wide);
+            mediumColumns = Mathf.Max(1, medium);
+            narrowColumns = Mathf.Max(1, narrow);
+            cellHeight = Mathf.Max(20f, height);
+            spacing = Mathf.Max(0f, gap);
+            SetDirty();
+        }
+
+        public override void CalculateLayoutInputHorizontal()
+        {
+            base.CalculateLayoutInputHorizontal();
+            SetLayoutInputForAxis(padding.horizontal, -1f, -1f, 0);
+        }
+
+        public override void CalculateLayoutInputVertical()
+        {
+            int columns = GetColumns(rectTransform.rect.width);
+            int rows = Mathf.CeilToInt(rectChildren.Count / (float)columns);
+            float height = padding.vertical + rows * cellHeight + Mathf.Max(0, rows - 1) * spacing;
+            SetLayoutInputForAxis(height, height, height, 1);
+        }
+
+        public override void SetLayoutHorizontal() => LayoutChildren();
+        public override void SetLayoutVertical() => LayoutChildren();
+
+        private void LayoutChildren()
+        {
+            float width = rectTransform.rect.width;
+            int columns = GetColumns(width);
+            float cellWidth = (width - padding.horizontal - Mathf.Max(0, columns - 1) * spacing) / columns;
+            for (int index = 0; index < rectChildren.Count; index++)
             {
-                GridLayoutGroup grid = GetComponent<GridLayoutGroup>();
-                return Mathf.Max(1, grid.constraintCount);
+                int row = index / columns;
+                int column = index % columns;
+                float x = padding.left + column * (cellWidth + spacing);
+                float y = padding.top + row * (cellHeight + spacing);
+                SetChildAlongAxis(rectChildren[index], 0, x, cellWidth);
+                SetChildAlongAxis(rectChildren[index], 1, y, cellHeight);
             }
         }
 
-        public float RequiredHeight
+        private int GetColumns(float width)
         {
-            get
-            {
-                GridLayoutGroup grid = GetComponent<GridLayoutGroup>();
-                int columns = CurrentColumns;
-                int layoutChildCount = CountLayoutChildren();
-                int rows = layoutChildCount == 0 ? 0 : Mathf.CeilToInt((float)layoutChildCount / columns);
-                return grid.padding.vertical
-                    + rows * grid.cellSize.y
-                    + Mathf.Max(0, rows - 1) * Mathf.Max(0f, grid.spacing.y);
-            }
-        }
-
-        public void Configure(float minimumWidth, int maximumColumnCount = 0, bool adjustHeightToRows = false)
-        {
-            minimumCellWidth = Mathf.Max(48f, minimumWidth);
-            GridLayoutGroup grid = GetComponent<GridLayoutGroup>();
-            maximumColumns = maximumColumnCount > 0
-                ? maximumColumnCount
-                : Mathf.Max(1, grid.constraintCount);
-            resizeHeightToRows = adjustHeightToRows;
-            ApplyNow();
-        }
-
-        public void ApplyNow()
-        {
-            if (applyingLayout) return;
-            applyingLayout = true;
-            try
-            {
-                RectTransform rect = (RectTransform)transform;
-                GridLayoutGroup grid = GetComponent<GridLayoutGroup>();
-                int preferredColumns = Mathf.Max(1, maximumColumns);
-                if (rect.rect.width <= 0f)
-                {
-                    grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-                    grid.constraintCount = preferredColumns;
-                    return;
-                }
-
-                float spacing = Mathf.Max(0f, grid.spacing.x);
-                float contentWidth = Mathf.Max(0f, rect.rect.width - grid.padding.horizontal);
-                float columnPitch = minimumCellWidth + spacing;
-                int fittingColumns = columnPitch <= 0f
-                    ? preferredColumns
-                    : Mathf.FloorToInt((contentWidth + spacing) / columnPitch);
-                int columns = Mathf.Clamp(fittingColumns, 1, preferredColumns);
-                float gaps = spacing * Mathf.Max(0, columns - 1);
-                float width = Mathf.Max(0f, (contentWidth - gaps) / columns);
-                grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-                grid.constraintCount = columns;
-                if (!Mathf.Approximately(grid.cellSize.x, width))
-                {
-                    grid.cellSize = new Vector2(width, grid.cellSize.y);
-                }
-
-                if (resizeHeightToRows)
-                {
-                    ResizeHeight(grid, columns);
-                }
-            }
-            finally
-            {
-                applyingLayout = false;
-            }
-        }
-
-        private void ResizeHeight(GridLayoutGroup grid, int columns)
-        {
-            LayoutElement layoutElement = GetComponent<LayoutElement>();
-            if (layoutElement == null) return;
-
-            int layoutChildCount = CountLayoutChildren();
-            int rows = layoutChildCount == 0 ? 0 : Mathf.CeilToInt((float)layoutChildCount / columns);
-            float preferredHeight = grid.padding.vertical
-                + rows * grid.cellSize.y
-                + Mathf.Max(0, rows - 1) * grid.spacing.y;
-            layoutElement.minHeight = preferredHeight;
-            layoutElement.preferredHeight = preferredHeight;
-        }
-
-        private int CountLayoutChildren()
-        {
-            int layoutChildCount = 0;
-            for (int index = 0; index < transform.childCount; index++)
-            {
-                GameObject child = transform.GetChild(index).gameObject;
-                LayoutElement childLayout = child.GetComponent<LayoutElement>();
-                if (child.activeSelf && (childLayout == null || !childLayout.ignoreLayout))
-                {
-                    layoutChildCount++;
-                }
-            }
-
-            return layoutChildCount;
-        }
-
-        private void OnEnable()
-        {
-            ApplyNow();
-        }
-
-        private void OnRectTransformDimensionsChange()
-        {
-            if (isActiveAndEnabled)
-            {
-                ApplyNow();
-            }
-        }
-
-        private void OnTransformChildrenChanged()
-        {
-            if (isActiveAndEnabled)
-            {
-                ApplyNow();
-            }
+            if (width >= wideBreakpoint) return wideColumns;
+            if (width >= mediumBreakpoint) return mediumColumns;
+            return narrowColumns;
         }
     }
 }

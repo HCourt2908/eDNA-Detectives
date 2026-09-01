@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c821e5d1dc86e4dc58708131c0c48e53, type: 3}
+  m_Name: Threat_LongLine
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.ThreatSimulationDefinition
+  threatId: longline
+  displayName: Long-line fishing
+  summary: "Selective predator removal can trigger the shark\u2013tuna\u2013krill
+    cascade without damaging the benthic community."
+  icon: {fileID: 21300000, guid: e87ddd70309fd4872b88f255da948cd6, type: 3}
+  glyphKind: 2
+  speciesPredictions:
+  - speciesId: shark
+    predictedState: 1
+    rationale: Long-line gear directly reduces the large predator.
+  - speciesId: tuna
+    predictedState: 0
+    rationale: Tuna increase after losing a predator.
+  - speciesId: krill
+    predictedState: 1
+    rationale: More tuna consume more krill.
+  - speciesId: sea_star
+    predictedState: 2
+    rationale: Selective fishing does not directly damage the seafloor indicator.
+  - speciesId: mussel
+    predictedState: 2
+    rationale: The plastic-sensitive reference remains stable.
+  temperaturePrediction: Temperature may remain within its historical range.
+  seafloorPrediction: Seafloor remains intact.
+  physicalConfirmation: Fishing gear may be recorded near predator habitat.

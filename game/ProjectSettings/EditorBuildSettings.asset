@@ -10,9 +10,6 @@ EditorBuildSettings:
     guid: 8c9cfa26abfee488c85f1582747f6a02
   - enabled: 1
     path: Assets/Scenes/InvestigationScene.unity
-    guid: 901136f43dc6940c18a3f0aa0a61b3aa
-  - enabled: 1
-    path: Assets/Scenes/InvestigationSceneV2.unity
     guid: 076caa30fb8c546e4af3296dcfeb7879
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}

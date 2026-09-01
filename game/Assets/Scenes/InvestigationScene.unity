@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &1096317005
+--- !u!1 &943954782
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,8 +127,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1096317007}
-  - component: {fileID: 1096317006}
+  - component: {fileID: 943954784}
+  - component: {fileID: 943954783}
   m_Layer: 0
   m_Name: Investigation Demo
   m_TagString: Untagged
@@ -136,27 +136,27 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1096317006
+--- !u!114 &943954783
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1096317005}
+  m_GameObject: {fileID: 943954782}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7ab23c49dce5940acb87e34e9d1d05a8, type: 3}
+  m_Script: {fileID: 11500000, guid: 3704eee648f8949208f9754f00c04504, type: 3}
   m_Name: 
   m_EditorClassIdentifier: EDNA.Investigation.Runtime::EDNA.Investigation.InvestigationDemoBootstrap
-  caseDefinition: {fileID: 11400000, guid: afa5c271546084bfa8a6e945eef4f724, type: 2}
-  viewPrefab: {fileID: 1442203378693639319, guid: d51a616af56f64a1b8f4436e6e1058d2, type: 3}
---- !u!4 &1096317007
+  caseDefinition: {fileID: 11400000, guid: a4dde1d8b9436415da9bef0ab813e552, type: 2}
+  viewPrefab: {fileID: 7902261065986157138, guid: 6f7a10259064c47a085c9c7cab509938, type: 3}
+--- !u!4 &943954784
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1096317005}
+  m_GameObject: {fileID: 943954782}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -165,7 +165,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1310013965
+--- !u!1 &2098083223
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -173,9 +173,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1310013968}
-  - component: {fileID: 1310013967}
-  - component: {fileID: 1310013966}
+  - component: {fileID: 2098083226}
+  - component: {fileID: 2098083225}
+  - component: {fileID: 2098083224}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -183,25 +183,25 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &1310013966
+--- !u!81 &2098083224
 AudioListener:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1310013965}
+  m_GameObject: {fileID: 2098083223}
   m_Enabled: 1
---- !u!20 &1310013967
+--- !u!20 &2098083225
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1310013965}
+  m_GameObject: {fileID: 2098083223}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.019607844, g: 0.078431375, b: 0.12156863, a: 1}
+  m_BackGroundColor: {r: 0.015686275, g: 0.07058824, b: 0.10980392, a: 1}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -242,13 +242,13 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &1310013968
+--- !u!4 &2098083226
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1310013965}
+  m_GameObject: {fileID: 2098083223}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: -10}
@@ -261,5 +261,5 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1310013968}
-  - {fileID: 1096317007}
+  - {fileID: 2098083226}
+  - {fileID: 943954784}

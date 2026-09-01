@@ -1,291 +1,215 @@
 using System;
 using System.Collections.Generic;
 using EDNA.Core;
-using UnityEngine;
 
 namespace EDNA.Investigation.Domain
 {
-    [Serializable]
     public sealed class InvestigationState
     {
-        [SerializeField] private int currentRound;
-        [SerializeField] private int remainingSamples;
-        [SerializeField] private List<EDNAResultData> allResults = new List<EDNAResultData>();
-        [SerializeField] private List<EvidenceRecord> unlockedEvidence = new List<EvidenceRecord>();
-        [SerializeField] private List<string> identifiedEvidenceIds = new List<string>();
-        [SerializeField] private List<string> rejectedClassificationKeys = new List<string>();
-        [SerializeField] private string selectedHypothesisId = string.Empty;
-        [SerializeField] private List<EvidenceAssignmentRecord> evidenceAssignments = new List<EvidenceAssignmentRecord>();
-        [SerializeField] private List<InvestigationSamplePlan> requestedSamples = new List<InvestigationSamplePlan>();
-        [SerializeField] private List<string> completedSampleRequestIds = new List<string>();
-        [SerializeField] private ConclusionStatus conclusionStatus = ConclusionStatus.NotSubmitted;
+        private readonly List<string> discoveredObservationIds = new List<string>();
+        private readonly List<string> triedThreatIds = new List<string>();
+        private readonly List<SimulationResult> simulationResults = new List<SimulationResult>();
+        private readonly List<PredictionComparisonRecord> comparisonRecords = new List<PredictionComparisonRecord>();
+        private readonly List<string> selectedReportEvidenceIds = new List<string>();
 
-        public InvestigationState(int remainingSamples)
-        {
-            this.remainingSamples = Math.Max(0, remainingSamples);
-        }
+        public InvestigationPhase Phase { get; internal set; } = InvestigationPhase.Observe;
+        public InvestigationDifficulty Difficulty { get; internal set; } = InvestigationDifficulty.Easy;
+        public string ActiveThreatId { get; internal set; } = string.Empty;
+        public string ProvisionalThreatId { get; internal set; } = string.Empty;
+        public bool ConfirmationReviewed { get; internal set; }
+        public string FinalThreatId { get; internal set; } = string.Empty;
+        public string SelectedReasoningId { get; internal set; } = string.Empty;
+        public string SelectedLimitationId { get; internal set; } = string.Empty;
+        public InvestigationConclusionStatus ConclusionStatus { get; internal set; } = InvestigationConclusionStatus.NotSubmitted;
+        public int MisstepCount { get; internal set; }
+        public int FinalSubmissionAttemptCount { get; internal set; }
+        public string SurveyId { get; private set; } = string.Empty;
+        public string SurveyDisplayName { get; private set; } = "Survey";
+        public string SiteId { get; private set; } = string.Empty;
+        public string SiteDisplayName { get; private set; } = "Survey site";
+        public string ProcessedSampleSummary { get; private set; } = "Processed eDNA survey results";
 
-        public int CurrentRound => currentRound;
-        public int RemainingSamples => remainingSamples;
-        public int PendingSampleCount
+        public IReadOnlyList<string> DiscoveredObservationIds => discoveredObservationIds;
+        public IReadOnlyList<string> TriedThreatIds => triedThreatIds;
+        public IReadOnlyList<SimulationResult> SimulationResults => simulationResults;
+        public IReadOnlyList<PredictionComparisonRecord> ComparisonRecords => comparisonRecords;
+        public IReadOnlyList<string> SelectedReportEvidenceIds => selectedReportEvidenceIds;
+
+        public bool HasDiscoveredObservation(string evidenceId) => Contains(discoveredObservationIds, evidenceId);
+        public bool HasTriedThreat(string threatId) => Contains(triedThreatIds, threatId);
+        public bool HasSelectedEvidence(string evidenceId) => Contains(selectedReportEvidenceIds, evidenceId);
+
+        public int AcceptedComparisonCount
         {
             get
             {
-                int pendingCount = 0;
-                for (int index = 0; index < requestedSamples.Count; index++)
+                int count = 0;
+                for (int index = 0; index < comparisonRecords.Count; index++)
                 {
-                    InvestigationSamplePlan plan = requestedSamples[index];
-                    string requestId = plan?.Request?.requestId;
-                    if (!IsSampleCompleted(requestId))
-                    {
-                        pendingCount++;
-                    }
+                    if (comparisonRecords[index].CountsTowardProgress) count++;
                 }
-
-                return pendingCount;
+                return count;
             }
         }
-        public int AvailableSampleSlots => Math.Max(0, remainingSamples - PendingSampleCount);
-        public int CompletedSampleCount => completedSampleRequestIds.Count;
-        public IReadOnlyList<EDNAResultData> AllResults => allResults;
-        public IReadOnlyList<EvidenceRecord> UnlockedEvidence => unlockedEvidence;
-        public IReadOnlyList<string> IdentifiedEvidenceIds => identifiedEvidenceIds;
-        public int MisclassificationCount => rejectedClassificationKeys.Count;
-        public string SelectedHypothesisId => selectedHypothesisId;
-        public IReadOnlyList<EvidenceAssignmentRecord> EvidenceAssignments => evidenceAssignments;
-        public IReadOnlyList<InvestigationSamplePlan> RequestedSamples => requestedSamples;
-        public ConclusionStatus ConclusionStatus => conclusionStatus;
 
-        internal void AddInitialResult(EDNAResultData result)
+        public int AcceptedComparisonCountForThreat(string threatId)
         {
-            if (result == null)
+            int count = 0;
+            for (int index = 0; index < comparisonRecords.Count; index++)
+            {
+                PredictionComparisonRecord record = comparisonRecords[index];
+                if (record.CountsTowardProgress && string.Equals(record.ThreatId, threatId, StringComparison.Ordinal)) count++;
+            }
+            return count;
+        }
+
+        public SimulationResult FindSimulation(string threatId)
+        {
+            for (int index = 0; index < simulationResults.Count; index++)
+            {
+                SimulationResult result = simulationResults[index];
+                if (string.Equals(result.ThreatId, threatId, StringComparison.Ordinal)) return result;
+            }
+            return null;
+        }
+
+        public PredictionComparisonRecord FindComparison(string threatId, string speciesId)
+        {
+            return FindComparison(threatId, PredictionTargetKind.Species, speciesId);
+        }
+
+        public PredictionComparisonRecord FindComparison(
+            string threatId,
+            PredictionTargetKind targetKind,
+            string targetId)
+        {
+            for (int index = 0; index < comparisonRecords.Count; index++)
+            {
+                PredictionComparisonRecord record = comparisonRecords[index];
+                if (string.Equals(record.ThreatId, threatId, StringComparison.Ordinal)
+                    && record.TargetKind == targetKind
+                    && string.Equals(record.TargetId, targetId, StringComparison.Ordinal)) return record;
+            }
+            return null;
+        }
+
+        public bool HasCompletedObjective(string objectiveId)
+        {
+            if (string.IsNullOrEmpty(objectiveId)) return false;
+            for (int index = 0; index < comparisonRecords.Count; index++)
+            {
+                PredictionComparisonRecord record = comparisonRecords[index];
+                if (record.CompletesObjective
+                    && string.Equals(record.ObjectiveId, objectiveId, StringComparison.Ordinal)) return true;
+            }
+            return false;
+        }
+
+        public int CompletedObjectiveCount
+        {
+            get
+            {
+                int count = 0;
+                for (int index = 0; index < comparisonRecords.Count; index++)
+                    if (comparisonRecords[index].CompletesObjective) count++;
+                return count;
+            }
+        }
+
+        internal void DiscoverObservation(string evidenceId)
+        {
+            AddUnique(discoveredObservationIds, evidenceId);
+        }
+
+        internal void ApplySurveyContext(InvestigationSurveyContextData context)
+        {
+            if (context == null) return;
+            SurveyId = Prefer(context.surveyId, SurveyId);
+            SurveyDisplayName = Prefer(context.surveyDisplayName, SurveyDisplayName);
+            SiteId = Prefer(context.siteId, SiteId);
+            SiteDisplayName = Prefer(context.siteDisplayName, SiteDisplayName);
+            ProcessedSampleSummary = Prefer(context.processedSampleSummary, ProcessedSampleSummary);
+        }
+
+        internal void RecordSimulation(SimulationResult result)
+        {
+            if (result == null) return;
+            AddUnique(triedThreatIds, result.ThreatId);
+            for (int index = simulationResults.Count - 1; index >= 0; index--)
+            {
+                if (string.Equals(simulationResults[index].ThreatId, result.ThreatId, StringComparison.Ordinal))
+                {
+                    simulationResults.RemoveAt(index);
+                }
+            }
+            simulationResults.Add(result);
+            ActiveThreatId = result.ThreatId;
+        }
+
+        internal bool RecordComparison(PredictionComparisonRecord record)
+        {
+            if (record == null) return false;
+            for (int index = comparisonRecords.Count - 1; index >= 0; index--)
+            {
+                PredictionComparisonRecord existing = comparisonRecords[index];
+                if (string.Equals(existing.ThreatId, record.ThreatId, StringComparison.Ordinal)
+                    && existing.TargetKind == record.TargetKind
+                    && string.Equals(existing.TargetId, record.TargetId, StringComparison.Ordinal))
+                {
+                    // A decisive accepted judgement is committed. A scientifically
+                    // acceptable NotEnoughEvidence remains revisable and never locks.
+                    if (existing.LocksComparison) return false;
+                    comparisonRecords.RemoveAt(index);
+                }
+            }
+            comparisonRecords.Add(record);
+            if (!record.IsAccepted) MisstepCount++;
+            return true;
+        }
+
+        internal void RecordFinalSubmission(InvestigationConclusionStatus status)
+        {
+            if (status != InvestigationConclusionStatus.Correct
+                && status != InvestigationConclusionStatus.Incorrect)
             {
                 return;
             }
 
-            allResults.Add(result);
-            currentRound = Math.Max(currentRound, result.roundIndex);
+            FinalSubmissionAttemptCount++;
+            if (status == InvestigationConclusionStatus.Incorrect) MisstepCount++;
         }
 
-        internal void AddPlan(InvestigationSamplePlan plan)
+        internal void SetEvidenceSelected(string evidenceId, bool selected)
         {
-            requestedSamples.Add(plan);
-            currentRound = plan.RoundIndex;
+            if (selected) AddUnique(selectedReportEvidenceIds, evidenceId);
+            else Remove(selectedReportEvidenceIds, evidenceId);
         }
 
-        internal void AddResult(EDNAResultData result)
+        private static bool Contains(IReadOnlyList<string> values, string value)
         {
-            allResults.Add(result);
-            currentRound = Math.Max(currentRound, result.roundIndex);
-        }
-
-        internal bool CompletePlan(string requestId)
-        {
-            if (string.IsNullOrEmpty(requestId) || IsSampleCompleted(requestId))
+            for (int index = 0; index < values.Count; index++)
             {
-                return false;
+                if (string.Equals(values[index], value, StringComparison.Ordinal)) return true;
             }
-
-            for (int index = 0; index < requestedSamples.Count; index++)
-            {
-                InvestigationSamplePlan plan = requestedSamples[index];
-                if (plan?.Request != null
-                    && string.Equals(plan.Request.requestId, requestId, StringComparison.Ordinal))
-                {
-                    completedSampleRequestIds.Add(requestId);
-                    remainingSamples = Math.Max(0, remainingSamples - 1);
-                    return true;
-                }
-            }
-
             return false;
         }
 
-        internal bool CancelPendingPlan(string requestId)
+        private static void AddUnique(List<string> values, string value)
         {
-            if (string.IsNullOrEmpty(requestId) || IsSampleCompleted(requestId))
-            {
-                return false;
-            }
-
-            for (int index = 0; index < requestedSamples.Count; index++)
-            {
-                InvestigationSamplePlan plan = requestedSamples[index];
-                if (plan?.Request != null
-                    && string.Equals(plan.Request.requestId, requestId, StringComparison.Ordinal))
-                {
-                    requestedSamples.RemoveAt(index);
-                    return true;
-                }
-            }
-
-            return false;
+            if (!string.IsNullOrEmpty(value) && !Contains(values, value)) values.Add(value);
         }
 
-        public bool IsSampleCompleted(string requestId)
+        private static void Remove(List<string> values, string value)
         {
-            if (string.IsNullOrEmpty(requestId))
+            for (int index = values.Count - 1; index >= 0; index--)
             {
-                return false;
-            }
-
-            for (int index = 0; index < completedSampleRequestIds.Count; index++)
-            {
-                if (string.Equals(completedSampleRequestIds[index], requestId, StringComparison.Ordinal))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        internal void ReplaceEvidence(List<EvidenceRecord> evidence)
-        {
-            unlockedEvidence = evidence ?? new List<EvidenceRecord>();
-
-            for (int identifiedIndex = identifiedEvidenceIds.Count - 1; identifiedIndex >= 0; identifiedIndex--)
-            {
-                if (FindEvidence(identifiedEvidenceIds[identifiedIndex]) == null)
-                {
-                    identifiedEvidenceIds.RemoveAt(identifiedIndex);
-                }
-            }
-
-            for (int assignmentIndex = evidenceAssignments.Count - 1; assignmentIndex >= 0; assignmentIndex--)
-            {
-                if (FindEvidence(evidenceAssignments[assignmentIndex].EvidenceId) == null)
-                {
-                    evidenceAssignments.RemoveAt(assignmentIndex);
-                }
+                if (string.Equals(values[index], value, StringComparison.Ordinal)) values.RemoveAt(index);
             }
         }
 
-        internal void IdentifyEvidence(string evidenceId)
+        private static string Prefer(string candidate, string fallback)
         {
-            if (!string.IsNullOrEmpty(evidenceId) && !IsEvidenceIdentified(evidenceId))
-            {
-                identifiedEvidenceIds.Add(evidenceId);
-            }
-        }
-
-        internal bool RecordMisclassification(string evidenceId, AnomalyClaimType claimType)
-        {
-            if (string.IsNullOrEmpty(evidenceId))
-            {
-                return false;
-            }
-
-            string key = BuildClassificationKey(evidenceId, claimType);
-            if (rejectedClassificationKeys.Contains(key))
-            {
-                return false;
-            }
-
-            rejectedClassificationKeys.Add(key);
-            return true;
-        }
-
-        public bool HasRejectedClassification(string evidenceId, AnomalyClaimType claimType)
-        {
-            return !string.IsNullOrEmpty(evidenceId)
-                && rejectedClassificationKeys.Contains(BuildClassificationKey(evidenceId, claimType));
-        }
-
-        internal void AssignEvidence(string evidenceId, string hypothesisId, EvidenceAssignmentKind assignmentKind)
-        {
-            for (int index = evidenceAssignments.Count - 1; index >= 0; index--)
-            {
-                EvidenceAssignmentRecord existing = evidenceAssignments[index];
-                if (string.Equals(existing.EvidenceId, evidenceId, StringComparison.Ordinal)
-                    && string.Equals(existing.HypothesisId, hypothesisId, StringComparison.Ordinal))
-                {
-                    evidenceAssignments.RemoveAt(index);
-                }
-            }
-
-            evidenceAssignments.Add(new EvidenceAssignmentRecord(evidenceId, hypothesisId, assignmentKind));
-        }
-
-        internal void SelectHypothesis(string hypothesisId)
-        {
-            selectedHypothesisId = hypothesisId ?? string.Empty;
-            conclusionStatus = ConclusionStatus.NotSubmitted;
-        }
-
-        internal void SetConclusionStatus(ConclusionStatus status)
-        {
-            conclusionStatus = status;
-        }
-
-        public EvidenceRecord FindEvidence(string evidenceId)
-        {
-            for (int index = 0; index < unlockedEvidence.Count; index++)
-            {
-                if (string.Equals(unlockedEvidence[index].EvidenceId, evidenceId, StringComparison.Ordinal))
-                {
-                    return unlockedEvidence[index];
-                }
-            }
-
-            return null;
-        }
-
-        public bool IsEvidenceIdentified(string evidenceId)
-        {
-            for (int index = 0; index < identifiedEvidenceIds.Count; index++)
-            {
-                if (string.Equals(identifiedEvidenceIds[index], evidenceId, StringComparison.Ordinal))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        public List<EvidenceRecord> GetIdentifiedEvidence()
-        {
-            List<EvidenceRecord> identified = new List<EvidenceRecord>();
-            for (int index = 0; index < identifiedEvidenceIds.Count; index++)
-            {
-                EvidenceRecord evidence = FindEvidence(identifiedEvidenceIds[index]);
-                if (evidence != null)
-                {
-                    identified.Add(evidence);
-                }
-            }
-
-            return identified;
-        }
-
-        public bool ContainsResult(EDNAResultData candidate)
-        {
-            if (candidate == null)
-            {
-                return false;
-            }
-
-            for (int index = 0; index < allResults.Count; index++)
-            {
-                EDNAResultData existing = allResults[index];
-                bool sameSample = !string.IsNullOrEmpty(candidate.sampleId)
-                    && string.Equals(existing.sampleId, candidate.sampleId, StringComparison.Ordinal);
-                bool sameRequest = !string.IsNullOrEmpty(candidate.requestId)
-                    && string.Equals(existing.requestId, candidate.requestId, StringComparison.Ordinal);
-
-                if (sameSample || sameRequest)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static string BuildClassificationKey(string evidenceId, AnomalyClaimType claimType)
-        {
-            return $"{evidenceId}::{claimType}";
+            return string.IsNullOrWhiteSpace(candidate) ? fallback : candidate.Trim();
         }
     }
 }

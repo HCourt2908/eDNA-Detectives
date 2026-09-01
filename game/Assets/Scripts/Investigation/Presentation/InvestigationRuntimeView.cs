@@ -1,7 +1,6 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using EDNA.Core;
 using EDNA.Investigation.Domain;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -11,1586 +10,1062 @@ using UnityEngine.UI;
 namespace EDNA.Investigation
 {
     [DisallowMultipleComponent]
-    public sealed class InvestigationRuntimeView : MonoBehaviour
+    public sealed partial class InvestigationRuntimeView : MonoBehaviour
     {
-        private enum Page { CaseFiles, CompareData, BuildHypothesis, PlanSample, Conclusion }
+        private enum ButtonVisualStyle { Primary, PaperPrimary, Secondary, Tertiary, Stage, Choice, PaperChoice, Danger }
 
         private readonly struct FocusSnapshot
         {
-            public FocusSnapshot(bool hadFocus, string label, string objectName, bool wasComparisonCard, bool wasMotionToggle)
+            public FocusSnapshot(bool hadFocus, string objectName)
             {
                 HadFocus = hadFocus;
-                Label = label;
-                ObjectName = objectName;
-                WasComparisonCard = wasComparisonCard;
-                WasMotionToggle = wasMotionToggle;
+                ObjectName = objectName ?? string.Empty;
             }
 
             public bool HadFocus { get; }
-            public string Label { get; }
             public string ObjectName { get; }
-            public bool WasComparisonCard { get; }
-            public bool WasMotionToggle { get; }
         }
 
-        private static readonly Color Muted = InvestigationTheme.TextSecondary;
-        private static readonly Color Warning = InvestigationTheme.Warning;
-        private static readonly Color Success = InvestigationTheme.Success;
+        private static readonly Vector2 LandscapeReferenceResolution = new Vector2(1280f, 720f);
+        private static readonly Vector2 PortraitReferenceResolution = new Vector2(720f, 1280f);
+        private const float OuterMargin = 8f;
 
-        [Header("Prefab-owned UI references")]
-        [SerializeField] private Text titleText;
-        [SerializeField] private Text progressText;
-        [SerializeField] private InvestigationProgressView progressView;
-        [SerializeField] private Text statusText;
-        [SerializeField] private InvestigationStatusBannerView statusBanner;
-        [SerializeField] private Text bodyText;
-        [SerializeField] private RectTransform navigationRoot;
-        [SerializeField] private RectTransform actionRoot;
-        [SerializeField] private RectTransform compareNavigationRoot;
-        [SerializeField] private RectTransform classificationPanel;
-        [SerializeField] private RectTransform classificationRoot;
-        [SerializeField] private Text classificationPromptText;
-        [SerializeField] private RectTransform contentViewport;
-        [SerializeField] private ScrollRect contentScrollRect;
-        [SerializeField] private InvestigationAdaptiveShellLayout adaptiveShellLayout;
-        [SerializeField] private InvestigationAccessibilityBridge accessibilityBridge;
-
-        [Header("Reusable presentation prefabs")]
-        [SerializeField] private InvestigationButtonView buttonPrefab;
-        [SerializeField] private SampleComparisonBoardView comparisonBoardPrefab;
-        [SerializeField] private SpeciesComparisonCardView comparisonCardPrefab;
-        [SerializeField] private InvestigationCaseFilesPanelView caseFilesPanelPrefab;
-        [SerializeField] private InvestigationHypothesisPanelView hypothesisPanelPrefab;
-        [SerializeField] private InvestigationSamplePlannerPanelView samplePlannerPanelPrefab;
-        [SerializeField] private InvestigationStepperView stepperPrefab;
+        [SerializeField] private Sprite seamountSprite;
 
         private InvestigationCaseDefinition caseDefinition;
         private InvestigationState state;
-        private Action<string> selectHypothesis;
-        private Action<string, string, EvidenceAssignmentKind> assignEvidence;
-        private Action<string, AnomalyClaimType> identifyAnomaly;
-        private Action<string, DepthBand, string, string> requestSample;
-        private Action submitConclusion;
-        private Action restartCase;
-        private Page currentPage;
-        private string statusMessage = string.Empty;
-        private string currentStatusLabel = string.Empty;
-        private string currentStatusAnnouncement = string.Empty;
-        private InvestigationStatusTone statusTone = InvestigationStatusTone.Guide;
-        private string selectedComparisonEvidenceId = string.Empty;
-        private int speciesIndex;
-        private int hypothesisIndex;
-        private int evidenceIndex;
-        private int siteIndex;
-        private int depthIndex;
-        private int resultIndex;
-        private int renderedResultCount;
-        private int actionSlotCount;
-        private bool navigationBuilt;
-        private bool caseBriefingReviewed;
-        private bool restartConfirmationPending;
-        private bool preserveScrollOnNextRefresh;
-        private bool comparisonActionMode;
-        private readonly List<InvestigationButtonView> navigationButtons = new List<InvestigationButtonView>();
-        private InvestigationButtonView motionToggleButton;
-        private Coroutine focusRestoreCoroutine;
-        private SampleComparisonBoardView comparisonBoardInstance;
-        private InvestigationCaseFilesPanelView caseFilesPanelInstance;
-        private InvestigationHypothesisPanelView hypothesisPanelInstance;
-        private InvestigationSamplePlannerPanelView samplePlannerPanelInstance;
+        private Action<InvestigationPhase> setPhase;
+        private Action<InvestigationDifficulty> setDifficulty;
+        private Action<string> discoverObservation;
+        private Action<string> runThreat;
+        private Action<string, PredictionTargetKind, string, string, ComparisonJudgement> compare;
+        private Action<string> submitProvisional;
+        private Action reviewConfirmation;
+        private Action<string> setFinalThreat;
+        private Action<string, bool> setReportEvidence;
+        private Action<string> setReasoning;
+        private Action<string> setLimitation;
+        private Action submitFinal;
+        private Action restart;
+        private Action<bool> setReducedMotion;
 
-        public void ConfigureReferences(
-            Text titleReference,
-            Text progressReference,
-            Text statusReference,
-            InvestigationStatusBannerView statusBannerReference,
-            Text bodyReference,
-            RectTransform navigationReference,
-            RectTransform actionReference,
-            RectTransform viewportReference,
-            ScrollRect scrollReference,
-            InvestigationButtonView buttonReference,
-            SampleComparisonBoardView boardReference,
-            SpeciesComparisonCardView cardReference,
-            InvestigationCaseFilesPanelView caseFilesReference = null,
-            InvestigationSamplePlannerPanelView samplePlannerReference = null,
-            InvestigationStepperView stepperReference = null,
-            InvestigationProgressView progressViewReference = null,
-            InvestigationAdaptiveShellLayout shellLayoutReference = null,
-            InvestigationAccessibilityBridge accessibilityReference = null)
-        {
-            titleText = titleReference;
-            progressText = progressReference;
-            statusText = statusReference;
-            statusBanner = statusBannerReference;
-            bodyText = bodyReference;
-            navigationRoot = navigationReference;
-            actionRoot = actionReference;
-            contentViewport = viewportReference;
-            contentScrollRect = scrollReference;
-            buttonPrefab = buttonReference;
-            comparisonBoardPrefab = boardReference;
-            comparisonCardPrefab = cardReference;
-            caseFilesPanelPrefab = caseFilesReference;
-            samplePlannerPanelPrefab = samplePlannerReference;
-            stepperPrefab = stepperReference;
-            progressView = progressViewReference;
-            adaptiveShellLayout = shellLayoutReference;
-            accessibilityBridge = accessibilityReference;
-        }
+        private RectTransform stageRoot;
+        private Text caseSubtitleText;
+        private Text metricsText;
+        private RectTransform statusPanelRoot;
+        private Text statusText;
+        private Image statusAccent;
+        private RectTransform contentPanel;
+        private RectTransform contentRoot;
+        private ScrollRect contentScroll;
+        private RectTransform footerRoot;
+        private RectTransform footerLeft;
+        private RectTransform footerRight;
+        private Button difficultyButton;
+        private Text difficultyText;
+        private Button motionButton;
+        private Text motionText;
+
+        private string selectedThreatId = string.Empty;
+        private PredictionTargetKind selectedPredictionTargetKind = PredictionTargetKind.Species;
+        private string selectedPredictionSpeciesId = string.Empty;
+        private string selectedObservationId = string.Empty;
+        private string pendingTappedSpeciesId = string.Empty;
+        private bool pendingTappedSpeciesHistorical;
+        private RectTransform pendingTappedSpeciesMarker;
+        private InvestigationSpeciesDefinition pendingTappedSpecies;
+        private RectTransform speciesTooltip;
+        private string statusMessage = string.Empty;
+        private InvestigationStatusTone statusTone = InvestigationStatusTone.Guide;
+        private readonly HashSet<string> animatedThreatIds = new HashSet<string>(StringComparer.Ordinal);
+        private bool built;
+        private bool viewportRefreshScheduled;
+        private Vector2 lastViewportSize = new Vector2(-1f, -1f);
+        private bool restartConfirmationPending;
+        private bool hasRenderedPhase;
+        private InvestigationPhase lastRenderedPhase;
+        private InvestigationConclusionStatus lastRenderedConclusionStatus = InvestigationConclusionStatus.NotSubmitted;
+
+        public InvestigationState State => state;
+        public RectTransform ContentRoot => contentRoot;
+        public Sprite SeamountSprite => seamountSprite;
 
         public void Bind(
             InvestigationCaseDefinition definition,
-            Action<string> onSelectHypothesis,
-            Action<string, string, EvidenceAssignmentKind> onAssignEvidence,
-            Action<string, AnomalyClaimType> onIdentifyAnomaly,
-            Action<string, DepthBand, string, string> onRequestSample,
-            Action onSubmitConclusion,
-            Action onRestartCase)
+            Action<InvestigationPhase> onSetPhase,
+            Action<InvestigationDifficulty> onSetDifficulty,
+            Action<string> onDiscoverObservation,
+            Action<string> onRunThreat,
+            Action<string, PredictionTargetKind, string, string, ComparisonJudgement> onCompare,
+            Action<string> onSubmitProvisional,
+            Action onReviewConfirmation,
+            Action<string> onSetFinalThreat,
+            Action<string, bool> onSetReportEvidence,
+            Action<string> onSetReasoning,
+            Action<string> onSetLimitation,
+            Action onSubmitFinal,
+            Action onRestart,
+            Action<bool> onSetReducedMotion)
         {
             caseDefinition = definition;
-            selectHypothesis = onSelectHypothesis;
-            assignEvidence = onAssignEvidence;
-            identifyAnomaly = onIdentifyAnomaly;
-            requestSample = onRequestSample;
-            submitConclusion = onSubmitConclusion;
-            restartCase = onRestartCase;
-            EnsureEventSystem();
-            BuildNavigation();
-            BuildMotionToggle();
+            setPhase = onSetPhase;
+            setDifficulty = onSetDifficulty;
+            discoverObservation = onDiscoverObservation;
+            runThreat = onRunThreat;
+            compare = onCompare;
+            submitProvisional = onSubmitProvisional;
+            reviewConfirmation = onReviewConfirmation;
+            setFinalThreat = onSetFinalThreat;
+            setReportEvidence = onSetReportEvidence;
+            setReasoning = onSetReasoning;
+            setLimitation = onSetLimitation;
+            submitFinal = onSubmitFinal;
+            restart = onRestart;
+            setReducedMotion = onSetReducedMotion;
+            EnsureUi();
         }
 
-        public void Refresh(
-            InvestigationState investigationState,
-            string message,
-            InvestigationStatusTone tone = InvestigationStatusTone.Guide)
+        public void ResetPresentationState()
         {
-            bool isNewState = !ReferenceEquals(state, investigationState);
-            int resultCount = investigationState == null ? 0 : investigationState.AllResults.Count;
-            bool hasNewResults = !isNewState && resultCount > renderedResultCount;
-            state = investigationState;
-            if (isNewState)
-            {
-                ResetViewState();
-            }
-            else if (hasNewResults)
-            {
-                resultIndex = resultCount - 1;
-                selectedComparisonEvidenceId = string.Empty;
-                currentPage = Page.CompareData;
-            }
-
-            renderedResultCount = resultCount;
-            SetStatus(message, tone);
-            ClampSelections();
-            bool preserveScroll = preserveScrollOnNextRefresh
-                && !isNewState
-                && currentPage == Page.CompareData;
-            preserveScrollOnNextRefresh = false;
-            RenderCurrentPage(preserveScroll);
-        }
-
-        private void ResetViewState()
-        {
-            currentPage = Page.CaseFiles;
-            caseBriefingReviewed = false;
+            selectedThreatId = string.Empty;
+            selectedPredictionTargetKind = PredictionTargetKind.Species;
+            selectedPredictionSpeciesId = string.Empty;
+            selectedObservationId = string.Empty;
+            pendingTappedSpeciesId = string.Empty;
+            pendingTappedSpeciesMarker = null;
+            pendingTappedSpecies = null;
+            HideSpeciesTooltip();
+            animatedThreatIds.Clear();
             restartConfirmationPending = false;
-            speciesIndex = 0;
-            hypothesisIndex = 0;
-            evidenceIndex = 0;
-            siteIndex = 0;
-            depthIndex = 0;
-            resultIndex = 0;
-            selectedComparisonEvidenceId = string.Empty;
-            preserveScrollOnNextRefresh = false;
-            comparisonActionMode = false;
-            statusTone = InvestigationStatusTone.Guide;
+            hasRenderedPhase = false;
+            lastRenderedConclusionStatus = InvestigationConclusionStatus.NotSubmitted;
+            contentScroll?.StopMovement();
+            if (contentScroll != null) contentScroll.verticalNormalizedPosition = 1f;
+        }
+
+        public void Refresh(InvestigationState currentState, string message, InvestigationStatusTone tone)
+        {
+            state = currentState;
+            statusMessage = message ?? string.Empty;
+            statusTone = tone;
+            EnsureUi();
+            RenderAll();
         }
 
         public void ShowFatalError(string message)
         {
-            if (titleText != null)
+            EnsureUi();
+            state = null;
+            statusMessage = message ?? "Unknown Investigation error.";
+            statusTone = InvestigationStatusTone.Warning;
+            RenderChrome();
+            Clear(contentRoot);
+            Text error = CreateText("Fatal Error", contentRoot, statusMessage, 21, FontStyle.Bold, InvestigationTheme.Danger, TextAnchor.UpperLeft, InvestigationTheme.DisplayFont);
+            AddLayout(error.rectTransform, 120f, 1f);
+            Clear(footerLeft);
+            Clear(footerRight);
+        }
+
+        private void Awake()
+        {
+            EnsureUi();
+        }
+
+        private void OnRectTransformDimensionsChange()
+        {
+            if (!built) return;
+            ConfigureCanvasForCurrentViewport();
+            RectTransform root = GetComponent<RectTransform>();
+            if (root == null) return;
+            Vector2 currentSize = root.rect.size;
+            if ((currentSize - lastViewportSize).sqrMagnitude < 0.25f) return;
+            lastViewportSize = currentSize;
+            if (!Application.isPlaying || state == null || viewportRefreshScheduled) return;
+            viewportRefreshScheduled = true;
+            StartCoroutine(RefreshAfterViewportChange());
+        }
+
+        private void EnsureUi()
+        {
+            if (built) return;
+            built = true;
+            BuildUi();
+            EnsureEventSystem();
+        }
+
+        private void BuildUi()
+        {
+            RectTransform rootRect = GetComponent<RectTransform>();
+            if (rootRect == null) rootRect = gameObject.AddComponent<RectTransform>();
+
+            Canvas canvas = GetComponent<Canvas>();
+            if (canvas == null) canvas = gameObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+
+            CanvasScaler scaler = GetComponent<CanvasScaler>();
+            if (scaler == null) scaler = gameObject.AddComponent<CanvasScaler>();
+            ConfigureCanvasForCurrentViewport();
+            lastViewportSize = rootRect.rect.size;
+            if (GetComponent<GraphicRaycaster>() == null) gameObject.AddComponent<GraphicRaycaster>();
+
+            RectTransform background = CreatePanel("Deep Sea Background", transform, InvestigationTheme.Background, 0f);
+            Stretch(background, 0f, 0f, 0f, 0f);
+
+            // Water is built as a stack, back to front. Sibling order is the
+            // render order, so everything before "Safe Area" sits behind the
+            // interface and everything after it sits in front.
+            InvestigationWaterColumnGraphic waterColumn =
+                CreateGraphic<InvestigationWaterColumnGraphic>("Water Column", background);
+            Stretch(waterColumn.rectTransform, 0f, 0f, 0f, 0f);
+            waterColumn.color = Color.white;
+
+            InvestigationGodRayGraphic godRays = CreateGraphic<InvestigationGodRayGraphic>("God Rays", background);
+            Stretch(godRays.rectTransform, 0f, 0f, 0f, 0f);
+            godRays.color = Color.white;
+
+            CreateMarineSnowLayer(
+                "Marine Snow Far",
+                background,
+                30,
+                new Vector2(1f, 2.2f),
+                4f,
+                new Vector2(0.10f, InvestigationTheme.MarineSnowFarMaxAlpha),
+                6f,
+                0x9E3779B9u);
+            CreateMarineSnowLayer(
+                "Marine Snow",
+                background,
+                20,
+                new Vector2(2f, 3.4f),
+                9f,
+                new Vector2(0.20f, InvestigationTheme.MarineSnowNearMaxAlpha),
+                11f,
+                0x85EBCA6Bu);
+
+            InvestigationVignetteGraphic vignette = CreateGraphic<InvestigationVignetteGraphic>("Water Vignette", background);
+            Stretch(vignette.rectTransform, 0f, 0f, 0f, 0f);
+            vignette.color = Color.white;
+
+            RectTransform safeAreaRoot = CreatePanel("Safe Area", background, new Color(0f, 0f, 0f, 0f), 0f);
+            Stretch(safeAreaRoot, 0f, 0f, 0f, 0f);
+            safeAreaRoot.gameObject.AddComponent<InvestigationSafeAreaFitter>();
+
+            // In front of the interface. Deliberately sparse, large and faint:
+            // enough for something to pass between the player and the scene,
+            // few enough that it never competes with text.
+            CreateMarineSnowLayer(
+                "Marine Snow Foreground",
+                background,
+                7,
+                new Vector2(4.5f, 8f),
+                19f,
+                new Vector2(0.09f, InvestigationTheme.MarineSnowForegroundMaxAlpha),
+                16f,
+                0xC2B2AE35u);
+
+            RectTransform header = CreatePanel("Investigation Header", safeAreaRoot, new Color32(8, 36, 54, 248), InvestigationTheme.SmallRadius);
+            Anchor(header, 0f, 1f, 1f, 1f, OuterMargin, -132f, -OuterMargin, -OuterMargin);
+            AddSubtleOutline(header, new Color32(95, 212, 214, 70));
+
+            Text brand = CreateText("Brand", header, "ECOSYSTEM DETECTIVE", 23, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperLeft, InvestigationTheme.DisplayFont);
+            Anchor(brand.rectTransform, 0f, 0.56f, 0.42f, 1f, 14f, 0f, 0f, -8f);
+            caseSubtitleText = CreateText("Case Subtitle", header, string.Empty, 11, FontStyle.Normal, InvestigationTheme.TextMuted, TextAnchor.LowerLeft, InvestigationTheme.DataFont);
+            Anchor(caseSubtitleText.rectTransform, 0f, 0.56f, 0.42f, 1f, 14f, 5f, 0f, -36f);
+
+            metricsText = CreateText("Metrics", header, "", 14, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperRight, InvestigationTheme.DataFont);
+            Anchor(metricsText.rectTransform, 0.42f, 0.60f, 0.78f, 1f, 0f, 0f, -8f, -14f);
+
+            difficultyButton = CreateButton("Difficulty Toggle", header, "Easy", ButtonVisualStyle.Secondary, () =>
             {
-                InvestigationResponsiveHeaderLayout headerLayout = titleText.GetComponentInParent<InvestigationResponsiveHeaderLayout>();
-                if (headerLayout != null) headerLayout.SetTitle("INVESTIGATION UNAVAILABLE");
-                else titleText.text = "INVESTIGATION UNAVAILABLE";
-            }
-            if (bodyText != null)
+                if (state == null) return;
+                setDifficulty?.Invoke(state.Difficulty == InvestigationDifficulty.Easy ? InvestigationDifficulty.Hard : InvestigationDifficulty.Easy);
+            }, out difficultyText);
+            Anchor(difficultyButton.GetComponent<RectTransform>(), 0.79f, 0.62f, 0.89f, 1f, 0f, 7f, -6f, -10f);
+
+            motionButton = CreateButton("Motion Toggle", header, "Motion: Full", ButtonVisualStyle.Secondary, () =>
             {
-                ShowBodyContent();
-                bodyText.text = message;
-            }
-            ShowStatus(
-                "TRY AGAIN",
-                "Open the Unity Console for case validation details.",
-                InvestigationStatusTone.Warning);
-            ClearActions();
-            Debug.LogError(message);
+                setReducedMotion?.Invoke(!InvestigationMotionSettings.ReducedMotion);
+            }, out motionText);
+            Anchor(motionButton.GetComponent<RectTransform>(), 0.89f, 0.62f, 1f, 1f, 0f, 7f, -12f, -10f);
+
+            stageRoot = CreatePanel("Stage Navigation", header, new Color(0f, 0f, 0f, 0f), 0f);
+            Anchor(stageRoot, 0f, 0.04f, 1f, 0.50f, 8f, 0f, -8f, 0f);
+            HorizontalLayoutGroup stageLayout = stageRoot.gameObject.AddComponent<HorizontalLayoutGroup>();
+            stageLayout.spacing = 8f;
+            stageLayout.childControlWidth = true;
+            stageLayout.childControlHeight = true;
+            stageLayout.childForceExpandWidth = true;
+            stageLayout.childForceExpandHeight = true;
+
+            statusPanelRoot = CreatePanel("Status Toast", safeAreaRoot, new Color32(14, 51, 72, 252), InvestigationTheme.SmallRadius);
+            Anchor(statusPanelRoot, 0.16f, 1f, 0.84f, 1f, 0f, -184f, 0f, -142f);
+            statusAccent = CreatePanel("Status Accent", statusPanelRoot, InvestigationTheme.Danger, 0f).GetComponent<Image>();
+            Anchor(statusAccent.rectTransform, 0f, 0f, 0f, 1f, 0f, 0f, 6f, 0f);
+            statusText = CreateText("Status Message", statusPanelRoot, "", 14, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
+            Anchor(statusText.rectTransform, 0f, 0f, 1f, 1f, 18f, 0f, -12f, 0f);
+            statusPanelRoot.gameObject.SetActive(false);
+
+            contentPanel = CreatePanel("Investigation Content", safeAreaRoot, new Color(0f, 0f, 0f, 0f), 0f);
+            Anchor(contentPanel, 0f, 0f, 1f, 1f, OuterMargin, 84f, -OuterMargin, -138f);
+            contentScroll = contentPanel.gameObject.AddComponent<ScrollRect>();
+            contentScroll.horizontal = false;
+            contentScroll.vertical = true;
+            contentScroll.movementType = ScrollRect.MovementType.Clamped;
+            contentScroll.scrollSensitivity = 24f;
+            RectTransform viewport = CreatePanel("Viewport", contentPanel, new Color(0f, 0f, 0f, 0f), 0f);
+            Stretch(viewport, 0f, 0f, 0f, 0f);
+            // A transparent Graphic still needs to receive raycasts so wheel and drag
+            // input reaches the ScrollRect while the pointer is over empty content.
+            viewport.GetComponent<Image>().raycastTarget = true;
+            viewport.gameObject.AddComponent<RectMask2D>();
+            contentScroll.viewport = viewport;
+
+            RectTransform scrollbarRect = CreatePanel("Vertical Scrollbar", contentPanel, new Color32(14, 51, 72, 190), 7f);
+            Anchor(scrollbarRect, 1f, 0f, 1f, 1f, -12f, 6f, -2f, -6f);
+            scrollbarRect.GetComponent<Image>().raycastTarget = true;
+            Scrollbar scrollbar = scrollbarRect.gameObject.AddComponent<Scrollbar>();
+            scrollbar.direction = Scrollbar.Direction.BottomToTop;
+            scrollbar.navigation = new Navigation { mode = Navigation.Mode.None };
+            RectTransform slidingArea = new GameObject("Sliding Area", typeof(RectTransform)).GetComponent<RectTransform>();
+            slidingArea.SetParent(scrollbarRect, false);
+            Stretch(slidingArea, 2f, 2f, -2f, -2f);
+            RectTransform handle = CreatePanel("Handle", slidingArea, InvestigationTheme.Primary, 5f);
+            Stretch(handle, 0f, 0f, 0f, 0f);
+            handle.GetComponent<Image>().raycastTarget = true;
+            scrollbar.handleRect = handle;
+            scrollbar.targetGraphic = handle.GetComponent<Image>();
+            contentScroll.verticalScrollbar = scrollbar;
+            contentScroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
+            contentScroll.verticalScrollbarSpacing = 8f;
+
+            contentRoot = new GameObject("Page Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter)).GetComponent<RectTransform>();
+            contentRoot.SetParent(viewport, false);
+            contentRoot.anchorMin = new Vector2(0f, 1f);
+            contentRoot.anchorMax = new Vector2(1f, 1f);
+            contentRoot.pivot = new Vector2(0.5f, 1f);
+            contentRoot.anchoredPosition = Vector2.zero;
+            contentRoot.sizeDelta = Vector2.zero;
+            VerticalLayoutGroup contentLayout = contentRoot.GetComponent<VerticalLayoutGroup>();
+            contentLayout.spacing = 8f;
+            contentLayout.padding = new RectOffset(0, 0, 0, 0);
+            contentLayout.childControlWidth = true;
+            contentLayout.childControlHeight = true;
+            contentLayout.childForceExpandWidth = true;
+            contentLayout.childForceExpandHeight = false;
+            contentRoot.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            contentScroll.content = contentRoot;
+
+            footerRoot = CreatePanel("Investigation Footer", safeAreaRoot, new Color32(4, 18, 28, 245), InvestigationTheme.SmallRadius);
+            Anchor(footerRoot, 0f, 0f, 1f, 0f, OuterMargin, OuterMargin, -OuterMargin, OuterMargin + 44f);
+            AddSubtleOutline(footerRoot, new Color32(95, 212, 214, 45));
+            footerLeft = CreatePanel("Footer Left", footerRoot, new Color(0f, 0f, 0f, 0f), 0f);
+            Anchor(footerLeft, 0f, 0f, 0.5f, 1f, 10f, 4f, -4f, -4f);
+            HorizontalLayoutGroup leftLayout = footerLeft.gameObject.AddComponent<HorizontalLayoutGroup>();
+            leftLayout.spacing = 8f; leftLayout.childAlignment = TextAnchor.MiddleLeft;
+            leftLayout.childControlWidth = false; leftLayout.childControlHeight = true;
+            leftLayout.childForceExpandWidth = false; leftLayout.childForceExpandHeight = false;
+            footerRight = CreatePanel("Footer Right", footerRoot, new Color(0f, 0f, 0f, 0f), 0f);
+            Anchor(footerRight, 0.5f, 0f, 1f, 1f, 4f, 4f, -10f, -4f);
+            HorizontalLayoutGroup rightLayout = footerRight.gameObject.AddComponent<HorizontalLayoutGroup>();
+            rightLayout.spacing = 8f; rightLayout.childAlignment = TextAnchor.MiddleRight;
+            rightLayout.childControlWidth = false; rightLayout.childControlHeight = true;
+            rightLayout.childForceExpandWidth = false; rightLayout.childForceExpandHeight = false;
         }
 
-        private void BuildNavigation()
+        private void RenderAll()
         {
-            if (navigationBuilt || navigationRoot == null || buttonPrefab == null) return;
-            navigationBuilt = true;
-            navigationButtons.Clear();
-            navigationButtons.Add(AddButton(navigationRoot, "1  CASE FILES", () => ChangePage(Page.CaseFiles), InvestigationButtonStyle.Navigation));
-            navigationButtons.Add(AddButton(navigationRoot, "2  COMPARE DATA", () => ChangePage(Page.CompareData), InvestigationButtonStyle.Navigation));
-            navigationButtons.Add(AddButton(navigationRoot, "3  BUILD HYPOTHESIS", () => ChangePage(Page.BuildHypothesis), InvestigationButtonStyle.Navigation));
-            navigationButtons.Add(AddButton(navigationRoot, "4  PLAN SAMPLE", () => ChangePage(Page.PlanSample), InvestigationButtonStyle.Navigation));
-            navigationButtons.Add(AddButton(navigationRoot, "5  CONCLUSION", () => ChangePage(Page.Conclusion), InvestigationButtonStyle.Navigation));
-            InvestigationResponsiveNavigationLayout responsiveNavigation = navigationRoot.GetComponent<InvestigationResponsiveNavigationLayout>();
-            if (responsiveNavigation != null) responsiveNavigation.ApplyNow();
-        }
-
-        private void BuildMotionToggle()
-        {
-            if (motionToggleButton != null || (progressText == null && progressView == null) || buttonPrefab == null) return;
-            Transform header = progressView != null ? progressView.transform.parent : progressText.transform.parent;
-            motionToggleButton = Instantiate(buttonPrefab, header);
-            motionToggleButton.name = "Motion Preference";
-            RectTransform rect = motionToggleButton.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(1f, 0.5f);
-            rect.anchorMax = new Vector2(1f, 0.5f);
-            rect.pivot = new Vector2(1f, 0.5f);
-            rect.sizeDelta = new Vector2(136f, 44f);
-            rect.anchoredPosition = new Vector2(-12f, 0f);
-            BindMotionToggle();
-            progressView?.GetComponentInParent<InvestigationResponsiveHeaderLayout>()?.ApplyNow();
-        }
-
-        private void BindMotionToggle()
-        {
-            if (motionToggleButton == null) return;
-            motionToggleButton.Bind(
-                InvestigationMotionSettings.ReducedMotion ? "MOTION: REDUCED" : "MOTION: FULL",
-                ToggleReducedMotion,
-                InvestigationButtonStyle.Browse);
-            progressView?.GetComponentInParent<InvestigationResponsiveHeaderLayout>()?.ApplyNow();
-        }
-
-        private void RenderCurrentPage(bool preserveContentPosition = false)
-        {
-            if (titleText == null || state == null || caseDefinition == null) return;
             FocusSnapshot focusSnapshot = CaptureFocus();
-            float previousScrollPosition = preserveContentPosition && contentScrollRect != null
-                ? contentScrollRect.verticalNormalizedPosition
+            bool enteringCaseClosed = state != null
+                && hasRenderedPhase
+                && state.Phase == InvestigationPhase.Report
+                && lastRenderedPhase == InvestigationPhase.Report
+                && state.ConclusionStatus == InvestigationConclusionStatus.Correct
+                && lastRenderedConclusionStatus != InvestigationConclusionStatus.Correct;
+            bool preservePhaseScroll = state != null
+                && hasRenderedPhase
+                && state.Phase == lastRenderedPhase
+                && !enteringCaseClosed;
+            float previousPageScroll = preservePhaseScroll && contentScroll != null
+                ? contentScroll.verticalNormalizedPosition
                 : 1f;
-            string pageTitle = $"eDNA DETECTIVES  /  {GetPageTitle()}";
-            InvestigationResponsiveHeaderLayout headerLayout = titleText.GetComponentInParent<InvestigationResponsiveHeaderLayout>();
-            if (headerLayout != null) headerLayout.SetTitle(pageTitle);
-            else titleText.text = pageTitle;
-            if (progressView != null)
-            {
-                progressView.SetMetrics(
-                    state.CurrentRound,
-                    state.AvailableSampleSlots,
-                    state.IdentifiedEvidenceIds.Count,
-                    state.UnlockedEvidence.Count,
-                    state.MisclassificationCount);
-            }
-            else if (progressText != null)
-            {
-                progressText.text = $"ROUND {state.CurrentRound}    SAMPLES {state.AvailableSampleSlots}\nFOUND {state.IdentifiedEvidenceIds.Count}/{state.UnlockedEvidence.Count}    MISSTEPS {state.MisclassificationCount}";
-            }
-            BindMotionToggle();
-            RefreshNavigationState();
-            RenderStatus();
-            ClearActions();
+            ScrollRect previousNotebookScroll = preservePhaseScroll
+                ? FindActiveScrollRect(contentRoot, "Notebook Entry Scroll")
+                : null;
+            float previousNotebookPosition = previousNotebookScroll == null
+                ? 1f
+                : previousNotebookScroll.verticalNormalizedPosition;
 
-            switch (currentPage)
+            HideSpeciesTooltip();
+            StopAllCoroutines();
+            ResetPageEntranceVisuals();
+            bool animatePhaseChange = state != null && (!hasRenderedPhase || state.Phase != lastRenderedPhase);
+            if (animatePhaseChange) restartConfirmationPending = false;
+            RenderChrome();
+            Clear(contentRoot);
+            Clear(footerLeft);
+            Clear(footerRight);
+            if (state == null) return;
+            pendingTappedSpeciesMarker = null;
+            pendingTappedSpecies = null;
+            ApplyPhaseLayout(state.Phase);
+            switch (state.Phase)
             {
-                case Page.CaseFiles: RenderCaseFiles(); break;
-                case Page.CompareData: RenderCompareData(); break;
-                case Page.BuildHypothesis: RenderHypothesisBuilder(); break;
-                case Page.PlanSample: RenderSamplePlanner(); break;
-                case Page.Conclusion: RenderConclusion(); break;
+                case InvestigationPhase.Observe: RenderObserve(); break;
+                case InvestigationPhase.Simulate: RenderSimulate(); break;
+                case InvestigationPhase.Report: RenderReport(); break;
             }
-
-            if (bodyText.gameObject.activeSelf) LayoutRebuilder.ForceRebuildLayoutImmediate(bodyText.rectTransform);
-            adaptiveShellLayout?.ApplyNow();
-            if (preserveContentPosition && contentScrollRect != null)
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
+            ShowPendingTappedSpeciesTooltip();
+            if (contentScroll != null)
             {
-                Canvas.ForceUpdateCanvases();
-                contentScrollRect.StopMovement();
-                contentScrollRect.verticalNormalizedPosition = previousScrollPosition;
+                contentScroll.StopMovement();
+                contentScroll.verticalNormalizedPosition = preservePhaseScroll ? previousPageScroll : 1f;
             }
-            accessibilityBridge?.Refresh(
-                headerLayout == null ? titleText.text : headerLayout.AccessibleTitle,
-                progressView == null ? progressText?.text : progressView.CurrentSummary,
-                currentStatusLabel,
-                currentStatusAnnouncement);
-            ScheduleFocusRestore(focusSnapshot);
+            if (preservePhaseScroll)
+            {
+                ScrollRect currentNotebookScroll = FindActiveScrollRect(contentRoot, "Notebook Entry Scroll");
+                if (currentNotebookScroll != null)
+                {
+                    currentNotebookScroll.StopMovement();
+                    currentNotebookScroll.verticalNormalizedPosition = previousNotebookPosition;
+                }
+            }
+            if (state != null)
+            {
+                lastRenderedPhase = state.Phase;
+                lastRenderedConclusionStatus = state.ConclusionStatus;
+                hasRenderedPhase = true;
+            }
+            if (enteringCaseClosed) StartCoroutine(FocusCaseClosedActionNextFrame());
+            else ScheduleFocusRestore(focusSnapshot);
+            if (animatePhaseChange && !InvestigationMotionSettings.ReducedMotion) StartCoroutine(AnimatePageEntrance());
         }
 
-        private void RenderCaseFiles()
+        private void ResetPageEntranceVisuals()
         {
-            SpeciesDefinition species = GetSelectedSpecies();
-            if (caseFilesPanelPrefab == null)
+            if (contentRoot == null) return;
+            CanvasGroup group = contentRoot.GetComponent<CanvasGroup>();
+            if (group != null) group.alpha = 1f;
+            contentRoot.anchoredPosition = Vector2.zero;
+        }
+
+        private void ApplyPhaseLayout(InvestigationPhase phase)
+        {
+            bool report = phase == InvestigationPhase.Report;
+            if (footerRoot != null) footerRoot.gameObject.SetActive(report);
+            if (footerRoot != null && report)
             {
-                ShowBodyContent();
-                bodyText.text = "The case-file interface is not configured.";
-                return;
+                Anchor(footerRoot, 0f, 0f, 1f, 0f, OuterMargin, OuterMargin, -OuterMargin, OuterMargin + 44f);
             }
-
-            ShowCaseFilesPanel();
-            caseFilesPanelInstance.Bind(
-                caseDefinition.DisplayName,
-                caseDefinition.Briefing,
-                species == null ? string.Empty : species.SpeciesId,
-                species == null ? 0 : speciesIndex + 1,
-                caseDefinition.Species.Count,
-                species == null ? "No species record available" : species.DisplayName,
-                species == null ? "Species details are not available." : species.Description,
-                species == null ? "None recorded" : Join(species.PreferredDepths),
-                species == null ? "Unknown" : species.TemperaturePreference,
-                species == null ? "Unknown" : InvestigationDisplayNames.Traits(species.HabitatTags),
-                species == null ? "Unknown" : InvestigationDisplayNames.Traits(species.SensitivityTags),
-                "Inspect the present-day samples, compare each species with the 20-year baseline, and classify what changed. Correct findings become evidence for a testable explanation.");
-            LayoutRebuilder.ForceRebuildLayoutImmediate(caseFilesPanelInstance.GetComponent<RectTransform>());
-            InvestigationButtonView previousSpecies = AddBrowseButton("PREVIOUS SPECIES", () => ChangeSpecies(-1));
-            previousSpecies?.SetVisualLabel("‹");
-            AddActionCounter($"{(species == null ? 0 : speciesIndex + 1):00} / {caseDefinition.Species.Count:00}");
-            InvestigationButtonView nextSpecies = AddBrowseButton("NEXT SPECIES", () => ChangeSpecies(1));
-            nextSpecies?.SetVisualLabel("›");
-            AddStageForwardButton("START COMPARISON", StartComparison);
-        }
-
-        private void RenderCompareData()
-        {
-            if (state.AllResults.Count == 0 || comparisonBoardPrefab == null || comparisonCardPrefab == null)
+            if (footerLeft != null && report)
+                Anchor(footerLeft, 0f, 0f, 0.5f, 1f, 10f, 4f, -4f, -4f);
+            if (footerRight != null && report)
+                Anchor(footerRight, 0.5f, 0f, 1f, 1f, 4f, 4f, -10f, -4f);
+            if (contentPanel != null)
             {
-                ShowBodyContent();
-                bodyText.text = "No sample results are available for comparison.";
-                return;
-            }
-
-            ShowComparisonBoard();
-            EDNAResultData result = state.AllResults[resultIndex];
-            string sourceId = GetSourceId(result);
-            comparisonBoardInstance.SetContent(
-                $"SAMPLE {resultIndex + 1} / {state.AllResults.Count}    {SiteName(result.siteId).ToUpperInvariant()}    {result.depthBand.ToString().ToUpperInvariant()} DEPTH    QUALITY: {result.sampleQuality.ToString().ToUpperInvariant()}",
-                "Compare each card with the record from 20 years ago. Select one card, then classify it with the buttons below. A dark silhouette means an expected species was not detected in this sample.",
-                $"Identified findings: {state.IdentifiedEvidenceIds.Count} of {state.UnlockedEvidence.Count}. Misclassifications: {state.MisclassificationCount}. Only identified findings are available in Build Hypothesis.");
-
-            List<string> speciesIds = BuildComparisonSpeciesIds(result, sourceId);
-            for (int index = 0; index < speciesIds.Count; index++) AddSpeciesComparisonCard(result, sourceId, speciesIds[index]);
-            AddWarningCards(sourceId);
-            LayoutRebuilder.ForceRebuildLayoutImmediate(comparisonBoardInstance.GetComponent<RectTransform>());
-
-            BeginComparisonActions();
-            AddBrowseButton("PREVIOUS SAMPLE", () => ChangeResult(-1));
-            AddBrowseButton("NEXT SAMPLE", () => ChangeResult(1));
-            AddClassificationButton(AnomalyClaimType.NewArrival);
-            AddClassificationButton(AnomalyClaimType.ExpectedButMissing);
-            AddClassificationButton(AnomalyClaimType.DifferentDepth);
-            AddClassificationButton(AnomalyClaimType.ResultWarning);
-            AddClassificationButton(AnomalyClaimType.MatchesBaseline);
-            AddStageForwardButton("BUILD HYPOTHESIS", () => ChangePage(Page.BuildHypothesis));
-        }
-
-        private void AddSpeciesComparisonCard(EDNAResultData result, string sourceId, string speciesId)
-        {
-            SpeciesDefinition species = caseDefinition.FindSpecies(speciesId);
-            EvidenceRecord evidence = FindSpeciesEvidence(speciesId, sourceId);
-            bool historicallyExpected = IsHistoricallyExpected(speciesId, result.siteId, result.depthBand);
-            bool currentlyDetected = result.detectedSpeciesIds != null && result.detectedSpeciesIds.Contains(speciesId);
-            bool missing = historicallyExpected && !currentlyDetected;
-            string cardEvidenceId = evidence == null ? string.Empty : evidence.EvidenceId;
-            bool identified = evidence != null && state.IsEvidenceIdentified(cardEvidenceId);
-            bool selected = string.Equals(selectedComparisonEvidenceId, cardEvidenceId, StringComparison.Ordinal);
-            string findingState = GetComparisonCardState(evidence, selected, identified);
-
-            SpeciesComparisonCardView card = Instantiate(comparisonCardPrefab, comparisonBoardInstance.CardsRoot);
-            card.name = $"Comparison - {(species == null ? speciesId : species.DisplayName)}";
-            card.Bind(
-                species == null ? speciesId : species.DisplayName,
-                missing ? "FISH\nSILHOUETTE" : "eDNA\nDETECTED",
-                historicallyExpected ? $"20 YEARS AGO\nExpected at {result.depthBand} depth" : $"20 YEARS AGO\nNot recorded at {result.depthBand} depth",
-                currentlyDetected ? "CURRENT SAMPLE\nDetected" : "CURRENT SAMPLE\nNot detected",
-                species == null ? "Species details are not available." : BuildSpeciesTraits(species),
-                findingState,
-                missing,
-                selected,
-                identified,
-                evidence != null,
-                () => SelectComparisonEvidence(cardEvidenceId));
-        }
-
-        private void AddWarningCards(string sourceId)
-        {
-            for (int index = 0; index < state.UnlockedEvidence.Count; index++)
-            {
-                EvidenceRecord evidence = state.UnlockedEvidence[index];
-                if (!HasSource(evidence, sourceId) || (evidence.EvidenceType != EvidenceType.LowQualityResult && evidence.EvidenceType != EvidenceType.ContaminationWarning)) continue;
-
-                string evidenceId = evidence.EvidenceId;
-                bool identified = state.IsEvidenceIdentified(evidenceId);
-                bool selected = string.Equals(selectedComparisonEvidenceId, evidenceId, StringComparison.Ordinal);
-                SpeciesComparisonCardView card = Instantiate(comparisonCardPrefab, comparisonBoardInstance.CardsRoot);
-                card.name = $"Comparison - {evidence.EvidenceType}";
-                card.Bind(
-                    evidence.EvidenceType == EvidenceType.ContaminationWarning ? "Contamination Check" : "Sample Quality Check",
-                    "!",
-                    "20 YEARS AGO\nNo laboratory warning",
-                    $"CURRENT SAMPLE\n{evidence.DisplayText}",
-                    $"Why it matters: {evidence.ConfidenceReason}",
-                    GetComparisonCardState(evidence, selected, identified),
-                    false,
-                    selected,
-                    identified,
-                    true,
-                    () => SelectComparisonEvidence(evidenceId));
+                float bottom = report ? 58f : OuterMargin;
+                Anchor(contentPanel, 0f, 0f, 1f, 1f, OuterMargin, bottom, -OuterMargin, -138f);
             }
         }
 
-        private void RenderHypothesisBuilder()
+        private void ConfigureCanvasForCurrentViewport()
         {
-            HypothesisDefinition hypothesis = GetSelectedHypothesis();
-            if (hypothesis == null || hypothesisPanelPrefab == null)
-            {
-                ShowBodyContent();
-                StringBuilder unavailable = new StringBuilder();
-                AppendSectionHeading(unavailable, "WORKING HYPOTHESIS");
-                AppendBody(unavailable, "No hypothesis definitions are available for this case.");
-                bodyText.text = unavailable.ToString();
-                return;
-            }
+            Canvas canvas = GetComponent<Canvas>();
+            CanvasScaler scaler = GetComponent<CanvasScaler>();
+            if (canvas == null || scaler == null) return;
 
-            ShowHypothesisPanel();
-            List<EvidenceRecord> identifiedEvidence = state.GetIdentifiedEvidence();
-            EvidenceRecord evidence = GetSelectedEvidence();
-            HypothesisEvaluation evaluation = new HypothesisEvaluator().Evaluate(hypothesis, state);
-            string findingTitle = evidence == null
-                ? "No identified finding yet"
-                : $"FINDING {evidenceIndex + 1} OF {identifiedEvidence.Count}  ·  {evidence.DisplayText}";
-            string findingDescription = evidence == null
-                ? "Return to Compare Data and correctly classify a comparison card. Identified findings will appear here."
-                : evidence.ConfidenceReason;
-            string findingMetadata = evidence == null
-                ? string.Empty
-                : $"Confidence: {InvestigationDisplayNames.Confidence(evidence.Confidence)}    Current assignment: {InvestigationDisplayNames.FormatIdentifier(DescribeAssignment(evidence.EvidenceId, hypothesis.HypothesisId))}";
-
-            string currentAssignment = evidence == null
-                ? "None"
-                : DescribeAssignment(evidence.EvidenceId, hypothesis.HypothesisId);
-            hypothesisPanelInstance.Bind(
-                hypothesisIndex + 1,
-                caseDefinition.Hypotheses.Count,
-                hypothesis.DisplayName,
-                hypothesis.Explanation,
-                evaluation.Status,
-                evaluation.SupportingEvidenceCount,
-                evaluation.OpposingEvidenceCount,
-                InvestigationDisplayNames.EvidencePatterns(hypothesis.RequiredEvidenceTags),
-                InvestigationDisplayNames.Confidence(hypothesis.MinimumConfidence),
-                string.Equals(state.SelectedHypothesisId, hypothesis.HypothesisId, StringComparison.Ordinal),
-                findingTitle,
-                findingDescription,
-                findingMetadata,
-                currentAssignment);
-            AddStepper(
-                hypothesisPanelInstance.SelectorRoot,
-                "Theory",
-                hypothesis.DisplayName,
-                hypothesisIndex,
-                caseDefinition.Hypotheses.Count,
-                () => ChangeHypothesis(-1),
-                () => ChangeHypothesis(1));
-            AddStepper(
-                hypothesisPanelInstance.SelectorRoot,
-                "Finding",
-                evidence == null ? "No identified finding yet" : evidence.DisplayText,
-                evidenceIndex,
-                identifiedEvidence.Count,
-                () => ChangeEvidence(-1),
-                () => ChangeEvidence(1));
-            LayoutRebuilder.ForceRebuildLayoutImmediate(hypothesisPanelInstance.GetComponent<RectTransform>());
-
-            AddStageBackButton("COMPARE DATA", () => ChangePage(Page.CompareData));
-            bool canAssignFinding = evidence != null;
-            AddActionSlotButton("ASSIGN SUPPORT", () => AssignSelected(EvidenceAssignmentKind.Supports), InvestigationButtonStyle.Support, canAssignFinding);
-            AddActionSlotButton("ASSIGN CHALLENGE", () => AssignSelected(EvidenceAssignmentKind.Opposes), InvestigationButtonStyle.Challenge, canAssignFinding);
-            AddStageCommitButton("SELECT THEORY  >", SelectCurrentHypothesisAndPlanSample, hypothesis != null);
+            bool portrait = Screen.height > Screen.width;
+            Vector2 targetReference = portrait ? PortraitReferenceResolution : LandscapeReferenceResolution;
+            canvas.pixelPerfect = true;
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0f;
+            if (scaler.referenceResolution != targetReference) scaler.referenceResolution = targetReference;
         }
 
-        private void RenderSamplePlanner()
+        private void RenderChrome()
         {
-            if (samplePlannerPanelPrefab == null || stepperPrefab == null)
+            Clear(stageRoot);
+            if (state != null)
             {
-                ShowBodyContent();
-                bodyText.text = "The sample planning interface is not configured.";
-                return;
-            }
-            ShowSamplePlannerPanel();
-            SampleSiteDefinition site = GetSelectedSite();
-            DepthBand depth = GetSelectedDepth();
-            HypothesisDefinition hypothesis = GetSelectedHypothesis();
-            EvidenceRecord evidence = GetSelectedEvidence();
-            List<EvidenceRecord> identifiedEvidence = state.GetIdentifiedEvidence();
-            samplePlannerPanelInstance.Bind(
-                site == null ? string.Empty : site.DisplayName,
-                site == null ? string.Empty : site.Description,
-                hypothesis == null ? string.Empty : hypothesis.DisplayName,
-                state.AvailableSampleSlots,
-                state.PendingSampleCount);
-            AddStepper(
-                samplePlannerPanelInstance.SelectorRoot,
-                "Site",
-                site == null ? "No site available" : site.DisplayName,
-                siteIndex,
-                caseDefinition.SampleSites.Count,
-                () => ChangeSite(-1),
-                () => ChangeSite(1));
-            AddStepper(
-                samplePlannerPanelInstance.SelectorRoot,
-                "Depth",
-                InvestigationDisplayNames.FormatIdentifier(depth.ToString()),
-                depthIndex,
-                site == null ? 0 : site.AvailableDepths.Count,
-                () => ChangeDepth(-1),
-                () => ChangeDepth(1));
-            AddStepper(
-                samplePlannerPanelInstance.SelectorRoot,
-                "Test target",
-                evidence == null ? "General investigation" : evidence.DisplayText,
-                evidenceIndex,
-                identifiedEvidence.Count,
-                () => ChangeEvidence(-1),
-                () => ChangeEvidence(1));
-            LayoutRebuilder.ForceRebuildLayoutImmediate(samplePlannerPanelInstance.GetComponent<RectTransform>());
-            AddStageBackButton("COMPARE RESULTS", () => ChangePage(Page.CompareData));
-            bool canCollectSample = site != null
-                && site.AvailableDepths.Count > 0
-                && state.AvailableSampleSlots > 0;
-            AddStageCommitButton("COLLECT SAMPLE  >", RequestSelectedSample, canCollectSample);
-        }
-
-        private void RenderConclusion()
-        {
-            ShowBodyContent();
-            StringBuilder text = new StringBuilder();
-            AppendSectionHeading(text, "CASE CONCLUSION");
-            ConclusionEvaluator conclusionEvaluator = new ConclusionEvaluator(new HypothesisEvaluator());
-            ConclusionReadiness readiness = conclusionEvaluator.EvaluateReadiness(caseDefinition, state);
-            HypothesisDefinition selected = readiness.SelectedHypothesis;
-            HypothesisEvaluation evaluation = readiness.HypothesisEvaluation;
-            if (selected == null)
-            {
-                AppendTitle(text, "No theory selected");
-                AppendBody(text, "Choose a working hypothesis on the Build Hypothesis page.");
+                CreateStageButton("1 · Observe", InvestigationPhase.Observe);
+                CreateStageButton("2 · Simulate", InvestigationPhase.Simulate);
+                CreateStageButton("3 · Report", InvestigationPhase.Report);
+                string revisions = state.MisstepCount > 0 ? $"    REVISIONS {state.MisstepCount}" : string.Empty;
+                metricsText.text = $"CASE PROGRESS    FINDINGS {CountInitialFindings()}/{caseDefinition.MinimumObserveDiscoveries}    MODELS {state.TriedThreatIds.Count}/{caseDefinition.Threats.Count}    QUESTIONS {VisibleCompletedObjectiveCount()}/{VisibleRequiredObjectiveCount()}{revisions}";
+                difficultyText.text = state.Difficulty == InvestigationDifficulty.Easy ? "Easy" : "Hard";
+                caseSubtitleText.text = $"{caseDefinition.DisplayName.ToUpperInvariant()} // {state.SiteDisplayName.ToUpperInvariant()} // {state.SurveyDisplayName.ToUpperInvariant()}";
             }
             else
             {
-                AppendTitle(text, selected.DisplayName);
-                AppendBody(text, evaluation.Explanation);
-                AppendMetadata(
-                    text,
-                    $"Evidence status: {InvestigationDisplayNames.HypothesisStatus(evaluation.Status)}    " +
-                    $"Support: {evaluation.SupportingEvidenceCount}    Challenge / uncertainty: {evaluation.OpposingEvidenceCount}");
+                metricsText.text = "CASE ERROR";
+                caseSubtitleText.text = "CASE UNAVAILABLE";
             }
-            AppendSectionHeading(text, "CASE CHECKLIST");
-            AppendChecklistItem(
-                text,
-                readiness.HasSelectedHypothesis,
-                "Theory selected",
-                selected == null ? "Not selected" : selected.DisplayName);
-            AppendChecklistItem(
-                text,
-                readiness.HasSupportedHypothesis,
-                "Evidence supports it",
-                evaluation == null
-                    ? "Not evaluated"
-                    : InvestigationDisplayNames.HypothesisStatus(evaluation.Status));
-            AppendChecklistItem(
-                text,
-                readiness.HasRequiredFollowUpSample,
-                "Follow-up sample completed",
-                caseDefinition.RequireFollowUpSample
-                    ? state.CompletedSampleCount.ToString()
-                    : "Not required");
-            AppendChecklistItem(
-                text,
-                readiness.HasRequiredOpposingEvidence,
-                "At least one challenge assigned",
-                caseDefinition.RequiredOpposingEvidence == 0
-                    ? "Not required"
-                    : $"{(evaluation == null ? 0 : evaluation.OpposingEvidenceCount)} / {caseDefinition.RequiredOpposingEvidence}");
-            AppendMetadata(
-                text,
-                $"Case record: {state.MisclassificationCount} misclassification(s)    " +
-                $"Submission: {InvestigationDisplayNames.ConclusionStatus(state.ConclusionStatus)}");
-            bodyText.text = text.ToString();
-            if (restartConfirmationPending)
+            motionText.text = InvestigationMotionSettings.ReducedMotion ? "Motion: Reduced" : "Motion: Full";
+            bool hasStatusMessage = !string.IsNullOrWhiteSpace(statusMessage);
+            bool showReportDiagnostic = state != null
+                && state.Phase == InvestigationPhase.Report
+                && state.ConclusionStatus == InvestigationConclusionStatus.InsufficientEvidence
+                && statusTone == InvestigationStatusTone.Guide
+                && hasStatusMessage;
+            bool showImportNotice = statusTone == InvestigationStatusTone.Notice && hasStatusMessage;
+            bool showStatus = (statusTone == InvestigationStatusTone.Warning && hasStatusMessage)
+                || showImportNotice
+                || showReportDiagnostic;
+            statusPanelRoot.gameObject.SetActive(showStatus);
+            if (showStatus)
             {
-                AddBrowseButton("CANCEL RESTART", CancelRestartConfirmation);
-                AddDestructiveButton("CONFIRM RESTART", ConfirmRestart);
+                statusText.text = statusMessage;
+                statusAccent.color = showReportDiagnostic || showImportNotice
+                    ? InvestigationTheme.Primary
+                    : InvestigationTheme.Danger;
+                statusPanelRoot.SetAsLastSibling();
+                StartCoroutine(HideStatusToastAfterDelay());
             }
-            else
+        }
+
+        private IEnumerator HideStatusToastAfterDelay()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            if (statusPanelRoot != null) statusPanelRoot.gameObject.SetActive(false);
+        }
+
+        private void CreateStageButton(string label, InvestigationPhase phase)
+        {
+            Button button = CreateButton($"Stage {phase}", stageRoot, label, ButtonVisualStyle.Stage, () => setPhase?.Invoke(phase), out _);
+            Image image = button.GetComponent<Image>();
+            if (state.Phase == phase)
             {
-                AddDestructiveButton("RESTART CASE", RequestRestartConfirmation);
+                image.color = InvestigationTheme.SurfaceRaised;
+                button.GetComponentInChildren<Text>().color = InvestigationTheme.TextPrimary;
+                EnsureOutline(button.gameObject, InvestigationTheme.Primary, new Vector2(3f, -3f));
             }
-            AddStageCommitButton("SUBMIT CONCLUSION  >", () => submitConclusion?.Invoke(), readiness.CanSubmit);
         }
 
-        private List<string> BuildComparisonSpeciesIds(EDNAResultData result, string sourceId)
+        private int CountInitialFindings()
         {
-            List<string> speciesIds = new List<string>();
-            for (int index = 0; index < caseDefinition.HistoricalBaseline.Count; index++)
+            int count = 0;
+            for (int index = 0; index < state.DiscoveredObservationIds.Count; index++)
             {
-                HistoricalRecordDefinition record = caseDefinition.HistoricalBaseline[index];
-                if (record != null && record.expectedPresence && string.Equals(record.siteId, result.siteId, StringComparison.Ordinal) && record.depthBand == result.depthBand) AddUnique(speciesIds, record.speciesId);
+                InvestigationObservationDefinition observation = caseDefinition.FindObservation(state.DiscoveredObservationIds[index]);
+                if (observation != null
+                    && observation.UnlockStage == EvidenceUnlockStage.Observe
+                    && observation.Source != ObservationSource.Methodology)
+                {
+                    count++;
+                }
             }
-            if (result.detectedSpeciesIds != null)
+            return count;
+        }
+
+        private bool IsObjectiveVisible(InvestigationObjectiveDefinition objective)
+        {
+            return objective != null
+                && objective.Required
+                && (objective.ProgressRole != ComparisonProgressRole.BenthicDiscriminator || state.ConfirmationReviewed);
+        }
+
+        private int VisibleRequiredObjectiveCount()
+        {
+            int count = 0;
+            for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
             {
-                for (int index = 0; index < result.detectedSpeciesIds.Count; index++) AddUnique(speciesIds, result.detectedSpeciesIds[index]);
+                InvestigationObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
+                if (IsObjectiveVisible(objective)) count++;
             }
-            for (int index = 0; index < state.UnlockedEvidence.Count; index++)
+            return count;
+        }
+
+        private int VisibleCompletedObjectiveCount()
+        {
+            int count = 0;
+            for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
             {
-                EvidenceRecord evidence = state.UnlockedEvidence[index];
-                if (evidence.EvidenceType != EvidenceType.DepthShift || !HasSource(evidence, sourceId)) continue;
-                for (int speciesIndex = 0; speciesIndex < evidence.RelatedSpeciesIds.Count; speciesIndex++) AddUnique(speciesIds, evidence.RelatedSpeciesIds[speciesIndex]);
+                InvestigationObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
+                if (IsObjectiveVisible(objective) && state.HasCompletedObjective(objective.ObjectiveId)) count++;
             }
-            return speciesIds;
+            return count;
         }
 
-        private EvidenceRecord FindSpeciesEvidence(string speciesId, string sourceId)
+        private IEnumerator AnimatePageEntrance()
         {
-            EvidenceRecord best = null;
-            int bestPriority = -1;
-            for (int index = 0; index < state.UnlockedEvidence.Count; index++)
+            CanvasGroup group = contentRoot.GetComponent<CanvasGroup>();
+            if (group == null) group = contentRoot.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = 0f;
+            Vector2 target = contentRoot.anchoredPosition;
+            Vector2 start = target + new Vector2(0f, -8f);
+            float elapsed = 0f;
+            const float duration = 0.24f;
+            while (elapsed < duration)
             {
-                EvidenceRecord evidence = state.UnlockedEvidence[index];
-                if (!HasSource(evidence, sourceId) || !Contains(evidence.RelatedSpeciesIds, speciesId) || evidence.EvidenceType == EvidenceType.LowQualityResult || evidence.EvidenceType == EvidenceType.ContaminationWarning) continue;
-                int priority = GetEvidencePriority(evidence.EvidenceType);
-                if (priority > bestPriority) { best = evidence; bestPriority = priority; }
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                group.alpha = t;
+                contentRoot.anchoredPosition = Vector2.Lerp(start, target, t);
+                yield return null;
             }
-            return best;
+            group.alpha = 1f;
+            contentRoot.anchoredPosition = target;
         }
 
-        private bool IsHistoricallyExpected(string speciesId, string siteId, DepthBand depthBand)
+        private void RefreshPresentationOnly()
         {
-            for (int index = 0; index < caseDefinition.HistoricalBaseline.Count; index++)
+            RenderAll();
+        }
+
+        private Text CreateHeading(string title, string description, bool compact = false)
+        {
+            float blockHeight = compact ? 28f : 42f;
+            int titleFontSize = compact ? 12 : 18;
+            int descriptionFontSize = compact ? 10 : 12;
+            float childHeight = compact ? 26f : 40f;
+            RectTransform block = CreatePanel("Page Heading", contentRoot, new Color(0f, 0f, 0f, 0f), 0f);
+            AddLayout(block, blockHeight, 1f);
+            HorizontalLayoutGroup layout = block.gameObject.AddComponent<HorizontalLayoutGroup>();
+            layout.padding = new RectOffset(4, 4, 0, 0);
+            layout.spacing = compact ? 6f : 8f;
+            layout.childAlignment = TextAnchor.MiddleLeft;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = true;
+
+            Text heading = CreateText("Heading", block, title, titleFontSize, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.DisplayFont);
+            heading.horizontalOverflow = HorizontalWrapMode.Overflow;
+            heading.verticalOverflow = VerticalWrapMode.Overflow;
+            LayoutElement headingLayout = heading.gameObject.AddComponent<LayoutElement>();
+            headingLayout.minWidth = compact
+                ? Mathf.Clamp(heading.preferredWidth + 4f, 100f, 220f)
+                : Mathf.Clamp(heading.preferredWidth + 6f, 145f, 320f);
+            headingLayout.preferredWidth = headingLayout.minWidth;
+            headingLayout.preferredHeight = childHeight;
+
+            RectTransform divider = CreatePanel("Heading Divider", block, InvestigationTheme.Primary, 0f);
+            LayoutElement dividerLayout = divider.gameObject.AddComponent<LayoutElement>();
+            dividerLayout.minWidth = 2f;
+            dividerLayout.preferredWidth = 2f;
+            dividerLayout.minHeight = compact ? 16f : 22f;
+            dividerLayout.preferredHeight = dividerLayout.minHeight;
+
+            Text sub = CreateText("Description", block, description, descriptionFontSize, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
+            sub.horizontalOverflow = HorizontalWrapMode.Wrap;
+            sub.verticalOverflow = VerticalWrapMode.Overflow;
+            LayoutElement subLayout = sub.gameObject.AddComponent<LayoutElement>();
+            subLayout.minWidth = compact ? 180f : 220f;
+            subLayout.preferredHeight = childHeight;
+            subLayout.flexibleWidth = 1f;
+            return heading;
+        }
+
+        private RectTransform CreateSection(string name, Transform parent, Color color, float preferredHeight, float radius = InvestigationTheme.CardRadius)
+        {
+            RectTransform section = CreatePanel(name, parent, color, radius);
+            AddLayout(section, preferredHeight, 1f);
+            return section;
+        }
+
+        private Button CreateButton(string name, Transform parent, string label, ButtonVisualStyle style, UnityEngine.Events.UnityAction action, out Text labelText)
+        {
+            GameObject buttonObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button), typeof(InvestigationRoundedCorners));
+            buttonObject.transform.SetParent(parent, false);
+            Image image = buttonObject.GetComponent<Image>();
+            float radius = 18f;
+            Color background = InvestigationTheme.Surface;
+            Color foreground = InvestigationTheme.TextPrimary;
+            switch (style)
             {
-                HistoricalRecordDefinition record = caseDefinition.HistoricalBaseline[index];
-                if (record != null && record.expectedPresence && string.Equals(record.speciesId, speciesId, StringComparison.Ordinal) && string.Equals(record.siteId, siteId, StringComparison.Ordinal) && record.depthBand == depthBand) return true;
+                case ButtonVisualStyle.Primary: background = InvestigationTheme.Accent; foreground = InvestigationTheme.OnAccent; break;
+                case ButtonVisualStyle.PaperPrimary: background = InvestigationTheme.Accent; foreground = InvestigationTheme.OnAccent; break;
+                case ButtonVisualStyle.Tertiary: background = new Color(0f, 0f, 0f, 0f); foreground = InvestigationTheme.TextMuted; break;
+                case ButtonVisualStyle.Secondary: background = InvestigationTheme.SurfaceRaised; foreground = InvestigationTheme.TextPrimary; break;
+                case ButtonVisualStyle.Stage: background = new Color32(22, 69, 94, 225); foreground = InvestigationTheme.TextPrimary; radius = 16f; break;
+                case ButtonVisualStyle.Choice: background = new Color32(25, 77, 106, 255); foreground = InvestigationTheme.TextPrimary; radius = 16f; break;
+                case ButtonVisualStyle.PaperChoice: background = InvestigationTheme.PaperBorder; foreground = InvestigationTheme.PaperInk; radius = 16f; break;
+                case ButtonVisualStyle.Danger: background = new Color32(88, 28, 31, 255); foreground = InvestigationTheme.Danger; break;
             }
-            return false;
-        }
+            image.color = background;
+            buttonObject.GetComponent<InvestigationRoundedCorners>().Configure(radius);
+            Button button = buttonObject.GetComponent<Button>();
+            button.transition = Selectable.Transition.ColorTint;
+            ColorBlock colors = button.colors;
+            colors.normalColor = Color.white;
+            bool paperStyle = style == ButtonVisualStyle.PaperPrimary || style == ButtonVisualStyle.PaperChoice;
+            float hoverBrightness = paperStyle ? 0.96f : 1.12f;
+            colors.highlightedColor = new Color(hoverBrightness, hoverBrightness, hoverBrightness, 1f);
+            colors.selectedColor = colors.normalColor;
+            colors.pressedColor = new Color(0.92f, 0.92f, 0.92f, 1f);
+            colors.disabledColor = new Color(1f, 1f, 1f, 0.36f);
+            colors.fadeDuration = 0.12f;
+            button.colors = colors;
+            if (action != null) button.onClick.AddListener(action);
 
-        private void ShowBodyContent()
-        {
-            DestroyComparisonBoard();
-            DestroyCaseFilesPanel();
-            DestroyHypothesisPanel();
-            DestroySamplePlannerPanel();
-            bodyText.gameObject.SetActive(true);
-            bodyText.supportRichText = true;
-            contentScrollRect.content = bodyText.rectTransform;
-            contentScrollRect.verticalNormalizedPosition = 1f;
-        }
+            if (style == ButtonVisualStyle.Choice || style == ButtonVisualStyle.Secondary || style == ButtonVisualStyle.Stage)
+                EnsureOutline(buttonObject, InvestigationTheme.BorderStrong, new Vector2(2f, -2f));
+            else if (style == ButtonVisualStyle.Danger)
+                EnsureOutline(buttonObject, new Color32(242, 118, 107, 120), new Vector2(1f, -1f));
 
-        private void ShowComparisonBoard()
-        {
-            DestroyComparisonBoard();
-            DestroyCaseFilesPanel();
-            DestroyHypothesisPanel();
-            DestroySamplePlannerPanel();
-            bodyText.gameObject.SetActive(false);
-            comparisonBoardInstance = Instantiate(comparisonBoardPrefab, contentViewport);
-            RectTransform boardRect = comparisonBoardInstance.GetComponent<RectTransform>();
-            boardRect.anchorMin = new Vector2(0f, 1f);
-            boardRect.anchorMax = new Vector2(1f, 1f);
-            boardRect.pivot = new Vector2(0.5f, 1f);
-            boardRect.anchoredPosition = Vector2.zero;
-            boardRect.sizeDelta = Vector2.zero;
-            comparisonBoardInstance.ClearCards();
-            contentScrollRect.content = boardRect;
-            contentScrollRect.verticalNormalizedPosition = 1f;
-        }
+            if (style == ButtonVisualStyle.Primary)
+                AddSingleShadow(buttonObject, InvestigationTheme.PrimaryShadow, new Vector2(3f, -3f));
+            else if (style == ButtonVisualStyle.PaperPrimary)
+                AddSingleShadow(buttonObject, InvestigationTheme.PaperShadow, new Vector2(3f, -3f));
+            else if (style == ButtonVisualStyle.PaperChoice)
+                ConfigurePaperChoiceButton(buttonObject, button, radius);
 
-        private void ShowHypothesisPanel()
-        {
-            DestroyComparisonBoard();
-            DestroyCaseFilesPanel();
-            DestroyHypothesisPanel();
-            DestroySamplePlannerPanel();
-            bodyText.gameObject.SetActive(false);
-            hypothesisPanelInstance = Instantiate(hypothesisPanelPrefab, contentViewport);
-            RectTransform panelRect = hypothesisPanelInstance.GetComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0f, 1f);
-            panelRect.anchorMax = new Vector2(1f, 1f);
-            panelRect.pivot = new Vector2(0.5f, 1f);
-            panelRect.anchoredPosition = Vector2.zero;
-            panelRect.sizeDelta = Vector2.zero;
-            contentScrollRect.content = panelRect;
-            contentScrollRect.verticalNormalizedPosition = 1f;
-        }
-
-        private void ShowSamplePlannerPanel()
-        {
-            DestroyComparisonBoard();
-            DestroyCaseFilesPanel();
-            DestroyHypothesisPanel();
-            DestroySamplePlannerPanel();
-            bodyText.gameObject.SetActive(false);
-            samplePlannerPanelInstance = Instantiate(samplePlannerPanelPrefab, contentViewport);
-            RectTransform panelRect = samplePlannerPanelInstance.GetComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0f, 1f);
-            panelRect.anchorMax = new Vector2(1f, 1f);
-            panelRect.pivot = new Vector2(0.5f, 1f);
-            panelRect.anchoredPosition = Vector2.zero;
-            panelRect.sizeDelta = Vector2.zero;
-            contentScrollRect.content = panelRect;
-            contentScrollRect.verticalNormalizedPosition = 1f;
-        }
-
-        private void DestroyComparisonBoard()
-        {
-            if (comparisonBoardInstance == null) return;
-            comparisonBoardInstance.gameObject.SetActive(false);
-            Destroy(comparisonBoardInstance.gameObject);
-            comparisonBoardInstance = null;
-        }
-
-        private void ShowCaseFilesPanel()
-        {
-            DestroyComparisonBoard();
-            DestroyCaseFilesPanel();
-            DestroyHypothesisPanel();
-            DestroySamplePlannerPanel();
-            bodyText.gameObject.SetActive(false);
-            caseFilesPanelInstance = Instantiate(caseFilesPanelPrefab, contentViewport);
-            RectTransform panelRect = caseFilesPanelInstance.GetComponent<RectTransform>();
-            panelRect.anchorMin = new Vector2(0f, 1f);
-            panelRect.anchorMax = new Vector2(1f, 1f);
-            panelRect.pivot = new Vector2(0.5f, 1f);
-            panelRect.anchoredPosition = Vector2.zero;
-            panelRect.sizeDelta = Vector2.zero;
-            contentScrollRect.content = panelRect;
-            contentScrollRect.verticalNormalizedPosition = 1f;
-        }
-
-        private void DestroyCaseFilesPanel()
-        {
-            if (caseFilesPanelInstance == null) return;
-            caseFilesPanelInstance.gameObject.SetActive(false);
-            Destroy(caseFilesPanelInstance.gameObject);
-            caseFilesPanelInstance = null;
-        }
-
-        private void DestroyHypothesisPanel()
-        {
-            if (hypothesisPanelInstance == null) return;
-            hypothesisPanelInstance.gameObject.SetActive(false);
-            Destroy(hypothesisPanelInstance.gameObject);
-            hypothesisPanelInstance = null;
-        }
-
-        private void DestroySamplePlannerPanel()
-        {
-            if (samplePlannerPanelInstance == null) return;
-            samplePlannerPanelInstance.gameObject.SetActive(false);
-            Destroy(samplePlannerPanelInstance.gameObject);
-            samplePlannerPanelInstance = null;
-        }
-
-        private void AddStepper(
-            RectTransform parent,
-            string category,
-            string value,
-            int selectedIndex,
-            int itemCount,
-            Action onPrevious,
-            Action onNext)
-        {
-            if (parent == null || stepperPrefab == null) return;
-            InvestigationStepperView stepper = Instantiate(stepperPrefab, parent);
-            stepper.name = $"{category} Stepper";
-            stepper.Bind(category, value, selectedIndex, itemCount, onPrevious, onNext);
-        }
-
-        private void AddClassificationButton(AnomalyClaimType claimType)
-        {
-            bool hasSelection = !string.IsNullOrEmpty(selectedComparisonEvidenceId);
-            bool alreadyIdentified = hasSelection && state.IsEvidenceIdentified(selectedComparisonEvidenceId);
-            bool ruledOut = hasSelection && state.HasRejectedClassification(selectedComparisonEvidenceId, claimType);
-            string label = InvestigationDisplayNames.Classification(claimType).ToUpperInvariant();
-            string visibleLabel = ruledOut ? $"RULED OUT: {label}" : label;
-            AddButton(
-                classificationRoot == null ? ActiveActionRoot : classificationRoot,
-                visibleLabel,
-                () => ClassifySelected(claimType),
-                InvestigationButtonStyle.Primary,
-                hasSelection && !alreadyIdentified && !ruledOut);
-        }
-
-        private void BeginComparisonActions()
-        {
-            if (compareNavigationRoot == null || classificationPanel == null || classificationRoot == null)
-            {
-                comparisonActionMode = false;
-                return;
-            }
-
-            comparisonActionMode = true;
-            adaptiveShellLayout?.SetComparisonMode(true);
-            actionSlotCount = 0;
-            if (actionRoot != null) actionRoot.gameObject.SetActive(false);
-            compareNavigationRoot.gameObject.SetActive(true);
-            classificationPanel.gameObject.SetActive(true);
-            if (classificationPromptText != null)
-            {
-                classificationPromptText.text = "CLASSIFY THIS CARD";
-            }
-        }
-
-        private void AddActionButton(string label, Action action, bool isInteractable = true)
-        {
-            AddActionSlotButton(label, action, InvestigationButtonStyle.Primary, isInteractable);
-        }
-
-        private void AddCommitButton(string label, Action action, bool isInteractable = true)
-        {
-            AddActionSlotButton(label, action, InvestigationButtonStyle.Commit, isInteractable);
-        }
-
-        private void AddDestructiveButton(string label, Action action, bool isInteractable = true)
-        {
-            AddActionSlotButton(label, action, InvestigationButtonStyle.Destructive, isInteractable);
-        }
-
-        private void AddStageCommitButton(string label, Action action, bool isInteractable = true)
-        {
-            if (!TryAddFlexibleActionSpacer()) PadActionsToColumn(GetActionColumnCount() - 1);
-            AddCommitButton(label, action, isInteractable);
-        }
-
-        private InvestigationButtonView AddBrowseButton(string label, Action action, bool isInteractable = true)
-        {
-            string directionalLabel = label.StartsWith("PREVIOUS", StringComparison.Ordinal)
-                ? $"<  {label}"
-                : label.StartsWith("NEXT", StringComparison.Ordinal)
-                    ? $"{label}  >"
-                    : label;
-            return AddActionSlotButton(directionalLabel, action, InvestigationButtonStyle.Browse, isInteractable);
-        }
-
-        private void AddStageBackButton(string label, Action action, bool isInteractable = true)
-        {
-            PadActionsToColumn(0);
-            AddActionSlotButton($"<  {label}", action, InvestigationButtonStyle.Browse, isInteractable);
-        }
-
-        private void AddStageForwardButton(string label, Action action, bool isInteractable = true)
-        {
-            if (!TryAddFlexibleActionSpacer()) PadActionsToColumn(GetActionColumnCount() - 1);
-            AddActionSlotButton($"{label}  >", action, InvestigationButtonStyle.Commit, isInteractable);
-        }
-
-        private InvestigationButtonView AddActionSlotButton(
-            string label,
-            Action action,
-            InvestigationButtonStyle style,
-            bool isInteractable)
-        {
-            InvestigationButtonView button = AddButton(ActiveActionRoot, label, action, style, isInteractable);
-            actionSlotCount++;
+            bool primaryAction = style == ButtonVisualStyle.Primary || style == ButtonVisualStyle.PaperPrimary;
+            labelText = CreateText("Label", buttonObject.transform, label, primaryAction ? 17 : 15, FontStyle.Bold, foreground, TextAnchor.MiddleCenter, InvestigationTheme.DisplayFont);
+            Stretch(labelText.rectTransform, 10f, 4f, -10f, -4f);
+            labelText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            labelText.verticalOverflow = VerticalWrapMode.Overflow;
+            labelText.raycastTarget = false;
+            LayoutElement layout = buttonObject.AddComponent<LayoutElement>();
+            layout.minHeight = 48f;
+            layout.preferredHeight = 52f;
+            layout.minWidth = primaryAction ? 210f : 132f;
+            layout.preferredWidth = primaryAction ? 250f : 170f;
+            buttonObject.GetComponent<RectTransform>().sizeDelta = new Vector2(layout.preferredWidth, layout.preferredHeight);
+            InvestigationFocusRing focusRing = buttonObject.AddComponent<InvestigationFocusRing>();
+            focusRing.Configure(radius, InvestigationTheme.Focus);
             return button;
         }
 
-        private void AddActionCounter(string value)
+        private static void ConfigurePaperChoiceButton(GameObject buttonObject, Button button, float radius)
         {
-            RectTransform root = ActiveActionRoot;
-            if (root == null) return;
-            GameObject counter = new GameObject(
-                "Action Counter",
-                typeof(RectTransform),
-                typeof(CanvasRenderer),
-                typeof(Image),
-                typeof(LayoutElement));
-            counter.layer = 5;
-            counter.transform.SetParent(root, false);
-            counter.GetComponent<Image>().color = InvestigationTheme.SurfaceRaised;
-            LayoutElement layout = counter.GetComponent<LayoutElement>();
-            layout.minWidth = 64f;
-            layout.preferredWidth = 64f;
-            layout.minHeight = 44f;
-            layout.preferredHeight = 44f;
-
-            GameObject labelObject = new GameObject("Counter Label", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
-            labelObject.layer = 5;
-            labelObject.transform.SetParent(counter.transform, false);
-            Text counterText = labelObject.GetComponent<Text>();
-            counterText.text = value;
-            counterText.fontSize = 12;
-            counterText.color = InvestigationTheme.TextSecondary;
-            counterText.alignment = TextAnchor.MiddleCenter;
-            counterText.raycastTarget = false;
-            InvestigationTypography.Apply(counterText, InvestigationFontRole.Data, FontStyle.Normal);
-            RectTransform labelRect = counterText.rectTransform;
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = Vector2.zero;
-            labelRect.offsetMax = Vector2.zero;
-            actionSlotCount++;
+            AddSingleShadow(buttonObject, InvestigationTheme.PaperShadow, new Vector2(3f, -3f));
+            RectTransform face = CreatePanel("Paper Choice Face", buttonObject.transform, InvestigationTheme.PaperRaised, Mathf.Max(8f, radius - 2f));
+            Anchor(face, 0f, 0f, 1f, 1f, 2f, 2f, -2f, -2f);
+            button.targetGraphic = face.GetComponent<Image>();
         }
 
-        private bool TryAddFlexibleActionSpacer()
+        private static void AddSingleShadow(GameObject target, Color color, Vector2 distance)
         {
-            RectTransform activeRoot = ActiveActionRoot;
-            if (activeRoot == null || activeRoot.GetComponent<HorizontalLayoutGroup>() == null) return false;
-            GameObject spacer = new GameObject("Flexible Action Spacer", typeof(RectTransform), typeof(LayoutElement));
-            spacer.transform.SetParent(activeRoot, false);
-            LayoutElement layout = spacer.GetComponent<LayoutElement>();
-            layout.minWidth = 0f;
-            layout.preferredWidth = 0f;
-            layout.flexibleWidth = 1f;
-            actionSlotCount++;
-            return true;
+            Shadow shadow = target.AddComponent<Shadow>();
+            shadow.effectColor = color;
+            shadow.effectDistance = distance;
+            shadow.useGraphicAlpha = true;
         }
 
-        private void PadActionsToColumn(int targetColumn)
-        {
-            int columnCount = GetActionColumnCount();
-            int safeTarget = Mathf.Clamp(targetColumn, 0, columnCount - 1);
-            while (actionSlotCount % columnCount != safeTarget)
-            {
-                GameObject spacer = new GameObject("Action Spacer", typeof(RectTransform));
-                spacer.transform.SetParent(ActiveActionRoot, false);
-                actionSlotCount++;
-            }
-        }
-
-        private int GetActionColumnCount()
-        {
-            RectTransform activeRoot = ActiveActionRoot;
-            if (activeRoot == null) return 1;
-            GridLayoutGroup grid = activeRoot.GetComponent<GridLayoutGroup>();
-            return grid != null
-                && grid.constraint == GridLayoutGroup.Constraint.FixedColumnCount
-                ? Mathf.Max(1, grid.constraintCount)
-                : 1;
-        }
-
-        private RectTransform ActiveActionRoot => comparisonActionMode && compareNavigationRoot != null
-            ? compareNavigationRoot
-            : actionRoot;
-
-        private InvestigationButtonView AddButton(
+        private static void CreateMarineSnowLayer(
+            string name,
             Transform parent,
-            string label,
-            Action action,
-            InvestigationButtonStyle style,
-            bool isInteractable = true)
+            int count,
+            Vector2 sizeRange,
+            float speed,
+            Vector2 alphaRange,
+            float sway,
+            uint seed)
         {
-            if (parent == null || buttonPrefab == null) return null;
-            InvestigationButtonView button = Instantiate(buttonPrefab, parent);
-            button.name = label;
-            button.Bind(label, action, style, isInteractable);
-            return button;
+            InvestigationMarineSnowGraphic layer = CreateGraphic<InvestigationMarineSnowGraphic>(name, parent);
+            Stretch(layer.rectTransform, 0f, 0f, 0f, 0f);
+            layer.color = Color.white;
+            layer.Configure(count, sizeRange, speed, alphaRange, sway, seed);
         }
 
-        private void StartComparison()
+        private static RectTransform CreatePanel(string name, Transform parent, Color color, float radius)
         {
-            caseBriefingReviewed = true;
-            ChangePage(Page.CompareData);
-        }
-
-        private void ChangePage(Page page)
-        {
-            currentPage = page;
-            restartConfirmationPending = false;
-            SetStatus(string.Empty);
-            RenderCurrentPage();
-        }
-
-        private void RefreshNavigationState()
-        {
-            for (int index = 0; index < navigationButtons.Count; index++)
+            GameObject panelObject = new GameObject(name, typeof(RectTransform), typeof(Image));
+            panelObject.transform.SetParent(parent, false);
+            Image image = panelObject.GetComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+            if (radius > 0f)
             {
-                InvestigationButtonView button = navigationButtons[index];
-                if (button == null) continue;
-                button.SetNavigationState(
-                    index + 1,
-                    index == (int)currentPage,
-                    IsPageComplete((Page)index));
+                InvestigationRoundedCorners rounded = panelObject.AddComponent<InvestigationRoundedCorners>();
+                rounded.Configure(radius);
             }
+            return panelObject.GetComponent<RectTransform>();
         }
 
-        private bool IsPageComplete(Page page)
+        private static void AddSubtleOutline(RectTransform target, Color color)
         {
-            if (state == null) return false;
-            switch (page)
+            EnsureOutline(target.gameObject, color, new Vector2(1f, -1f));
+        }
+
+        private static Outline EnsureOutline(GameObject target, Color color, Vector2 distance)
+        {
+            Outline outline = target.GetComponent<Outline>();
+            if (outline == null) outline = target.AddComponent<Outline>();
+            outline.effectColor = color;
+            outline.effectDistance = distance;
+            outline.useGraphicAlpha = true;
+            return outline;
+        }
+
+        private static void AddPanelAccent(RectTransform target, Color color, float height = 3f)
+        {
+            RectTransform accent = CreatePanel("Panel Accent", target, color, 1f);
+            Anchor(accent, 0.04f, 1f, 0.96f, 1f, 0f, -height, 0f, 0f);
+            LayoutElement layout = accent.gameObject.AddComponent<LayoutElement>();
+            layout.ignoreLayout = true;
+        }
+
+        private static Text CreateText(string name, Transform parent, string value, int fontSize, FontStyle style, Color color, TextAnchor alignment, Font font)
+        {
+            GameObject textObject = new GameObject(name, typeof(RectTransform), typeof(Text));
+            textObject.transform.SetParent(parent, false);
+            Text text = textObject.GetComponent<Text>();
+            text.font = font;
+            text.text = value;
+            int minimumFontSize = font == InvestigationTheme.DataFont ? 10 : 11;
+            text.fontSize = Mathf.Max(fontSize, minimumFontSize);
+            text.fontStyle = style;
+            text.color = color;
+            text.alignment = alignment;
+            text.supportRichText = false;
+            text.lineSpacing = 1.05f;
+            text.resizeTextForBestFit = false;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.raycastTarget = false;
+            return text;
+        }
+
+        private static T CreateGraphic<T>(string name, Transform parent) where T : Graphic
+        {
+            GameObject graphicObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(T));
+            graphicObject.transform.SetParent(parent, false);
+            return graphicObject.GetComponent<T>();
+        }
+
+        private static Image CreateStatusIcon(string name, Transform parent, Sprite sprite, Color color)
+        {
+            Image icon = CreateGraphic<Image>(name, parent);
+            icon.sprite = sprite;
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            icon.color = color;
+            return icon;
+        }
+
+        private RectTransform CreateSpeciesArtwork(
+            string name,
+            Transform parent,
+            InvestigationSpeciesDefinition species,
+            Color fallbackColor,
+            bool ghost = false)
+        {
+            if (species != null && species.Icon != null)
             {
-                case Page.CaseFiles:
-                    return caseBriefingReviewed;
-                case Page.CompareData:
-                    return state.IdentifiedEvidenceIds.Count > 0;
-                case Page.BuildHypothesis:
-                    return !string.IsNullOrEmpty(state.SelectedHypothesisId);
-                case Page.PlanSample:
-                    return !caseDefinition.RequireFollowUpSample
-                        ? !string.IsNullOrEmpty(state.SelectedHypothesisId)
-                        : state.CompletedSampleCount > 0;
-                case Page.Conclusion:
-                    return state.ConclusionStatus == ConclusionStatus.Correct;
-                default:
-                    return false;
+                Image image = CreateGraphic<Image>(name, parent);
+                image.sprite = species.Icon;
+                image.preserveAspect = true;
+                image.raycastTarget = false;
+                image.color = new Color(1f, 1f, 1f, ghost ? 0.30f : 1f);
+                return image.rectTransform;
             }
+
+            InvestigationGlyphGraphic glyph = CreateGraphic<InvestigationGlyphGraphic>(name, parent);
+            glyph.color = fallbackColor;
+            glyph.SetGlyph(ToSpeciesGlyph(species == null ? SpeciesGlyphKind.Tuna : species.GlyphKind));
+            glyph.SetGhost(ghost);
+            return glyph.rectTransform;
         }
 
-        private void ChangeSpecies(int delta) { speciesIndex = Wrap(speciesIndex + delta, caseDefinition.Species.Count); RenderCurrentPage(true); }
-        private void ChangeHypothesis(int delta) { hypothesisIndex = Wrap(hypothesisIndex + delta, caseDefinition.Hypotheses.Count); RenderCurrentPage(); }
-        private void ChangeEvidence(int delta) { evidenceIndex = Wrap(evidenceIndex + delta, state.GetIdentifiedEvidence().Count); RenderCurrentPage(); }
-        private void ChangeSite(int delta) { siteIndex = Wrap(siteIndex + delta, caseDefinition.SampleSites.Count); depthIndex = 0; RenderCurrentPage(); }
-        private void ChangeDepth(int delta) { SampleSiteDefinition site = GetSelectedSite(); depthIndex = Wrap(depthIndex + delta, site == null ? 0 : site.AvailableDepths.Count); RenderCurrentPage(); }
-
-        private void ChangeResult(int delta)
+        private RectTransform CreateThreatArtwork(string name, Transform parent, ThreatSimulationDefinition threat)
         {
-            resultIndex = Wrap(resultIndex + delta, state.AllResults.Count);
-            selectedComparisonEvidenceId = string.Empty;
-            SetStatus(string.Empty);
-            RenderCurrentPage();
-        }
-
-        private void SelectComparisonEvidence(string evidenceId)
-        {
-            selectedComparisonEvidenceId = evidenceId;
-            SetStatus("Comparison selected. Choose the classification that best describes the change.");
-            RenderCurrentPage(true);
-        }
-
-        private void ToggleReducedMotion()
-        {
-            bool reducedMotion = !InvestigationMotionSettings.ReducedMotion;
-            InvestigationMotionSettings.SetReducedMotion(reducedMotion);
-            SetStatus(reducedMotion
-                ? "Reduced motion enabled. Pulsing and banner fades are now paused."
-                : "Full motion enabled. Subtle guidance animation is active.",
-                InvestigationStatusTone.Success);
-            RenderCurrentPage(currentPage == Page.CompareData);
-        }
-
-        private void RequestRestartConfirmation()
-        {
-            restartConfirmationPending = true;
-            SetStatus(
-                "Restarting will discard all findings, samples, and conclusion progress. Confirm only if you want to begin again.",
-                InvestigationStatusTone.Warning);
-            RenderCurrentPage();
-        }
-
-        private void CancelRestartConfirmation()
-        {
-            restartConfirmationPending = false;
-            SetStatus("Restart cancelled. Your investigation progress is unchanged.");
-            RenderCurrentPage();
-        }
-
-        private void ConfirmRestart()
-        {
-            restartConfirmationPending = false;
-            restartCase?.Invoke();
-        }
-
-        private void ClassifySelected(AnomalyClaimType claimType)
-        {
-            if (string.IsNullOrEmpty(selectedComparisonEvidenceId))
+            if (threat != null && threat.Icon != null)
             {
-                SetStatus(
-                    "Select a species or warning card before classifying it.",
-                    InvestigationStatusTone.Warning);
-                RenderCurrentPage(true);
-                return;
+                Image image = CreateGraphic<Image>(name, parent);
+                image.sprite = threat.Icon;
+                image.preserveAspect = true;
+                image.raycastTarget = false;
+                image.color = Color.white;
+                return image.rectTransform;
             }
-            preserveScrollOnNextRefresh = true;
-            identifyAnomaly?.Invoke(selectedComparisonEvidenceId, claimType);
-            preserveScrollOnNextRefresh = false;
+
+            InvestigationGlyphGraphic glyph = CreateGraphic<InvestigationGlyphGraphic>(name, parent);
+            glyph.color = InvestigationTheme.Primary;
+            glyph.SetGlyph(ToThreatGlyph(threat == null ? ThreatGlyphKind.Warming : threat.GlyphKind));
+            return glyph.rectTransform;
         }
 
-        private void AssignSelected(EvidenceAssignmentKind kind)
+        private static LayoutElement AddLayout(RectTransform rect, float preferredHeight, float flexibleWidth)
         {
-            HypothesisDefinition hypothesis = GetSelectedHypothesis();
-            EvidenceRecord evidence = GetSelectedEvidence();
-            if (hypothesis == null || evidence == null)
+            LayoutElement layout = rect.GetComponent<LayoutElement>();
+            if (layout == null) layout = rect.gameObject.AddComponent<LayoutElement>();
+            layout.preferredHeight = preferredHeight;
+            layout.minHeight = Mathf.Min(preferredHeight, 44f);
+            layout.flexibleWidth = flexibleWidth;
+            return layout;
+        }
+
+        private static void Anchor(RectTransform rect, float minX, float minY, float maxX, float maxY, float left, float bottom, float right, float top)
+        {
+            rect.anchorMin = new Vector2(minX, minY);
+            rect.anchorMax = new Vector2(maxX, maxY);
+            rect.offsetMin = new Vector2(left, bottom);
+            rect.offsetMax = new Vector2(right, top);
+        }
+
+        private static void Stretch(RectTransform rect, float left, float bottom, float right, float top)
+        {
+            Anchor(rect, 0f, 0f, 1f, 1f, left, bottom, right, top);
+        }
+
+        private static void Clear(Transform parent)
+        {
+            if (parent == null) return;
+            for (int index = parent.childCount - 1; index >= 0; index--)
             {
-                SetStatus(
-                    "Choose a hypothesis and identify a finding first.",
-                    InvestigationStatusTone.Warning);
-                RenderCurrentPage();
-                return;
-            }
-            assignEvidence?.Invoke(evidence.EvidenceId, hypothesis.HypothesisId, kind);
-        }
-
-        private void SelectCurrentHypothesisAndPlanSample()
-        {
-            HypothesisDefinition hypothesis = GetSelectedHypothesis();
-            if (hypothesis == null) return;
-            currentPage = Page.PlanSample;
-            SetStatus(string.Empty);
-            if (selectHypothesis != null)
-            {
-                selectHypothesis.Invoke(hypothesis.HypothesisId);
-            }
-            else
-            {
-                RenderCurrentPage();
-            }
-        }
-
-        private void RequestSelectedSample()
-        {
-            if (state.AvailableSampleSlots <= 0)
-            {
-                SetStatus("No follow-up sample slots remain.", InvestigationStatusTone.Warning);
-                RenderCurrentPage();
-                return;
-            }
-            SampleSiteDefinition site = GetSelectedSite();
-            if (site == null)
-            {
-                SetStatus("Choose a valid sample site.", InvestigationStatusTone.Warning);
-                RenderCurrentPage();
-                return;
-            }
-            HypothesisDefinition hypothesis = GetSelectedHypothesis();
-            EvidenceRecord evidence = GetSelectedEvidence();
-            requestSample?.Invoke(site.SiteId, GetSelectedDepth(), hypothesis?.HypothesisId ?? string.Empty, evidence?.EvidenceId ?? string.Empty);
-        }
-
-        private void ClampSelections()
-        {
-            speciesIndex = ClampIndex(speciesIndex, caseDefinition.Species.Count);
-            hypothesisIndex = ClampIndex(hypothesisIndex, caseDefinition.Hypotheses.Count);
-            evidenceIndex = ClampIndex(evidenceIndex, state.GetIdentifiedEvidence().Count);
-            siteIndex = ClampIndex(siteIndex, caseDefinition.SampleSites.Count);
-            resultIndex = ClampIndex(resultIndex, state.AllResults.Count);
-            SampleSiteDefinition site = GetSelectedSite();
-            depthIndex = ClampIndex(depthIndex, site == null ? 0 : site.AvailableDepths.Count);
-        }
-
-        private SpeciesDefinition GetSelectedSpecies() { return caseDefinition.Species.Count == 0 ? null : caseDefinition.Species[speciesIndex]; }
-        private HypothesisDefinition GetSelectedHypothesis() { return caseDefinition.Hypotheses.Count == 0 ? null : caseDefinition.Hypotheses[hypothesisIndex]; }
-        private SampleSiteDefinition GetSelectedSite() { return caseDefinition.SampleSites.Count == 0 ? null : caseDefinition.SampleSites[siteIndex]; }
-
-        private EvidenceRecord GetSelectedEvidence()
-        {
-            if (state == null) return null;
-            List<EvidenceRecord> identified = state.GetIdentifiedEvidence();
-            return identified.Count == 0 ? null : identified[evidenceIndex];
-        }
-
-        private DepthBand GetSelectedDepth()
-        {
-            SampleSiteDefinition site = GetSelectedSite();
-            return site == null || site.AvailableDepths.Count == 0 ? DepthBand.Shallow : site.AvailableDepths[depthIndex];
-        }
-
-        private string DescribeAssignment(string evidenceId, string hypothesisId)
-        {
-            if (string.IsNullOrEmpty(hypothesisId)) return "None";
-            for (int index = 0; index < state.EvidenceAssignments.Count; index++)
-            {
-                EvidenceAssignmentRecord assignment = state.EvidenceAssignments[index];
-                if (!string.Equals(assignment.EvidenceId, evidenceId, StringComparison.Ordinal)
-                    || !string.Equals(assignment.HypothesisId, hypothesisId, StringComparison.Ordinal)) continue;
-                return assignment.AssignmentKind == EvidenceAssignmentKind.Supports ? "Support" : "Challenge";
-            }
-            return "None";
-        }
-
-        private string GetPageTitle()
-        {
-            switch (currentPage)
-            {
-                case Page.CaseFiles: return "CASE FILES";
-                case Page.CompareData: return "COMPARE DATA";
-                case Page.BuildHypothesis: return "BUILD HYPOTHESIS";
-                case Page.PlanSample: return "PLAN SAMPLE";
-                case Page.Conclusion: return "CONCLUSION";
-                default: return "INVESTIGATION";
-            }
-        }
-
-        private string SiteName(string siteId)
-        {
-            SampleSiteDefinition site = caseDefinition.FindSite(siteId);
-            return site == null ? siteId : site.DisplayName;
-        }
-
-        private static string GetSourceId(EDNAResultData result) { return string.IsNullOrEmpty(result.sampleId) ? result.requestId : result.sampleId; }
-
-        private static string GetClaimName(EvidenceType type)
-        {
-            return InvestigationDisplayNames.EvidencePattern(type.ToString());
-        }
-
-        private static int GetEvidencePriority(EvidenceType type)
-        {
-            switch (type)
-            {
-                case EvidenceType.DepthShift: return 50;
-                case EvidenceType.NewDetection: return 40;
-                case EvidenceType.RepeatedNonDetection: return 35;
-                case EvidenceType.NotDetectedInSample: return 30;
-                case EvidenceType.RepeatedDetection: return 20;
-                case EvidenceType.StableIndicator: return 10;
-                default: return 0;
-            }
-        }
-
-        private static bool HasSource(EvidenceRecord evidence, string sourceId) { return Contains(evidence.SourceSampleIds, sourceId); }
-
-        private static bool Contains(IReadOnlyList<string> values, string target)
-        {
-            if (values == null) return false;
-            for (int index = 0; index < values.Count; index++) if (string.Equals(values[index], target, StringComparison.Ordinal)) return true;
-            return false;
-        }
-
-        private static void AddUnique(List<string> values, string value)
-        {
-            if (!string.IsNullOrEmpty(value) && !values.Contains(value)) values.Add(value);
-        }
-
-        private static string Join<T>(IReadOnlyList<T> values)
-        {
-            if (values == null || values.Count == 0) return "None";
-            string[] strings = new string[values.Count];
-            for (int index = 0; index < values.Count; index++) strings[index] = values[index] == null ? string.Empty : values[index].ToString();
-            return string.Join(", ", strings);
-        }
-
-        private static string BuildSpeciesTraits(SpeciesDefinition species)
-        {
-            if (species == null) return "Species details are not available.";
-
-            StringBuilder traits = new StringBuilder();
-            AppendInlineTrait(traits, species.TemperaturePreference);
-            AppendInlineTrait(traits, Join(species.PreferredDepths));
-            AppendInlineTrait(traits, InvestigationDisplayNames.Traits(species.HabitatTags));
-            AppendInlineTrait(traits, InvestigationDisplayNames.Traits(species.SensitivityTags));
-            return traits.Length == 0 ? "No species traits recorded." : traits.ToString();
-        }
-
-        private static void AppendInlineTrait(StringBuilder text, string value)
-        {
-            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, "None", StringComparison.OrdinalIgnoreCase)) return;
-            if (text.Length > 0) text.Append("  ·  ");
-            text.Append(value);
-        }
-
-        private static void AppendSectionHeading(StringBuilder text, string value)
-        {
-            if (text.Length > 0) text.AppendLine();
-            text.Append("<size=20><b><color=#F5E6BE>");
-            text.Append(value.ToUpperInvariant());
-            text.AppendLine("</color></b></size>");
-        }
-
-        private static void AppendTitle(StringBuilder text, string value)
-        {
-            text.Append("<size=18><b><color=#F5E6BE>");
-            text.Append(value);
-            text.AppendLine("</color></b></size>");
-        }
-
-        private static void AppendBody(StringBuilder text, string value)
-        {
-            text.Append("<size=16><color=#A9C9CF>");
-            text.Append(value);
-            text.AppendLine("</color></size>");
-        }
-
-        private static void AppendMetadata(StringBuilder text, string value)
-        {
-            text.Append("<size=13><color=#8EAEB5>");
-            text.Append(value);
-            text.AppendLine("</color></size>");
-        }
-
-        private static void AppendChecklistItem(
-            StringBuilder text,
-            bool isComplete,
-            string label,
-            string value)
-        {
-            text.Append("<size=16><b><color=");
-            text.Append(isComplete ? "#5CD69D>✓  " : "#FFBE5A>✗  ");
-            text.Append(label);
-            text.Append("</color></b><color=#A9C9CF>    ");
-            text.Append(value);
-            text.AppendLine("</color></size>");
-        }
-
-        private void ClearActions()
-        {
-            actionSlotCount = 0;
-            comparisonActionMode = false;
-            adaptiveShellLayout?.SetComparisonMode(false);
-            ClearActionRoot(actionRoot);
-            ClearActionRoot(compareNavigationRoot);
-            ClearActionRoot(classificationRoot);
-            if (actionRoot != null) actionRoot.gameObject.SetActive(true);
-            if (compareNavigationRoot != null) compareNavigationRoot.gameObject.SetActive(false);
-            if (classificationPanel != null) classificationPanel.gameObject.SetActive(false);
-        }
-
-        private static void ClearActionRoot(RectTransform root)
-        {
-            if (root == null) return;
-            for (int index = root.childCount - 1; index >= 0; index--)
-            {
-                GameObject child = root.GetChild(index).gameObject;
+                GameObject child = parent.GetChild(index).gameObject;
                 child.SetActive(false);
-                UnityEngine.Object.Destroy(child);
+                if (Application.isPlaying) Destroy(child);
+                else DestroyImmediate(child);
             }
+        }
+
+        private static ScrollRect FindActiveScrollRect(Transform root, string objectName)
+        {
+            if (root == null) return null;
+            ScrollRect[] scrollRects = root.GetComponentsInChildren<ScrollRect>();
+            for (int index = 0; index < scrollRects.Length; index++)
+            {
+                if (scrollRects[index].name == objectName) return scrollRects[index];
+            }
+            return null;
         }
 
         private FocusSnapshot CaptureFocus()
         {
             if (EventSystem.current == null || EventSystem.current.currentSelectedGameObject == null)
-            {
                 return default;
-            }
 
-            GameObject selectedObject = EventSystem.current.currentSelectedGameObject;
-            InvestigationButtonView selectedButton = selectedObject.GetComponent<InvestigationButtonView>();
-            return new FocusSnapshot(
-                true,
-                selectedButton == null ? string.Empty : selectedButton.Label,
-                selectedObject.name,
-                selectedObject.GetComponent<SpeciesComparisonCardView>() != null,
-                selectedButton != null && selectedButton == motionToggleButton);
+            GameObject selected = EventSystem.current.currentSelectedGameObject;
+            if (selected.transform != transform && !selected.transform.IsChildOf(transform)) return default;
+            InvestigationFocusRing focusRing = selected.GetComponent<InvestigationFocusRing>();
+            if (focusRing != null && focusRing.SelectedByPointer) return default;
+            return new FocusSnapshot(true, selected.name);
+        }
+
+        private IEnumerator RefreshAfterViewportChange()
+        {
+            InvestigationPhase preservedPhase = state == null ? InvestigationPhase.Observe : state.Phase;
+            InvestigationConclusionStatus preservedConclusion = state == null
+                ? InvestigationConclusionStatus.NotSubmitted
+                : state.ConclusionStatus;
+            float preservedScroll = contentScroll == null ? 1f : contentScroll.verticalNormalizedPosition;
+            yield return null;
+            viewportRefreshScheduled = false;
+            if (!built || state == null) yield break;
+            RenderAll();
+            if (contentScroll != null
+                && state.Phase == preservedPhase
+                && state.ConclusionStatus == preservedConclusion)
+            {
+                contentScroll.StopMovement();
+                contentScroll.verticalNormalizedPosition = preservedScroll;
+            }
         }
 
         private void ScheduleFocusRestore(FocusSnapshot snapshot)
         {
             if (!snapshot.HadFocus || !Application.isPlaying) return;
-            if (focusRestoreCoroutine != null)
-            {
-                StopCoroutine(focusRestoreCoroutine);
-            }
-            focusRestoreCoroutine = StartCoroutine(RestoreFocusNextFrame(snapshot));
+            StartCoroutine(RestoreFocusNextFrame(snapshot));
         }
 
-        private System.Collections.IEnumerator RestoreFocusNextFrame(FocusSnapshot snapshot)
+        private IEnumerator RestoreFocusNextFrame(FocusSnapshot snapshot)
         {
             yield return null;
-            focusRestoreCoroutine = null;
             if (EventSystem.current == null) yield break;
 
-            GameObject target = null;
-            if (snapshot.WasMotionToggle && IsInteractable(motionToggleButton))
-            {
-                target = motionToggleButton.gameObject;
-            }
+            Button target = FindInteractableButton(snapshot.ObjectName);
+            if (target == null && snapshot.ObjectName == "Review ROV Follow-up")
+                target = FindInteractableButton("Submit Final Report");
+            if (target == null && snapshot.ObjectName == "Restart Case")
+                target = FindInteractableButton("Cancel Restart Case");
+            if (target == null && snapshot.ObjectName == "Cancel Restart Case")
+                target = FindInteractableButton("Restart Case");
+            if (target == null) target = FindFirstInteractableButton(contentRoot);
+            if (target == null) target = FindFirstInteractableButton(footerRight);
+            if (target == null) target = FindFirstInteractableButton(stageRoot);
+            if (target == null) yield break;
 
-            if (target == null && !string.IsNullOrEmpty(snapshot.Label))
-            {
-                InvestigationButtonView[] buttons = GetComponentsInChildren<InvestigationButtonView>(true);
-                for (int index = 0; index < buttons.Length; index++)
-                {
-                    if (buttons[index].gameObject.activeInHierarchy
-                        && string.Equals(buttons[index].Label, snapshot.Label, StringComparison.Ordinal)
-                        && IsInteractable(buttons[index]))
-                    {
-                        target = buttons[index].gameObject;
-                        break;
-                    }
-                }
-            }
+            EventSystem.current.SetSelectedGameObject(null);
+            EventSystem.current.SetSelectedGameObject(target.gameObject);
+        }
 
-            if (target == null && snapshot.WasComparisonCard)
-            {
-                target = FindPreferredComparisonCard();
-            }
-
-            if (target == null && !string.IsNullOrEmpty(snapshot.ObjectName))
-            {
-                Button[] contentButtons = contentViewport == null
-                    ? Array.Empty<Button>()
-                    : contentViewport.GetComponentsInChildren<Button>(true);
-                for (int index = 0; index < contentButtons.Length; index++)
-                {
-                    if (contentButtons[index].gameObject.activeInHierarchy
-                        && contentButtons[index].interactable
-                        && string.Equals(contentButtons[index].name, snapshot.ObjectName, StringComparison.Ordinal))
-                    {
-                        target = contentButtons[index].gameObject;
-                        break;
-                    }
-                }
-            }
-
-            if (target == null && currentPage == Page.CompareData)
-            {
-                target = FindPreferredComparisonCard();
-            }
-
-            if (target == null)
-            {
-                target = FindFirstInteractableButton(contentViewport);
-            }
-
-            if (target == null)
-            {
-                target = FindFirstInteractableButton(ActiveActionRoot);
-            }
-
-            if (target == null && navigationButtons.Count > (int)currentPage)
-            {
-                InvestigationButtonView navigationButton = navigationButtons[(int)currentPage];
-                if (IsInteractable(navigationButton)) target = navigationButton.gameObject;
-            }
-
+        private IEnumerator FocusCaseClosedActionNextFrame()
+        {
+            yield return null;
+            if (EventSystem.current == null) yield break;
+            Button target = FindInteractableButton("Restart Completed Case");
             if (target == null) yield break;
             EventSystem.current.SetSelectedGameObject(null);
-            EventSystem.current.SetSelectedGameObject(target);
+            EventSystem.current.SetSelectedGameObject(target.gameObject);
         }
 
-        private GameObject FindPreferredComparisonCard()
+        private Button FindInteractableButton(string objectName)
         {
-            if (contentViewport == null) return null;
-            SpeciesComparisonCardView[] cards = contentViewport.GetComponentsInChildren<SpeciesComparisonCardView>(true);
-            GameObject firstInteractable = null;
-            for (int index = 0; index < cards.Length; index++)
+            if (string.IsNullOrEmpty(objectName)) return null;
+            Button[] buttons = GetComponentsInChildren<Button>(true);
+            for (int index = 0; index < buttons.Length; index++)
             {
-                Button button = cards[index].GetComponent<Button>();
-                if (!cards[index].gameObject.activeInHierarchy || button == null || !button.interactable) continue;
-                if (cards[index].IsSelected) return cards[index].gameObject;
-                if (firstInteractable == null) firstInteractable = cards[index].gameObject;
+                Button button = buttons[index];
+                if (button.gameObject.activeInHierarchy
+                    && button.interactable
+                    && button.name == objectName)
+                {
+                    return button;
+                }
             }
-            return firstInteractable;
+            return null;
         }
 
-        private static GameObject FindFirstInteractableButton(Transform root)
+        private static Button FindFirstInteractableButton(Transform root)
         {
             if (root == null) return null;
             Button[] buttons = root.GetComponentsInChildren<Button>(true);
             for (int index = 0; index < buttons.Length; index++)
             {
                 if (buttons[index].gameObject.activeInHierarchy && buttons[index].interactable)
-                {
-                    return buttons[index].gameObject;
-                }
+                    return buttons[index];
             }
             return null;
         }
 
-        private static bool IsInteractable(InvestigationButtonView buttonView)
-        {
-            if (buttonView == null || !buttonView.gameObject.activeInHierarchy) return false;
-            Button button = buttonView.GetComponent<Button>();
-            return button != null && button.interactable;
-        }
-
-        private void OnDisable()
-        {
-            if (focusRestoreCoroutine == null) return;
-            StopCoroutine(focusRestoreCoroutine);
-            focusRestoreCoroutine = null;
-        }
-
-        private void SetStatus(
-            string message,
-            InvestigationStatusTone tone = InvestigationStatusTone.Guide)
-        {
-            statusMessage = message ?? string.Empty;
-            statusTone = tone;
-        }
-
-        private void RenderStatus()
-        {
-            string message = string.IsNullOrWhiteSpace(statusMessage)
-                ? GetDefaultStatusMessage()
-                : statusMessage;
-            InvestigationStatusTone tone = string.IsNullOrWhiteSpace(statusMessage)
-                ? InvestigationStatusTone.Guide
-                : statusTone;
-            string label = tone == InvestigationStatusTone.Warning
-                ? "TRY AGAIN"
-                : tone == InvestigationStatusTone.Success
-                    ? message.StartsWith("Finding identified:", StringComparison.OrdinalIgnoreCase)
-                        ? "FINDING IDENTIFIED"
-                        : "UPDATE SAVED"
-                    : "NEXT STEP";
-            ShowStatus(label, message, tone);
-        }
-
-        private void ShowStatus(string label, string message, InvestigationStatusTone tone)
-        {
-            currentStatusLabel = label ?? string.Empty;
-            currentStatusAnnouncement = message ?? string.Empty;
-            if (statusBanner != null)
-            {
-                statusBanner.Show(label, message, tone);
-                return;
-            }
-
-            if (statusText == null) return;
-            statusText.text = $"{label}: {message}";
-            statusText.color = tone == InvestigationStatusTone.Warning
-                ? Warning
-                : tone == InvestigationStatusTone.Success
-                    ? Success
-                    : Muted;
-        }
-
-        private string GetDefaultStatusMessage()
-        {
-            switch (currentPage)
-            {
-                case Page.CompareData:
-                    return "Select a comparison card, then classify the change with the buttons below.";
-                case Page.BuildHypothesis:
-                    return state != null && state.GetIdentifiedEvidence().Count == 0
-                        ? "Identify a finding in Compare Data first; it will become available here for hypothesis testing."
-                        : "Use the in-panel selectors, assign the finding, then select a theory to continue.";
-                case Page.PlanSample:
-                    return "Choose a site, depth, and test target with the in-panel selectors.";
-                case Page.Conclusion:
-                    return "Complete every checklist item, then submit your conclusion.";
-                default:
-                    return "Review the case briefing and species records, then start the comparison.";
-            }
-        }
-
-        private static string GetComparisonCardState(
-            EvidenceRecord evidence,
-            bool isSelected,
-            bool isIdentified)
-        {
-            if (evidence == null)
-            {
-                return "REFERENCE CARD - NO CLASSIFICATION REQUIRED";
-            }
-
-            if (isIdentified)
-            {
-                return $"IDENTIFIED: {GetClaimName(evidence.EvidenceType).ToUpperInvariant()}";
-            }
-
-            return isSelected
-                ? "SELECTED - CHOOSE A CLASSIFICATION BELOW"
-                : "SELECT THIS CARD TO CLASSIFY";
-        }
-
         private static void EnsureEventSystem()
         {
-            if (FindAnyObjectByType<EventSystem>() != null) return;
+            if (EventSystem.current != null) return;
             GameObject eventSystem = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
             eventSystem.GetComponent<InputSystemUIInputModule>().AssignDefaultActions();
         }
 
-        private static int Wrap(int value, int count)
+        private static InvestigationGlyph ToSpeciesGlyph(SpeciesGlyphKind glyphKind)
         {
-            if (count <= 0) return 0;
-            int wrapped = value % count;
-            return wrapped < 0 ? wrapped + count : wrapped;
+            switch (glyphKind)
+            {
+                case SpeciesGlyphKind.Shark: return InvestigationGlyph.Shark;
+                case SpeciesGlyphKind.Tuna: return InvestigationGlyph.Tuna;
+                case SpeciesGlyphKind.Krill: return InvestigationGlyph.Krill;
+                case SpeciesGlyphKind.SeaStar: return InvestigationGlyph.SeaStar;
+                case SpeciesGlyphKind.Mussel: return InvestigationGlyph.Mussel;
+                default: return InvestigationGlyph.Tuna;
+            }
         }
 
-        private static int ClampIndex(int value, int count) { return count <= 0 ? 0 : Mathf.Clamp(value, 0, count - 1); }
+        private static InvestigationGlyph ToThreatGlyph(ThreatGlyphKind glyphKind)
+        {
+            switch (glyphKind)
+            {
+                case ThreatGlyphKind.Warming: return InvestigationGlyph.Warming;
+                case ThreatGlyphKind.Plastic: return InvestigationGlyph.Plastic;
+                case ThreatGlyphKind.LongLine: return InvestigationGlyph.LongLine;
+                case ThreatGlyphKind.BottomTrawling: return InvestigationGlyph.BottomTrawling;
+                default: return InvestigationGlyph.Question;
+            }
+        }
+
+        private static string PredictionLabel(PredictionState state)
+        {
+            switch (state)
+            {
+                case PredictionState.Increase: return "Increase";
+                case PredictionState.Decrease: return "Decrease";
+                case PredictionState.Stable: return "Stable";
+                case PredictionState.DepthShift: return "Depth shift";
+                case PredictionState.Unknown: return "Unknown";
+                default: return state.ToString();
+            }
+        }
     }
 }

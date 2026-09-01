@@ -2,55 +2,86 @@ using UnityEngine;
 
 namespace EDNA.Investigation
 {
-    /// <summary>
-    /// Shared visual tokens for the ocean-research investigation interface.
-    /// Keep presentation components semantic so a future theme pass does not
-    /// require hunting down screen-specific colour literals.
-    /// </summary>
     public static class InvestigationTheme
     {
-        public static readonly Color Background = new Color32(7, 16, 24, 255);
-        public static readonly Color BackgroundDeep = new Color32(4, 10, 15, 255);
-        public static readonly Color Surface = new Color32(15, 27, 36, 255);
-        public static readonly Color SurfaceRaised = new Color32(20, 35, 46, 255);
-        public static readonly Color SurfaceInteractive = new Color32(24, 43, 55, 255);
-        public static readonly Color SurfaceSelected = new Color32(23, 54, 64, 255);
-        public static readonly Color SurfaceSuccess = new Color32(19, 55, 45, 255);
-        public static readonly Color SurfaceWarning = new Color32(58, 44, 25, 255);
+        public static readonly Color32 Background = new Color32(4, 18, 28, 255);
+        public static readonly Color32 Deep = new Color32(8, 36, 54, 255);
+        public static readonly Color32 SurfaceQuiet = new Color32(14, 51, 72, 255);
+        public static readonly Color32 Surface = new Color32(20, 65, 92, 255);
+        public static readonly Color32 SurfaceRaised = new Color32(27, 82, 115, 255);
+        public static readonly Color32 BorderSoft = new Color32(95, 212, 214, 42);
+        public static readonly Color32 BorderStrong = new Color32(95, 212, 214, 118);
+        public static readonly Color32 Accent = new Color32(255, 138, 91, 255);
+        public static readonly Color32 OnAccent = new Color32(43, 15, 6, 255);
+        public static readonly Color32 Primary = new Color32(95, 212, 214, 255);
+        public static readonly Color32 OnPrimary = new Color32(4, 34, 43, 255);
+        public static readonly Color32 Focus = new Color32(244, 211, 94, 255);
+        public static readonly Color32 Success = new Color32(95, 211, 154, 255);
+        public static readonly Color32 Danger = new Color32(242, 118, 107, 255);
+        public static readonly Color32 Unknown = new Color32(147, 178, 196, 255);
+        public static readonly Color32 TextPrimary = new Color32(242, 248, 251, 255);
+        public static readonly Color32 TextSecondary = new Color32(179, 204, 218, 255);
+        public static readonly Color32 TextMuted = new Color32(145, 177, 194, 255);
+        public static readonly Color32 Paper = new Color32(234, 241, 244, 255);
+        public static readonly Color32 PaperRaised = new Color32(248, 251, 252, 255);
+        public static readonly Color32 PaperInk = new Color32(18, 48, 67, 255);
+        public static readonly Color32 PaperMuted = new Color32(77, 111, 132, 255);
+        public static readonly Color32 PaperBorder = new Color32(116, 142, 155, 255);
+        public static readonly Color32 PaperSelected = new Color32(217, 236, 243, 255);
+        public static readonly Color32 PaperSelectedBorder = new Color32(27, 109, 138, 255);
+        public static readonly Color32 ReportGuide = new Color32(220, 235, 243, 255);
+        public static readonly Color32 ReportSuccess = new Color32(215, 245, 229, 255);
+        public static readonly Color32 ReportError = new Color32(255, 229, 225, 255);
+        public static readonly Color32 PrimaryShadow = new Color32(0, 0, 0, 82);
+        public static readonly Color32 PaperShadow = new Color32(18, 48, 67, 46);
 
-        public static readonly Color Primary = new Color32(40, 184, 192, 255);
-        public static readonly Color PrimarySoft = new Color32(103, 207, 211, 255);
-        public static readonly Color Sand = new Color32(238, 224, 194, 255);
-        public static readonly Color TextPrimary = new Color32(237, 243, 245, 255);
-        public static readonly Color TextSecondary = new Color32(170, 192, 201, 255);
-        public static readonly Color TextMuted = new Color32(114, 140, 151, 255);
-        public static readonly Color Border = new Color32(44, 72, 84, 255);
-        public static readonly Color BorderQuiet = new Color32(28, 49, 58, 255);
-        public static readonly Color Success = new Color32(91, 199, 153, 255);
-        public static readonly Color Warning = new Color32(232, 168, 79, 255);
-        public static readonly Color Danger = new Color32(229, 112, 102, 255);
+        // Water column, top to bottom. A flat fill gives the scene no light
+        // direction, which is what made the deep sea read as a single dark
+        // rectangle rather than a body of water.
+        public static readonly Color32 WaterTop = new Color32(18, 63, 89, 255);
+        public static readonly Color32 WaterUpper = new Color32(10, 43, 63, 255);
+        public static readonly Color32 WaterLower = new Color32(5, 24, 38, 255);
+        public static readonly Color32 WaterFloor = new Color32(1, 8, 16, 255);
 
-        public const float MotionFast = 0.12f;
-        public const float MotionStandard = 0.20f;
+        // Light and particulate. All three stay very low alpha on purpose: the
+        // cue reads as water at a whisper and as stage lighting at any strength.
+        public static readonly Color32 GodRay = new Color32(95, 212, 214, 16);
+        public static readonly Color32 Caustic = new Color32(140, 235, 238, 19);
+        public static readonly Color32 Vignette = new Color32(1, 6, 12, 148);
+        public const float MarineSnowFarMaxAlpha = 0.17f;
+        public const float MarineSnowNearMaxAlpha = 0.31f;
+        public const float MarineSnowForegroundMaxAlpha = 0.15f;
 
-        public const float CornerRadiusSmall = 4f;
-        public const float CornerRadiusControl = 6f;
-        public const float CornerRadiusCard = 8f;
+        // Semi-transparent so the water column and its particles carry through
+        // the survey maps instead of stopping at an opaque panel edge.
+        public static readonly Color32 MapSurface = new Color32(8, 36, 54, 168);
+        public static readonly Color32 MapSurfaceHistorical = new Color32(11, 43, 61, 168);
 
-        public static Color WithAlpha(Color color, float alpha)
+        public const float ShellRadius = 20f;
+        public const float CardRadius = 16f;
+        public const float SmallRadius = 12f;
+        public const float ControlRadius = 14f;
+
+        private static Font bodyFont;
+        private static Font displayFont;
+        private static Font dataFont;
+
+        public static Font BodyFont => bodyFont != null ? bodyFont : bodyFont = LoadFont(
+            "Investigation/Fonts/NunitoSans-Variable");
+
+        public static Font DisplayFont => displayFont != null ? displayFont : displayFont = LoadFont(
+            "Investigation/Fonts/NunitoSans-Variable");
+
+        public static Font DataFont => dataFont != null ? dataFont : dataFont = LoadFont(
+            "Investigation/Fonts/FiraMono-Medium",
+            "Investigation/Fonts/FiraMono-Regular");
+
+        private static Font LoadFont(string preferredPath, string fallbackPath = null)
         {
-            color.a = Mathf.Clamp01(alpha);
-            return color;
-        }
-
-        public static Color Hover(Color color)
-        {
-            return Color.Lerp(color, PrimarySoft, 0.18f);
-        }
-
-        public static Color Pressed(Color color)
-        {
-            return Color.Lerp(color, BackgroundDeep, 0.24f);
+            Font font = Resources.Load<Font>(preferredPath);
+            if (font != null) return font;
+            if (!string.IsNullOrEmpty(fallbackPath)) font = Resources.Load<Font>(fallbackPath);
+            return font != null ? font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         }
     }
 }

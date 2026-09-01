@@ -15,22 +15,10 @@ namespace EDNA.Investigation.Editor
             Run(TestMode.EditMode, "EDNA.Investigation.EditModeTests", true);
         }
 
-        [MenuItem("eDNA Detectives/Validation/Run V2 EditMode Tests")]
-        public static void RunV2EditModeTests()
-        {
-            Run(TestMode.EditMode, "EDNA.Investigation.V2.EditModeTests", true);
-        }
-
         [MenuItem("eDNA Detectives/Validation/Run PlayMode Tests")]
         public static void RunPlayModeTests()
         {
             Run(TestMode.PlayMode, "EDNA.Investigation.PlayModeTests", false);
-        }
-
-        [MenuItem("eDNA Detectives/Validation/Run V2 PlayMode Tests")]
-        public static void RunV2PlayModeTests()
-        {
-            Run(TestMode.PlayMode, "EDNA.Investigation.V2.PlayModeTests", false);
         }
 
         private static void Run(TestMode mode, string assemblyName, bool runSynchronously)

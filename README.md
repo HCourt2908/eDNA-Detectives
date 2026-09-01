@@ -1,13 +1,11 @@
-# eDNA Detectives — Ecosystem Detective V2
+# eDNA Detectives — Ecosystem Detective
 
 A Unity web-game vertical slice for the OceanX eDNA Detectives project. The current design is a three-stage ecosystem investigation in which players compare survey results, test competing causes, and build an evidence-based report.
-
-> V2 is the current implementation. The original five-stage V1 prototype remains in the repository as legacy reference only.
 
 ## Quick start
 
 1. Open the `game` folder in Unity `6000.4.6f1`.
-2. Open `Assets/Scenes/InvestigationSceneV2.unity`.
+2. Open `Assets/Scenes/InvestigationScene.unity`.
 3. Press Play.
 
 ## Current gameplay flow
@@ -95,7 +93,7 @@ The case currently includes:
 
 ## Future mini-game integration
 
-V2 remains fully playable as a standalone case while exposing a small integration boundary through `EDNA.Core`:
+The Investigation remains fully playable as a standalone case while exposing a small integration boundary through `EDNA.Core`:
 
 - optional survey and site metadata can replace the authored labels;
 - mapped environmental and physical observation IDs are imported only when their authored unlock stage permits it;
@@ -107,19 +105,19 @@ V2 remains fully playable as a standalone case while exposing a small integratio
 
 ### Observe — compare the baseline and current survey
 
-![Ecosystem Detective V2 Observe screen showing historical and current seamount surveys beside the field notebook](docs/images/investigation-v2-observe-seamount.png)
+![Ecosystem Detective Observe screen showing historical and current seamount surveys beside the field notebook](docs/images/investigation-observe-seamount.png)
 
 ### Simulate — choose and run a cause
 
-![Ecosystem Detective V2 Simulate screen before running the selected Long-line fishing model](docs/images/investigation-v2-simulate-start.png)
+![Ecosystem Detective Simulate screen before running the selected Long-line fishing model](docs/images/investigation-simulate-start.png)
 
 ### Simulate — compare model predictions with survey evidence
 
-![Ecosystem Detective V2 Simulate screen showing completed cause investigations, food-web predictions, benthic checks, and prediction-versus-survey controls](docs/images/investigation-v2-simulate-analysis.png)
+![Ecosystem Detective Simulate screen showing completed cause investigations, food-web predictions, benthic checks, and prediction-versus-survey controls](docs/images/investigation-simulate-analysis.png)
 
 ### Report — assemble the final evidence-based explanation
 
-![Ecosystem Detective V2 Report screen showing cause, reasoning, evidence, ROV follow-up, and scientific uncertainty sections](docs/images/investigation-v2-report.png)
+![Ecosystem Detective Report screen showing cause, reasoning, evidence, ROV follow-up, and scientific uncertainty sections](docs/images/investigation-report.png)
 
 ## Development and validation
 
@@ -134,30 +132,30 @@ These checkpoints construct valid states through the real domain API and are exc
 
 Validation commands are available from the Unity menu:
 
-- `eDNA Detectives > Validation > Run V2 EditMode Tests`
-- `eDNA Detectives > Validation > Run V2 PlayMode Tests`
+- `eDNA Detectives > Validation > Run EditMode Tests`
+- `eDNA Detectives > Validation > Run PlayMode Tests`
 
-The V2 test assemblies are:
+The test assemblies are:
 
-- `EDNA.Investigation.V2.EditModeTests`
-- `EDNA.Investigation.V2.PlayModeTests`
+- `EDNA.Investigation.EditModeTests`
+- `EDNA.Investigation.PlayModeTests`
 
-The project also includes command-line development build validation for the standalone V2 scene.
+The project also includes command-line development build validation for the standalone Investigation scene.
 
 ## Project structure
 
 - `game/Assets/Scripts/Core` — shared mini-game contracts and enums
-- `game/Assets/Scripts/InvestigationV2/Domain` — deterministic case rules and evaluation
-- `game/Assets/Scripts/InvestigationV2/Integration` — controller, session bridge, and QA state factory
-- `game/Assets/Scripts/InvestigationV2/Presentation` — runtime uGUI, responsive layouts, icons, and animation
-- `game/Assets/Data/InvestigationV2/LongLineCase` — species, threats, evidence, objectives, and report configuration
-- `game/Assets/Tests/EditMode/InvestigationV2` — domain and authoring validation
-- `game/Assets/Tests/PlayMode/InvestigationV2` — scene, UI, accessibility, and full-flow regression tests
+- `game/Assets/Scripts/Investigation/Domain` — deterministic case rules and evaluation
+- `game/Assets/Scripts/Investigation/Integration` — controller, session bridge, and QA state factory
+- `game/Assets/Scripts/Investigation/Presentation` — runtime uGUI, responsive layouts, icons, and animation
+- `game/Assets/Data/Investigation/LongLineCase` — species, threats, evidence, objectives, and report configuration
+- `game/Assets/Tests/EditMode/Investigation` — domain and authoring validation
+- `game/Assets/Tests/PlayMode/Investigation` — scene, UI, accessibility, and full-flow regression tests
 
 ## Artwork and licences
 
-Investigation V2 uses transparent artwork from [OpenMoji](https://openmoji.org/), licensed under [CC BY-SA 4.0](game/Assets/Art/InvestigationV2/OpenMoji/LICENSE.txt). Per-file source codes and attribution are recorded in [ATTRIBUTION.md](game/Assets/Art/InvestigationV2/OpenMoji/ATTRIBUTION.md).
+Investigation uses transparent artwork from [OpenMoji](https://openmoji.org/), licensed under [CC BY-SA 4.0](game/Assets/Art/Investigation/OpenMoji/LICENSE.txt). Per-file source codes and attribution are recorded in [ATTRIBUTION.md](game/Assets/Art/Investigation/OpenMoji/ATTRIBUTION.md).
 
 Check, cross, question, lock, and Report evidence marks use transparent Heroicons assets under the included MIT licence.
 
-The Observe seamount is an in-house deterministic Blender render. Its source hashes, crop, seed, and downsampling recipe are recorded in [GENERATION.md](game/Assets/Art/InvestigationV2/Seamount/GENERATION.md).
+The Observe seamount is an in-house deterministic Blender render. Its source hashes, crop, seed, and downsampling recipe are recorded in [GENERATION.md](game/Assets/Art/Investigation/Seamount/GENERATION.md).

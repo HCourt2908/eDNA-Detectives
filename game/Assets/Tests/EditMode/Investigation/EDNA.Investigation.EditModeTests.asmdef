@@ -4,6 +4,7 @@
     "references": [
         "EDNA.Core",
         "EDNA.Investigation.Domain",
+        "EDNA.Investigation.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

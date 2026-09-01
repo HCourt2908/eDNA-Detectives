@@ -1,153 +1,281 @@
+using System.Collections.Generic;
+using EDNA.Core;
 using EDNA.Investigation.Domain;
 using UnityEngine;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+using UnityEngine.InputSystem;
+#endif
 
 namespace EDNA.Investigation
 {
+    public enum InvestigationStatusTone
+    {
+        Guide,
+        Notice,
+        Success,
+        Warning
+    }
+
+    [DisallowMultipleComponent]
     public sealed class InvestigationController : MonoBehaviour
     {
         private InvestigationCaseDefinition caseDefinition;
-        private InvestigationStateUpdater stateUpdater;
-        private MockSampleResultProvider sampleResultProvider;
+        private InvestigationStateUpdater updater;
         private InvestigationRuntimeView view;
         private InvestigationState state;
 
         public InvestigationState State => state;
 
-        public void Initialize(
-            InvestigationCaseDefinition definition,
-            InvestigationRuntimeView runtimeView)
+        public void Initialize(InvestigationCaseDefinition definition, InvestigationRuntimeView runtimeView)
         {
             caseDefinition = definition;
             view = runtimeView;
-
+            if (view == null)
+            {
+                Debug.LogError("Investigation runtime view is missing.");
+                return;
+            }
             if (caseDefinition == null)
             {
-                view.ShowFatalError("The Investigation demo case is missing.");
+                view.ShowFatalError("The Investigation case is missing.");
                 return;
             }
 
-            InvestigationCaseValidator validator = new InvestigationCaseValidator();
-            var validationErrors = validator.Validate(caseDefinition);
-            if (validationErrors.Count > 0)
+            var errors = new InvestigationCaseValidator().Validate(caseDefinition);
+            if (errors.Count > 0)
             {
-                view.ShowFatalError("The Investigation demo case is invalid:\n- " + string.Join("\n- ", validationErrors));
+                view.ShowFatalError("The Investigation case is invalid:\n- " + string.Join("\n- ", errors));
                 return;
             }
 
-            stateUpdater = new InvestigationStateUpdater(caseDefinition);
-            sampleResultProvider = new MockSampleResultProvider(caseDefinition);
+            updater = new InvestigationStateUpdater(caseDefinition);
             view.Bind(
                 caseDefinition,
-                HandleSelectHypothesis,
-                HandleAssignEvidence,
-                HandleIdentifyAnomaly,
-                HandleRequestSample,
-                HandleSubmitConclusion,
-                RestartCase);
-            RestartCase();
+                HandleSetPhase,
+                HandleSetDifficulty,
+                HandleDiscoverObservation,
+                HandleRunThreat,
+                HandleCompare,
+                HandleSubmitProvisional,
+                HandleReviewConfirmation,
+                HandleSetFinalThreat,
+                HandleSetReportEvidence,
+                HandleSetReasoning,
+                HandleSetLimitation,
+                HandleSubmitFinal,
+                HandleRestart,
+                HandleSetReducedMotion);
+            HandleRestart();
         }
 
-        private void RestartCase()
+        private void HandleRestart()
         {
-            if (stateUpdater == null)
+            InvestigationDifficulty retainedDifficulty = state == null
+                ? InvestigationDifficulty.Easy
+                : state.Difficulty;
+            InvestigationSessionBridge.ClearResult();
+            state = updater.CreateInitialState();
+            updater.SetDifficulty(state, retainedDifficulty);
+            string openingMessage = "Processed survey ready. Compare it with the historical baseline and record every unusual species pattern.";
+            InvestigationStatusTone openingTone = InvestigationStatusTone.Guide;
+            if (InvestigationSessionBridge.PendingInput != null)
             {
-                return;
+                if (!updater.TryApplyExternalInput(state, InvestigationSessionBridge.PendingInput, out string importFeedback))
+                {
+                    view.ResetPresentationState();
+                    view.ShowFatalError(importFeedback);
+                    return;
+                }
+                openingMessage = importFeedback;
+                openingTone = InvestigationStatusTone.Notice;
             }
-
-            state = stateUpdater.CreateInitialState();
-            view.Refresh(state, "Case loaded. Review the historical records and current results.");
+            view.ResetPresentationState();
+            view.Refresh(state, openingMessage, openingTone);
         }
 
-        private void HandleSelectHypothesis(string hypothesisId)
+        private void HandleSetPhase(InvestigationPhase phase)
         {
-            if (stateUpdater.TrySelectHypothesis(state, hypothesisId, out string error))
+            if (updater.TrySetPhase(state, phase, out string feedback))
             {
-                view.Refresh(state, "Working hypothesis selected.", InvestigationStatusTone.Success);
+                view.Refresh(state, string.IsNullOrEmpty(feedback) ? GetPhaseGuide(phase) : feedback, InvestigationStatusTone.Guide);
             }
             else
             {
-                view.Refresh(state, error, InvestigationStatusTone.Warning);
+                view.Refresh(state, feedback, InvestigationStatusTone.Warning);
             }
         }
 
-        private void HandleAssignEvidence(
+        private void HandleSetDifficulty(InvestigationDifficulty difficulty)
+        {
+            updater.SetDifficulty(state, difficulty);
+            view.Refresh(state, difficulty == InvestigationDifficulty.Easy
+                ? "Easy guidance enabled: the next Case Question, related clues and exact next step are highlighted."
+                : "Hard guidance enabled: all evidence remains available, but guided targets are hidden.", InvestigationStatusTone.Guide);
+        }
+
+        private void HandleDiscoverObservation(string evidenceId)
+        {
+            bool success = updater.TryDiscoverObservation(state, evidenceId, out string feedback);
+            view.Refresh(state, feedback, success ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
+        }
+
+        private void HandleRunThreat(string threatId)
+        {
+            ThreatSimulationDefinition threat = caseDefinition.FindThreat(threatId);
+            if (threat == null)
+            {
+                view.Refresh(state, "Choose an available cause before running the model.", InvestigationStatusTone.Warning);
+                return;
+            }
+            bool success = updater.TryRunThreat(state, threatId, out _, out string feedback);
+            view.Refresh(
+                state,
+                success
+                    ? $"Model complete: {threat.DisplayName}. Select one prediction and one related observation."
+                    : feedback,
+                success ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
+        }
+
+        private void HandleCompare(
+            string threatId,
+            PredictionTargetKind targetKind,
+            string targetId,
             string evidenceId,
-            string hypothesisId,
-            EvidenceAssignmentKind assignmentKind)
+            ComparisonJudgement judgement)
         {
-            if (stateUpdater.TryAssignEvidence(
-                    state,
-                    evidenceId,
-                    hypothesisId,
-                    assignmentKind,
-                    out string error))
-            {
-                HypothesisEvaluation evaluation = stateUpdater.EvaluateHypothesis(state, hypothesisId);
-                view.Refresh(
-                    state,
-                    $"Evidence assigned. Hypothesis status: {evaluation.Status}.",
-                    InvestigationStatusTone.Success);
-            }
-            else
-            {
-                view.Refresh(state, error, InvestigationStatusTone.Warning);
-            }
-        }
-
-        private void HandleIdentifyAnomaly(string evidenceId, AnomalyClaimType claimType)
-        {
-            bool identified = stateUpdater.TryIdentifyAnomaly(state, evidenceId, claimType, out string feedback);
+            PredictionComparisonRecord record = updater.Compare(state, threatId, targetKind, targetId, evidenceId, judgement);
+            bool incorrect = record.Outcome == ComparisonEvaluationOutcome.Incorrect;
             view.Refresh(
                 state,
-                feedback,
-                identified ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
+                incorrect ? $"Latest attempt: {record.Outcome}. {record.Feedback}" : record.Feedback,
+                incorrect
+                    ? InvestigationStatusTone.Warning
+                    : InvestigationStatusTone.Success);
         }
 
-        private void HandleRequestSample(
-            string siteId,
-            EDNA.Core.DepthBand depthBand,
-            string hypothesisId,
-            string reasonEvidenceId)
+        private void HandleSubmitProvisional(string threatId)
         {
-            if (!stateUpdater.TryPlanSample(
-                    state,
-                    siteId,
-                    depthBand,
-                    hypothesisId,
-                    reasonEvidenceId,
-                    out InvestigationSamplePlan plan,
-                    out string error))
-            {
-                view.Refresh(state, error, InvestigationStatusTone.Warning);
-                return;
-            }
-
-            var result = sampleResultProvider.CreateResult(plan);
-            if (!stateUpdater.ApplyResult(state, result, out error))
-            {
-                stateUpdater.TryCancelPlannedSample(state, plan.Request.requestId, out _);
-                view.Refresh(state, error, InvestigationStatusTone.Warning);
-                return;
-            }
-
-            view.Refresh(
-                state,
-                $"Mock sample complete: {result.detectedSpeciesIds.Count} species detected at {depthBand} depth.",
-                InvestigationStatusTone.Success);
+            bool success = updater.TrySubmitProvisional(state, threatId, out string feedback);
+            view.Refresh(state, feedback, success ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
         }
 
-        private void HandleSubmitConclusion()
+        private void HandleReviewConfirmation()
         {
-            ConclusionResult result = stateUpdater.SubmitConclusion(state);
-            string classificationReview = state.MisclassificationCount == 0
-                ? "No incorrect classifications were recorded."
-                : $"Classification review: {state.MisclassificationCount} incorrect option(s) were ruled out during the investigation.";
+            bool success = updater.TryReviewConfirmation(state, out string feedback);
+            view.Refresh(state, feedback, success ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
+        }
+
+        private void HandleSetFinalThreat(string threatId)
+        {
+            bool success = updater.TrySetFinalThreat(state, threatId, out string feedback);
+            if (success) InvestigationSessionBridge.ClearResult();
+            view.Refresh(state, success ? "Final cause updated. Complete the remaining report sections." : feedback, success ? InvestigationStatusTone.Guide : InvestigationStatusTone.Warning);
+        }
+
+        private void HandleSetReportEvidence(string evidenceId, bool selected)
+        {
+            bool success = updater.TrySetReportEvidence(state, evidenceId, selected, out string feedback);
+            if (success) InvestigationSessionBridge.ClearResult();
+            view.Refresh(state, success ? "Report evidence updated." : feedback, success ? InvestigationStatusTone.Guide : InvestigationStatusTone.Warning);
+        }
+
+        private void HandleSetReasoning(string reasoningId)
+        {
+            bool success = updater.TrySetReasoning(state, reasoningId, out string feedback);
+            if (success) InvestigationSessionBridge.ClearResult();
+            view.Refresh(state, success ? "Reasoning updated." : feedback, success ? InvestigationStatusTone.Guide : InvestigationStatusTone.Warning);
+        }
+
+        private void HandleSetLimitation(string limitationId)
+        {
+            bool success = updater.TrySetLimitation(state, limitationId, out string feedback);
+            if (success) InvestigationSessionBridge.ClearResult();
+            view.Refresh(state, success ? "Scientific limitation recorded." : feedback, success ? InvestigationStatusTone.Guide : InvestigationStatusTone.Warning);
+        }
+
+        private void HandleSubmitFinal()
+        {
+            InvestigationConclusionResult result = updater.SubmitFinal(state);
+            if (result.Status != InvestigationConclusionStatus.InsufficientEvidence)
+            {
+                InvestigationSessionBridge.PublishResult(new InvestigationGameResult
+                {
+                    caseId = caseDefinition.CaseId,
+                    surveyId = state.SurveyId,
+                    siteId = state.SiteId,
+                    selectedHypothesisId = state.FinalThreatId,
+                    correct = result.Status == InvestigationConclusionStatus.Correct,
+                    evidenceIds = new List<string>(state.SelectedReportEvidenceIds),
+                    missteps = state.MisstepCount,
+                    finalSubmissionAttempts = state.FinalSubmissionAttemptCount,
+                    completed = result.Status == InvestigationConclusionStatus.Correct
+                });
+            }
             view.Refresh(
                 state,
-                $"{result.Feedback} {classificationReview}",
-                result.Status == ConclusionStatus.Correct
+                result.Feedback,
+                result.Status == InvestigationConclusionStatus.Correct
                     ? InvestigationStatusTone.Success
-                    : InvestigationStatusTone.Warning);
+                    : result.Status == InvestigationConclusionStatus.InsufficientEvidence
+                        ? InvestigationStatusTone.Guide
+                        : InvestigationStatusTone.Warning);
         }
+
+        private void HandleSetReducedMotion(bool reducedMotion)
+        {
+            InvestigationMotionSettings.SetReducedMotion(reducedMotion);
+            view.Refresh(state, reducedMotion ? "Reduced motion enabled." : "Full motion enabled.", InvestigationStatusTone.Guide);
+        }
+
+        private static string GetPhaseGuide(InvestigationPhase phase)
+        {
+            switch (phase)
+            {
+                case InvestigationPhase.Observe: return "Compare the baseline and current survey, then record unusual results.";
+                case InvestigationPhase.Simulate: return "Run the overlapping causes and compare model predictions with your observations.";
+                case InvestigationPhase.Report: return "Record a provisional explanation, review ROV confirmation, then complete the final report.";
+                default: return string.Empty;
+            }
+        }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private void Update()
+        {
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard == null) return;
+            bool modifier = (keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed)
+                && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
+            if (!modifier) return;
+            if (keyboard.digit1Key.wasPressedThisFrame) ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
+            else if (keyboard.digit2Key.wasPressedThisFrame) ApplyQaCheckpoint(InvestigationQaCheckpoint.SimulateComplete);
+            else if (keyboard.digit3Key.wasPressedThisFrame) ApplyQaCheckpoint(InvestigationQaCheckpoint.ReportReady);
+            else if (keyboard.digit4Key.wasPressedThisFrame) ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
+        }
+
+        public void ApplyQaCheckpoint(InvestigationQaCheckpoint checkpoint)
+        {
+            state = InvestigationQaStateFactory.Create(caseDefinition, checkpoint);
+            InvestigationSessionBridge.ClearResult();
+            view.ResetPresentationState();
+            view.Refresh(state, $"QA checkpoint loaded: {checkpoint}.", InvestigationStatusTone.Guide);
+        }
+
+        private void OnGUI()
+        {
+            if (!Application.isPlaying) return;
+            const float height = 28f;
+            const float width = 106f;
+            float y = Mathf.Max(4f, Screen.height - height - 6f);
+            GUI.Box(new Rect(4f, y - 2f, width * 4f + 14f, height + 4f), string.Empty);
+            if (GUI.Button(new Rect(8f, y, width, height), "QA Observe"))
+                ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
+            if (GUI.Button(new Rect(10f + width, y, width, height), "QA Simulate"))
+                ApplyQaCheckpoint(InvestigationQaCheckpoint.SimulateComplete);
+            if (GUI.Button(new Rect(12f + width * 2f, y, width, height), "QA Report"))
+                ApplyQaCheckpoint(InvestigationQaCheckpoint.ReportReady);
+            if (GUI.Button(new Rect(14f + width * 3f, y, width, height), "QA Final"))
+                ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
+        }
+#endif
     }
 }

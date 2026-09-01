@@ -11,21 +11,26 @@ namespace EDNA.Investigation
 
         private void Awake()
         {
+            if (caseDefinition == null)
+            {
+                Debug.LogError("Investigation case asset is missing.");
+                return;
+            }
             if (viewPrefab == null)
             {
-                Debug.LogError("The Investigation UI prefab is missing from the demo bootstrap.");
+                Debug.LogError("Investigation UI prefab is missing.");
                 return;
             }
 
-            GameObject viewObject = Instantiate(viewPrefab, transform);
+            GameObject viewObject = Instantiate(viewPrefab);
+            viewObject.name = "Investigation UI";
             InvestigationRuntimeView view = viewObject.GetComponent<InvestigationRuntimeView>();
-            if (view == null)
+            InvestigationController controller = viewObject.GetComponent<InvestigationController>();
+            if (view == null || controller == null)
             {
-                Debug.LogError("The Investigation UI prefab has no InvestigationRuntimeView component.");
+                Debug.LogError("Investigation prefab requires both the runtime view and controller.");
                 return;
             }
-
-            InvestigationController controller = gameObject.AddComponent<InvestigationController>();
             controller.Initialize(caseDefinition, view);
         }
     }

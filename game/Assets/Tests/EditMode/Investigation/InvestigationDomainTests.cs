@@ -1,503 +1,723 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
+using System.IO;
 using EDNA.Core;
 using EDNA.Investigation.Domain;
 using NUnit.Framework;
-using UnityEngine;
+using UnityEditor;
 
 namespace EDNA.Investigation.Tests
 {
     public sealed class InvestigationDomainTests
     {
-        private readonly List<UnityEngine.Object> createdObjects = new List<UnityEngine.Object>();
+        private const string CasePath = "Assets/Data/Investigation/LongLineCase/InvestigationCase_LongLine.asset";
+        private InvestigationCaseDefinition caseDefinition;
+        private InvestigationStateUpdater updater;
 
-        [TearDown]
-        public void TearDown()
+        [SetUp]
+        public void SetUp()
         {
-            for (int index = createdObjects.Count - 1; index >= 0; index--)
-            {
-                UnityEngine.Object.DestroyImmediate(createdObjects[index]);
-            }
-
-            createdObjects.Clear();
+            caseDefinition = AssetDatabase.LoadAssetAtPath<InvestigationCaseDefinition>(CasePath);
+            Assert.That(caseDefinition, Is.Not.Null, "Run eDNA Detectives > Build Investigation before tests.");
+            updater = new InvestigationStateUpdater(caseDefinition);
         }
 
         [Test]
-        public void InitialEvidence_SeparatesNonDetectionFromLowQualityWarning()
+        public void CaseValidator_AcceptsCompleteEvidenceAndPredictionMatrices()
         {
-            InvestigationCaseDefinition caseDefinition = CreateCase();
-            InvestigationState state = new InvestigationStateUpdater(caseDefinition).CreateInitialState();
-
-            Assert.That(FindEvidence(state, EvidenceType.NotDetectedInSample), Is.Not.Null);
-            Assert.That(FindEvidence(state, EvidenceType.LowQualityResult), Is.Not.Null);
-            Assert.That(FindEvidence(state, EvidenceType.ContaminationWarning), Is.Not.Null);
-            Assert.That(
-                FindEvidence(state, EvidenceType.NotDetectedInSample).Confidence,
-                Is.EqualTo(EvidenceConfidence.Low),
-                "A contaminated result must not turn absence into strong evidence.");
-        }
-
-        [Test]
-        public void RepeatedReliableNonDetection_UpgradesAbsenceEvidence()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase(initialQuality: SampleQuality.High, includeContamination: false);
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-
-            Assert.That(updater.TryPlanSample(state, "summit", DepthBand.Shallow, "warming", string.Empty, out InvestigationSamplePlan plan, out _), Is.True);
-            Assert.That(updater.ApplyResult(state, Result(plan, "warm", "stable"), out _), Is.True);
-
-            EvidenceRecord evidence = FindEvidence(state, EvidenceType.RepeatedNonDetection);
-            Assert.That(evidence, Is.Not.Null);
-            Assert.That(evidence.Confidence, Is.EqualTo(EvidenceConfidence.High));
-        }
-
-        [Test]
-        public void DeepRedetection_AfterShallowAbsence_CreatesDepthShift()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase();
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-
-            Assert.That(updater.TryPlanSample(state, "summit", DepthBand.Deep, "warming", string.Empty, out InvestigationSamplePlan plan, out _), Is.True);
-            Assert.That(updater.ApplyResult(state, Result(plan, "cold", "stable"), out _), Is.True);
-
-            EvidenceRecord evidence = FindEvidence(state, EvidenceType.DepthShift);
-            Assert.That(evidence, Is.Not.Null);
-            Assert.That(evidence.Confidence, Is.EqualTo(EvidenceConfidence.High));
-        }
-
-        [Test]
-        public void DuplicateResult_IsRejectedWithoutChangingState()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase();
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-            Assert.That(updater.TryPlanSample(state, "summit", DepthBand.Deep, "warming", string.Empty, out InvestigationSamplePlan plan, out _), Is.True);
-            EDNAResultData result = Result(plan, "cold");
-
-            Assert.That(updater.ApplyResult(state, result, out _), Is.True);
-            int countAfterFirstResult = state.AllResults.Count;
-
-            Assert.That(updater.ApplyResult(state, result, out string error), Is.False);
-            Assert.That(error, Does.Contain("already"));
-            Assert.That(state.AllResults.Count, Is.EqualTo(countAfterFirstResult));
-        }
-
-        [Test]
-        public void FollowUpSampleLimit_IsEnforcedByStateOwner()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase(followUpLimit: 1);
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-
-            Assert.That(updater.TryPlanSample(state, "summit", DepthBand.Deep, "warming", string.Empty, out _, out _), Is.True);
-            Assert.That(updater.TryPlanSample(state, "summit", DepthBand.Shallow, "warming", string.Empty, out _, out string error), Is.False);
-            Assert.That(error, Does.Contain("No follow-up samples"));
-            Assert.That(state.RemainingSamples, Is.EqualTo(1), "Planning reserves a slot but does not consume it.");
-            Assert.That(state.AvailableSampleSlots, Is.Zero);
-            Assert.That(state.PendingSampleCount, Is.EqualTo(1));
-            Assert.That(state.CompletedSampleCount, Is.Zero);
-        }
-
-        [Test]
-        public void FailedResult_CanReleaseReservationWithoutConsumingSample()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase(followUpLimit: 1);
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-
-            Assert.That(updater.TryPlanSample(state, "summit", DepthBand.Deep, "warming", string.Empty, out InvestigationSamplePlan plan, out _), Is.True);
-            Assert.That(updater.ApplyResult(state, null, out string resultError), Is.False);
-            Assert.That(resultError, Does.Contain("missing"));
-            Assert.That(updater.TryCancelPlannedSample(state, plan.Request.requestId, out _), Is.True);
-
-            Assert.That(state.RemainingSamples, Is.EqualTo(1));
-            Assert.That(state.AvailableSampleSlots, Is.EqualTo(1));
-            Assert.That(state.PendingSampleCount, Is.Zero);
-            Assert.That(state.CompletedSampleCount, Is.Zero);
-        }
-
-        [Test]
-        public void SuccessfulResult_ConsumesReservedSampleAndMarksItCompleted()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase(followUpLimit: 1);
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-
-            Assert.That(updater.TryPlanSample(state, "summit", DepthBand.Deep, "warming", string.Empty, out InvestigationSamplePlan plan, out _), Is.True);
-            Assert.That(state.RemainingSamples, Is.EqualTo(1));
-            Assert.That(updater.ApplyResult(state, Result(plan, "cold", "stable"), out _), Is.True);
-
-            Assert.That(state.RemainingSamples, Is.Zero);
-            Assert.That(state.AvailableSampleSlots, Is.Zero);
-            Assert.That(state.PendingSampleCount, Is.Zero);
-            Assert.That(state.CompletedSampleCount, Is.EqualTo(1));
-            Assert.That(state.IsSampleCompleted(plan.Request.requestId), Is.True);
-        }
-
-        [Test]
-        public void WrongAnomalyClassification_IsRecordedAndRuledOutWithoutUnlockingEvidence()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase();
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-            EvidenceRecord newDetection = FindEvidence(state, EvidenceType.NewDetection);
-
-            Assert.That(
-                updater.TryIdentifyAnomaly(
-                    state,
-                    newDetection.EvidenceId,
-                    AnomalyClaimType.MatchesBaseline,
-                    out string feedback),
-                Is.False);
-            Assert.That(feedback, Does.Contain("does not match"));
-            Assert.That(state.IsEvidenceIdentified(newDetection.EvidenceId), Is.False);
-            Assert.That(state.MisclassificationCount, Is.EqualTo(1));
-            Assert.That(
-                state.HasRejectedClassification(newDetection.EvidenceId, AnomalyClaimType.MatchesBaseline),
-                Is.True);
-
-            Assert.That(
-                updater.TryIdentifyAnomaly(
-                    state,
-                    newDetection.EvidenceId,
-                    AnomalyClaimType.MatchesBaseline,
-                    out string repeatedFeedback),
-                Is.False);
-            Assert.That(repeatedFeedback, Does.Contain("already ruled out"));
-            Assert.That(state.MisclassificationCount, Is.EqualTo(1), "Repeating the same rejected option must not inflate the review count.");
-        }
-
-        [Test]
-        public void CorrectAnomalyClassification_UnlocksEvidence()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase();
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-            EvidenceRecord missing = FindEvidence(state, EvidenceType.NotDetectedInSample);
-
-            Assert.That(
-                updater.TryIdentifyAnomaly(
-                    state,
-                    missing.EvidenceId,
-                    AnomalyClaimType.ExpectedButMissing,
-                    out string feedback),
-                Is.True);
-            Assert.That(feedback, Does.Contain("Expected but Missing"));
-            Assert.That(state.IsEvidenceIdentified(missing.EvidenceId), Is.True);
-            Assert.That(state.GetIdentifiedEvidence(), Has.Count.EqualTo(1));
-            Assert.That(state.MisclassificationCount, Is.Zero);
-        }
-
-        [Test]
-        public void UnidentifiedEvidence_CannotBeAssignedToHypothesis()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase();
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-            EvidenceRecord newDetection = FindEvidence(state, EvidenceType.NewDetection);
-
-            Assert.That(
-                updater.TryAssignEvidence(
-                    state,
-                    newDetection.EvidenceId,
-                    "warming",
-                    EvidenceAssignmentKind.Supports,
-                    out string error),
-                Is.False);
-            Assert.That(error, Does.Contain("Identify"));
-        }
-
-        [Test]
-        public void KeyOpposingEvidence_PreventsSupportedStatus()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase(contradictingTag: EvidenceType.ContaminationWarning.ToString());
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-            EvidenceRecord newDetection = FindEvidence(state, EvidenceType.NewDetection);
-            EvidenceRecord contamination = FindEvidence(state, EvidenceType.ContaminationWarning);
-
-            Identify(updater, state, newDetection, AnomalyClaimType.NewArrival);
-            Identify(updater, state, contamination, AnomalyClaimType.ResultWarning);
-            Assert.That(updater.TryAssignEvidence(state, newDetection.EvidenceId, "warming", EvidenceAssignmentKind.Supports, out _), Is.True);
-            Assert.That(updater.TryAssignEvidence(state, contamination.EvidenceId, "warming", EvidenceAssignmentKind.Opposes, out _), Is.True);
-
-            Assert.That(updater.EvaluateHypothesis(state, "warming").Status, Is.EqualTo(HypothesisStatus.Contradicted));
-        }
-
-        [Test]
-        public void NewResult_AllowsExistingHypothesisToRecalculateToSupported()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase();
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-            EvidenceRecord newDetection = FindEvidence(state, EvidenceType.NewDetection);
-            Identify(updater, state, newDetection, AnomalyClaimType.NewArrival);
-            updater.TryAssignEvidence(state, newDetection.EvidenceId, "warming", EvidenceAssignmentKind.Supports, out _);
-
-            Assert.That(updater.EvaluateHypothesis(state, "warming").Status, Is.EqualTo(HypothesisStatus.Plausible));
-
-            updater.TryPlanSample(state, "summit", DepthBand.Deep, "warming", newDetection.EvidenceId, out InvestigationSamplePlan plan, out _);
-            updater.ApplyResult(state, Result(plan, "cold", "stable"), out _);
-            EvidenceRecord depthShift = FindEvidence(state, EvidenceType.DepthShift);
-            Identify(updater, state, depthShift, AnomalyClaimType.DifferentDepth);
-            updater.TryAssignEvidence(state, depthShift.EvidenceId, "warming", EvidenceAssignmentKind.Supports, out _);
-
-            Assert.That(updater.EvaluateHypothesis(state, "warming").Status, Is.EqualTo(HypothesisStatus.Supported));
-        }
-
-        [Test]
-        public void Conclusion_RequiresFollowUpSupportAndUncertainty_ThenSucceeds()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase();
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-
-            ConclusionEvaluator evaluator = new ConclusionEvaluator(new HypothesisEvaluator());
-            ConclusionReadiness initialReadiness = evaluator.EvaluateReadiness(caseDefinition, state);
-            Assert.That(initialReadiness.HasSelectedHypothesis, Is.False);
-            Assert.That(initialReadiness.CanSubmit, Is.False);
-            Assert.That(updater.SubmitConclusion(state).Status, Is.EqualTo(ConclusionStatus.InsufficientEvidence));
-
-            EvidenceRecord newDetection = FindEvidence(state, EvidenceType.NewDetection);
-            EvidenceRecord uncertainty = FindEvidence(state, EvidenceType.ContaminationWarning);
-            Identify(updater, state, newDetection, AnomalyClaimType.NewArrival);
-            Identify(updater, state, uncertainty, AnomalyClaimType.ResultWarning);
-            updater.TryPlanSample(state, "summit", DepthBand.Deep, "warming", newDetection.EvidenceId, out InvestigationSamplePlan plan, out _);
-            updater.ApplyResult(state, Result(plan, "cold", "stable"), out _);
-            EvidenceRecord depthShift = FindEvidence(state, EvidenceType.DepthShift);
-            Identify(updater, state, depthShift, AnomalyClaimType.DifferentDepth);
-            updater.TryAssignEvidence(state, newDetection.EvidenceId, "warming", EvidenceAssignmentKind.Supports, out _);
-            updater.TryAssignEvidence(state, depthShift.EvidenceId, "warming", EvidenceAssignmentKind.Supports, out _);
-            updater.TryAssignEvidence(state, uncertainty.EvidenceId, "warming", EvidenceAssignmentKind.Opposes, out _);
-            updater.TrySelectHypothesis(state, "warming", out _);
-
-            ConclusionReadiness finalReadiness = evaluator.EvaluateReadiness(caseDefinition, state);
-            Assert.That(finalReadiness.HasSelectedHypothesis, Is.True);
-            Assert.That(finalReadiness.HasSupportedHypothesis, Is.True);
-            Assert.That(finalReadiness.HasRequiredFollowUpSample, Is.True);
-            Assert.That(finalReadiness.HasRequiredOpposingEvidence, Is.True);
-            Assert.That(finalReadiness.CanSubmit, Is.True);
-            ConclusionResult result = updater.SubmitConclusion(state);
-            Assert.That(result.Status, Is.EqualTo(ConclusionStatus.Correct));
-            Assert.That(state.ConclusionStatus, Is.EqualTo(ConclusionStatus.Correct));
-        }
-
-        [Test]
-        public void Conclusion_DoesNotCountAPlannedSampleUntilItsResultArrives()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase(initialQuality: SampleQuality.High, includeContamination: false);
-            HypothesisDefinition hypothesis = caseDefinition.FindHypothesis("warming");
-            SetField(hypothesis, "requiredEvidenceTags", new List<string> { EvidenceType.NewDetection.ToString() });
-            SetField(hypothesis, "minimumSupportingEvidence", 1);
-            SetField(hypothesis, "minimumConfidence", EvidenceConfidence.Low);
-            SetField(caseDefinition, "requiredOpposingEvidence", 0);
-
-            InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
-            InvestigationState state = updater.CreateInitialState();
-            EvidenceRecord newDetection = FindEvidence(state, EvidenceType.NewDetection);
-            Identify(updater, state, newDetection, AnomalyClaimType.NewArrival);
-            Assert.That(updater.TryAssignEvidence(state, newDetection.EvidenceId, "warming", EvidenceAssignmentKind.Supports, out _), Is.True);
-            Assert.That(updater.TrySelectHypothesis(state, "warming", out _), Is.True);
-            Assert.That(updater.EvaluateHypothesis(state, "warming").Status, Is.EqualTo(HypothesisStatus.Supported));
-            Assert.That(updater.TryPlanSample(state, "summit", DepthBand.Deep, "warming", newDetection.EvidenceId, out _, out _), Is.True);
-
-            ConclusionResult result = updater.SubmitConclusion(state);
-
-            Assert.That(result.Status, Is.EqualTo(ConclusionStatus.InsufficientEvidence));
-            Assert.That(result.Feedback, Does.Contain("complete"));
-            Assert.That(state.CompletedSampleCount, Is.Zero);
-        }
-
-        [Test]
-        public void CaseValidator_FindsUnknownBaselineSpeciesAndDuplicateMockOutcome()
-        {
-            InvestigationCaseDefinition caseDefinition = CreateCase();
-            List<HistoricalRecordDefinition> baseline = GetField<List<HistoricalRecordDefinition>>(caseDefinition, "historicalBaseline");
-            baseline.Add(new HistoricalRecordDefinition
-            {
-                speciesId = "unknown",
-                siteId = "summit",
-                depthBand = DepthBand.Shallow,
-                expectedPresence = true
-            });
-            List<MockSampleOutcomeDefinition> outcomes = GetField<List<MockSampleOutcomeDefinition>>(caseDefinition, "mockSampleOutcomes");
-            outcomes.Add(outcomes[0]);
-
             List<string> errors = new InvestigationCaseValidator().Validate(caseDefinition);
-
-            Assert.That(errors, Has.Some.Contains("unknown species"));
-            Assert.That(errors, Has.Some.Contains("Duplicate mock outcome"));
+            Assert.That(errors, Is.Empty, string.Join("\n", errors));
         }
 
         [Test]
-        public void CaseValidator_FindsHypothesisEvidenceTagThatCannotBeProduced()
+        public void EveryComparisonRule_HasADecisiveOptionThatRejectsNotEnoughEvidence()
         {
-            InvestigationCaseDefinition caseDefinition = CreateCase();
-            HypothesisDefinition hypothesis = caseDefinition.Hypotheses[0];
-            SetField(hypothesis, "requiredEvidenceTags", new List<string> { "NeverProduced" });
-
-            List<string> errors = new InvestigationCaseValidator().Validate(caseDefinition);
-
-            Assert.That(errors, Has.Some.Contains("cannot be produced: NeverProduced"));
-        }
-
-        private InvestigationCaseDefinition CreateCase(
-            int followUpLimit = 2,
-            SampleQuality initialQuality = SampleQuality.Low,
-            bool includeContamination = true,
-            string contradictingTag = "")
-        {
-            SpeciesDefinition cold = CreateAsset<SpeciesDefinition>();
-            SetField(cold, "speciesId", "cold");
-            SetField(cold, "displayName", "Cold Fish");
-            SetField(cold, "sensitivityTags", new List<string> { "ColdSensitive" });
-
-            SpeciesDefinition warm = CreateAsset<SpeciesDefinition>();
-            SetField(warm, "speciesId", "warm");
-            SetField(warm, "displayName", "Warm Fish");
-            SetField(warm, "sensitivityTags", new List<string> { "WarmWater" });
-
-            SpeciesDefinition stable = CreateAsset<SpeciesDefinition>();
-            SetField(stable, "speciesId", "stable");
-            SetField(stable, "displayName", "Stable Species");
-
-            SampleSiteDefinition site = CreateAsset<SampleSiteDefinition>();
-            SetField(site, "siteId", "summit");
-            SetField(site, "displayName", "Summit");
-            SetField(site, "availableDepths", new List<DepthBand> { DepthBand.Shallow, DepthBand.Deep });
-
-            HypothesisDefinition hypothesis = CreateAsset<HypothesisDefinition>();
-            SetField(hypothesis, "hypothesisId", "warming");
-            SetField(hypothesis, "displayName", "Warming Shift");
-            SetField(
-                hypothesis,
-                "requiredEvidenceTags",
-                new List<string> { EvidenceType.NewDetection.ToString(), EvidenceType.DepthShift.ToString() });
-            SetField(
-                hypothesis,
-                "contradictingEvidenceTags",
-                string.IsNullOrEmpty(contradictingTag)
-                    ? new List<string>()
-                    : new List<string> { contradictingTag });
-            SetField(hypothesis, "minimumConfidence", EvidenceConfidence.Medium);
-            SetField(hypothesis, "minimumSupportingEvidence", 2);
-
-            List<EDNAResultFlag> initialFlags = includeContamination
-                ? new List<EDNAResultFlag> { EDNAResultFlag.LowQuality, EDNAResultFlag.ContaminationWarning }
-                : new List<EDNAResultFlag>();
-            EDNAResultData initial = new EDNAResultData
+            for (int ruleIndex = 0; ruleIndex < caseDefinition.ComparisonRules.Count; ruleIndex++)
             {
-                sampleId = "initial_shallow",
-                siteId = "summit",
-                depthBand = DepthBand.Shallow,
-                roundIndex = 0,
-                sampleQuality = initialQuality,
-                detectedSpeciesIds = new List<string> { "warm", "stable" },
-                resultFlags = initialFlags
-            };
-
-            EDNAResultData deepTemplate = new EDNAResultData
-            {
-                siteId = "summit",
-                depthBand = DepthBand.Deep,
-                sampleQuality = SampleQuality.High,
-                detectedSpeciesIds = new List<string> { "cold", "stable" },
-                resultFlags = new List<EDNAResultFlag>()
-            };
-
-            InvestigationCaseDefinition caseDefinition = CreateAsset<InvestigationCaseDefinition>();
-            SetField(caseDefinition, "caseId", "test_case");
-            SetField(caseDefinition, "species", new List<SpeciesDefinition> { cold, warm, stable });
-            SetField(caseDefinition, "sampleSites", new List<SampleSiteDefinition> { site });
-            SetField(caseDefinition, "hypotheses", new List<HypothesisDefinition> { hypothesis });
-            SetField(
-                caseDefinition,
-                "historicalBaseline",
-                new List<HistoricalRecordDefinition>
+                PredictionComparisonRuleDefinition rule = caseDefinition.ComparisonRules[ruleIndex];
+                bool found = false;
+                for (int optionIndex = 0; optionIndex < rule.ObservationOptions.Count; optionIndex++)
                 {
-                    new HistoricalRecordDefinition { speciesId = "cold", siteId = "summit", depthBand = DepthBand.Shallow },
-                    new HistoricalRecordDefinition { speciesId = "stable", siteId = "summit", depthBand = DepthBand.Shallow }
-                });
-            SetField(caseDefinition, "initialResults", new List<EDNAResultData> { initial });
-            SetField(
-                caseDefinition,
-                "mockSampleOutcomes",
-                new List<MockSampleOutcomeDefinition>
-                {
-                    new MockSampleOutcomeDefinition
-                    {
-                        siteId = "summit",
-                        depthBand = DepthBand.Deep,
-                        resultTemplate = deepTemplate
-                    }
-                });
-            SetField(caseDefinition, "followUpSampleLimit", followUpLimit);
-            SetField(caseDefinition, "correctHypothesisId", "warming");
-            SetField(caseDefinition, "requireFollowUpSample", true);
-            SetField(caseDefinition, "requiredOpposingEvidence", 1);
-            return caseDefinition;
-        }
-
-        private T CreateAsset<T>() where T : ScriptableObject
-        {
-            T asset = ScriptableObject.CreateInstance<T>();
-            createdObjects.Add(asset);
-            return asset;
-        }
-
-        private static EDNAResultData Result(InvestigationSamplePlan plan, params string[] speciesIds)
-        {
-            return new EDNAResultData
-            {
-                requestId = plan.Request.requestId,
-                sampleId = $"sample_{plan.RoundIndex}",
-                siteId = plan.Request.siteId,
-                depthBand = plan.Request.depthBand,
-                roundIndex = plan.RoundIndex,
-                sampleQuality = SampleQuality.High,
-                detectedSpeciesIds = new List<string>(speciesIds),
-                resultFlags = new List<EDNAResultFlag>()
-            };
-        }
-
-        private static EvidenceRecord FindEvidence(InvestigationState state, EvidenceType type)
-        {
-            for (int index = 0; index < state.UnlockedEvidence.Count; index++)
-            {
-                if (state.UnlockedEvidence[index].EvidenceType == type)
-                {
-                    return state.UnlockedEvidence[index];
+                    JudgementResolutionDefinition resolution = rule.ObservationOptions[optionIndex]
+                        .FindResolution(ComparisonJudgement.NotEnoughEvidence);
+                    if (resolution != null && resolution.Outcome == ComparisonEvaluationOutcome.Incorrect) found = true;
                 }
+                Assert.That(found, Is.True, $"{rule.ThreatId}/{rule.SpeciesId} has no decisive observation.");
+            }
+        }
+
+        [Test]
+        public void ThreatMatrix_ContainsFourThreatsAndFivePredictionsEach()
+        {
+            Assert.That(caseDefinition.Threats, Has.Count.EqualTo(4));
+            Assert.That(caseDefinition.Species, Has.Count.EqualTo(5));
+            for (int index = 0; index < caseDefinition.Threats.Count; index++)
+            {
+                Assert.That(caseDefinition.Threats[index].SpeciesPredictions, Has.Count.EqualTo(5));
+            }
+            Assert.That(caseDefinition.ComparisonRules, Has.Count.EqualTo(21));
+            Assert.That(caseDefinition.InvestigationObjectives, Has.Count.EqualTo(8));
+        }
+
+        [Test]
+        public void SpeciesAndThreats_UseImportedTransparentSpriteArtwork()
+        {
+            for (int index = 0; index < caseDefinition.Species.Count; index++)
+            {
+                InvestigationSpeciesDefinition species = caseDefinition.Species[index];
+                Assert.That(species.Icon, Is.Not.Null, $"Missing sprite for species {species.SpeciesId}");
+                AssertSpriteImporterUsesTransparency(species.Icon);
             }
 
-            return null;
+            for (int index = 0; index < caseDefinition.Threats.Count; index++)
+            {
+                ThreatSimulationDefinition threat = caseDefinition.Threats[index];
+                Assert.That(threat.Icon, Is.Not.Null, $"Missing sprite for threat {threat.ThreatId}");
+                AssertSpriteImporterUsesTransparency(threat.Icon);
+            }
         }
 
-        private static void Identify(
-            InvestigationStateUpdater updater,
+        [Test]
+        public void SeamountSprite_IsSingleAngleCompressedAndWithinSourceBudget()
+        {
+            const string path = "Assets/Art/Investigation/Seamount/seamount_hero.png";
+            UnityEngine.Sprite sprite = AssetDatabase.LoadAssetAtPath<UnityEngine.Sprite>(path);
+            Assert.That(sprite, Is.Not.Null);
+            Assert.That(sprite.rect.width, Is.EqualTo(600f).Within(0.1f));
+            Assert.That(sprite.rect.height, Is.EqualTo(434f).Within(0.1f));
+
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            Assert.That(importer, Is.Not.Null);
+            Assert.That(importer.textureType, Is.EqualTo(TextureImporterType.Sprite));
+            Assert.That(importer.spriteImportMode, Is.EqualTo(SpriteImportMode.Single));
+            Assert.That(importer.alphaIsTransparency, Is.True);
+            Assert.That(importer.mipmapEnabled, Is.False);
+            Assert.That(importer.isReadable, Is.False);
+            Assert.That(importer.wrapMode, Is.EqualTo(UnityEngine.TextureWrapMode.Clamp));
+            TextureImporterPlatformSettings platform = importer.GetDefaultPlatformTextureSettings();
+            Assert.That(platform.maxTextureSize, Is.EqualTo(1024));
+            Assert.That(platform.textureCompression, Is.EqualTo(TextureImporterCompression.CompressedHQ));
+            Assert.That(platform.compressionQuality, Is.EqualTo(100));
+
+            string absolutePath = Path.Combine(Directory.GetParent(UnityEngine.Application.dataPath).FullName, path);
+            Assert.That(new FileInfo(absolutePath).Length, Is.LessThan(150 * 1024));
+        }
+
+        [Test]
+        public void LongLineAndBottomTrawling_ShareCascadeAndDifferOnBenthicPrediction()
+        {
+            ThreatSimulationDefinition longLine = caseDefinition.FindThreat("longline");
+            ThreatSimulationDefinition trawling = caseDefinition.FindThreat("bottom_trawling");
+            foreach (string speciesId in new[] { "shark", "tuna", "krill" })
+            {
+                Assert.That(trawling.FindPrediction(speciesId).PredictedState,
+                    Is.EqualTo(longLine.FindPrediction(speciesId).PredictedState));
+            }
+            Assert.That(longLine.FindPrediction("sea_star").PredictedState, Is.EqualTo(PredictionState.Stable));
+            Assert.That(trawling.FindPrediction("sea_star").PredictedState, Is.EqualTo(PredictionState.Decrease));
+        }
+
+        [Test]
+        public void Simulator_ReturnsSpeciesAndEnvironmentalPredictions()
+        {
+            SimulationResult result = new EcosystemSimulatorEvaluator().Evaluate(caseDefinition, "longline");
+            Assert.That(result.Predictions, Has.Count.EqualTo(5));
+            Assert.That(result.FindPrediction("shark").PredictedState, Is.EqualTo(PredictionState.Decrease));
+            Assert.That(result.FindPrediction("tuna").PredictedState, Is.EqualTo(PredictionState.Increase));
+            Assert.That(result.FindPrediction("krill").PredictedState, Is.EqualTo(PredictionState.Decrease));
+            Assert.That(result.SeafloorPrediction, Does.Contain("intact").IgnoreCase);
+            Assert.That(result.PhysicalConfirmation, Does.Contain("gear").IgnoreCase);
+        }
+
+        [Test]
+        public void DirectRepeatedNonDetection_AcceptsMatchWithCaveatButRejectsNotEnoughEvidence()
+        {
+            InvestigationState matchState = CreateSimulationReadyState();
+            RunModel(matchState, "longline");
+            PredictionComparisonRecord match = updater.Compare(matchState, "longline", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match);
+
+            InvestigationState cautiousState = CreateSimulationReadyState();
+            RunModel(cautiousState, "longline");
+            PredictionComparisonRecord cautious = updater.Compare(cautiousState, "longline", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.NotEnoughEvidence);
+            Assert.That(match.Outcome, Is.EqualTo(ComparisonEvaluationOutcome.AcceptedWithCaveat));
+            Assert.That(cautious.Outcome, Is.EqualTo(ComparisonEvaluationOutcome.Incorrect));
+        }
+
+        [Test]
+        public void CrossSpeciesCandidate_DoesNotBecomeAFalseDirectMatch()
+        {
+            InvestigationState state = CreateSimulationReadyState();
+            RunModel(state, "longline");
+            PredictionComparisonRecord wrong = updater.Compare(state, "longline", "shark", "E04_BENTHIC_STABLE", ComparisonJudgement.Match);
+            PredictionComparisonRecord cautious = updater.Compare(state, "longline", "shark", "E04_BENTHIC_STABLE", ComparisonJudgement.NotEnoughEvidence);
+            Assert.That(wrong.Outcome, Is.EqualTo(ComparisonEvaluationOutcome.Incorrect));
+            Assert.That(cautious.Outcome, Is.EqualTo(ComparisonEvaluationOutcome.Accepted));
+            Assert.That(cautious.CountsTowardProgress, Is.False);
+            Assert.That(state.AcceptedComparisonCount, Is.Zero);
+        }
+
+        [Test]
+        public void NotEnoughEvidence_OnUnrelatedOptions_NeverAdvancesProgressOrPassesGate()
+        {
+            InvestigationState state = CreateSimulationReadyState();
+            RunModel(state, "longline");
+            Assert.That(updater.Compare(state, "longline", "shark", "E04_BENTHIC_STABLE", ComparisonJudgement.NotEnoughEvidence).IsAccepted, Is.True);
+            RunModel(state, "bottom_trawling");
+            Assert.That(updater.Compare(state, "bottom_trawling", "shark", "E04_BENTHIC_STABLE", ComparisonJudgement.NotEnoughEvidence).IsAccepted, Is.True);
+
+            Assert.That(state.AcceptedComparisonCount, Is.Zero);
+            Assert.That(state.MisstepCount, Is.Zero);
+            Assert.That(updater.EvaluateReadiness(state).CanEnterProvisional, Is.False);
+        }
+
+        [Test]
+        public void AcceptedNotEnoughEvidence_DoesNotLockAndCanBeReplaced()
+        {
+            InvestigationState state = CreateSimulationReadyState();
+            RunModel(state, "longline");
+            PredictionComparisonRecord cautious = updater.Compare(
+                state,
+                "longline",
+                "shark",
+                "E04_BENTHIC_STABLE",
+                ComparisonJudgement.NotEnoughEvidence);
+            Assert.That(cautious.IsAccepted, Is.True);
+            Assert.That(cautious.LocksComparison, Is.False);
+            Assert.That(cautious.CompletesObjective, Is.False);
+
+            PredictionComparisonRecord decisive = updater.Compare(
+                state,
+                "longline",
+                "shark",
+                "E01_SHARK_NONDETECTION",
+                ComparisonJudgement.Match);
+            Assert.That(decisive.LocksComparison, Is.True, decisive.Feedback);
+            Assert.That(decisive.CompletesObjective, Is.True, decisive.Feedback);
+            Assert.That(state.FindComparison("longline", "shark").EvidenceId, Is.EqualTo("E01_SHARK_NONDETECTION"));
+        }
+
+        [Test]
+        public void AcceptedContextOnly_LocksButDoesNotCompleteObjective()
+        {
+            InvestigationState state = CreateSimulationReadyState();
+            RunModel(state, "longline");
+            PredictionComparisonRecord context = updater.Compare(
+                state,
+                "longline",
+                "mussel",
+                "E06_PLASTIC_INDICATOR_STABLE",
+                ComparisonJudgement.Match);
+            Assert.That(context.IsAccepted, Is.True);
+            Assert.That(context.LocksComparison, Is.True);
+            Assert.That(context.CompletesObjective, Is.False);
+            Assert.That(context.ProgressRole, Is.EqualTo(ComparisonProgressRole.ContextOnly));
+
+            PredictionComparisonRecord replay = updater.Compare(
+                state,
+                "longline",
+                "mussel",
+                "E06_PLASTIC_INDICATOR_STABLE",
+                ComparisonJudgement.Mismatch);
+            Assert.That(replay.Judgement, Is.EqualTo(ComparisonJudgement.Match));
+            Assert.That(replay.Feedback, Does.Contain("locked").IgnoreCase);
+        }
+
+        [Test]
+        public void AcceptedComparison_IsLockedAndCannotRegressOrAddMissteps()
+        {
+            InvestigationState state = CreateSimulationReadyState();
+            RunModel(state, "longline");
+            PredictionComparisonRecord accepted = updater.Compare(
+                state,
+                "longline",
+                "shark",
+                "E01_SHARK_NONDETECTION",
+                ComparisonJudgement.Match);
+            AssertAccepted(accepted);
+
+            PredictionComparisonRecord replay = updater.Compare(
+                state,
+                "longline",
+                "shark",
+                "E04_BENTHIC_STABLE",
+                ComparisonJudgement.Match);
+
+            Assert.That(replay.IsAccepted, Is.True);
+            Assert.That(replay.EvidenceId, Is.EqualTo("E01_SHARK_NONDETECTION"));
+            Assert.That(state.AcceptedComparisonCount, Is.EqualTo(1));
+            Assert.That(state.MisstepCount, Is.Zero);
+            Assert.That(replay.Feedback, Does.Contain("locked").IgnoreCase);
+        }
+
+        [Test]
+        public void SimulateStage_RequiresAllFiveObservedFindings()
+        {
+            InvestigationState state = updater.CreateInitialState();
+            Discover(state, "E01_SHARK_NONDETECTION");
+            Discover(state, "E02_TUNA_WIDER_DETECTION");
+            Discover(state, "E03_KRILL_NONDETECTION");
+            Assert.That(updater.TrySetPhase(state, InvestigationPhase.Simulate, out _), Is.False);
+            Discover(state, "E04_BENTHIC_STABLE");
+            Assert.That(updater.TrySetPhase(state, InvestigationPhase.Simulate, out _), Is.False);
+            Discover(state, "E06_PLASTIC_INDICATOR_STABLE");
+            Assert.That(updater.TrySetPhase(state, InvestigationPhase.Simulate, out _), Is.True);
+        }
+
+        [Test]
+        public void MissingKrillEvidence_IsReportedByObjectiveReadiness()
+        {
+            InvestigationCaseDefinition clone = UnityEngine.Object.Instantiate(caseDefinition);
+            try
+            {
+                SerializedObject serialized = new SerializedObject(clone);
+                serialized.FindProperty("minimumObserveDiscoveries").intValue = 4;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                InvestigationStateUpdater cloneUpdater = new InvestigationStateUpdater(clone);
+                InvestigationState state = cloneUpdater.CreateInitialState();
+                DiscoverWith(cloneUpdater, state, "E01_SHARK_NONDETECTION");
+                DiscoverWith(cloneUpdater, state, "E02_TUNA_WIDER_DETECTION");
+                DiscoverWith(cloneUpdater, state, "E04_BENTHIC_STABLE");
+                DiscoverWith(cloneUpdater, state, "E06_PLASTIC_INDICATOR_STABLE");
+                Assert.That(cloneUpdater.TrySetPhase(state, InvestigationPhase.Simulate, out _), Is.True);
+                RunWith(cloneUpdater, state, "warming");
+                Assert.That(cloneUpdater.Compare(state, "warming", PredictionTargetKind.Temperature, "temperature", "E05_TEMPERATURE_NORMAL", ComparisonJudgement.Mismatch).CompletesObjective, Is.True);
+                RunWith(cloneUpdater, state, "plastic");
+                Assert.That(cloneUpdater.Compare(state, "plastic", "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch).CompletesObjective, Is.True);
+                RunWith(cloneUpdater, state, "longline");
+                Assert.That(cloneUpdater.Compare(state, "longline", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match).CompletesObjective, Is.True);
+                Assert.That(cloneUpdater.Compare(state, "longline", "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match).CompletesObjective, Is.True);
+
+                InvestigationReadiness readiness = cloneUpdater.EvaluateReadiness(state);
+                Assert.That(readiness.CanEnterProvisional, Is.False);
+                Assert.That(readiness.MissingObjectiveId, Is.EqualTo("longline_krill"));
+                Assert.That(readiness.MissingEvidenceId, Is.EqualTo("E03_KRILL_NONDETECTION"));
+                Assert.That(cloneUpdater.TrySetPhase(state, InvestigationPhase.Observe, out _), Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(clone);
+            }
+        }
+
+        [Test]
+        public void ProvisionalGate_RequiresBothOverlappingThreatsAndComparisons()
+        {
+            InvestigationState state = PrepareProvisionalReadyState();
+            InvestigationReadiness readiness = updater.EvaluateReadiness(state);
+            Assert.That(readiness.RequiredThreatsCompared, Is.True);
+            Assert.That(readiness.MinimumComparisonsComplete, Is.True);
+            Assert.That(readiness.CanEnterProvisional, Is.True);
+            Assert.That(readiness.RequiredObjectivesComplete, Is.False,
+                "The Sea-star discriminator remains deliberately locked until after the ROV follow-up.");
+        }
+
+        [Test]
+        public void ProvisionalGate_RejectsSeaStarAndMusselOnlyShortcut()
+        {
+            InvestigationState state = CreateSimulationReadyState();
+            RunModel(state, "longline");
+            PredictionComparisonRecord lockedLongline = updater.Compare(state, "longline", "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match);
+            Assert.That(lockedLongline.IsAccepted, Is.False);
+            Assert.That(lockedLongline.Feedback, Does.Contain("ROV").IgnoreCase);
+            PredictionComparisonRecord longlineMussel = updater.Compare(state, "longline", "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Match);
+            Assert.That(longlineMussel.LocksComparison, Is.True);
+            Assert.That(longlineMussel.CompletesObjective, Is.False);
+            RunModel(state, "bottom_trawling");
+            PredictionComparisonRecord lockedTrawl = updater.Compare(state, "bottom_trawling", "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch);
+            Assert.That(lockedTrawl.IsAccepted, Is.False);
+            PredictionComparisonRecord trawlMussel = updater.Compare(state, "bottom_trawling", "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Match);
+            Assert.That(trawlMussel.LocksComparison, Is.True);
+            Assert.That(trawlMussel.CompletesObjective, Is.False);
+            Assert.That(updater.EvaluateReadiness(state).CanEnterProvisional, Is.False);
+            Assert.That(state.MisstepCount, Is.Zero, "Trying a follow-up-locked comparison must not count as a scientific mistake.");
+        }
+
+        [Test]
+        public void ThreatModel_CannotBypassObserveGateThroughDomainApi()
+        {
+            InvestigationState state = updater.CreateInitialState();
+            Assert.That(updater.TryRunThreat(state, "longline", out _, out string blockedFeedback), Is.False);
+            Assert.That(blockedFeedback, Does.Contain("Record at least"));
+            Assert.That(state.HasTriedThreat("longline"), Is.False);
+
+            state = CreateSimulationReadyState();
+            Assert.That(updater.TryRunThreat(state, "longline", out SimulationResult result, out _), Is.True);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(state.HasTriedThreat("longline"), Is.True);
+        }
+
+        [Test]
+        public void ConfirmationEvidence_RemainsLockedUntilProvisionalAndReview()
+        {
+            InvestigationState state = PrepareProvisionalReadyState();
+            Assert.That(updater.TryDiscoverObservation(state, "E07_FISHING_LINE", out _), Is.False);
+            Assert.That(state.HasDiscoveredObservation("E07_FISHING_LINE"), Is.False);
+            Assert.That(updater.TrySubmitProvisional(state, "bottom_trawling", out _), Is.True);
+            Assert.That(state.HasDiscoveredObservation("E07_FISHING_LINE"), Is.False);
+            Assert.That(updater.TryReviewConfirmation(state, out _), Is.True);
+            Assert.That(state.HasDiscoveredObservation("E07_FISHING_LINE"), Is.True);
+            Assert.That(state.HasDiscoveredObservation("E08_SEAFLOOR_INTACT"), Is.True);
+        }
+
+        [Test]
+        public void ProvisionalChoice_DoesNotSilentlyBecomeFinalChoice()
+        {
+            InvestigationState state = PrepareProvisionalReadyState();
+            Assert.That(updater.TrySubmitProvisional(state, "bottom_trawling", out _), Is.True);
+            Assert.That(state.ProvisionalThreatId, Is.EqualTo("bottom_trawling"));
+            Assert.That(state.FinalThreatId, Is.Empty);
+            Assert.That(updater.TrySetFinalThreat(state, "longline", out _), Is.False);
+            Assert.That(updater.TryReviewConfirmation(state, out _), Is.True);
+            Assert.That(updater.TrySetFinalThreat(state, "longline", out _), Is.True);
+        }
+
+        [Test]
+        public void WarmingModel_UnlocksTemperatureObjectiveEvidence()
+        {
+            InvestigationState state = updater.CreateInitialState();
+            Assert.That(state.HasDiscoveredObservation("E05_TEMPERATURE_NORMAL"), Is.False);
+            DiscoverCoreObservations(state);
+            RunModel(state, "warming");
+            Assert.That(state.HasDiscoveredObservation("E05_TEMPERATURE_NORMAL"), Is.True);
+            PredictionComparisonRecord comparison = updater.Compare(
+                state,
+                "warming",
+                PredictionTargetKind.Temperature,
+                "temperature",
+                "E05_TEMPERATURE_NORMAL",
+                ComparisonJudgement.Mismatch);
+            Assert.That(comparison.CompletesObjective, Is.True, comparison.Feedback);
+        }
+
+        [Test]
+        public void FinalReport_CompletesWithoutAnyFollowUpSampleState()
+        {
+            InvestigationState state = PrepareCompleteReport("longline");
+            InvestigationConclusionResult result = updater.SubmitFinal(state);
+            Assert.That(result.Status, Is.EqualTo(InvestigationConclusionStatus.Correct));
+            Assert.That(state.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.Correct));
+        }
+
+        [Test]
+        public void IncompleteFinalReport_ReturnsSpecificFeedbackWithoutPenaltyAndEditsRestoreDraftState()
+        {
+            InvestigationState state = PrepareProvisionalReadyState();
+            Assert.That(updater.TrySubmitProvisional(state, "bottom_trawling", out _), Is.True);
+            Assert.That(updater.TryReviewConfirmation(state, out _), Is.True);
+
+            InvestigationConclusionResult incomplete = updater.SubmitFinal(state);
+            Assert.That(incomplete.Status, Is.EqualTo(InvestigationConclusionStatus.InsufficientEvidence));
+            Assert.That(incomplete.Feedback, Does.Contain("Return to Simulate"));
+            Assert.That(state.FinalSubmissionAttemptCount, Is.Zero);
+            Assert.That(state.MisstepCount, Is.Zero);
+
+            Assert.That(updater.TrySetFinalThreat(state, "longline", out _), Is.True);
+            Assert.That(state.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.NotSubmitted));
+        }
+
+        [Test]
+        public void WrongFinalCause_ExplainsWhyOverlapNeedsBenthicAndRovEvidence()
+        {
+            InvestigationState state = PrepareCompleteReport("bottom_trawling");
+            InvestigationConclusionResult result = updater.SubmitFinal(state);
+            Assert.That(result.Status, Is.EqualTo(InvestigationConclusionStatus.Incorrect));
+            Assert.That(result.Feedback, Does.Contain("benthic").IgnoreCase);
+        }
+
+        [Test]
+        public void AlwaysAvailableMethodLimitation_PreventsConditionalEvidenceDeadlock()
+        {
+            InvestigationObservationDefinition limitation = caseDefinition.FindObservation("L01_NONDETECTION_LIMITATION");
+            Assert.That(limitation, Is.Not.Null);
+            Assert.That(limitation.Source, Is.EqualTo(ObservationSource.Methodology));
+            Assert.That(limitation.UnlockStage, Is.EqualTo(EvidenceUnlockStage.Always));
+            Assert.That(caseDefinition.FindLimitation("L01_NONDETECTION_LIMITATION"), Is.Not.Null);
+        }
+
+        [Test]
+        public void Validator_RejectsUnsupportedMultipleLimitationRequirement()
+        {
+            InvestigationCaseDefinition clone = UnityEngine.Object.Instantiate(caseDefinition);
+            try
+            {
+                SerializedObject serialized = new SerializedObject(clone);
+                serialized.FindProperty("minimumReportLimitations").intValue = 2;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                List<string> errors = new InvestigationCaseValidator().Validate(clone);
+                Assert.That(string.Join("\n", errors), Does.Contain("minimumReportLimitations must be exactly 1"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(clone);
+            }
+        }
+
+        [Test]
+        public void ReasoningChoices_AreCaseDataAndRejectUnknownIds()
+        {
+            Assert.That(caseDefinition.ReasoningOptions, Has.Count.EqualTo(3));
+            Assert.That(caseDefinition.FindReasoning(caseDefinition.RequiredReasoningId), Is.Not.Null);
+            InvestigationState state = updater.CreateInitialState();
+            Assert.That(updater.TrySetReasoning(state, "invented_reason", out _), Is.False);
+            Assert.That(updater.TrySetReasoning(state, "food_web_cascade", out _), Is.True);
+        }
+
+        [Test]
+        public void ExternalMiniGameInput_ImportsOnlyObserveAndAlwaysEvidence()
+        {
+            InvestigationState state = updater.CreateInitialState();
+            InvestigationGameInput input = new InvestigationGameInput
+            {
+                caseId = caseDefinition.CaseId,
+                surveyContext = new InvestigationSurveyContextData
+                {
+                    surveyId = "upstream_survey_42",
+                    surveyDisplayName = "Survey 42",
+                    siteId = "waypoint_c",
+                    siteDisplayName = "Waypoint C",
+                    processedSampleSummary = "Processed samples from three depth bands"
+                },
+                discoveredObservationIds = new List<string>
+                {
+                    "E01_SHARK_NONDETECTION",
+                    "E02_TUNA_WIDER_DETECTION",
+                    "E05_TEMPERATURE_NORMAL",
+                    "L01_NONDETECTION_LIMITATION",
+                    "E07_FISHING_LINE"
+                },
+                environmentalObservations = new List<InvestigationExternalObservationData>
+                {
+                    new InvestigationExternalObservationData { observationId = "E05_TEMPERATURE_NORMAL" },
+                    new InvestigationExternalObservationData { observationId = "E01_SHARK_NONDETECTION" }
+                },
+                physicalObservations = new List<InvestigationExternalObservationData>
+                {
+                    new InvestigationExternalObservationData { observationId = "E07_FISHING_LINE" }
+                }
+            };
+            Assert.That(updater.TryApplyExternalInput(state, input, out _), Is.True);
+            Assert.That(state.SurveyId, Is.EqualTo("upstream_survey_42"));
+            Assert.That(state.SurveyDisplayName, Is.EqualTo("Survey 42"));
+            Assert.That(state.SiteId, Is.EqualTo("waypoint_c"));
+            Assert.That(state.SiteDisplayName, Is.EqualTo("Waypoint C"));
+            Assert.That(state.ProcessedSampleSummary, Is.EqualTo("Processed samples from three depth bands"));
+            Assert.That(state.HasDiscoveredObservation("E01_SHARK_NONDETECTION"), Is.True);
+            Assert.That(state.HasDiscoveredObservation("E02_TUNA_WIDER_DETECTION"), Is.True);
+            Assert.That(state.HasDiscoveredObservation("L01_NONDETECTION_LIMITATION"), Is.True);
+            Assert.That(state.HasDiscoveredObservation("E05_TEMPERATURE_NORMAL"), Is.False);
+            Assert.That(state.HasDiscoveredObservation("E07_FISHING_LINE"), Is.False);
+        }
+
+        [Test]
+        public void Report_RequiresFoodWebBenthicAndRovEvidenceCategories()
+        {
+            InvestigationState state = PrepareProvisionalReadyState();
+            Assert.That(updater.TrySubmitProvisional(state, "longline", out _), Is.True);
+            Assert.That(updater.TryReviewConfirmation(state, out _), Is.True);
+            CompleteFollowUpObjectives(state);
+            Assert.That(updater.TrySetFinalThreat(state, "longline", out _), Is.True);
+            Assert.That(updater.TrySetReasoning(state, "food_web_cascade", out _), Is.True);
+            Assert.That(updater.TrySetLimitation(state, "L01_NONDETECTION_LIMITATION", out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E01_SHARK_NONDETECTION", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E02_TUNA_WIDER_DETECTION", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E07_FISHING_LINE", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E08_SEAFLOOR_INTACT", true, out _), Is.True);
+
+            InvestigationReadiness missingBenthic = updater.EvaluateReadiness(state);
+            Assert.That(missingBenthic.EvidenceComplete, Is.True);
+            Assert.That(missingBenthic.EvidenceCategoriesComplete, Is.False);
+            Assert.That(missingBenthic.MissingEvidenceCategory, Is.EqualTo(EvidenceCategory.Benthic));
+            Assert.That(missingBenthic.CanSubmitFinal, Is.False);
+
+            Assert.That(updater.TrySetReportEvidence(state, "E04_BENTHIC_STABLE", true, out _), Is.True);
+            Assert.That(updater.EvaluateReadiness(state).CanSubmitFinal, Is.True);
+        }
+
+        [Test]
+        public void QaCheckpoint_ReportReady_MatchesManualRouteSnapshot()
+        {
+            InvestigationState manual = PrepareProvisionalReadyState();
+            Assert.That(updater.TrySubmitProvisional(manual, "longline", out _), Is.True);
+            InvestigationState checkpoint = InvestigationQaStateFactory.Create(
+                caseDefinition,
+                InvestigationQaCheckpoint.ReportReady);
+            Assert.That(CanonicalSnapshot(checkpoint), Is.EqualTo(CanonicalSnapshot(manual)));
+            Assert.That(updater.EvaluateReadiness(checkpoint).CanEnterProvisional, Is.True);
+            Assert.That(new InvestigationCaseValidator().Validate(caseDefinition), Is.Empty);
+        }
+
+        [Test]
+        public void QaCheckpoint_FinalReady_MatchesManualRouteSnapshot()
+        {
+            InvestigationState manual = PrepareProvisionalReadyState();
+            Assert.That(updater.TrySubmitProvisional(manual, "longline", out _), Is.True);
+            Assert.That(updater.TryReviewConfirmation(manual, out _), Is.True);
+            CompleteFollowUpObjectives(manual);
+            Assert.That(updater.TrySetFinalThreat(manual, "longline", out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(manual, "E01_SHARK_NONDETECTION", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(manual, "E02_TUNA_WIDER_DETECTION", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(manual, "E04_BENTHIC_STABLE", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(manual, "E07_FISHING_LINE", true, out _), Is.True);
+            Assert.That(updater.TrySetReasoning(manual, "food_web_cascade", out _), Is.True);
+            Assert.That(updater.TrySetLimitation(manual, "L01_NONDETECTION_LIMITATION", out _), Is.True);
+
+            InvestigationState checkpoint = InvestigationQaStateFactory.Create(
+                caseDefinition,
+                InvestigationQaCheckpoint.FinalReportReady);
+            Assert.That(CanonicalSnapshot(checkpoint), Is.EqualTo(CanonicalSnapshot(manual)));
+            Assert.That(updater.EvaluateReadiness(checkpoint).CanSubmitFinal, Is.True);
+        }
+
+        [Test]
+        public void WrongFinalReport_AddsAttemptAndMisstepBeforeCorrectRetry()
+        {
+            InvestigationState state = PrepareCompleteReport("bottom_trawling");
+            InvestigationConclusionResult wrong = updater.SubmitFinal(state);
+            Assert.That(wrong.Status, Is.EqualTo(InvestigationConclusionStatus.Incorrect));
+            Assert.That(state.FinalSubmissionAttemptCount, Is.EqualTo(1));
+            Assert.That(state.MisstepCount, Is.EqualTo(1));
+
+            Assert.That(updater.TrySetFinalThreat(state, "longline", out _), Is.True);
+            Assert.That(state.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.NotSubmitted));
+            InvestigationConclusionResult correct = updater.SubmitFinal(state);
+            Assert.That(correct.Status, Is.EqualTo(InvestigationConclusionStatus.Correct));
+            Assert.That(state.FinalSubmissionAttemptCount, Is.EqualTo(2));
+            Assert.That(state.MisstepCount, Is.EqualTo(1));
+        }
+
+        private InvestigationState PrepareCompleteReport(string finalThreatId)
+        {
+            InvestigationState state = PrepareProvisionalReadyState();
+            Assert.That(updater.TrySubmitProvisional(state, "bottom_trawling", out _), Is.True);
+            Assert.That(updater.TryReviewConfirmation(state, out _), Is.True);
+            CompleteFollowUpObjectives(state);
+            Assert.That(updater.TrySetFinalThreat(state, finalThreatId, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E01_SHARK_NONDETECTION", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E02_TUNA_WIDER_DETECTION", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E04_BENTHIC_STABLE", true, out _), Is.True);
+            Assert.That(updater.TrySetReportEvidence(state, "E07_FISHING_LINE", true, out _), Is.True);
+            Assert.That(updater.TrySetReasoning(state, "food_web_cascade", out _), Is.True);
+            Assert.That(updater.TrySetLimitation(state, "L01_NONDETECTION_LIMITATION", out _), Is.True);
+            return state;
+        }
+
+        private InvestigationState PrepareProvisionalReadyState()
+        {
+            InvestigationState state = updater.CreateInitialState();
+            DiscoverCoreObservations(state);
+            RunModel(state, "warming");
+            AssertObjective(updater.Compare(state, "warming", PredictionTargetKind.Temperature, "temperature", "E05_TEMPERATURE_NORMAL", ComparisonJudgement.Mismatch));
+            RunModel(state, "plastic");
+            AssertObjective(updater.Compare(state, "plastic", "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch));
+            RunModel(state, "longline");
+            AssertObjective(updater.Compare(state, "longline", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match));
+            AssertObjective(updater.Compare(state, "longline", "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match));
+            AssertObjective(updater.Compare(state, "longline", "krill", "E03_KRILL_NONDETECTION", ComparisonJudgement.Match));
+            RunModel(state, "bottom_trawling");
+            AssertObjective(updater.Compare(state, "bottom_trawling", "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match));
+            return state;
+        }
+
+        private void CompleteFollowUpObjectives(InvestigationState state)
+        {
+            Assert.That(state.ConfirmationReviewed, Is.True);
+            AssertObjective(updater.Compare(state, "longline", "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match));
+            AssertObjective(updater.Compare(state, "bottom_trawling", "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch));
+        }
+
+        private InvestigationState CreateSimulationReadyState()
+        {
+            InvestigationState state = updater.CreateInitialState();
+            DiscoverCoreObservations(state);
+            return state;
+        }
+
+        private void DiscoverCoreObservations(InvestigationState state)
+        {
+            Discover(state, "E01_SHARK_NONDETECTION");
+            Discover(state, "E02_TUNA_WIDER_DETECTION");
+            Discover(state, "E03_KRILL_NONDETECTION");
+            Discover(state, "E04_BENTHIC_STABLE");
+            Discover(state, "E06_PLASTIC_INDICATOR_STABLE");
+        }
+
+        private void RunModel(InvestigationState state, string threatId)
+        {
+            Assert.That(updater.TryRunThreat(state, threatId, out SimulationResult result, out string feedback), Is.True, feedback);
+            Assert.That(result, Is.Not.Null);
+        }
+
+        private void Discover(InvestigationState state, string evidenceId)
+        {
+            Assert.That(updater.TryDiscoverObservation(state, evidenceId, out string feedback), Is.True, feedback);
+        }
+
+        private static void DiscoverWith(
+            InvestigationStateUpdater targetUpdater,
             InvestigationState state,
-            EvidenceRecord evidence,
-            AnomalyClaimType claimType)
+            string evidenceId)
         {
-            Assert.That(evidence, Is.Not.Null);
-            Assert.That(updater.TryIdentifyAnomaly(state, evidence.EvidenceId, claimType, out string feedback), Is.True, feedback);
+            Assert.That(targetUpdater.TryDiscoverObservation(state, evidenceId, out string feedback), Is.True, feedback);
         }
 
-        private static void SetField<T>(object target, string fieldName, T value)
+        private static void RunWith(
+            InvestigationStateUpdater targetUpdater,
+            InvestigationState state,
+            string threatId)
         {
-            FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(field, Is.Not.Null, $"Missing test setup field: {fieldName}");
-            field.SetValue(target, value);
+            Assert.That(targetUpdater.TryRunThreat(state, threatId, out SimulationResult result, out string feedback), Is.True, feedback);
+            Assert.That(result, Is.Not.Null);
         }
 
-        private static T GetField<T>(object target, string fieldName)
+        private static void AssertAccepted(PredictionComparisonRecord record)
         {
-            FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(field, Is.Not.Null, $"Missing test setup field: {fieldName}");
-            return (T)field.GetValue(target);
+            Assert.That(record.LocksComparison, Is.True, record.Feedback);
+        }
+
+        private static void AssertObjective(PredictionComparisonRecord record)
+        {
+            Assert.That(record.CompletesObjective, Is.True, record.Feedback);
+        }
+
+        private static string CanonicalSnapshot(InvestigationState state)
+        {
+            List<string> observations = new List<string>(state.DiscoveredObservationIds);
+            observations.Sort(StringComparer.Ordinal);
+            List<string> threats = new List<string>(state.TriedThreatIds);
+            threats.Sort(StringComparer.Ordinal);
+            List<string> comparisons = new List<string>();
+            for (int index = 0; index < state.ComparisonRecords.Count; index++)
+            {
+                PredictionComparisonRecord record = state.ComparisonRecords[index];
+                comparisons.Add($"{record.ThreatId}/{record.TargetKind}/{record.TargetId}/{record.EvidenceId}/{record.Judgement}/{record.Outcome}/{record.ObjectiveId}");
+            }
+            comparisons.Sort(StringComparer.Ordinal);
+            List<string> evidence = new List<string>(state.SelectedReportEvidenceIds);
+            evidence.Sort(StringComparer.Ordinal);
+            return string.Join("|", new[]
+            {
+                state.Phase.ToString(),
+                string.Join(",", observations),
+                string.Join(",", threats),
+                string.Join(",", comparisons),
+                state.ProvisionalThreatId,
+                state.ConfirmationReviewed.ToString(),
+                state.FinalThreatId,
+                string.Join(",", evidence),
+                state.SelectedReasoningId,
+                state.SelectedLimitationId,
+                state.MisstepCount.ToString(),
+                state.FinalSubmissionAttemptCount.ToString()
+            });
+        }
+
+        private static void AssertSpriteImporterUsesTransparency(UnityEngine.Sprite sprite)
+        {
+            string path = AssetDatabase.GetAssetPath(sprite);
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            Assert.That(importer, Is.Not.Null, path);
+            Assert.That(importer.textureType, Is.EqualTo(TextureImporterType.Sprite), path);
+            Assert.That(importer.alphaIsTransparency, Is.True, path);
         }
     }
 }

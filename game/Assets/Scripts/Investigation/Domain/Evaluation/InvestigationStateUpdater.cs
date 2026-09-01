@@ -6,191 +6,106 @@ namespace EDNA.Investigation.Domain
     public sealed class InvestigationStateUpdater
     {
         private readonly InvestigationCaseDefinition caseDefinition;
-        private readonly EvidenceEvaluator evidenceEvaluator;
-        private readonly HypothesisEvaluator hypothesisEvaluator;
-        private readonly ConclusionEvaluator conclusionEvaluator;
+        private readonly EcosystemSimulatorEvaluator simulatorEvaluator;
+        private readonly PredictionComparisonEvaluator comparisonEvaluator;
+        private readonly InvestigationConclusionEvaluator conclusionEvaluator;
 
         public InvestigationStateUpdater(InvestigationCaseDefinition caseDefinition)
         {
             this.caseDefinition = caseDefinition ?? throw new ArgumentNullException(nameof(caseDefinition));
-            evidenceEvaluator = new EvidenceEvaluator();
-            hypothesisEvaluator = new HypothesisEvaluator();
-            conclusionEvaluator = new ConclusionEvaluator(hypothesisEvaluator);
+            simulatorEvaluator = new EcosystemSimulatorEvaluator();
+            comparisonEvaluator = new PredictionComparisonEvaluator();
+            conclusionEvaluator = new InvestigationConclusionEvaluator();
         }
 
         public InvestigationState CreateInitialState()
         {
-            InvestigationState state = new InvestigationState(caseDefinition.FollowUpSampleLimit);
-            for (int index = 0; index < caseDefinition.InitialResults.Count; index++)
-            {
-                state.AddInitialResult(caseDefinition.InitialResults[index]);
-            }
-
-            RecalculateEvidence(state);
+            InvestigationState state = new InvestigationState();
+            state.ApplySurveyContext(caseDefinition.SurveyContext);
             return state;
         }
 
-        public bool TryPlanSample(
+        public bool TryApplyExternalInput(InvestigationState state, InvestigationGameInput input, out string feedback)
+        {
+            feedback = string.Empty;
+            if (state == null || input == null)
+            {
+                feedback = "External investigation input is missing.";
+                return false;
+            }
+            if (!string.IsNullOrEmpty(input.caseId)
+                && !string.Equals(input.caseId, caseDefinition.CaseId, StringComparison.Ordinal))
+            {
+                feedback = $"External input targets case {input.caseId}, not {caseDefinition.CaseId}.";
+                return false;
+            }
+
+            state.ApplySurveyContext(input.surveyContext);
+            int applied = 0;
+            if (input.discoveredObservationIds != null)
+            {
+                for (int index = 0; index < input.discoveredObservationIds.Count; index++)
+                {
+                    if (TryImportMappedObservation(state, input.discoveredObservationIds[index], null)) applied++;
+                }
+            }
+            applied += ImportExternalObservationList(state, input.environmentalObservations, ObservationSource.CTDLog);
+            applied += ImportExternalObservationList(state, input.physicalObservations, ObservationSource.ROV);
+
+            bool hasContext = HasSurveyContext(input.surveyContext);
+            feedback = applied > 0
+                ? $"Imported {applied} observation(s) from the previous mini-games."
+                : hasContext
+                    ? "Imported the survey context. No case observations were mapped, so authored demo evidence remains available."
+                    : "External input contained no directly mapped observations; authored demo evidence remains available.";
+            return true;
+        }
+
+        private int ImportExternalObservationList(
             InvestigationState state,
-            string siteId,
-            DepthBand depthBand,
-            string relatedHypothesisId,
-            string reasonEvidenceId,
-            out InvestigationSamplePlan plan,
-            out string error)
+            System.Collections.Generic.IReadOnlyList<InvestigationExternalObservationData> observations,
+            ObservationSource expectedSource)
         {
-            plan = null;
-            error = string.Empty;
-
-            if (state == null)
+            if (observations == null) return 0;
+            int imported = 0;
+            for (int index = 0; index < observations.Count; index++)
             {
-                error = "Investigation state is missing.";
-                return false;
+                InvestigationExternalObservationData external = observations[index];
+                if (external != null && TryImportMappedObservation(state, external.observationId, expectedSource)) imported++;
             }
-
-            if (state.AvailableSampleSlots <= 0)
-            {
-                error = "No follow-up samples remain.";
-                return false;
-            }
-
-            SampleSiteDefinition site = caseDefinition.FindSite(siteId);
-            if (site == null)
-            {
-                error = "Choose a valid sample site.";
-                return false;
-            }
-
-            if (!site.SupportsDepth(depthBand))
-            {
-                error = $"{site.DisplayName} does not support the selected depth.";
-                return false;
-            }
-
-            if (!string.IsNullOrEmpty(relatedHypothesisId)
-                && caseDefinition.FindHypothesis(relatedHypothesisId) == null)
-            {
-                error = "Choose a valid hypothesis.";
-                return false;
-            }
-
-            if (!string.IsNullOrEmpty(reasonEvidenceId) && state.FindEvidence(reasonEvidenceId) == null)
-            {
-                error = "Choose an available observation as the sampling reason.";
-                return false;
-            }
-
-            if (!string.IsNullOrEmpty(reasonEvidenceId) && !state.IsEvidenceIdentified(reasonEvidenceId))
-            {
-                error = "Identify this observation before using it as a sampling reason.";
-                return false;
-            }
-
-            int nextRound = state.CurrentRound + 1;
-            SampleRequest request = new SampleRequest
-            {
-                requestId = $"request_{nextRound:00}",
-                siteId = siteId,
-                depthBand = depthBand
-            };
-            plan = new InvestigationSamplePlan(
-                request,
-                nextRound,
-                relatedHypothesisId,
-                reasonEvidenceId);
-            state.AddPlan(plan);
-            return true;
+            return imported;
         }
 
-        public bool ApplyResult(InvestigationState state, EDNAResultData result, out string error)
-        {
-            error = string.Empty;
-            if (state == null)
-            {
-                error = "Investigation state is missing.";
-                return false;
-            }
-
-            if (result == null)
-            {
-                error = "The sample result is missing.";
-                return false;
-            }
-
-            if (state.ContainsResult(result))
-            {
-                error = "This sample result has already been added.";
-                return false;
-            }
-
-            state.AddResult(result);
-            state.CompletePlan(result.requestId);
-            RecalculateEvidence(state);
-            return true;
-        }
-
-        public bool TryCancelPlannedSample(
-            InvestigationState state,
-            string requestId,
-            out string error)
-        {
-            error = string.Empty;
-            if (state == null)
-            {
-                error = "Investigation state is missing.";
-                return false;
-            }
-
-            if (!state.CancelPendingPlan(requestId))
-            {
-                error = "No pending sample request matched this cancellation.";
-                return false;
-            }
-
-            return true;
-        }
-
-        public bool TryAssignEvidence(
+        private bool TryImportMappedObservation(
             InvestigationState state,
             string evidenceId,
-            string hypothesisId,
-            EvidenceAssignmentKind assignmentKind,
-            out string error)
+            ObservationSource? expectedSource)
         {
-            error = string.Empty;
-            if (state == null)
+            InvestigationObservationDefinition observation = caseDefinition.FindObservation(evidenceId);
+            if (observation == null
+                || (expectedSource.HasValue && observation.Source != expectedSource.Value)
+                || (observation.UnlockStage != EvidenceUnlockStage.Observe
+                    && observation.UnlockStage != EvidenceUnlockStage.Always)
+                || state.HasDiscoveredObservation(observation.EvidenceId))
             {
-                error = "Investigation state is missing.";
                 return false;
             }
 
-            if (state.FindEvidence(evidenceId) == null)
-            {
-                error = "Choose an available observation.";
-                return false;
-            }
-
-            if (!state.IsEvidenceIdentified(evidenceId))
-            {
-                error = "Identify this observation in Compare Data before using it in a hypothesis.";
-                return false;
-            }
-
-            if (caseDefinition.FindHypothesis(hypothesisId) == null)
-            {
-                error = "Choose a valid hypothesis.";
-                return false;
-            }
-
-            state.AssignEvidence(evidenceId, hypothesisId, assignmentKind);
+            state.DiscoverObservation(observation.EvidenceId);
             return true;
         }
 
-        public bool TryIdentifyAnomaly(
-            InvestigationState state,
-            string evidenceId,
-            AnomalyClaimType claimType,
-            out string feedback)
+        private static bool HasSurveyContext(InvestigationSurveyContextData context)
+        {
+            return context != null
+                && (!string.IsNullOrWhiteSpace(context.surveyId)
+                    || !string.IsNullOrWhiteSpace(context.surveyDisplayName)
+                    || !string.IsNullOrWhiteSpace(context.siteId)
+                    || !string.IsNullOrWhiteSpace(context.siteDisplayName)
+                    || !string.IsNullOrWhiteSpace(context.processedSampleSummary));
+        }
+
+        public bool TrySetPhase(InvestigationState state, InvestigationPhase phase, out string feedback)
         {
             feedback = string.Empty;
             if (state == null)
@@ -199,148 +114,326 @@ namespace EDNA.Investigation.Domain
                 return false;
             }
 
-            EvidenceRecord evidence = state.FindEvidence(evidenceId);
-            if (evidence == null)
+            if (phase == InvestigationPhase.Report)
             {
-                feedback = "Select a comparison card first.";
-                return false;
-            }
-
-            if (!ClaimMatchesEvidence(claimType, evidence.EvidenceType))
-            {
-                bool recorded = state.RecordMisclassification(evidenceId, claimType);
-                string attemptStatus = recorded
-                    ? $"Incorrect classification recorded. Misclassifications: {state.MisclassificationCount}."
-                    : "That classification was already ruled out for this card.";
-                feedback = $"{attemptStatus} {GetClassificationHint(claimType)} Review the comparison and try another option.";
-                return false;
-            }
-
-            state.IdentifyEvidence(evidenceId);
-            feedback = $"Finding identified: {GetClaimDisplayName(claimType)}.";
-            return true;
-        }
-
-        public bool TrySelectHypothesis(InvestigationState state, string hypothesisId, out string error)
-        {
-            error = string.Empty;
-            if (state == null)
-            {
-                error = "Investigation state is missing.";
-                return false;
-            }
-
-            if (caseDefinition.FindHypothesis(hypothesisId) == null)
-            {
-                error = "Choose a valid hypothesis.";
-                return false;
-            }
-
-            state.SelectHypothesis(hypothesisId);
-            return true;
-        }
-
-        public HypothesisEvaluation EvaluateHypothesis(InvestigationState state, string hypothesisId)
-        {
-            if (state == null)
-            {
-                throw new ArgumentNullException(nameof(state));
-            }
-
-            HypothesisDefinition hypothesis = caseDefinition.FindHypothesis(hypothesisId);
-            if (hypothesis == null)
-            {
-                return new HypothesisEvaluation(
-                    hypothesisId,
-                    HypothesisStatus.Unexplored,
-                    0,
-                    0,
-                    "Hypothesis not found.");
-            }
-
-            return hypothesisEvaluator.Evaluate(hypothesis, state);
-        }
-
-        public ConclusionResult SubmitConclusion(InvestigationState state)
-        {
-            if (state == null)
-            {
-                throw new ArgumentNullException(nameof(state));
-            }
-
-            ConclusionResult result = conclusionEvaluator.Evaluate(caseDefinition, state);
-            state.SetConclusionStatus(result.Status);
-            return result;
-        }
-
-        public void RecalculateEvidence(InvestigationState state)
-        {
-            if (state == null)
-            {
-                throw new ArgumentNullException(nameof(state));
-            }
-
-            state.ReplaceEvidence(evidenceEvaluator.Evaluate(caseDefinition, state.AllResults));
-        }
-
-        private static bool ClaimMatchesEvidence(AnomalyClaimType claimType, EvidenceType evidenceType)
-        {
-            switch (claimType)
-            {
-                case AnomalyClaimType.NewArrival:
-                    return evidenceType == EvidenceType.NewDetection;
-                case AnomalyClaimType.ExpectedButMissing:
-                    return evidenceType == EvidenceType.NotDetectedInSample
-                        || evidenceType == EvidenceType.RepeatedNonDetection;
-                case AnomalyClaimType.DifferentDepth:
-                    return evidenceType == EvidenceType.DepthShift;
-                case AnomalyClaimType.ResultWarning:
-                    return evidenceType == EvidenceType.LowQualityResult
-                        || evidenceType == EvidenceType.ContaminationWarning;
-                case AnomalyClaimType.MatchesBaseline:
-                    return evidenceType == EvidenceType.StableIndicator
-                        || evidenceType == EvidenceType.RepeatedDetection;
-                default:
+                InvestigationReadiness readiness = conclusionEvaluator.EvaluateReadiness(caseDefinition, state);
+                if (!readiness.CanEnterProvisional)
+                {
+                    feedback = "Compare the required overlapping causes before entering the report stage.";
                     return false;
+                }
             }
+            else if (phase == InvestigationPhase.Simulate
+                && state.DiscoveredObservationIds.Count < caseDefinition.MinimumObserveDiscoveries)
+            {
+                feedback = $"Record at least {caseDefinition.MinimumObserveDiscoveries} observations before running ecosystem models.";
+                return false;
+            }
+
+            state.Phase = phase;
+            return true;
         }
 
-        private static string GetClassificationHint(AnomalyClaimType claimType)
+        public void SetDifficulty(InvestigationState state, InvestigationDifficulty difficulty)
         {
-            switch (claimType)
-            {
-                case AnomalyClaimType.NewArrival:
-                    return "That does not look like a new arrival. Compare the current detection with the historical record.";
-                case AnomalyClaimType.ExpectedButMissing:
-                    return "That species is not an expected-but-missing observation in this sample.";
-                case AnomalyClaimType.DifferentDepth:
-                    return "A depth shift needs evidence from two depths at the same site.";
-                case AnomalyClaimType.ResultWarning:
-                    return "That card does not show a sample-quality or contamination warning.";
-                case AnomalyClaimType.MatchesBaseline:
-                    return "That observation does not match the historical baseline.";
-                default:
-                    return "Compare the current sample with the historical record and try again.";
-            }
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            state.Difficulty = difficulty;
         }
 
-        private static string GetClaimDisplayName(AnomalyClaimType claimType)
+        public bool TryDiscoverObservation(InvestigationState state, string evidenceId, out string feedback)
         {
-            switch (claimType)
+            feedback = string.Empty;
+            if (state == null)
             {
-                case AnomalyClaimType.NewArrival:
-                    return "New Arrival";
-                case AnomalyClaimType.ExpectedButMissing:
-                    return "Expected but Missing";
-                case AnomalyClaimType.DifferentDepth:
-                    return "Different Depth";
-                case AnomalyClaimType.ResultWarning:
-                    return "Result Warning";
-                case AnomalyClaimType.MatchesBaseline:
-                    return "Matches Baseline";
-                default:
-                    return claimType.ToString();
+                feedback = "Investigation state is missing.";
+                return false;
             }
+
+            InvestigationObservationDefinition observation = caseDefinition.FindObservation(evidenceId);
+            if (observation == null)
+            {
+                feedback = "Observation is not part of this case.";
+                return false;
+            }
+
+            if (observation.UnlockStage != EvidenceUnlockStage.Observe
+                && observation.UnlockStage != EvidenceUnlockStage.Always)
+            {
+                feedback = "This observation is not available during the Observe stage.";
+                return false;
+            }
+
+            state.DiscoverObservation(evidenceId);
+            feedback = $"Recorded: {observation.DisplayName}";
+            return true;
+        }
+
+        public bool TryRunThreat(
+            InvestigationState state,
+            string threatId,
+            out SimulationResult result,
+            out string feedback)
+        {
+            result = null;
+            feedback = string.Empty;
+            if (state == null)
+            {
+                feedback = "Investigation state is missing.";
+                return false;
+            }
+            if (state.DiscoveredObservationIds.Count < caseDefinition.MinimumObserveDiscoveries)
+            {
+                feedback = $"Record at least {caseDefinition.MinimumObserveDiscoveries} observations before running ecosystem models.";
+                return false;
+            }
+            if (caseDefinition.FindThreat(threatId) == null)
+            {
+                feedback = "Choose an available cause before running the model.";
+                return false;
+            }
+
+            result = simulatorEvaluator.Evaluate(caseDefinition, threatId);
+            state.RecordSimulation(result);
+            state.Phase = InvestigationPhase.Simulate;
+
+            for (int index = 0; index < caseDefinition.Observations.Count; index++)
+            {
+                InvestigationObservationDefinition observation = caseDefinition.Observations[index];
+                if (observation != null
+                    && observation.UnlockStage == EvidenceUnlockStage.OnThreatRun
+                    && string.Equals(observation.UnlockThreatId, threatId, StringComparison.Ordinal))
+                {
+                    state.DiscoverObservation(observation.EvidenceId);
+                }
+            }
+
+            feedback = "Model complete.";
+            return true;
+        }
+
+        public PredictionComparisonRecord Compare(
+            InvestigationState state,
+            string threatId,
+            string speciesId,
+            string evidenceId,
+            ComparisonJudgement judgement)
+        {
+            return Compare(
+                state,
+                threatId,
+                PredictionTargetKind.Species,
+                speciesId,
+                evidenceId,
+                judgement);
+        }
+
+        public PredictionComparisonRecord Compare(
+            InvestigationState state,
+            string threatId,
+            PredictionTargetKind targetKind,
+            string targetId,
+            string evidenceId,
+            ComparisonJudgement judgement)
+        {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            if (!state.HasTriedThreat(threatId))
+            {
+                return new PredictionComparisonRecord(
+                    threatId,
+                    targetKind,
+                    targetId,
+                    evidenceId,
+                    judgement,
+                    ComparisonEvaluationOutcome.Incorrect,
+                    "Run this model before comparing its predictions.",
+                    ComparisonProgressRole.ContextOnly,
+                    string.Empty);
+            }
+
+            if (!state.HasDiscoveredObservation(evidenceId))
+            {
+                return new PredictionComparisonRecord(
+                    threatId,
+                    targetKind,
+                    targetId,
+                    evidenceId,
+                    judgement,
+                    ComparisonEvaluationOutcome.Incorrect,
+                    "Discover this observation before using it in a comparison.",
+                    ComparisonProgressRole.ContextOnly,
+                    string.Empty);
+            }
+
+            PredictionComparisonRuleDefinition availableRule = caseDefinition.FindComparisonRule(threatId, targetKind, targetId);
+            if (availableRule != null
+                && availableRule.ProgressRole == ComparisonProgressRole.BenthicDiscriminator
+                && !state.ConfirmationReviewed)
+            {
+                return new PredictionComparisonRecord(
+                    threatId,
+                    targetKind,
+                    targetId,
+                    evidenceId,
+                    judgement,
+                    ComparisonEvaluationOutcome.Incorrect,
+                    "Submit a first idea and review the ROV follow-up before using this benthic comparison.",
+                    availableRule.ProgressRole,
+                    string.Empty);
+            }
+
+            PredictionComparisonRecord accepted = state.FindComparison(threatId, targetKind, targetId);
+            if (accepted != null && accepted.LocksComparison)
+            {
+                return new PredictionComparisonRecord(
+                    accepted.ThreatId,
+                    accepted.TargetKind,
+                    accepted.TargetId,
+                    accepted.EvidenceId,
+                    accepted.Judgement,
+                    accepted.Outcome,
+                    $"Comparison already saved and locked. {accepted.Feedback}",
+                    accepted.ProgressRole,
+                    accepted.ObjectiveId);
+            }
+
+            PredictionComparisonRecord record = comparisonEvaluator.Evaluate(
+                caseDefinition,
+                threatId,
+                targetKind,
+                targetId,
+                evidenceId,
+                judgement);
+            state.RecordComparison(record);
+            return record;
+        }
+
+        public InvestigationReadiness EvaluateReadiness(InvestigationState state)
+        {
+            return conclusionEvaluator.EvaluateReadiness(caseDefinition, state);
+        }
+
+        public bool TrySubmitProvisional(InvestigationState state, string threatId, out string feedback)
+        {
+            feedback = string.Empty;
+            if (state == null)
+            {
+                feedback = "Investigation state is missing.";
+                return false;
+            }
+
+            InvestigationReadiness readiness = conclusionEvaluator.EvaluateReadiness(caseDefinition, state);
+            if (!readiness.CanEnterProvisional)
+            {
+                feedback = !readiness.RequiredThreatsCompared
+                    ? "Compare long-line fishing and bottom trawling before writing a first idea."
+                    : "Complete more accepted comparisons before writing a first idea.";
+                return false;
+            }
+
+            if (caseDefinition.FindThreat(threatId) == null)
+            {
+                feedback = "Choose a valid provisional cause.";
+                return false;
+            }
+
+            state.ProvisionalThreatId = threatId;
+            state.FinalThreatId = string.Empty;
+            state.Phase = InvestigationPhase.Report;
+            feedback = "Provisional explanation recorded. Review the same ROV follow-up before finalising the report.";
+            return true;
+        }
+
+        public bool TryReviewConfirmation(InvestigationState state, out string feedback)
+        {
+            feedback = string.Empty;
+            if (state == null || string.IsNullOrEmpty(state.ProvisionalThreatId))
+            {
+                feedback = "Submit a provisional explanation before reviewing ROV evidence.";
+                return false;
+            }
+
+            for (int index = 0; index < caseDefinition.ConfirmationEvidenceIds.Count; index++)
+            {
+                state.DiscoverObservation(caseDefinition.ConfirmationEvidenceIds[index]);
+            }
+            state.ConfirmationReviewed = true;
+            feedback = "ROV follow-up reviewed: fishing line was recorded and the seafloor remains intact.";
+            return true;
+        }
+
+        public bool TrySetFinalThreat(InvestigationState state, string threatId, out string feedback)
+        {
+            feedback = string.Empty;
+            if (state == null || caseDefinition.FindThreat(threatId) == null)
+            {
+                feedback = "Choose a valid final cause.";
+                return false;
+            }
+            if (!state.ConfirmationReviewed)
+            {
+                feedback = "Review the ROV follow-up before choosing the final cause.";
+                return false;
+            }
+            state.FinalThreatId = threatId;
+            state.ConclusionStatus = InvestigationConclusionStatus.NotSubmitted;
+            return true;
+        }
+
+        public bool TrySetReportEvidence(InvestigationState state, string evidenceId, bool selected, out string feedback)
+        {
+            feedback = string.Empty;
+            InvestigationObservationDefinition observation = caseDefinition.FindObservation(evidenceId);
+            if (state == null || observation == null || observation.Source == ObservationSource.Methodology)
+            {
+                feedback = "Choose a discovered observation for the evidence section.";
+                return false;
+            }
+            if (!state.HasDiscoveredObservation(evidenceId))
+            {
+                feedback = "This observation has not been discovered yet.";
+                return false;
+            }
+            state.SetEvidenceSelected(evidenceId, selected);
+            state.ConclusionStatus = InvestigationConclusionStatus.NotSubmitted;
+            return true;
+        }
+
+        public bool TrySetReasoning(InvestigationState state, string reasoningId, out string feedback)
+        {
+            feedback = string.Empty;
+            if (state == null || caseDefinition.FindReasoning(reasoningId) == null)
+            {
+                feedback = "Choose an available reasoning statement.";
+                return false;
+            }
+            state.SelectedReasoningId = reasoningId;
+            state.ConclusionStatus = InvestigationConclusionStatus.NotSubmitted;
+            return true;
+        }
+
+        public bool TrySetLimitation(InvestigationState state, string limitationId, out string feedback)
+        {
+            feedback = string.Empty;
+            if (state == null || caseDefinition.FindLimitation(limitationId) == null)
+            {
+                feedback = "Choose an available scientific limitation.";
+                return false;
+            }
+            state.SelectedLimitationId = limitationId;
+            state.ConclusionStatus = InvestigationConclusionStatus.NotSubmitted;
+            return true;
+        }
+
+        public InvestigationConclusionResult SubmitFinal(InvestigationState state)
+        {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            InvestigationConclusionResult result = conclusionEvaluator.EvaluateFinal(
+                caseDefinition,
+                state,
+                state.FinalThreatId);
+            state.RecordFinalSubmission(result.Status);
+            state.ConclusionStatus = result.Status;
+            return result;
         }
     }
 }

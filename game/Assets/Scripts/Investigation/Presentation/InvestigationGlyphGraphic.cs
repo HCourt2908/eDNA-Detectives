@@ -6,344 +6,284 @@ namespace EDNA.Investigation
 {
     public enum InvestigationGlyph
     {
-        None,
-        CaseFile,
-        Compare,
-        Hypothesis,
-        Sample,
-        Conclusion,
-        Dna,
-        Fish,
-        Warning,
+        Shark,
+        Tuna,
+        Krill,
+        SeaStar,
+        Mussel,
+        Warming,
+        Plastic,
+        LongLine,
+        BottomTrawling,
         Check,
-        ColdFish,
-        PredatorFish,
-        StableFish,
-        PreyFish,
-        DeepFish,
-        WarmFish
+        Cross,
+        Question,
+        ArrowRight,
+        FishingLine,
+        Seafloor
     }
 
-    /// <summary>
-    /// Small code-native line icons used by the investigation UI. They avoid
-    /// platform-dependent emoji and keep one stroke language at every scale.
-    /// </summary>
     [DisallowMultipleComponent]
     public sealed class InvestigationGlyphGraphic : MaskableGraphic
     {
         [SerializeField] private InvestigationGlyph glyph;
-        [SerializeField, Min(1f)] private float strokeWidth = 2f;
-
-        public InvestigationGlyph Glyph => glyph;
+        [SerializeField] private bool ghost;
 
         public void SetGlyph(InvestigationGlyph value)
         {
-            if (glyph == value) return;
             glyph = value;
             SetVerticesDirty();
         }
 
-        protected override void OnPopulateMesh(VertexHelper vertexHelper)
+        public void SetGhost(bool value)
         {
-            vertexHelper.Clear();
-            if (glyph == InvestigationGlyph.None) return;
+            ghost = value;
+            SetVerticesDirty();
+        }
 
+        protected override void Awake()
+        {
+            base.Awake();
+            raycastTarget = false;
+        }
+
+        protected override void OnPopulateMesh(VertexHelper vh)
+        {
+            vh.Clear();
+            Color drawColor = color;
+            if (ghost) drawColor.a *= 0.38f;
             switch (glyph)
             {
-                case InvestigationGlyph.CaseFile:
-                    DrawCaseFile(vertexHelper);
-                    break;
-                case InvestigationGlyph.Compare:
-                    DrawCompare(vertexHelper);
-                    break;
-                case InvestigationGlyph.Hypothesis:
-                    DrawHypothesis(vertexHelper);
-                    break;
-                case InvestigationGlyph.Sample:
-                    DrawSample(vertexHelper);
-                    break;
-                case InvestigationGlyph.Conclusion:
-                    DrawConclusion(vertexHelper);
-                    break;
-                case InvestigationGlyph.Dna:
-                    DrawDna(vertexHelper);
-                    break;
-                case InvestigationGlyph.Fish:
-                    DrawFish(vertexHelper);
-                    break;
-                case InvestigationGlyph.Warning:
-                    DrawWarning(vertexHelper);
-                    break;
-                case InvestigationGlyph.Check:
-                    DrawCheck(vertexHelper);
-                    break;
-                case InvestigationGlyph.ColdFish:
-                    DrawColdFish(vertexHelper);
-                    break;
-                case InvestigationGlyph.PredatorFish:
-                    DrawPredatorFish(vertexHelper);
-                    break;
-                case InvestigationGlyph.StableFish:
-                    DrawStableFish(vertexHelper);
-                    break;
-                case InvestigationGlyph.PreyFish:
-                    DrawPreyFish(vertexHelper);
-                    break;
-                case InvestigationGlyph.DeepFish:
-                    DrawDeepFish(vertexHelper);
-                    break;
-                case InvestigationGlyph.WarmFish:
-                    DrawWarmFish(vertexHelper);
-                    break;
+                case InvestigationGlyph.Shark: DrawFish(vh, drawColor, 1.08f, true); break;
+                case InvestigationGlyph.Tuna: DrawFish(vh, drawColor, 1f, false); break;
+                case InvestigationGlyph.Krill: DrawKrill(vh, drawColor); break;
+                case InvestigationGlyph.SeaStar: DrawSeaStar(vh, drawColor); break;
+                case InvestigationGlyph.Mussel: DrawMussel(vh, drawColor); break;
+                case InvestigationGlyph.Warming: DrawWarming(vh, drawColor); break;
+                case InvestigationGlyph.Plastic: DrawPlastic(vh, drawColor); break;
+                case InvestigationGlyph.LongLine: DrawLongLine(vh, drawColor); break;
+                case InvestigationGlyph.BottomTrawling: DrawTrawl(vh, drawColor); break;
+                case InvestigationGlyph.Check: DrawCheck(vh, drawColor); break;
+                case InvestigationGlyph.Cross: DrawCross(vh, drawColor); break;
+                case InvestigationGlyph.Question: DrawQuestion(vh, drawColor); break;
+                case InvestigationGlyph.ArrowRight: DrawArrow(vh, drawColor); break;
+                case InvestigationGlyph.FishingLine: DrawLongLine(vh, drawColor); break;
+                case InvestigationGlyph.Seafloor: DrawSeafloor(vh, drawColor); break;
             }
+            if (ghost) DrawDashedFrame(vh, drawColor);
         }
 
-        private void DrawCaseFile(VertexHelper vh)
+        private void DrawFish(VertexHelper vh, Color c, float scale, bool shark)
         {
-            AddPolyline(vh, new[]
+            Vector2 center = P(0.52f, 0.5f);
+            AddEllipse(vh, center, 0.31f * scale, 0.19f, c, 20);
+            AddTriangle(vh, P(0.22f, 0.5f), P(0.04f, 0.72f), P(0.05f, 0.28f), c);
+            if (shark)
             {
-                P(0.14f, 0.25f), P(0.14f, 0.73f), P(0.40f, 0.73f),
-                P(0.49f, 0.63f), P(0.86f, 0.63f), P(0.86f, 0.25f), P(0.14f, 0.25f)
-            });
-            AddLine(vh, P(0.20f, 0.53f), P(0.80f, 0.53f));
-        }
-
-        private void DrawCompare(VertexHelper vh)
-        {
-            AddLine(vh, P(0.22f, 0.25f), P(0.22f, 0.75f));
-            AddLine(vh, P(0.78f, 0.25f), P(0.78f, 0.75f));
-            AddLine(vh, P(0.30f, 0.64f), P(0.66f, 0.64f));
-            AddLine(vh, P(0.60f, 0.71f), P(0.68f, 0.64f));
-            AddLine(vh, P(0.60f, 0.57f), P(0.68f, 0.64f));
-            AddLine(vh, P(0.70f, 0.36f), P(0.34f, 0.36f));
-            AddLine(vh, P(0.40f, 0.43f), P(0.32f, 0.36f));
-            AddLine(vh, P(0.40f, 0.29f), P(0.32f, 0.36f));
-        }
-
-        private void DrawHypothesis(VertexHelper vh)
-        {
-            AddCircle(vh, P(0.50f, 0.72f), 0.07f);
-            AddCircle(vh, P(0.25f, 0.29f), 0.07f);
-            AddCircle(vh, P(0.75f, 0.29f), 0.07f);
-            AddLine(vh, P(0.50f, 0.64f), P(0.50f, 0.49f));
-            AddLine(vh, P(0.50f, 0.49f), P(0.25f, 0.37f));
-            AddLine(vh, P(0.50f, 0.49f), P(0.75f, 0.37f));
-        }
-
-        private void DrawSample(VertexHelper vh)
-        {
-            AddLine(vh, P(0.34f, 0.78f), P(0.66f, 0.78f));
-            AddLine(vh, P(0.40f, 0.78f), P(0.40f, 0.63f));
-            AddLine(vh, P(0.60f, 0.78f), P(0.60f, 0.63f));
-            AddPolyline(vh, new[]
-            {
-                P(0.40f, 0.63f), P(0.31f, 0.28f), P(0.36f, 0.21f),
-                P(0.64f, 0.21f), P(0.69f, 0.28f), P(0.60f, 0.63f)
-            });
-            AddLine(vh, P(0.34f, 0.36f), P(0.66f, 0.36f));
-        }
-
-        private void DrawConclusion(VertexHelper vh)
-        {
-            AddPolyline(vh, new[]
-            {
-                P(0.20f, 0.20f), P(0.20f, 0.80f), P(0.80f, 0.80f),
-                P(0.80f, 0.20f), P(0.20f, 0.20f)
-            });
-            AddPolyline(vh, new[] { P(0.33f, 0.49f), P(0.45f, 0.36f), P(0.69f, 0.64f) });
-        }
-
-        private void DrawDna(VertexHelper vh)
-        {
-            List<Vector2> left = new List<Vector2>();
-            List<Vector2> right = new List<Vector2>();
-            const int steps = 14;
-            for (int index = 0; index <= steps; index++)
-            {
-                float t = index / (float)steps;
-                float wave = Mathf.Sin(t * Mathf.PI * 2f) * 0.16f;
-                left.Add(P(0.50f + wave, 0.16f + t * 0.68f));
-                right.Add(P(0.50f - wave, 0.16f + t * 0.68f));
-                if (index % 3 == 0) AddLine(vh, left[index], right[index], strokeWidth * 0.7f);
+                AddTriangle(vh, P(0.46f, 0.68f), P(0.56f, 0.91f), P(0.64f, 0.67f), c);
+                AddTriangle(vh, P(0.54f, 0.34f), P(0.65f, 0.16f), P(0.68f, 0.37f), c);
             }
-            AddPolyline(vh, left);
-            AddPolyline(vh, right);
-        }
-
-        private void DrawFish(VertexHelper vh)
-        {
-            AddPolyline(vh, new[]
+            else
             {
-                P(0.18f, 0.50f), P(0.34f, 0.67f), P(0.60f, 0.69f),
-                P(0.78f, 0.50f), P(0.60f, 0.31f), P(0.34f, 0.33f), P(0.18f, 0.50f)
-            });
-            AddPolyline(vh, new[] { P(0.18f, 0.50f), P(0.06f, 0.68f), P(0.06f, 0.32f), P(0.18f, 0.50f) });
-            AddCircle(vh, P(0.62f, 0.54f), 0.025f, strokeWidth * 1.5f);
+                AddTriangle(vh, P(0.49f, 0.68f), P(0.57f, 0.82f), P(0.65f, 0.67f), c);
+            }
+            AddCircle(vh, P(0.72f, 0.55f), 0.026f, InvestigationTheme.Background, 10);
         }
 
-        private void DrawWarning(VertexHelper vh)
+        private void DrawKrill(VertexHelper vh, Color c)
         {
-            AddPolyline(vh, new[]
+            AddEllipse(vh, P(0.5f, 0.52f), 0.32f, 0.14f, c, 18);
+            AddTriangle(vh, P(0.19f, 0.52f), P(0.06f, 0.66f), P(0.08f, 0.39f), c);
+            for (int index = 0; index < 4; index++)
             {
-                P(0.50f, 0.84f), P(0.14f, 0.20f), P(0.86f, 0.20f), P(0.50f, 0.84f)
-            });
-            AddLine(vh, P(0.50f, 0.59f), P(0.50f, 0.38f), strokeWidth * 1.2f);
-            AddCircle(vh, P(0.50f, 0.29f), 0.018f, strokeWidth * 1.6f);
+                float x = 0.34f + index * 0.11f;
+                AddLine(vh, P(x, 0.41f), P(x - 0.04f, 0.22f), c, 0.022f);
+            }
+            AddCircle(vh, P(0.73f, 0.56f), 0.022f, InvestigationTheme.Background, 9);
         }
 
-        private void DrawCheck(VertexHelper vh)
+        private void DrawSeaStar(VertexHelper vh, Color c)
         {
-            AddPolyline(vh, new[] { P(0.18f, 0.50f), P(0.40f, 0.29f), P(0.82f, 0.72f) });
-        }
-
-        private void DrawColdFish(VertexHelper vh)
-        {
-            AddPolyline(vh, new[]
+            List<Vector2> points = new List<Vector2>();
+            for (int index = 0; index < 10; index++)
             {
-                P(0.16f, 0.50f), P(0.31f, 0.63f), P(0.62f, 0.61f),
-                P(0.82f, 0.50f), P(0.62f, 0.39f), P(0.31f, 0.37f), P(0.16f, 0.50f)
-            });
-            AddPolyline(vh, new[] { P(0.17f, 0.50f), P(0.05f, 0.67f), P(0.06f, 0.33f), P(0.17f, 0.50f) });
-            AddPolyline(vh, new[] { P(0.42f, 0.62f), P(0.50f, 0.76f), P(0.59f, 0.61f) });
-            AddLine(vh, P(0.29f, 0.50f), P(0.70f, 0.50f), strokeWidth * 0.6f);
-            AddCircle(vh, P(0.68f, 0.53f), 0.018f, strokeWidth * 1.3f);
+                float angle = Mathf.PI * 0.5f + index * Mathf.PI / 5f;
+                float radius = index % 2 == 0 ? 0.38f : 0.16f;
+                points.Add(P(0.5f + Mathf.Cos(angle) * radius, 0.5f + Mathf.Sin(angle) * radius));
+            }
+            AddPolygon(vh, points, c);
         }
 
-        private void DrawPredatorFish(VertexHelper vh)
+        private void DrawMussel(VertexHelper vh, Color c)
         {
-            AddPolyline(vh, new[]
+            List<Vector2> points = new List<Vector2>
             {
-                P(0.13f, 0.50f), P(0.32f, 0.70f), P(0.62f, 0.67f),
-                P(0.88f, 0.53f), P(0.70f, 0.44f), P(0.60f, 0.31f),
-                P(0.32f, 0.33f), P(0.13f, 0.50f)
-            });
-            AddPolyline(vh, new[] { P(0.15f, 0.50f), P(0.03f, 0.72f), P(0.06f, 0.29f), P(0.15f, 0.50f) });
-            AddPolyline(vh, new[] { P(0.38f, 0.68f), P(0.51f, 0.84f), P(0.63f, 0.66f) });
-            AddCircle(vh, P(0.70f, 0.56f), 0.022f, strokeWidth * 1.4f);
-            AddLine(vh, P(0.75f, 0.49f), P(0.86f, 0.53f), strokeWidth * 0.65f);
+                P(0.50f, 0.88f), P(0.73f, 0.70f), P(0.78f, 0.40f), P(0.62f, 0.14f),
+                P(0.38f, 0.14f), P(0.22f, 0.40f), P(0.27f, 0.70f)
+            };
+            AddPolygon(vh, points, c);
+            AddLine(vh, P(0.5f, 0.82f), P(0.5f, 0.19f), InvestigationTheme.Background, 0.018f);
         }
 
-        private void DrawStableFish(VertexHelper vh)
+        private void DrawWarming(VertexHelper vh, Color c)
         {
-            AddPolyline(vh, new[]
+            AddLine(vh, P(0.45f, 0.77f), P(0.45f, 0.34f), c, 0.055f);
+            AddLine(vh, P(0.55f, 0.77f), P(0.55f, 0.34f), c, 0.055f);
+            AddCircle(vh, P(0.5f, 0.25f), 0.15f, c, 18);
+            AddLine(vh, P(0.5f, 0.63f), P(0.5f, 0.31f), InvestigationTheme.Background, 0.025f);
+            AddLine(vh, P(0.70f, 0.70f), P(0.86f, 0.79f), c, 0.025f);
+            AddLine(vh, P(0.73f, 0.50f), P(0.91f, 0.50f), c, 0.025f);
+            AddLine(vh, P(0.70f, 0.31f), P(0.86f, 0.22f), c, 0.025f);
+        }
+
+        private void DrawPlastic(VertexHelper vh, Color c)
+        {
+            AddQuad(vh, P(0.34f, 0.18f), P(0.66f, 0.18f), P(0.66f, 0.68f), P(0.34f, 0.68f), c);
+            AddQuad(vh, P(0.41f, 0.68f), P(0.59f, 0.68f), P(0.59f, 0.86f), P(0.41f, 0.86f), c);
+            AddLine(vh, P(0.35f, 0.48f), P(0.65f, 0.48f), InvestigationTheme.Background, 0.025f);
+        }
+
+        private void DrawLongLine(VertexHelper vh, Color c)
+        {
+            AddLine(vh, P(0.18f, 0.77f), P(0.78f, 0.77f), c, 0.035f);
+            AddLine(vh, P(0.72f, 0.77f), P(0.72f, 0.45f), c, 0.035f);
+            AddArc(vh, P(0.58f, 0.42f), 0.18f, -1.55f, 1.7f, c, 0.04f, 13);
+        }
+
+        private void DrawTrawl(VertexHelper vh, Color c)
+        {
+            AddQuad(vh, P(0.20f, 0.76f), P(0.80f, 0.76f), P(0.68f, 0.22f), P(0.32f, 0.22f), c);
+            for (int index = 0; index < 4; index++)
             {
-                P(0.17f, 0.50f), P(0.33f, 0.72f), P(0.61f, 0.70f),
-                P(0.80f, 0.50f), P(0.61f, 0.30f), P(0.33f, 0.28f), P(0.17f, 0.50f)
-            });
-            AddPolyline(vh, new[] { P(0.18f, 0.50f), P(0.06f, 0.68f), P(0.06f, 0.32f), P(0.18f, 0.50f) });
-            AddLine(vh, P(0.38f, 0.31f), P(0.38f, 0.69f), strokeWidth * 0.65f);
-            AddLine(vh, P(0.50f, 0.30f), P(0.50f, 0.70f), strokeWidth * 0.65f);
-            AddCircle(vh, P(0.64f, 0.55f), 0.020f, strokeWidth * 1.35f);
+                float t = index / 3f;
+                AddLine(vh, Vector2.Lerp(P(0.22f, 0.72f), P(0.34f, 0.26f), t), Vector2.Lerp(P(0.78f, 0.72f), P(0.66f, 0.26f), 1f - t), InvestigationTheme.Background, 0.017f);
+            }
+            AddLine(vh, P(0.12f, 0.14f), P(0.88f, 0.14f), c, 0.04f);
         }
 
-        private void DrawPreyFish(VertexHelper vh)
+        private void DrawCheck(VertexHelper vh, Color c)
         {
-            DrawMiniFish(vh, 0.20f, 0.66f, 0.38f, 0.76f);
-            DrawMiniFish(vh, 0.43f, 0.45f, 0.72f, 0.59f);
-            DrawMiniFish(vh, 0.18f, 0.25f, 0.43f, 0.38f);
+            AddLine(vh, P(0.18f, 0.48f), P(0.40f, 0.27f), c, 0.07f);
+            AddLine(vh, P(0.40f, 0.27f), P(0.83f, 0.75f), c, 0.07f);
         }
 
-        private void DrawMiniFish(VertexHelper vh, float left, float bottom, float right, float top)
+        private void DrawCross(VertexHelper vh, Color c)
         {
-            float midY = (bottom + top) * 0.5f;
-            float tailX = left + (right - left) * 0.20f;
-            AddPolyline(vh, new[]
+            AddLine(vh, P(0.23f, 0.23f), P(0.77f, 0.77f), c, 0.07f);
+            AddLine(vh, P(0.77f, 0.23f), P(0.23f, 0.77f), c, 0.07f);
+        }
+
+        private void DrawQuestion(VertexHelper vh, Color c)
+        {
+            AddArc(vh, P(0.5f, 0.64f), 0.23f, -0.2f, 3.5f, c, 0.06f, 15);
+            AddLine(vh, P(0.51f, 0.44f), P(0.51f, 0.32f), c, 0.06f);
+            AddCircle(vh, P(0.51f, 0.18f), 0.04f, c, 10);
+        }
+
+        private void DrawArrow(VertexHelper vh, Color c)
+        {
+            AddLine(vh, P(0.15f, 0.5f), P(0.82f, 0.5f), c, 0.05f);
+            AddTriangle(vh, P(0.82f, 0.5f), P(0.64f, 0.68f), P(0.64f, 0.32f), c);
+        }
+
+        private void DrawSeafloor(VertexHelper vh, Color c)
+        {
+            AddPolyline(vh, new[] { P(0.08f, 0.32f), P(0.25f, 0.38f), P(0.42f, 0.30f), P(0.58f, 0.36f), P(0.75f, 0.29f), P(0.92f, 0.34f) }, c, 0.045f);
+            AddLine(vh, P(0.15f, 0.65f), P(0.85f, 0.65f), c, 0.025f);
+        }
+
+        private void DrawDashedFrame(VertexHelper vh, Color c)
+        {
+            for (int index = 0; index < 6; index++)
             {
-                P(tailX, midY), P(left, top), P(left, bottom), P(tailX, midY),
-                P(left + (right - left) * 0.48f, top), P(right, midY),
-                P(left + (right - left) * 0.48f, bottom), P(tailX, midY)
-            });
-        }
-
-        private void DrawDeepFish(VertexHelper vh)
-        {
-            AddPolyline(vh, new[]
-            {
-                P(0.16f, 0.47f), P(0.30f, 0.69f), P(0.61f, 0.73f),
-                P(0.83f, 0.52f), P(0.68f, 0.28f), P(0.34f, 0.27f), P(0.16f, 0.47f)
-            });
-            AddPolyline(vh, new[] { P(0.17f, 0.47f), P(0.05f, 0.66f), P(0.07f, 0.29f), P(0.17f, 0.47f) });
-            AddPolyline(vh, new[] { P(0.49f, 0.72f), P(0.57f, 0.86f), P(0.72f, 0.86f) });
-            AddCircle(vh, P(0.75f, 0.86f), 0.025f, strokeWidth);
-            AddCircle(vh, P(0.66f, 0.56f), 0.024f, strokeWidth * 1.4f);
-        }
-
-        private void DrawWarmFish(VertexHelper vh)
-        {
-            AddPolyline(vh, new[]
-            {
-                P(0.16f, 0.50f), P(0.37f, 0.77f), P(0.63f, 0.67f),
-                P(0.83f, 0.50f), P(0.63f, 0.33f), P(0.37f, 0.23f), P(0.16f, 0.50f)
-            });
-            AddPolyline(vh, new[] { P(0.17f, 0.50f), P(0.05f, 0.74f), P(0.05f, 0.26f), P(0.17f, 0.50f) });
-            AddPolyline(vh, new[] { P(0.38f, 0.75f), P(0.54f, 0.91f), P(0.61f, 0.68f) });
-            AddPolyline(vh, new[] { P(0.39f, 0.25f), P(0.53f, 0.09f), P(0.60f, 0.32f) });
-            AddCircle(vh, P(0.66f, 0.55f), 0.020f, strokeWidth * 1.35f);
+                float start = 0.12f + index * 0.13f;
+                AddLine(vh, P(start, 0.08f), P(start + 0.07f, 0.08f), c, 0.018f);
+                AddLine(vh, P(start, 0.92f), P(start + 0.07f, 0.92f), c, 0.018f);
+            }
         }
 
         private Vector2 P(float x, float y)
         {
-            Rect rect = GetPixelAdjustedRect();
-            float inset = Mathf.Max(strokeWidth * 1.5f, 2f);
-            return new Vector2(
-                Mathf.Lerp(rect.xMin + inset, rect.xMax - inset, x),
-                Mathf.Lerp(rect.yMin + inset, rect.yMax - inset, y));
+            Rect rect = rectTransform.rect;
+            return new Vector2(rect.xMin + rect.width * x, rect.yMin + rect.height * y);
         }
 
-        private void AddPolyline(VertexHelper vh, IReadOnlyList<Vector2> points)
+        private static void AddEllipse(VertexHelper vh, Vector2 center, float radiusX01, float radiusY01, Color c, int segments)
         {
-            for (int index = 1; index < points.Count; index++)
-            {
-                AddLine(vh, points[index - 1], points[index]);
-            }
-        }
-
-        private void AddCircle(VertexHelper vh, Vector2 center, float normalizedRadius, float width = -1f)
-        {
-            Rect rect = GetPixelAdjustedRect();
-            float radius = Mathf.Min(rect.width, rect.height) * normalizedRadius;
-            const int segments = 16;
-            Vector2 previous = center + Vector2.right * radius;
-            for (int index = 1; index <= segments; index++)
+            Rect bounds = vh == null ? Rect.zero : Rect.zero;
+            float rx = radiusX01 * 100f;
+            float ry = radiusY01 * 100f;
+            List<Vector2> points = new List<Vector2>(segments);
+            for (int index = 0; index < segments; index++)
             {
                 float angle = index / (float)segments * Mathf.PI * 2f;
-                Vector2 next = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-                AddLine(vh, previous, next, width < 0f ? strokeWidth : width);
-                previous = next;
+                points.Add(center + new Vector2(Mathf.Cos(angle) * rx, Mathf.Sin(angle) * ry));
+            }
+            AddPolygon(vh, points, c);
+        }
+
+        private static void AddCircle(VertexHelper vh, Vector2 center, float radius01, Color c, int segments)
+        {
+            float radius = radius01 * 100f;
+            List<Vector2> points = new List<Vector2>(segments);
+            for (int index = 0; index < segments; index++)
+            {
+                float angle = index / (float)segments * Mathf.PI * 2f;
+                points.Add(center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius);
+            }
+            AddPolygon(vh, points, c);
+        }
+
+        private static void AddArc(VertexHelper vh, Vector2 center, float radius01, float from, float to, Color c, float width01, int segments)
+        {
+            float radius = radius01 * 100f;
+            for (int index = 0; index < segments; index++)
+            {
+                float a = Mathf.Lerp(from, to, index / (float)segments);
+                float b = Mathf.Lerp(from, to, (index + 1) / (float)segments);
+                AddLine(vh, center + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * radius, center + new Vector2(Mathf.Cos(b), Mathf.Sin(b)) * radius, c, width01);
             }
         }
 
-        private void AddLine(VertexHelper vh, Vector2 start, Vector2 end, float width = -1f)
+        private static void AddPolyline(VertexHelper vh, IReadOnlyList<Vector2> points, Color c, float width01)
         {
-            float resolvedWidth = width < 0f ? strokeWidth : width;
-            Vector2 direction = end - start;
-            if (direction.sqrMagnitude < 0.0001f) return;
-            Vector2 normal = new Vector2(-direction.y, direction.x).normalized * resolvedWidth * 0.5f;
-            int startIndex = vh.currentVertCount;
-            AddVertex(vh, start - normal);
-            AddVertex(vh, start + normal);
-            AddVertex(vh, end + normal);
-            AddVertex(vh, end - normal);
-            vh.AddTriangle(startIndex, startIndex + 1, startIndex + 2);
-            vh.AddTriangle(startIndex, startIndex + 2, startIndex + 3);
+            for (int index = 0; index < points.Count - 1; index++) AddLine(vh, points[index], points[index + 1], c, width01);
         }
 
-        private void AddVertex(VertexHelper vh, Vector2 position)
+        private static void AddLine(VertexHelper vh, Vector2 a, Vector2 b, Color c, float width01)
         {
-            UIVertex vertex = UIVertex.simpleVert;
-            vertex.position = position;
-            vertex.color = color;
-            vh.AddVert(vertex);
+            Vector2 direction = (b - a).normalized;
+            Vector2 normal = new Vector2(-direction.y, direction.x) * Mathf.Max(1.2f, width01 * 100f * 0.5f);
+            AddQuad(vh, a - normal, a + normal, b + normal, b - normal, c);
         }
 
-#if UNITY_EDITOR
-        protected override void OnValidate()
+        private static void AddQuad(VertexHelper vh, Vector2 a, Vector2 b, Vector2 c, Vector2 d, Color color)
         {
-            base.OnValidate();
-            strokeWidth = Mathf.Max(1f, strokeWidth);
-            raycastTarget = false;
-            SetVerticesDirty();
+            int start = vh.currentVertCount;
+            UIVertex vertex = UIVertex.simpleVert; vertex.color = color;
+            vertex.position = a; vh.AddVert(vertex); vertex.position = b; vh.AddVert(vertex);
+            vertex.position = c; vh.AddVert(vertex); vertex.position = d; vh.AddVert(vertex);
+            vh.AddTriangle(start, start + 1, start + 2); vh.AddTriangle(start, start + 2, start + 3);
         }
-#endif
+
+        private static void AddTriangle(VertexHelper vh, Vector2 a, Vector2 b, Vector2 c, Color color)
+        {
+            int start = vh.currentVertCount;
+            UIVertex vertex = UIVertex.simpleVert; vertex.color = color;
+            vertex.position = a; vh.AddVert(vertex); vertex.position = b; vh.AddVert(vertex); vertex.position = c; vh.AddVert(vertex);
+            vh.AddTriangle(start, start + 1, start + 2);
+        }
+
+        private static void AddPolygon(VertexHelper vh, IReadOnlyList<Vector2> points, Color color)
+        {
+            if (points == null || points.Count < 3) return;
+            Vector2 center = Vector2.zero;
+            for (int index = 0; index < points.Count; index++) center += points[index];
+            center /= points.Count;
+            int centerIndex = vh.currentVertCount;
+            UIVertex vertex = UIVertex.simpleVert; vertex.color = color; vertex.position = center; vh.AddVert(vertex);
+            for (int index = 0; index < points.Count; index++) { vertex.position = points[index]; vh.AddVert(vertex); }
+            for (int index = 0; index < points.Count; index++) vh.AddTriangle(centerIndex, centerIndex + 1 + index, centerIndex + 1 + ((index + 1) % points.Count));
+        }
     }
 }
