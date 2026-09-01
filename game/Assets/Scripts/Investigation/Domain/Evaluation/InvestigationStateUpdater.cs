@@ -22,6 +22,7 @@ namespace EDNA.Investigation.Domain
         {
             InvestigationState state = new InvestigationState();
             state.ApplySurveyContext(caseDefinition.SurveyContext);
+            InitializeSurveySpecies(state);
             return state;
         }
 
@@ -42,6 +43,7 @@ namespace EDNA.Investigation.Domain
 
             state.ApplySurveyContext(input.surveyContext);
             int applied = 0;
+            int importedSpecies = ImportDetectedSpecies(state, input.ednaResults);
             if (input.discoveredObservationIds != null)
             {
                 for (int index = 0; index < input.discoveredObservationIds.Count; index++)
@@ -53,12 +55,51 @@ namespace EDNA.Investigation.Domain
             applied += ImportExternalObservationList(state, input.physicalObservations, ObservationSource.ROV);
 
             bool hasContext = HasSurveyContext(input.surveyContext);
-            feedback = applied > 0
-                ? $"Imported {applied} observation(s) from the previous mini-games."
+            feedback = applied > 0 || importedSpecies > 0
+                ? $"Imported {applied} observation(s) and {importedSpecies} additional detected species from the previous mini-games."
                 : hasContext
                     ? "Imported the survey context. No case observations were mapped, so authored demo evidence remains available."
                     : "External input contained no directly mapped observations; authored demo evidence remains available.";
             return true;
+        }
+
+        private void InitializeSurveySpecies(InvestigationState state)
+        {
+            for (int index = 0; index < caseDefinition.Observations.Count; index++)
+            {
+                InvestigationObservationDefinition observation = caseDefinition.Observations[index];
+                if (observation != null
+                    && observation.UnlockStage == EvidenceUnlockStage.Observe
+                    && caseDefinition.FindSpecies(observation.RelatedSpeciesId) != null)
+                {
+                    state.IncludeSurveySpecies(observation.RelatedSpeciesId);
+                }
+            }
+            if (state.SurveySpeciesIds.Count > 0) return;
+            for (int index = 0; index < caseDefinition.Species.Count; index++)
+            {
+                InvestigationSpeciesDefinition species = caseDefinition.Species[index];
+                if (species != null) state.IncludeSurveySpecies(species.SpeciesId);
+            }
+        }
+
+        private int ImportDetectedSpecies(
+            InvestigationState state,
+            System.Collections.Generic.IReadOnlyList<EDNAResultData> results)
+        {
+            if (results == null) return 0;
+            int imported = 0;
+            for (int resultIndex = 0; resultIndex < results.Count; resultIndex++)
+            {
+                EDNAResultData result = results[resultIndex];
+                if (result?.detectedSpeciesIds == null) continue;
+                for (int speciesIndex = 0; speciesIndex < result.detectedSpeciesIds.Count; speciesIndex++)
+                {
+                    string speciesId = result.detectedSpeciesIds[speciesIndex];
+                    if (caseDefinition.FindSpecies(speciesId) != null && state.IncludeSurveySpecies(speciesId)) imported++;
+                }
+            }
+            return imported;
         }
 
         private int ImportExternalObservationList(

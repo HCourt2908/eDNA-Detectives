@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using EDNA.Core;
 using EDNA.Investigation.Domain;
 using UnityEngine;
 using UnityEngine.UI;
@@ -149,11 +151,72 @@ namespace EDNA.Investigation
             CreateDepthLabel(map, "MID", 0.38f);
             CreateDepthLabel(map, "DEEP", 0.10f);
 
-            for (int speciesIndex = 0; speciesIndex < caseDefinition.Species.Count; speciesIndex++)
+            CreateSpeciesMarkers(plotArea, era);
+        }
+
+        private void CreateSpeciesMarkers(RectTransform plotArea, SurveyEra era)
+        {
+            List<InvestigationSpeciesDefinition> visibleSpecies = GetVisibleObserveSpecies();
+            string layoutSeed = $"{caseDefinition.CaseId}|{state.SurveyId}|{state.SiteId}|{observeLayoutSessionSeed}";
+            DepthBand[] depthBands = { DepthBand.Shallow, DepthBand.Mid, DepthBand.Deep };
+            for (int depthIndex = 0; depthIndex < depthBands.Length; depthIndex++)
             {
-                InvestigationSpeciesDefinition species = caseDefinition.Species[speciesIndex];
-                if (species != null) CreateSpeciesMarker(plotArea, species, era);
+                DepthBand depthBand = depthBands[depthIndex];
+                CreateSpeciesMarkerGroup(plotArea, visibleSpecies, layoutSeed, era, depthBand, false);
+                CreateSpeciesMarkerGroup(plotArea, visibleSpecies, layoutSeed, era, depthBand, true);
             }
+        }
+
+        private void CreateSpeciesMarkerGroup(
+            RectTransform plotArea,
+            IReadOnlyList<InvestigationSpeciesDefinition> visibleSpecies,
+            string layoutSeed,
+            SurveyEra era,
+            DepthBand depthBand,
+            bool benthic)
+        {
+            List<InvestigationSpeciesDefinition> group = new List<InvestigationSpeciesDefinition>();
+            for (int index = 0; index < visibleSpecies.Count; index++)
+            {
+                InvestigationSpeciesDefinition species = visibleSpecies[index];
+                if (InvestigationSpeciesMapLayout.ResolveDepthBand(species) == depthBand
+                    && InvestigationSpeciesMapLayout.IsBenthic(species) == benthic)
+                {
+                    group.Add(species);
+                }
+            }
+            group.Sort((left, right) => InvestigationSpeciesMapLayout
+                .StableOrder(layoutSeed, left.SpeciesId, depthBand, benthic)
+                .CompareTo(InvestigationSpeciesMapLayout.StableOrder(layoutSeed, right.SpeciesId, depthBand, benthic)));
+
+            for (int index = 0; index < group.Count; index++)
+            {
+                InvestigationSpeciesDefinition species = group[index];
+                InvestigationSpeciesMapPlacement placement = InvestigationSpeciesMapLayout.Calculate(
+                    layoutSeed,
+                    species.SpeciesId,
+                    depthBand,
+                    benthic,
+                    era,
+                    index,
+                    group.Count);
+                CreateSpeciesMarker(plotArea, species, era, placement);
+            }
+        }
+
+        private List<InvestigationSpeciesDefinition> GetVisibleObserveSpecies()
+        {
+            List<InvestigationSpeciesDefinition> visible = new List<InvestigationSpeciesDefinition>();
+            for (int index = 0; index < caseDefinition.Species.Count; index++)
+            {
+                InvestigationSpeciesDefinition species = caseDefinition.Species[index];
+                if (species != null
+                    && (state.SurveySpeciesIds.Count == 0 || state.HasSurveySpecies(species.SpeciesId)))
+                {
+                    visible.Add(species);
+                }
+            }
+            return visible;
         }
 
         private void CreateSeamountVisual(RectTransform plotArea)
@@ -201,14 +264,15 @@ namespace EDNA.Investigation
             line.offsetMax = new Vector2(0f, 1f);
         }
 
-        private void CreateSpeciesMarker(RectTransform map, InvestigationSpeciesDefinition species, SurveyEra era)
+        private void CreateSpeciesMarker(
+            RectTransform map,
+            InvestigationSpeciesDefinition species,
+            SurveyEra era,
+            InvestigationSpeciesMapPlacement placement)
         {
             InvestigationObservationDefinition observation = FindObserveObservationForSpecies(species.SpeciesId);
             bool historical = era == SurveyEra.Historical;
             bool anomaly = !historical && observation != null && observation.ClaimType != ObservationClaimType.MatchesBaseline;
-            string detail = historical
-                ? "Detected"
-                : observation != null ? ConciseObservationLabel(observation) : "No current observation";
 
             RectTransform rect = null;
             Button marker = CreateButton(
@@ -221,11 +285,11 @@ namespace EDNA.Investigation
             emptyLabel.gameObject.SetActive(false);
             marker.interactable = true;
             rect = marker.GetComponent<RectTransform>();
-            Vector2 comparisonPosition = species.MapPosition;
+            Vector2 comparisonPosition = placement.Anchor;
             rect.anchorMin = comparisonPosition;
             rect.anchorMax = comparisonPosition;
             rect.pivot = Vector2.one * 0.5f;
-            rect.sizeDelta = new Vector2(112f, 88f);
+            rect.sizeDelta = placement.MarkerSize;
             rect.anchoredPosition = Vector2.zero;
             LayoutElement markerLayout = marker.GetComponent<LayoutElement>();
             markerLayout.ignoreLayout = true;
@@ -246,33 +310,21 @@ namespace EDNA.Investigation
                 && species.Icon != null;
             if (showGroup)
             {
-                Anchor(artwork, 0.30f, 0.45f, 0.70f, 0.98f, 0f, 0f, 0f, -2f);
-                CreateMapGroupMember(marker.transform, species.Icon, "Group Member Left", 0.04f, 0.48f, 0.38f, 0.88f);
-                CreateMapGroupMember(marker.transform, species.Icon, "Group Member Right", 0.62f, 0.50f, 0.96f, 0.90f);
+                Anchor(artwork, 0.30f, 0.12f, 0.70f, 0.96f, 0f, 0f, 0f, -2f);
+                CreateMapGroupMember(marker.transform, species.Icon, "Group Member Left", 0.02f, 0.18f, 0.38f, 0.80f);
+                CreateMapGroupMember(marker.transform, species.Icon, "Group Member Right", 0.62f, 0.20f, 0.98f, 0.82f);
             }
             else
             {
-                Anchor(artwork, 0f, 0.44f, 1f, 0.98f, 24f, 0f, -24f, -2f);
+                Anchor(artwork, 0f, 0f, 1f, 1f, 14f, 8f, -14f, -4f);
             }
 
             if (!historical && observation != null && observation.ClaimType == ObservationClaimType.NotDetected)
             {
                 InvestigationMissingSignalGraphic missing = CreateGraphic<InvestigationMissingSignalGraphic>("Missing Signal", marker.transform);
                 missing.color = InvestigationTheme.TextMuted;
-                Anchor(missing.rectTransform, 0.18f, 0.43f, 0.82f, 0.98f, 0f, 0f, 0f, -2f);
+                Anchor(missing.rectTransform, 0.12f, 0.08f, 0.88f, 0.96f, 0f, 0f, 0f, -2f);
             }
-
-            Text name = CreateText("Species Name", marker.transform, species.DisplayName, 13, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.DisplayFont);
-            Anchor(name.rectTransform, 0f, 0.31f, 1f, 0.51f, 6f, 0f, -6f, 0f);
-            EnsureOutline(name.gameObject, new Color32(1, 8, 16, 245), new Vector2(1.5f, -1.5f));
-            Color stateColor = !historical && observation != null && observation.ClaimType == ObservationClaimType.NotDetected
-                ? InvestigationTheme.Danger
-                : !historical && observation != null && observation.ClaimType == ObservationClaimType.ChangedDepthOrDistribution
-                    ? InvestigationTheme.Accent
-                    : InvestigationTheme.TextSecondary;
-            Text stateLabel = CreateText("Observation", marker.transform, detail, 12, FontStyle.Bold, stateColor, TextAnchor.UpperCenter, InvestigationTheme.BodyFont);
-            Anchor(stateLabel.rectTransform, 0f, 0.02f, 1f, 0.31f, 6f, 1f, -6f, 0f);
-            EnsureOutline(stateLabel.gameObject, new Color32(1, 8, 16, 245), new Vector2(1.5f, -1.5f));
 
             InvestigationHoverTooltipTrigger tooltipTrigger = marker.gameObject.AddComponent<InvestigationHoverTooltipTrigger>();
             tooltipTrigger.Configure(

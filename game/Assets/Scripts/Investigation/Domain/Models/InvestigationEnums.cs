@@ -35,7 +35,7 @@ namespace EDNA.Investigation.Domain
         Always = 3
     }
 
-    public enum V2EvidenceConfidence
+    public enum EvidenceConfidence
     {
         Low = 0,
         Medium = 1,

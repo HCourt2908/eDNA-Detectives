@@ -5,6 +5,7 @@ using EDNA.Core;
 using EDNA.Investigation.Domain;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEngine;
 
 namespace EDNA.Investigation.Tests
 {
@@ -57,6 +58,97 @@ namespace EDNA.Investigation.Tests
             }
             Assert.That(caseDefinition.ComparisonRules, Has.Count.EqualTo(21));
             Assert.That(caseDefinition.InvestigationObjectives, Has.Count.EqualTo(8));
+        }
+
+        [Test]
+        public void SpeciesMapLayout_DeterministicallyScattersTwentySpeciesWithinDepthBands()
+        {
+            string seed = "investigation_longline_01|survey_12|seamount_a";
+            int[] counts = { 7, 7, 6 };
+            DepthBand[] bands = { DepthBand.Shallow, DepthBand.Mid, DepthBand.Deep };
+            int total = 0;
+            bool foundDifferentCasePlacement = false;
+            for (int bandIndex = 0; bandIndex < bands.Length; bandIndex++)
+            {
+                DepthBand band = bands[bandIndex];
+                List<string> speciesIds = new List<string>();
+                for (int index = 0; index < counts[bandIndex]; index++)
+                    speciesIds.Add($"species_{band}_{index}");
+                speciesIds.Sort((left, right) => InvestigationSpeciesMapLayout
+                    .StableOrder(seed, left, band, false)
+                    .CompareTo(InvestigationSpeciesMapLayout.StableOrder(seed, right, band, false)));
+
+                List<Vector2> positions = new List<Vector2>();
+                for (int index = 0; index < speciesIds.Count; index++)
+                {
+                    InvestigationSpeciesMapPlacement first = InvestigationSpeciesMapLayout.Calculate(
+                        seed, speciesIds[index], band, false, SurveyEra.Current, index, speciesIds.Count);
+                    InvestigationSpeciesMapPlacement repeated = InvestigationSpeciesMapLayout.Calculate(
+                        seed, speciesIds[index], band, false, SurveyEra.Current, index, speciesIds.Count);
+                    InvestigationSpeciesMapPlacement historical = InvestigationSpeciesMapLayout.Calculate(
+                        seed, speciesIds[index], band, false, SurveyEra.Historical, index, speciesIds.Count);
+                    InvestigationSpeciesMapPlacement anotherCase = InvestigationSpeciesMapLayout.Calculate(
+                        seed + "|new-case", speciesIds[index], band, false, SurveyEra.Current, index, speciesIds.Count);
+                    Assert.That(repeated.Anchor, Is.EqualTo(first.Anchor));
+                    Assert.That(first.Anchor.x, Is.InRange(0.10f, 0.90f));
+                    Assert.That(first.Anchor.y, Is.InRange(0.19f, 0.97f));
+                    Assert.That(first.MarkerSize.x, Is.GreaterThanOrEqualTo(74f));
+                    Assert.That(first.MarkerSize.y, Is.GreaterThanOrEqualTo(62f));
+                    Assert.That(Vector2.Distance(first.Anchor, historical.Anchor), Is.LessThan(0.08f));
+                    if (Vector2.Distance(first.Anchor, anotherCase.Anchor) > 0.01f)
+                        foundDifferentCasePlacement = true;
+                    positions.Add(first.Anchor);
+                    total++;
+                }
+                for (int first = 0; first < positions.Count; first++)
+                    for (int second = first + 1; second < positions.Count; second++)
+                        Assert.That(Vector2.Distance(positions[first], positions[second]), Is.GreaterThan(0.035f));
+            }
+            Assert.That(total, Is.EqualTo(20));
+            Assert.That(foundDifferentCasePlacement, Is.True,
+                "A new case seed should produce a visibly different arrangement while preserving the same constraints.");
+        }
+
+        [Test]
+        public void ExternalEdnaResults_AddOnlyKnownDetectedSpeciesToSurveyRoster()
+        {
+            InvestigationCaseDefinition clone = UnityEngine.Object.Instantiate(caseDefinition);
+            InvestigationSpeciesDefinition backgroundSpecies = ScriptableObject.CreateInstance<InvestigationSpeciesDefinition>();
+            try
+            {
+                SerializedObject speciesObject = new SerializedObject(backgroundSpecies);
+                speciesObject.FindProperty("speciesId").stringValue = "background_jelly";
+                speciesObject.FindProperty("displayName").stringValue = "Background jelly";
+                SerializedProperty depths = speciesObject.FindProperty("preferredDepths");
+                depths.arraySize = 1;
+                depths.GetArrayElementAtIndex(0).enumValueIndex = (int)DepthBand.Mid;
+                speciesObject.ApplyModifiedPropertiesWithoutUndo();
+
+                SerializedObject caseObject = new SerializedObject(clone);
+                SerializedProperty species = caseObject.FindProperty("species");
+                int originalCount = species.arraySize;
+                species.arraySize++;
+                species.GetArrayElementAtIndex(originalCount).objectReferenceValue = backgroundSpecies;
+                caseObject.ApplyModifiedPropertiesWithoutUndo();
+
+                InvestigationStateUpdater cloneUpdater = new InvestigationStateUpdater(clone);
+                InvestigationState state = cloneUpdater.CreateInitialState();
+                Assert.That(state.HasSurveySpecies("background_jelly"), Is.False);
+                InvestigationGameInput input = new InvestigationGameInput();
+                EDNAResultData result = new EDNAResultData();
+                result.detectedSpeciesIds.Add("background_jelly");
+                result.detectedSpeciesIds.Add("unknown_species");
+                input.ednaResults.Add(result);
+                Assert.That(cloneUpdater.TryApplyExternalInput(state, input, out string feedback), Is.True);
+                Assert.That(state.HasSurveySpecies("background_jelly"), Is.True);
+                Assert.That(state.HasSurveySpecies("unknown_species"), Is.False);
+                Assert.That(feedback, Does.Contain("1 additional detected species"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(backgroundSpecies);
+                UnityEngine.Object.DestroyImmediate(clone);
+            }
         }
 
         [Test]

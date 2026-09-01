@@ -1,6 +1,6 @@
-# eDNA Detectives — Ecosystem Detective
+# Ecosystem Detective — Detective Game Part
 
-A Unity web-game vertical slice for the OceanX eDNA Detectives project. The current design is a three-stage ecosystem investigation in which players compare survey results, test competing causes, and build an evidence-based report.
+Documentation for the Ecosystem Detective part of the OceanX eDNA Detectives Unity project. This three-stage investigation asks players to compare survey results, test competing causes, and build an evidence-based report.
 
 ## Quick start
 
@@ -15,6 +15,9 @@ A Unity web-game vertical slice for the OceanX eDNA Detectives project. The curr
 Players compare the same seamount **20 years ago** and **today**, divided into shallow, mid, and deep depth bands.
 
 - Five case-relevant organisms appear at their habitat depths.
+- Visible organisms use depth-aware scattering rather than fixed slots, so larger survey rosters can fill each depth band without leaving authored gaps. Each new case or Restart gets a fresh arrangement, while positions remain stable throughout that run.
+- Species detected by an upstream eDNA result can join the survey roster automatically; species that are neither detected nor required by the case do not consume map space.
+- The seamount maps show organism artwork only; names, survey status and species facts appear on hover, keyboard focus or tap and are recorded in the Notebook.
 - A current non-detection uses ghosted artwork and a dashed removal mark instead of an empty space.
 - Wider detection appears as a small group.
 - Hovering, keyboard-focusing, or tapping a marker opens its species facts.

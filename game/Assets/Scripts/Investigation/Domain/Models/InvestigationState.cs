@@ -7,6 +7,7 @@ namespace EDNA.Investigation.Domain
     public sealed class InvestigationState
     {
         private readonly List<string> discoveredObservationIds = new List<string>();
+        private readonly List<string> surveySpeciesIds = new List<string>();
         private readonly List<string> triedThreatIds = new List<string>();
         private readonly List<SimulationResult> simulationResults = new List<SimulationResult>();
         private readonly List<PredictionComparisonRecord> comparisonRecords = new List<PredictionComparisonRecord>();
@@ -30,12 +31,14 @@ namespace EDNA.Investigation.Domain
         public string ProcessedSampleSummary { get; private set; } = "Processed eDNA survey results";
 
         public IReadOnlyList<string> DiscoveredObservationIds => discoveredObservationIds;
+        public IReadOnlyList<string> SurveySpeciesIds => surveySpeciesIds;
         public IReadOnlyList<string> TriedThreatIds => triedThreatIds;
         public IReadOnlyList<SimulationResult> SimulationResults => simulationResults;
         public IReadOnlyList<PredictionComparisonRecord> ComparisonRecords => comparisonRecords;
         public IReadOnlyList<string> SelectedReportEvidenceIds => selectedReportEvidenceIds;
 
         public bool HasDiscoveredObservation(string evidenceId) => Contains(discoveredObservationIds, evidenceId);
+        public bool HasSurveySpecies(string speciesId) => Contains(surveySpeciesIds, speciesId);
         public bool HasTriedThreat(string threatId) => Contains(triedThreatIds, threatId);
         public bool HasSelectedEvidence(string evidenceId) => Contains(selectedReportEvidenceIds, evidenceId);
 
@@ -119,6 +122,13 @@ namespace EDNA.Investigation.Domain
         internal void DiscoverObservation(string evidenceId)
         {
             AddUnique(discoveredObservationIds, evidenceId);
+        }
+
+        internal bool IncludeSurveySpecies(string speciesId)
+        {
+            if (string.IsNullOrEmpty(speciesId) || Contains(surveySpeciesIds, speciesId)) return false;
+            surveySpeciesIds.Add(speciesId);
+            return true;
         }
 
         internal void ApplySurveyContext(InvestigationSurveyContextData context)

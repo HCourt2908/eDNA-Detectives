@@ -13,7 +13,7 @@ namespace EDNA.Investigation.Domain
         [SerializeField] private ObservationSource source;
         [SerializeField] private EvidenceUnlockStage unlockStage;
         [SerializeField] private string unlockThreatId = string.Empty;
-        [SerializeField] private V2EvidenceConfidence confidence;
+        [SerializeField] private EvidenceConfidence confidence;
         [SerializeField] private ObservationClaimType claimType;
         [SerializeField] private EvidenceCategory category;
         [SerializeField, TextArea(1, 3)] private string confidenceReason = string.Empty;
@@ -25,7 +25,7 @@ namespace EDNA.Investigation.Domain
         public ObservationSource Source => source;
         public EvidenceUnlockStage UnlockStage => unlockStage;
         public string UnlockThreatId => unlockThreatId;
-        public V2EvidenceConfidence Confidence => confidence;
+        public EvidenceConfidence Confidence => confidence;
         public ObservationClaimType ClaimType => claimType;
         public EvidenceCategory Category => category;
         public string ConfidenceReason => confidenceReason;

@@ -76,6 +76,7 @@ namespace EDNA.Investigation
         private InvestigationSpeciesDefinition pendingTappedSpecies;
         private RectTransform speciesTooltip;
         private string statusMessage = string.Empty;
+        private string observeLayoutSessionSeed = Guid.NewGuid().ToString("N");
         private InvestigationStatusTone statusTone = InvestigationStatusTone.Guide;
         private readonly HashSet<string> animatedThreatIds = new HashSet<string>(StringComparer.Ordinal);
         private bool built;
@@ -127,6 +128,7 @@ namespace EDNA.Investigation
 
         public void ResetPresentationState()
         {
+            observeLayoutSessionSeed = Guid.NewGuid().ToString("N");
             selectedThreatId = string.Empty;
             selectedPredictionTargetKind = PredictionTargetKind.Species;
             selectedPredictionSpeciesId = string.Empty;
