@@ -8,124 +8,97 @@ using UnityEngine.UI;
 public enum CTDGameState
 {
     Map,
-    Intro,
+    Preparation,
     Cleaning,
-    Planning,
     Launching,
     Sampling,
     Recovering,
     Complete
 }
 
+/// <summary>
+/// Owns the stage sequence. UI composition is deliberately kept in the scene;
+/// this component switches screens and runs only gameplay behaviour.
+/// </summary>
 public class CTDGameManager : MonoBehaviour
 {
-    [Header("Panels")]
-    public GameObject introPanel;
+    [Header("Stage roots authored in the scene")]
+    public RosetteMapHub mapHub;
+    public GameObject preparationPanel;
     public GameObject cleaningPanel;
-    public GameObject planningPanel;
     public GameObject launchPanel;
     public GameObject samplingPanel;
     public GameObject recoveryPanel;
     public GameObject completePanel;
 
-    [Header("Flow")]
-    public Button beginButton;
+    [Header("Stage behaviour")]
+    public EquipmentPreparationSequence preparationSequence;
     public CleaningMinigame cleaningMinigame;
-    public Button[] locationButtons;
-    public TMP_Text selectedLocationText;
-    public Button deployButton;
     public CTDSamplingController samplingController;
 
-    [Header("Transitions")]
+    [Header("Launch animation")]
+    [Tooltip("These values are editable in the Inspector. They control only the launch motion, not the authored layout.")]
     public RectTransform launchRosette;
-    public RectTransform recoveryRosette;
+    public Vector2 launchStartPosition = new Vector2(0f, 210f);
+    public Vector2 launchEndPosition = new Vector2(0f, -220f);
+    [Min(0.1f)] public float launchDuration = 3f;
     public TMP_Text transitionStatusText;
+
+    [Header("Completion")]
+    public RectTransform recoveryRosette;
     public TMP_Text completionSummaryText;
     public Button replayButton;
     public Button continueButton;
     public string dnaSceneName = "Petri-Dish-Game";
-    public RosetteMapHub mapHub;
 
     public CTDGameState CurrentState { get; private set; }
 
-    private readonly GameObject[] panels = new GameObject[7];
-    private string selectedLocation = "Station A";
-    private int selectedLocationIndex;
     private CTDSampleRecord[] completedSamples;
+    private int selectedLocationIndex;
+    private bool cleaningTutorialRequired;
 
     private void Awake()
     {
-        panels[0] = introPanel;
-        panels[1] = cleaningPanel;
-        panels[2] = planningPanel;
-        panels[3] = launchPanel;
-        panels[4] = samplingPanel;
-        panels[5] = recoveryPanel;
-        panels[6] = completePanel;
-
-        if (mapHub == null)
-        {
-            mapHub = gameObject.AddComponent<RosetteMapHub>();
-        }
-
-        mapHub.Initialise(FindAnyObjectByType<Canvas>());
-        mapHub.ReadyToDeploy += HandleMapReady;
-
-        beginButton.onClick.AddListener(BeginMission);
-        cleaningMinigame.Completed += OpenPlanning;
-        deployButton.onClick.AddListener(BeginLaunch);
+        mapHub.ReadyToDeploy += BeginPreparation;
+        preparationSequence.ReadyPressed += ContinueFromPreparation;
+        cleaningMinigame.Completed += BeginLaunch;
         samplingController.SamplingCompleted += BeginRecovery;
         replayButton.onClick.AddListener(Replay);
         continueButton.onClick.AddListener(ContinueToDNA);
-
-        for (int index = 0; index < locationButtons.Length; index++)
-        {
-            int capturedIndex = index;
-            locationButtons[index].onClick.AddListener(() => SelectLocation(capturedIndex));
-        }
     }
 
     private void Start()
     {
+        ShowMap();
+    }
+
+    private void ShowMap()
+    {
         CurrentState = CTDGameState.Map;
+        HideAllStagePanels();
         mapHub.Show();
     }
 
-    private void HandleMapReady(int locationIndex)
+    private void BeginPreparation(int locationIndex)
     {
-        selectedLocationIndex = Mathf.Clamp(locationIndex, 0, 25);
-        selectedLocation = $"Station {(char)('A' + selectedLocationIndex)}";
-        mapHub.Hide();
-        BeginMission();
+        selectedLocationIndex = locationIndex;
+        cleaningTutorialRequired = PlayerPrefs.GetInt(CleaningMinigame.TutorialCompleteKey, 0) == 0;
+        CurrentState = CTDGameState.Preparation;
+        ShowPanel(preparationPanel);
+        preparationSequence.Begin(cleaningTutorialRequired);
     }
 
-    private void BeginMission()
+    private void ContinueFromPreparation()
     {
+        if (!cleaningTutorialRequired)
+        {
+            BeginLaunch();
+            return;
+        }
+
         CurrentState = CTDGameState.Cleaning;
         ShowPanel(cleaningPanel);
         cleaningMinigame.Begin();
-    }
-
-    private void OpenPlanning()
-    {
-        CurrentState = CTDGameState.Planning;
-        ShowPanel(planningPanel);
-        SelectLocation(selectedLocationIndex % Mathf.Max(1, locationButtons.Length));
-    }
-
-    private void SelectLocation(int index)
-    {
-        selectedLocation = $"Station {(char)('A' + index)}";
-        selectedLocationText.text = $"Selected: {selectedLocation}\nTargets: Deep 820 m  •  Midwater 500 m  •  Surface 180 m";
-
-        for (int buttonIndex = 0; buttonIndex < locationButtons.Length; buttonIndex++)
-        {
-            ColorBlock colours = locationButtons[buttonIndex].colors;
-            colours.normalColor = buttonIndex == index
-                ? new Color(0.18f, 0.76f, 0.72f)
-                : new Color(0.12f, 0.28f, 0.40f);
-            locationButtons[buttonIndex].colors = colours;
-        }
     }
 
     private void BeginLaunch()
@@ -137,25 +110,21 @@ public class CTDGameManager : MonoBehaviour
 
     private IEnumerator PlayLaunch()
     {
-        Vector2 start = new Vector2(0f, 210f);
-        Vector2 end = new Vector2(0f, -220f);
-        launchRosette.anchoredPosition = start;
-        transitionStatusText.text = "Deck crew secured — lowering the CTD rosette";
+        launchRosette.anchoredPosition = launchStartPosition;
+        transitionStatusText.text = "Rosette deployed — entering the water column";
 
-        float duration = 3f;
         float elapsed = 0f;
-
-        while (elapsed < duration)
+        while (elapsed < launchDuration)
         {
             elapsed += Time.deltaTime;
-            float progress = Mathf.SmoothStep(0f, 1f, elapsed / duration);
-            launchRosette.anchoredPosition = Vector2.Lerp(start, end, progress);
+            float progress = Mathf.SmoothStep(0f, 1f, elapsed / launchDuration);
+            launchRosette.anchoredPosition = Vector2.Lerp(launchStartPosition, launchEndPosition, progress);
             yield return null;
         }
 
         CurrentState = CTDGameState.Sampling;
         ShowPanel(samplingPanel);
-        samplingController.Begin(selectedLocation);
+        samplingController.Begin($"Waypoint-{selectedLocationIndex + 1:00}");
     }
 
     private void BeginRecovery(CTDSampleRecord[] samples)
@@ -168,18 +137,15 @@ public class CTDGameManager : MonoBehaviour
 
     private IEnumerator PlayRecovery()
     {
-        Vector2 start = new Vector2(0f, -220f);
-        Vector2 end = new Vector2(0f, 210f);
-        recoveryRosette.anchoredPosition = start;
-
-        float duration = 2.6f;
+        recoveryRosette.anchoredPosition = new Vector2(0f, -220f);
         float elapsed = 0f;
+        const float duration = 2.6f;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
             float progress = Mathf.SmoothStep(0f, 1f, elapsed / duration);
-            recoveryRosette.anchoredPosition = Vector2.Lerp(start, end, progress);
+            recoveryRosette.anchoredPosition = Vector2.Lerp(new Vector2(0f, -220f), new Vector2(0f, 210f), progress);
             yield return null;
         }
 
@@ -190,9 +156,7 @@ public class CTDGameManager : MonoBehaviour
     {
         CurrentState = CTDGameState.Complete;
         ShowPanel(completePanel);
-
-        StringBuilder summary = new StringBuilder();
-        summary.AppendLine("CTD CAST COMPLETE  ✓\n");
+        StringBuilder summary = new StringBuilder("CTD CAST COMPLETE  ✓\n\n");
 
         foreach (CTDSampleRecord sample in completedSamples)
         {
@@ -224,14 +188,18 @@ public class CTDGameManager : MonoBehaviour
 
     private void ShowPanel(GameObject panelToShow)
     {
-        if (mapHub != null)
-        {
-            mapHub.Hide();
-        }
+        HideAllStagePanels();
+        panelToShow.SetActive(true);
+    }
 
-        foreach (GameObject panel in panels)
-        {
-            panel.SetActive(panel == panelToShow);
-        }
+    private void HideAllStagePanels()
+    {
+        mapHub.Hide();
+        preparationPanel.SetActive(false);
+        cleaningPanel.SetActive(false);
+        launchPanel.SetActive(false);
+        samplingPanel.SetActive(false);
+        recoveryPanel.SetActive(false);
+        completePanel.SetActive(false);
     }
 }

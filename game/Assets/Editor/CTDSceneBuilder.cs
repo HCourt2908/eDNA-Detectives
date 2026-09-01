@@ -19,6 +19,13 @@ public static class CTDSceneBuilder
     private const string TubePath = "Assets/Art/CTD-Minigame/CTD/tube.png";
     private const string FilterPath = "Assets/Art/CTD-Minigame/CTD/filter.png";
     private const string SpongePath = "Assets/Art/CTD-Minigame/CTD/sponge.png";
+    private const string MapBackgroundPath = "Assets/Art/Rosette-Deployment/Backgrounds/undersea_background.jpeg";
+    private const string SeamountPath = "Assets/Art/Rosette-Deployment/Map/seamount_fine.png";
+    private const string LogPanelPath = "Assets/Art/Rosette-Deployment/Extracted/log_panel_frame.png";
+    private const string DatabasePanelPath = "Assets/Art/Rosette-Deployment/Extracted/database_panel_frame.png";
+    private const string WaypointPath = "Assets/Art/Rosette-Deployment/Extracted/single_waypoint_marker.png";
+    private const string DeployFramePath = "Assets/Art/Rosette-Deployment/Extracted/deploy_button_frame.png";
+    private const string RosetteEntryPath = "Assets/Art/Rosette-Deployment/Launch/rosette_entry_ocean_animation.png";
     private static readonly Color Navy = new Color(0.018f, 0.055f, 0.12f);
     private static readonly Color PanelBlue = new Color(0.035f, 0.13f, 0.22f, 0.96f);
     private static readonly Color Cyan = new Color(0.18f, 0.82f, 0.86f);
@@ -41,24 +48,18 @@ public static class CTDSceneBuilder
         GameObject managerObject = new GameObject("CTDGameManager");
         CTDGameManager manager = managerObject.AddComponent<CTDGameManager>();
 
-        GameObject introPanel = CreateIntroPanel(canvas.transform, out Button beginButton);
-        ApplyBackground(introPanel, UnderseaBackgroundPath, Color.white);
+        GameObject mapPanel = CreateMapPanel(canvas.transform, out RosetteMapHub mapHub);
+        GameObject preparationPanel = CreatePreparationPanel(canvas.transform, out EquipmentPreparationSequence preparationSequence);
         GameObject cleaningPanel = CreateCleaningPanel(canvas, out CleaningMinigame cleaningMinigame);
         ApplyBackground(cleaningPanel, LaboratoryBackgroundPath, Color.white);
-        GameObject planningPanel = CreatePlanningPanel(
-            canvas.transform,
-            out Button[] locationButtons,
-            out TMP_Text selectedLocationText,
-            out Button deployButton);
-        ApplyBackground(planningPanel, UnderseaBackgroundPath, Color.white);
         GameObject launchPanel = CreateTransitionPanel(
             canvas.transform,
             "LaunchPanel",
-            "DEPLOYING CTD",
+            "ROSETTE ENTRY",
             out RectTransform launchRosette,
             out TMP_Text transitionStatusText,
             false);
-        ApplyBackground(launchPanel, UnderseaBackgroundPath, Color.white);
+        ApplyBackground(launchPanel, RosetteEntryPath, Color.white);
         GameObject samplingPanel = CreateSamplingPanel(canvas.transform, out CTDSamplingController samplingController);
         GameObject recoveryPanel = CreateTransitionPanel(
             canvas.transform,
@@ -75,18 +76,15 @@ public static class CTDSceneBuilder
             out Button continueButton);
         ApplyBackground(completePanel, UnderseaBackgroundPath, Color.white);
 
-        manager.introPanel = introPanel;
+        manager.mapHub = mapHub;
+        manager.preparationPanel = preparationPanel;
         manager.cleaningPanel = cleaningPanel;
-        manager.planningPanel = planningPanel;
         manager.launchPanel = launchPanel;
         manager.samplingPanel = samplingPanel;
         manager.recoveryPanel = recoveryPanel;
         manager.completePanel = completePanel;
-        manager.beginButton = beginButton;
+        manager.preparationSequence = preparationSequence;
         manager.cleaningMinigame = cleaningMinigame;
-        manager.locationButtons = locationButtons;
-        manager.selectedLocationText = selectedLocationText;
-        manager.deployButton = deployButton;
         manager.samplingController = samplingController;
         manager.launchRosette = launchRosette;
         manager.recoveryRosette = recoveryRosette;
@@ -119,28 +117,27 @@ public static class CTDSceneBuilder
             throw new InvalidOperationException("CTDGameManager is missing from the CTD scene.");
         }
 
-        Require(manager.introPanel, "IntroPanel");
+        Require(manager.mapHub, "RosetteMapHub");
+        Require(manager.preparationPanel, "PreparationPanel");
         Require(manager.cleaningPanel, "CleaningPanel");
-        Require(manager.planningPanel, "PlanningPanel");
         Require(manager.launchPanel, "LaunchPanel");
         Require(manager.samplingPanel, "SamplingPanel");
         Require(manager.recoveryPanel, "RecoveryPanel");
         Require(manager.completePanel, "CompletePanel");
         Require(manager.cleaningMinigame, "CleaningMinigame");
         Require(manager.samplingController, "CTDSamplingController");
-        Require(manager.beginButton, "Begin button");
-        Require(manager.deployButton, "Deploy button");
+        Require(manager.preparationSequence, "EquipmentPreparationSequence");
         Require(manager.replayButton, "Replay button");
         Require(manager.continueButton, "Continue button");
 
-        if (manager.locationButtons == null || manager.locationButtons.Length != 3)
+        if (manager.mapHub.waypointButtons == null || manager.mapHub.waypointButtons.Length != 6)
         {
-            throw new InvalidOperationException("The scene must contain exactly three station buttons.");
+            throw new InvalidOperationException("The scene must contain six map waypoints.");
         }
 
-        if (manager.cleaningMinigame.targets == null || manager.cleaningMinigame.targets.Length != 3)
+        if (manager.cleaningMinigame.targets == null || manager.cleaningMinigame.targets.Length != 1)
         {
-            throw new InvalidOperationException("The cleaning activity must contain exactly three equipment targets.");
+            throw new InvalidOperationException("The cleaning activity must contain one Niskin-bottle target.");
         }
 
         if (manager.samplingController.bottleImages == null || manager.samplingController.bottleImages.Length != 3)
@@ -244,16 +241,134 @@ public static class CTDSceneBuilder
         return panel;
     }
 
+    private static GameObject CreateMapPanel(Transform parent, out RosetteMapHub mapHub)
+    {
+        GameObject panel = CreatePanel("MapPanel", parent, Navy);
+        ApplyBackground(panel, MapBackgroundPath, Color.white);
+        mapHub = panel.AddComponent<RosetteMapHub>();
+        mapHub.rootPanel = panel;
+
+        GameObject seamount = CreateImage("Seamount", panel.transform, Color.white, new Vector2(-240f, -260f), new Vector2(1450f, 1000f));
+        Image seamountImage = seamount.GetComponent<Image>();
+        seamountImage.sprite = LoadSprite(SeamountPath);
+        seamountImage.preserveAspect = true;
+        Shader blackKeyShader = Shader.Find("Rosette/SeamountBlackKey");
+        if (blackKeyShader != null)
+        {
+            seamountImage.material = new Material(blackKeyShader);
+        }
+
+        GameObject logPanel = CreateImage("LogPanel", panel.transform, Color.white, new Vector2(-490f, 300f), new Vector2(770f, 350f));
+        SetSprite(logPanel, LogPanelPath);
+        CreateText("LogText", logPanel.transform, "[ LOG ENTRY ]\nADDITIONAL DATA UNAVAILABLE.\nDEPLOY MORE PROBES FOR ANALYSIS.", 29, Cyan, Vector2.zero, new Vector2(650f, 220f), FontStyles.Bold);
+
+        GameObject databasePanel = CreateImage("DatabasePanel", panel.transform, Color.white, new Vector2(575f, 165f), new Vector2(650f, 670f));
+        SetSprite(databasePanel, DatabasePanelPath);
+        GameObject idle = CreateEmptyUI("IdleInformation", databasePanel.transform);
+        Stretch(idle.GetComponent<RectTransform>());
+        CreateText("Prompt", idle.transform, "[SEAMOUNT_DATABASE]\nSELECT A WAYPOINT\nTO VIEW PROFILE", 27, Cyan, Vector2.zero, new Vector2(500f, 160f), FontStyles.Bold);
+
+        GameObject location = CreateEmptyUI("LocationInformation", databasePanel.transform);
+        Stretch(location.GetComponent<RectTransform>());
+        CreateText("Header", location.transform, "[SEAMOUNT_DATABASE]\nSUB-SURFACE PROFILE", 25, Cyan, new Vector2(0f, 216f), new Vector2(510f, 80f), FontStyles.Bold);
+        CreateText("ConductivityLabel", location.transform, "CONDUCTIVITY", 18, new Color(0.70f, 0.90f, 0.95f), new Vector2(-155f, 108f), new Vector2(220f, 32f));
+        TMP_Text conductivity = CreateText("Conductivity", location.transform, "", 26, White, new Vector2(105f, 108f), new Vector2(270f, 42f), FontStyles.Bold);
+        CreateText("TemperatureLabel", location.transform, "TEMPERATURE", 18, new Color(0.70f, 0.90f, 0.95f), new Vector2(-155f, 42f), new Vector2(220f, 32f));
+        TMP_Text temperature = CreateText("Temperature", location.transform, "", 26, White, new Vector2(105f, 42f), new Vector2(270f, 42f), FontStyles.Bold);
+        CreateText("DepthLabel", location.transform, "DEPTH", 18, new Color(0.70f, 0.90f, 0.95f), new Vector2(-155f, -24f), new Vector2(220f, 32f));
+        TMP_Text depth = CreateText("Depth", location.transform, "", 26, White, new Vector2(105f, -24f), new Vector2(270f, 42f), FontStyles.Bold);
+        CreateText("HabitatsLabel", location.transform, "POTENTIAL HABITATS OBSERVED", 18, Cyan, new Vector2(0f, -105f), new Vector2(480f, 32f), FontStyles.Bold);
+        TMP_Text habitats = CreateText("Habitats", location.transform, "", 21, White, new Vector2(0f, -205f), new Vector2(480f, 150f));
+        TMP_Text locationId = CreateText("LocationId", location.transform, "", 25, new Color(0.30f, 0.95f, 0.72f), new Vector2(0f, 165f), new Vector2(480f, 42f), FontStyles.Bold);
+
+        Button[] waypoints = new Button[6];
+        Vector2[] positions =
+        {
+            new Vector2(-360f, 185f), new Vector2(-270f, 50f), new Vector2(-480f, -80f),
+            new Vector2(-90f, -130f), new Vector2(-520f, -390f), new Vector2(-30f, -310f)
+        };
+        for (int index = 0; index < waypoints.Length; index++)
+        {
+            GameObject marker = CreateImage($"Waypoint-{index + 1:00}", panel.transform, Color.white, positions[index], new Vector2(80f, 120f));
+            SetSprite(marker, WaypointPath);
+            marker.GetComponent<Image>().preserveAspect = true;
+            Button button = marker.AddComponent<Button>();
+            button.targetGraphic = marker.GetComponent<Image>();
+            waypoints[index] = button;
+        }
+
+        GameObject deploy = CreateImage("DeployButton", panel.transform, Color.white, new Vector2(650f, -345f), new Vector2(270f, 130f));
+        SetSprite(deploy, DeployFramePath);
+        deploy.GetComponent<Image>().preserveAspect = true;
+        Button deployButton = deploy.AddComponent<Button>();
+        deployButton.targetGraphic = deploy.GetComponent<Image>();
+        CreateText("Label", deploy.transform, "DEPLOY\nDRONE", 22, Cyan, Vector2.zero, new Vector2(190f, 70f), FontStyles.Bold);
+
+        mapHub.waypointButtons = waypoints;
+        mapHub.idleInformation = idle;
+        mapHub.locationInformation = location;
+        mapHub.deployButton = deployButton;
+        mapHub.locationIdText = locationId;
+        mapHub.conductivityText = conductivity;
+        mapHub.temperatureText = temperature;
+        mapHub.depthText = depth;
+        mapHub.habitatsText = habitats;
+        mapHub.locations = new[]
+        {
+            Profile("WAYPOINT-01 [A]", "84.250 mS/cm", "25.60 °C", "221 m", "Deep coral colonies\nEndemic fauna hotspots\nGeothermal vents"),
+            Profile("WAYPOINT-02 [C]", "81.900 mS/cm", "17.40 °C", "465 m", "Sponge gardens\nMigrating lanternfish\nCold-water coral"),
+            Profile("WAYPOINT-03 [B]", "79.520 mS/cm", "8.25 °C", "690 m", "Hydrothermal vent plume\nCrustacean aggregation\nMicrobial mats"),
+            Profile("WAYPOINT-04 [D]", "78.100 mS/cm", "6.10 °C", "835 m", "Slope fauna corridor\nDeep coral colonies"),
+            Profile("WAYPOINT-05 [E]", "76.800 mS/cm", "4.80 °C", "940 m", "Abyssal sponge field\nDetrital feeding grounds"),
+            Profile("WAYPOINT-06 [F]", "80.300 mS/cm", "11.75 °C", "520 m", "Midwater fauna hotspot\nLarval fish nursery")
+        };
+        return panel;
+    }
+
+    private static RosetteMapHub.LocationProfile Profile(string id, string conductivity, string temperature, string depth, string habitats)
+    {
+        return new RosetteMapHub.LocationProfile
+        {
+            locationId = id,
+            conductivity = conductivity,
+            temperature = temperature,
+            depth = depth,
+            habitats = habitats
+        };
+    }
+
+    private static GameObject CreatePreparationPanel(Transform parent, out EquipmentPreparationSequence sequence)
+    {
+        GameObject panel = CreatePanel("PreparationPanel", parent, Navy);
+        ApplyBackground(panel, MapBackgroundPath, Color.white);
+        sequence = panel.AddComponent<EquipmentPreparationSequence>();
+        CreateText("Title", panel.transform, "PREPARING YOUR EQUIPMENT", 58, White, new Vector2(0f, 245f), new Vector2(1500f, 90f), FontStyles.Bold);
+        TMP_Text status = CreateText("Status", panel.transform, "PREPARING YOUR EQUIPMENT", 30, Cyan, new Vector2(0f, -270f), new Vector2(1000f, 50f), FontStyles.Bold);
+        TMP_Text tip = CreateText("Tip", panel.transform, "", 27, White, new Vector2(0f, 90f), new Vector2(1250f, 130f));
+        GameObject progressTrack = CreateImage("ProgressTrack", panel.transform, new Color(0.015f, 0.08f, 0.12f, 0.9f), new Vector2(0f, -350f), new Vector2(1180f, 34f));
+        GameObject progressObject = CreateImage("ProgressFill", progressTrack.transform, Cyan, Vector2.zero, new Vector2(1120f, 18f));
+        Image progress = progressObject.GetComponent<Image>();
+        progress.type = Image.Type.Filled;
+        progress.fillMethod = Image.FillMethod.Horizontal;
+        progress.fillAmount = 0f;
+        Button ready = CreateButton("ReadyButton", panel.transform, "READY", new Vector2(0f, -430f), new Vector2(310f, 80f), Green);
+        sequence.statusText = status;
+        sequence.tipText = tip;
+        sequence.progressFill = progress;
+        sequence.readyButton = ready;
+        return panel;
+    }
+
     private static GameObject CreateCleaningPanel(Canvas canvas, out CleaningMinigame minigame)
     {
         GameObject panel = CreatePanel("CleaningPanel", canvas.transform, Navy);
         minigame = panel.AddComponent<CleaningMinigame>();
 
-        CreateText("Title", panel.transform, "PREPARE CLEAN EQUIPMENT", 48, White, new Vector2(0f, 450f), new Vector2(1250f, 80f), FontStyles.Bold);
+        CreateText("Title", panel.transform, "STERILISE THE NISKIN BOTTLE", 48, White, new Vector2(0f, 450f), new Vector2(1250f, 80f), FontStyles.Bold);
         TMP_Text explanation = CreateText(
             "Explanation",
             panel.transform,
-            "Clean equipment prevents DNA left by an earlier sample from changing our results.",
+            "Remove contamination, then rinse with sterile water before the first sample.",
             27,
             new Color(0.72f, 0.88f, 0.96f),
             new Vector2(0f, 375f),
@@ -261,7 +376,7 @@ public static class CTDSceneBuilder
         TMP_Text instruction = CreateText(
             "Instruction",
             panel.transform,
-            "Drag the cleaning sponge over each item, then rinse it with sterile water.",
+            "Drag the sponge across the bottle, then rinse it with sterile water.",
             28,
             White,
             new Vector2(0f, 315f),
@@ -270,10 +385,8 @@ public static class CTDSceneBuilder
 
         GameObject manualGroup = CreateEmptyUI("ManualCleaningGroup", panel.transform);
         Stretch(manualGroup.GetComponent<RectTransform>());
-        CleaningTarget[] targets = new CleaningTarget[3];
-        targets[0] = CreateCleaningTarget(manualGroup.transform, "Niskin bottle", "NISKIN BOTTLE", -500f, SingleBottlePath, new Vector2(230f, 260f));
-        targets[1] = CreateCleaningTarget(manualGroup.transform, "sampling tubing", "SAMPLING TUBING", 0f, TubePath, new Vector2(290f, 245f));
-        targets[2] = CreateCleaningTarget(manualGroup.transform, "filtration apparatus", "FILTER APPARATUS", 500f, FilterPath, new Vector2(230f, 260f));
+        CleaningTarget[] targets = new CleaningTarget[1];
+        targets[0] = CreateCleaningTarget(manualGroup.transform, "Niskin bottle", "NISKIN BOTTLE", 0f, SingleBottlePath, new Vector2(280f, 330f));
 
         CleaningTool cleaningTool = CreateCleaningTool(
             manualGroup.transform,
@@ -281,7 +394,7 @@ public static class CTDSceneBuilder
             "CleaningSolution",
             "DECONTAMINATION SOLUTION\nCLICK OR DRAG",
             CleaningToolType.DecontaminationSolution,
-            new Vector2(-225f, -405f),
+            new Vector2(-210f, -405f),
             Color.white,
             SpongePath);
         CleaningTool rinseTool = CreateCleaningTool(
@@ -290,7 +403,7 @@ public static class CTDSceneBuilder
             "SterileWater",
             "STERILE WATER RINSE\nCLICK OR DRAG",
             CleaningToolType.SterileWater,
-            new Vector2(225f, -405f),
+            new Vector2(210f, -405f),
             new Color(0.25f, 0.62f, 0.94f));
         cleaningTool.minigame = minigame;
         rinseTool.minigame = minigame;
@@ -300,13 +413,13 @@ public static class CTDSceneBuilder
         CreateText(
             "QuickText",
             quickGroup.transform,
-            "SHORT ON TIME?",
+            "FIRST ATTEMPT TUTORIAL",
             20,
             White,
-            new Vector2(760f, -405f),
+            new Vector2(700f, -405f),
             new Vector2(320f, 45f),
             FontStyles.Bold);
-        Button quickButton = CreateButton("QuickCleanButton", quickGroup.transform, "SKIP & AUTO-CLEAN", new Vector2(760f, -465f), new Vector2(330f, 72f), Cyan);
+        Button quickButton = CreateButton("QuickCleanButton", quickGroup.transform, "AUTO-CLEAN", new Vector2(700f, -465f), new Vector2(300f, 72f), Cyan);
 
         Button continueButton = CreateButton("CleaningContinueButton", panel.transform, "CONTINUE TO SAMPLING PLAN", new Vector2(0f, -465f), new Vector2(620f, 82f), Green);
 
@@ -663,6 +776,13 @@ public static class CTDSceneBuilder
     private static Sprite LoadSprite(string assetPath)
     {
         return AssetDatabase.LoadAllAssetsAtPath(assetPath).OfType<Sprite>().FirstOrDefault();
+    }
+
+    private static void SetSprite(GameObject gameObject, string assetPath)
+    {
+        Image image = gameObject.GetComponent<Image>();
+        image.sprite = LoadSprite(assetPath);
+        image.type = Image.Type.Simple;
     }
 
     private static GameObject CreateEmptyUI(string name, Transform parent)

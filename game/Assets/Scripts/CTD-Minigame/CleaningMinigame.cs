@@ -52,13 +52,14 @@ public class CleaningMinigame : MonoBehaviour
         }
 
         manualCleaningGroup.SetActive(true);
-        quickCleaningGroup.SetActive(true);
-        quickCleanButton.interactable = true;
+        // The storyboard makes this a first-time hands-on tutorial. Later casts
+        // bypass this whole page through EquipmentPreparationSequence instead.
+        quickCleaningGroup.SetActive(false);
         continueButton.gameObject.SetActive(false);
 
-        instructionText.text = "Click a tool, then click equipment — or drag the tool across it.";
+        instructionText.text = "Step 1: drag the cleaning sponge over the Niskin bottle.";
 
-        explanationText.text = "Clean equipment prevents DNA left by an earlier sample from changing our results.";
+        explanationText.text = "First remove any contamination, then rinse away the cleaning solution with sterile water.";
     }
 
     public void ApplyTool(CleaningToolType toolType, Vector2 screenPosition, float deltaTime)
