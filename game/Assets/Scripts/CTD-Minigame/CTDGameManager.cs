@@ -42,6 +42,13 @@ public class CTDGameManager : MonoBehaviour
 
     [Header("Completion")]
     public RectTransform recoveryRosette;
+    [Header("Recovery animation")]
+    public Vector2 recoveryStartPosition = new Vector2(0f, -220f);
+    public Vector2 recoveryEndPosition = new Vector2(0f, 210f);
+    [Min(0.1f)] public float recoveryDuration = 2.6f;
+    public Vector3 recoveryStartScale = Vector3.one;
+    public Vector3 recoveryEndScale = Vector3.one;
+    public AnimationCurve recoveryMotion = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
     public TMP_Text completionSummaryText;
     public Button replayButton;
     public Button continueButton;
@@ -51,7 +58,6 @@ public class CTDGameManager : MonoBehaviour
 
     private CTDSampleRecord[] completedSamples;
     private int selectedLocationIndex;
-    private bool cleaningTutorialRequired;
 
     private void Awake()
     {
@@ -89,20 +95,13 @@ public class CTDGameManager : MonoBehaviour
     private void BeginPreparation(int locationIndex)
     {
         selectedLocationIndex = locationIndex;
-        cleaningTutorialRequired = PlayerPrefs.GetInt(CleaningMinigame.TutorialCompleteKey, 0) == 0;
         CurrentState = CTDGameState.Preparation;
         ShowPanel(preparationPanel);
-        preparationSequence.Begin(cleaningTutorialRequired);
+        preparationSequence.Begin(true);
     }
 
     private void ContinueFromPreparation()
     {
-        if (!cleaningTutorialRequired)
-        {
-            BeginLaunch();
-            return;
-        }
-
         CurrentState = CTDGameState.Cleaning;
         ShowPanel(cleaningPanel);
         cleaningMinigame.Begin();
@@ -132,17 +131,21 @@ public class CTDGameManager : MonoBehaviour
 
     private IEnumerator PlayRecovery()
     {
-        recoveryRosette.anchoredPosition = new Vector2(0f, -220f);
+        recoveryRosette.anchoredPosition = recoveryStartPosition;
+        recoveryRosette.localScale = recoveryStartScale;
         float elapsed = 0f;
-        const float duration = 2.6f;
 
-        while (elapsed < duration)
+        while (elapsed < recoveryDuration)
         {
             elapsed += Time.deltaTime;
-            float progress = Mathf.SmoothStep(0f, 1f, elapsed / duration);
-            recoveryRosette.anchoredPosition = Vector2.Lerp(new Vector2(0f, -220f), new Vector2(0f, 210f), progress);
+            float progress = recoveryMotion.Evaluate(Mathf.Clamp01(elapsed / recoveryDuration));
+            recoveryRosette.anchoredPosition = Vector2.LerpUnclamped(recoveryStartPosition, recoveryEndPosition, progress);
+            recoveryRosette.localScale = Vector3.LerpUnclamped(recoveryStartScale, recoveryEndScale, progress);
             yield return null;
         }
+
+        recoveryRosette.anchoredPosition = recoveryEndPosition;
+        recoveryRosette.localScale = recoveryEndScale;
 
         ShowCompletion();
     }

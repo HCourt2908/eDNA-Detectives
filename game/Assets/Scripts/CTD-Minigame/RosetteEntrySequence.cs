@@ -14,6 +14,7 @@ public class RosetteEntrySequence : MonoBehaviour
     private const string VideoResourcePath = "RosetteDeployment/Launch/rosette_entry_ocean_animation";
 
     [Header("Scene UI")]
+    public SamplingCockpitView cockpit;
     public RawImage animationSurface;
     public TMP_Text readyLabel;
     public Button readyButton;
@@ -36,7 +37,9 @@ public class RosetteEntrySequence : MonoBehaviour
             }
         }
 
-        readyButton = label.GetComponentInParent<Button>();
+        // The manager configures this sequence while LaunchPanel is inactive.
+        // Include inactive parents so the listener targets the visible button.
+        readyButton = label.GetComponentInParent<Button>(true);
         if (readyButton == null)
         {
             readyButton = label.gameObject.AddComponent<Button>();
@@ -81,6 +84,7 @@ public class RosetteEntrySequence : MonoBehaviour
     public void Begin()
     {
         ConfigureOnce();
+        if (cockpit != null) cockpit.ResetIndicators();
         HideLegacyOverlay("Sea");
         HideLegacyOverlay("Deck");
         HideLegacyOverlay("Title");

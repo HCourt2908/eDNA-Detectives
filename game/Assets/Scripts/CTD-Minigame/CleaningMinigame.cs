@@ -1,258 +1,166 @@
 using System;
-using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class CleaningMinigame : MonoBehaviour
 {
-    public const string TutorialCompleteKey = "CTD_CleaningTutorialComplete";
-
     [Header("Equipment")]
     public CleaningTarget[] targets;
     public GameObject manualCleaningGroup;
     public GameObject quickCleaningGroup;
+    public CleaningTool spongeTool;
+    public CleaningTool hoseTool;
 
     [Header("UI")]
     public TMP_Text instructionText;
     public TMP_Text explanationText;
+    // Kept for the legacy scene builder; the stage no longer auto-cleans.
     public Button quickCleanButton;
+    public TMP_Text bottleStatusText;
+    public Button rinseButton;
+    public Button skipButton;
     public Button continueButton;
+
+    [Header("Foam completion")]
+    [Range(0.5f, 1f)] public float foamCoverageToRinse = 0.8f;
+    [Range(0f, 0.3f)] public float foamCoverageToClean = 0.08f;
 
     public event Action Completed;
 
+    private static int cleaningStageEntries;
     private bool hasCompleted;
-    private bool hasSelectedTool;
-    private bool isAutoCleaning;
-    private CleaningToolType selectedTool;
+    private bool rinseEnabled;
+    private CleaningToolType selectedTool = CleaningToolType.DecontaminationSolution;
 
     private void Awake()
     {
-        if (quickCleanButton != null)
-        {
-            quickCleanButton.onClick.AddListener(QuickClean);
-        }
-
-        if (continueButton != null)
-        {
-            continueButton.onClick.AddListener(Continue);
-        }
+        rinseButton.onClick.AddListener(SelectRinse);
+        skipButton.onClick.AddListener(SkipCleaning);
+        continueButton.onClick.AddListener(Continue);
     }
 
     public void Begin()
     {
-        StopAllCoroutines();
         hasCompleted = false;
-        hasSelectedTool = false;
-        isAutoCleaning = false;
+        rinseEnabled = false;
+        selectedTool = CleaningToolType.DecontaminationSolution;
+        cleaningStageEntries++;
 
-        foreach (CleaningTarget target in targets)
-        {
-            target.ResetTarget();
-        }
-
+        foreach (CleaningTarget target in targets) target.ResetTarget();
         manualCleaningGroup.SetActive(true);
-        // The storyboard makes this a first-time hands-on tutorial. Later casts
-        // bypass this whole page through EquipmentPreparationSequence instead.
         quickCleaningGroup.SetActive(false);
+        if (spongeTool != null) spongeTool.gameObject.SetActive(true);
+        if (hoseTool != null) hoseTool.gameObject.SetActive(false);
+        rinseButton.gameObject.SetActive(true);
+        rinseButton.interactable = false;
+        skipButton.gameObject.SetActive(cleaningStageEntries > 1);
         continueButton.gameObject.SetActive(false);
-
-        instructionText.text = "Step 1: drag the cleaning sponge over the Niskin bottle.";
-
-        explanationText.text = "First remove any contamination, then rinse away the cleaning solution with sterile water.";
+        instructionText.text = "Step 1: Drag the sponge hand across the Niskin bottle.";
+        explanationText.text = "Scrub the bottle until foam covers most of its surface.";
+        bottleStatusText.text = "KEEP SCRUBBING THE BOTTLE";
+        bottleStatusText.color = Color.white;
     }
 
     public void ApplyTool(CleaningToolType toolType, Vector2 screenPosition, float deltaTime)
     {
-        if (hasCompleted || isAutoCleaning)
-        {
-            return;
-        }
-
-        bool touchedTarget = false;
-
+        if (hasCompleted) return;
         foreach (CleaningTarget target in targets)
         {
-            if (!RectTransformUtility.RectangleContainsScreenPoint(target.targetRect, screenPosition))
-            {
-                continue;
-            }
-
-            touchedTarget = true;
-
+            if (!target.IsScreenPointOnBottle(screenPosition)) continue;
             if (toolType == CleaningToolType.DecontaminationSolution)
             {
-                target.ApplyCleaning(deltaTime);
-                instructionText.text = $"Cleaning {target.displayName} removes leftover DNA.";
+                if (rinseEnabled) continue;
+                target.ApplyFoamAt(screenPosition, deltaTime);
+                UpdateFoamState(target);
             }
-            else if (target.ApplyRinse(deltaTime))
+            else if (!rinseEnabled)
             {
-                instructionText.text = $"Rinsing {target.displayName} removes the cleaning solution.";
+                instructionText.text = "Keep scrubbing the bottle.";
             }
-            else if (!target.IsCleaned)
+            else
             {
-                instructionText.text = $"Clean {target.displayName} before rinsing it.";
+                target.RinseAt(screenPosition, deltaTime);
+                UpdateRinseState(target);
             }
         }
-
-        if (!touchedTarget)
-        {
-            instructionText.text = "Move the tool across one of the three pieces of equipment.";
-        }
-
-        CheckCompletion();
     }
 
     public void SelectTool(CleaningToolType toolType)
     {
-        if (hasCompleted || isAutoCleaning)
+        if (hasCompleted) return;
+        if (toolType == CleaningToolType.SterileWater && !rinseEnabled)
         {
+            instructionText.text = "Keep scrubbing the bottle.";
             return;
         }
-
         selectedTool = toolType;
-        hasSelectedTool = true;
-        instructionText.text = toolType == CleaningToolType.DecontaminationSolution
-            ? "Cleaning sponge selected. Click an item or drag the sponge across it."
-            : "Sterile water selected. Click an already-cleaned item to rinse it.";
     }
 
-    public void HandleTargetClick(CleaningTarget target)
+    public bool IsToolActive(CleaningToolType toolType) => selectedTool == toolType;
+    public bool IsRinsing => selectedTool == CleaningToolType.SterileWater;
+    public CleaningToolType ActiveTool => selectedTool;
+
+    private void UpdateFoamState(CleaningTarget target)
     {
-        if (hasCompleted || isAutoCleaning)
+        if (target.FoamCoverage < foamCoverageToRinse)
         {
+            bottleStatusText.text = "KEEP SCRUBBING THE BOTTLE";
             return;
         }
+        rinseEnabled = true;
+        if (spongeTool != null) spongeTool.gameObject.SetActive(false);
+        if (hoseTool != null) hoseTool.gameObject.SetActive(true);
+        selectedTool = CleaningToolType.SterileWater;
+        rinseButton.interactable = true;
+        bottleStatusText.text = "READY TO RINSE";
+        bottleStatusText.color = new Color(1f, 0.9f, 0.2f);
+        instructionText.text = "Step 2: Drag the mirrored hose hand across the bottle to rinse.";
+        explanationText.text = "Use sterile water to remove the foam from the bottle.";
+    }
 
-        if (!hasSelectedTool)
+    private void SelectRinse()
+    {
+        if (!rinseEnabled)
         {
-            instructionText.text = "Choose the CLEANING SPONGE or STERILE WATER first.";
+            instructionText.text = "Keep scrubbing the bottle.";
             return;
         }
-
-        if (selectedTool == CleaningToolType.DecontaminationSolution)
-        {
-            target.ApplyCleaning(target.cleanSeconds);
-            instructionText.text = $"{target.displayName} cleaned. Select sterile water to rinse it.";
-        }
-        else if (target.ApplyRinse(target.rinseSeconds))
-        {
-            instructionText.text = $"{target.displayName} rinsed and ready. ✓";
-        }
-        else if (!target.IsCleaned)
-        {
-            instructionText.text = $"Clean {target.displayName} before rinsing it.";
-        }
-
-        CheckCompletion();
+        selectedTool = CleaningToolType.SterileWater;
+        if (hoseTool != null) hoseTool.gameObject.SetActive(true);
+        bottleStatusText.text = "RINSE THE FOAM AWAY";
+        bottleStatusText.color = new Color(0.35f, 0.85f, 1f);
     }
 
-    private void QuickClean()
+    private void UpdateRinseState(CleaningTarget target)
     {
-        if (hasCompleted || isAutoCleaning)
-        {
-            return;
-        }
-
-        StartCoroutine(AutoCleanAndContinue());
-    }
-
-    private IEnumerator AutoCleanAndContinue()
-    {
-        isAutoCleaning = true;
-        hasSelectedTool = false;
-        quickCleanButton.interactable = false;
-        continueButton.gameObject.SetActive(false);
-
-        instructionText.text = "Skip selected — automatically cleaning all three items...";
-        yield return AnimateAutomaticStep(true, 0.55f);
-
-        instructionText.text = "Automatically rinsing away the cleaning solution...";
-        yield return AnimateAutomaticStep(false, 0.55f);
-
-        foreach (CleaningTarget target in targets)
-        {
-            target.CompleteImmediately();
-        }
-
-        CompleteCleaning(false);
-        instructionText.text = "Auto-clean complete. Opening the station map... ✓";
-        yield return new WaitForSeconds(0.45f);
-
-        Completed?.Invoke();
-    }
-
-    private IEnumerator AnimateAutomaticStep(bool cleaning, float duration)
-    {
-        float elapsed = 0f;
-
-        while (elapsed < duration)
-        {
-            float frameTime = Mathf.Min(Time.deltaTime, duration - elapsed);
-            elapsed += frameTime;
-
-            foreach (CleaningTarget target in targets)
-            {
-                if (cleaning)
-                {
-                    target.ApplyCleaning(target.cleanSeconds * frameTime / duration);
-                }
-                else
-                {
-                    target.ApplyRinse(target.rinseSeconds * frameTime / duration);
-                }
-            }
-
-            yield return null;
-        }
-
-        foreach (CleaningTarget target in targets)
-        {
-            if (cleaning)
-            {
-                target.ApplyCleaning(target.cleanSeconds);
-            }
-            else
-            {
-                target.ApplyRinse(target.rinseSeconds);
-            }
-        }
-    }
-
-    private void CheckCompletion()
-    {
-        foreach (CleaningTarget target in targets)
-        {
-            if (!target.IsComplete)
-            {
-                return;
-            }
-        }
-
-        if (hasCompleted)
-        {
-            return;
-        }
-
-        CompleteCleaning(true);
-    }
-
-    private void CompleteCleaning(bool showContinueButton)
-    {
+        if (target.FoamCoverage > foamCoverageToClean) return;
         hasCompleted = true;
-        isAutoCleaning = false;
-        PlayerPrefs.SetInt(TutorialCompleteKey, 1);
-        PlayerPrefs.Save();
-        quickCleaningGroup.SetActive(false);
-        instructionText.text = "Sampling equipment prepared successfully. ✓";
-        continueButton.gameObject.SetActive(showContinueButton);
+        bottleStatusText.text = "BOTTLE CLEAN";
+        bottleStatusText.color = new Color(0.35f, 1f, 0.7f);
+        instructionText.text = "Bottle clean. Continue to deploy the rosette.";
+        rinseButton.gameObject.SetActive(false);
+        skipButton.gameObject.SetActive(false);
+        continueButton.gameObject.SetActive(true);
+    }
+
+    private void SkipCleaning()
+    {
+        if (hasCompleted) return;
+        foreach (CleaningTarget target in targets) target.ClearFoam();
+        hasCompleted = true;
+        if (spongeTool != null) spongeTool.gameObject.SetActive(false);
+        if (hoseTool != null) hoseTool.gameObject.SetActive(false);
+        bottleStatusText.text = "BOTTLE CLEAN";
+        bottleStatusText.color = new Color(0.35f, 1f, 0.7f);
+        instructionText.text = "Cleaning skipped for this repeat attempt.";
+        rinseButton.gameObject.SetActive(false);
+        skipButton.gameObject.SetActive(false);
+        continueButton.gameObject.SetActive(true);
     }
 
     private void Continue()
     {
-        if (hasCompleted)
-        {
-            Completed?.Invoke();
-        }
+        if (hasCompleted) Completed?.Invoke();
     }
 }

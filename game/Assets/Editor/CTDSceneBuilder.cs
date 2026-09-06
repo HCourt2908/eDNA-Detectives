@@ -23,7 +23,7 @@ public static class CTDSceneBuilder
     private const string SeamountPath = "Assets/Art/Rosette-Deployment/Map/seamount_fine.png";
     private const string LogPanelPath = "Assets/Art/Rosette-Deployment/Extracted/log_panel_frame.png";
     private const string DatabasePanelPath = "Assets/Art/Rosette-Deployment/Extracted/database_panel_frame.png";
-    private const string WaypointPath = "Assets/Art/Rosette-Deployment/Extracted/single_waypoint_marker.png";
+    private const string WaypointPath = "Assets/Art/Rosette-Deployment/Extracted/single_waypoint_marker_clean.png";
     private const string DeployFramePath = "Assets/Art/Rosette-Deployment/Extracted/deploy_button_frame.png";
     private const string Stage3FramePath = "Assets/Art/Rosette-Deployment/UI/stage_3_0_observation_frame.png";
     private static readonly Color Navy = new Color(0.018f, 0.055f, 0.12f);
@@ -36,6 +36,12 @@ public static class CTDSceneBuilder
     [MenuItem("OceanX/Build CTD Minigame Scene")]
     public static void Build()
     {
+        if (System.IO.File.Exists(ScenePath))
+        {
+            Debug.LogWarning("The CTD scene already exists. Rebuilding is disabled to preserve authored layouts. Open Assets/Scenes/CTD-Minigame.unity to edit or play it.");
+            return;
+        }
+
         uiSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
 
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -176,9 +182,7 @@ public static class CTDSceneBuilder
     [MenuItem("OceanX/Reset CTD Cleaning Tutorial")]
     public static void ResetCleaningTutorial()
     {
-        PlayerPrefs.DeleteKey(CleaningMinigame.TutorialCompleteKey);
-        PlayerPrefs.Save();
-        Debug.Log("CTD cleaning tutorial progress reset. The full cleaning interaction will appear next time Play Mode starts.");
+        Debug.Log("Cleaning is shown for every sampling flow, so there is no saved tutorial state to reset.");
     }
 
     private static void Require(UnityEngine.Object value, string label)

@@ -1,147 +1,96 @@
-using TMPro;
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class CleaningTarget : MonoBehaviour, IPointerClickHandler
+public class CleaningTarget : MonoBehaviour
 {
-    [Header("Identity")]
-    public string displayName;
-
-    [Header("UI")]
+    [Header("Bottle layout")]
     public RectTransform targetRect;
     public Image equipmentImage;
-    public Image dirtyOverlay;
-    public Image cleanProgressFill;
-    public Image rinseProgressFill;
-    public TMP_Text statusText;
-    public CleaningMinigame minigame;
+    public RectTransform foamRoot;
+    public CleaningFoamSpot[] foamSpots;
+
+    // Legacy builder fields. They are deliberately unused by the local-foam stage.
+    [HideInInspector] public string displayName;
+    [HideInInspector] public Image dirtyOverlay;
+    [HideInInspector] public Image cleanProgressFill;
+    [HideInInspector] public Image rinseProgressFill;
+    [HideInInspector] public TMPro.TMP_Text statusText;
 
     [Header("Tuning")]
-    [Range(0.1f, 3f)] public float cleanSeconds = 1.25f;
-    [Range(0.1f, 3f)] public float rinseSeconds = 0.9f;
+    [Min(0.05f)] public float scrubSecondsPerSpot = 0.3f;
+    [Min(0.05f)] public float rinseSecondsPerSpot = 0.18f;
 
-    public bool IsComplete => cleanProgress >= 1f && rinseProgress >= 1f;
-    public bool IsCleaned => cleanProgress >= 1f;
+    private readonly Dictionary<CleaningFoamSpot, float> foam = new();
+    public float FoamCoverage { get; private set; }
 
-    private float cleanProgress;
-    private float rinseProgress;
-    private Color originalEquipmentColor;
-    private readonly Color dirtyEquipmentColor = new Color(0.30f, 0.32f, 0.34f, 1f);
-
-    private void Awake()
+    public bool IsScreenPointOnBottle(Vector2 screenPoint)
     {
-        if (minigame == null)
-        {
-            minigame = GetComponentInParent<CleaningMinigame>();
-        }
-
-        if (equipmentImage != null)
-        {
-            originalEquipmentColor = equipmentImage.color;
-
-            Transform placeholderLabel = equipmentImage.transform.Find("EquipmentName");
-            if (placeholderLabel != null)
-            {
-                placeholderLabel.gameObject.SetActive(false);
-            }
-        }
-
-        ResetTarget();
-    }
-
-    public void OnPointerClick(PointerEventData eventData)
-    {
-        if (minigame != null)
-        {
-            minigame.HandleTargetClick(this);
-        }
+        var canvas = GetComponentInParent<Canvas>();
+        var camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+        return RectTransformUtility.RectangleContainsScreenPoint(targetRect, screenPoint, camera);
     }
 
     public void ResetTarget()
     {
-        cleanProgress = 0f;
-        rinseProgress = 0f;
-
-        if (dirtyOverlay != null)
+        foam.Clear();
+        foreach (CleaningFoamSpot spot in foamSpots)
         {
-            dirtyOverlay.gameObject.SetActive(false);
+            foam[spot] = 0f;
+            spot.SetCoverage(0f);
         }
-
-        RefreshUI();
+        RefreshCoverage();
     }
 
-    public void ApplyCleaning(float deltaTime)
+    public void ApplyFoamAt(Vector2 screenPoint, float deltaTime)
     {
-        if (IsComplete)
-        {
-            return;
-        }
-
-        cleanProgress = Mathf.Clamp01(cleanProgress + deltaTime / cleanSeconds);
-        RefreshUI();
+        CleaningFoamSpot spot = FindNearestSpot(screenPoint, true);
+        if (spot == null) return;
+        foam[spot] = Mathf.Clamp01(foam[spot] + deltaTime / scrubSecondsPerSpot);
+        spot.SetCoverage(foam[spot]);
+        RefreshCoverage();
     }
 
-    public bool ApplyRinse(float deltaTime)
+    public void RinseAt(Vector2 screenPoint, float deltaTime)
     {
-        if (!IsCleaned || IsComplete)
-        {
-            return false;
-        }
-
-        rinseProgress = Mathf.Clamp01(rinseProgress + deltaTime / rinseSeconds);
-        RefreshUI();
-        return true;
+        CleaningFoamSpot spot = FindNearestSpot(screenPoint, false);
+        if (spot == null || foam[spot] <= 0f) return;
+        foam[spot] = Mathf.Clamp01(foam[spot] - deltaTime / rinseSecondsPerSpot);
+        spot.SetCoverage(foam[spot]);
+        RefreshCoverage();
     }
 
-    public void CompleteImmediately()
+    public void ClearFoam()
     {
-        cleanProgress = 1f;
-        rinseProgress = 1f;
-        RefreshUI();
+        foreach (CleaningFoamSpot spot in foamSpots)
+        {
+            foam[spot] = 0f;
+            spot.SetCoverage(0f);
+        }
+        RefreshCoverage();
     }
 
-    private void RefreshUI()
+    private CleaningFoamSpot FindNearestSpot(Vector2 screenPoint, bool preferUncovered)
     {
-        if (cleanProgressFill != null)
+        var canvas = GetComponentInParent<Canvas>();
+        var camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(foamRoot, screenPoint, camera, out Vector2 local);
+        CleaningFoamSpot selected = null;
+        float best = float.MaxValue;
+        foreach (CleaningFoamSpot spot in foamSpots)
         {
-            cleanProgressFill.fillAmount = cleanProgress;
+            float amount = foam[spot];
+            if (preferUncovered ? amount >= .99f : amount <= .01f) continue;
+            float distance = (spot.Rect.anchoredPosition - local).sqrMagnitude;
+            if (distance < best) { best = distance; selected = spot; }
         }
+        return selected;
+    }
 
-        if (rinseProgressFill != null)
-        {
-            rinseProgressFill.fillAmount = rinseProgress;
-        }
-
-        if (dirtyOverlay != null)
-        {
-            dirtyOverlay.gameObject.SetActive(false);
-        }
-
-        if (equipmentImage != null)
-        {
-            Color cleanColour = originalEquipmentColor == default ? Color.white : originalEquipmentColor;
-            equipmentImage.color = Color.Lerp(dirtyEquipmentColor, cleanColour, cleanProgress);
-        }
-
-        if (statusText != null)
-        {
-            if (IsComplete)
-            {
-                statusText.text = "Ready  ✓";
-                statusText.color = new Color(0.30f, 0.95f, 0.64f);
-            }
-            else if (IsCleaned)
-            {
-                statusText.text = "Rinse with sterile water";
-                statusText.color = new Color(0.42f, 0.82f, 1f);
-            }
-            else
-            {
-                statusText.text = "Use the cleaning sponge";
-                statusText.color = Color.white;
-            }
-        }
-
+    private void RefreshCoverage()
+    {
+        float total = 0f;
+        foreach (float value in foam.Values) total += value;
+        FoamCoverage = foam.Count == 0 ? 0f : total / foam.Count;
     }
 }
