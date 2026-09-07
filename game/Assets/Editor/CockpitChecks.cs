@@ -12,6 +12,7 @@ public static class CockpitChecks
     static int step;
     static double since;
     static CTDSamplingController c;
+    static CTDGameManager manager;
     static bool completed, sawBlue, sawYellow;
     static Vector2 originalPosition;
     static readonly BindingFlags Hidden=BindingFlags.NonPublic|BindingFlags.Instance;
@@ -29,7 +30,7 @@ public static class CockpitChecks
             if(step==0) {since=EditorApplication.timeSinceStartup;step=1;return;}
             if(step!=10 && EditorApplication.timeSinceStartup-since<1) return;
             if(step==1) {
-                var manager=UnityEngine.Object.FindAnyObjectByType<CTDGameManager>();
+                manager=UnityEngine.Object.FindAnyObjectByType<CTDGameManager>();
                 c=manager.samplingController;
                 Capture("/tmp/oceanx-map.png");
                 manager.mapHub.Hide();manager.cleaningPanel.SetActive(true);manager.cleaningMinigame.Begin();
@@ -39,6 +40,14 @@ public static class CockpitChecks
                 manager.cleaningPanel.SetActive(false);manager.samplingPanel.SetActive(true);c.Begin("Verification");
                 Require(c.targetDepths.Length==4,"Four sample targets");
                 Require(c.cockpit.bottleChecks.Length==4,"Four bottle indicators");
+                Require(Mathf.Approximately((float)Get("currentDepth"),c.maximumDepth),"Sampling starts at maximum depth");
+                Require(c.phaseText.text.StartsWith("UPCAST"),"Sampling starts directly in upcast");
+                var samplingRosette=manager.samplingPanel.transform.Find("CTDRosette").GetComponent<Image>();
+                var recoveryImage=manager.recoveryRosette.GetComponent<Image>();
+                Require(samplingRosette.sprite==recoveryImage.sprite,"Sampling and recovery use the same Rosette sprite");
+                Require(samplingRosette.preserveAspect&&recoveryImage.preserveAspect,"Both Rosette images preserve aspect ratio");
+                Require(Vector2.Distance(samplingRosette.rectTransform.sizeDelta,new Vector2(177.5f,247.5f))<0.01f,"Sampling Rosette is half size");
+                Require(Vector2.Distance(manager.recoveryRosette.sizeDelta,new Vector2(150f,150f))<0.01f,"Recovery Rosette is half size");
                 originalPosition=c.cockpit.GetComponent<RectTransform>().anchoredPosition;
                 c.cockpit.GetComponent<RectTransform>().anchoredPosition=originalPosition+new Vector2(7,0);
                 Require(!c.cockpit.CueActive,"No cue before the first upcast window");
@@ -66,12 +75,13 @@ public static class CockpitChecks
                 since=EditorApplication.timeSinceStartup;step=2;
             } else if(step==2 && EditorApplication.timeSinceStartup-since>2) {
                 Require(completed,"Completion event fired");
-                var manager=UnityEngine.Object.FindAnyObjectByType<CTDGameManager>();
                 Require(manager.CurrentState==CTDGameState.Recovering||manager.CurrentState==CTDGameState.Complete,"Stage transition after collection");
+                Require(manager.CurrentState==CTDGameState.Complete||manager.recoveryRosette.anchoredPosition.y>manager.recoveryStartPosition.y,"Recovery Rosette rises after sampling");
+                if(manager.CurrentState==CTDGameState.Recovering) Capture("/tmp/oceanx-recovery-upcast.png");
                 manager.recoveryPanel.SetActive(false);manager.completePanel.SetActive(false);manager.samplingPanel.SetActive(true);c.Begin("Replay");
                 foreach(var t in c.cockpit.bottleChecks)Require(!t.gameObject.activeSelf,"Replay clears indicators");
                 Require(c.cockpit.GetComponent<RectTransform>().anchoredPosition==originalPosition,"Layout preserved");
-                File.WriteAllText("/tmp/oceanx-cockpit-checks.txt","PASS: four targets; invalid-depth rejection; in-range cue and button; live yellow/blue colour alternation; four independent collected indicators; cue stops on success; four complete records; recovery transition; replay reset; layout retained.\n");
+                File.WriteAllText("/tmp/oceanx-cockpit-checks.txt","PASS: direct upcast from maximum depth; matching half-size Rosette sprites; four targets; invalid-depth rejection; in-range cue and button; live yellow/blue colour alternation; four independent collected indicators; cue stops on success; four complete records; recovery rise; replay reset; layout retained.\n");
                 SessionState.SetBool("CockpitChecks",false);Debug.Log("COCKPIT_CHECKS_PASS");EditorApplication.Exit(0);
             }
         } catch(Exception e) {File.WriteAllText("/tmp/oceanx-cockpit-checks.txt",e.ToString());SessionState.SetBool("CockpitChecks",false);Debug.LogException(e);EditorApplication.Exit(1);}

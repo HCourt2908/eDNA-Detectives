@@ -29,9 +29,9 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Depth01: 0.1995347
+    - _Depth01: 1
     - _NoiseStrength: 0.18
-    - _NoiseTime: 14.765095
+    - _NoiseTime: 1.8205208
     - _Opacity: 0.46
     m_Colors:
     - _BottomColor: {r: 0.01, g: 0.04, b: 0.13999996, a: 1}

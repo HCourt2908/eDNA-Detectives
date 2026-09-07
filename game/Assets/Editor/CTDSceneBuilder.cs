@@ -615,7 +615,7 @@ public static class CTDSceneBuilder
         status = CreateText(
             "Status",
             panel.transform,
-            "Three samples secured — returning the CTD to deck",
+            "Four target windows processed — returning the CTD to deck",
             30,
             White,
             new Vector2(0f, -445f),
