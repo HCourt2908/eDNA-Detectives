@@ -71,9 +71,10 @@ public class TutorialManager : MonoBehaviour
         nextButtonPressed = false;
         yield return new WaitForSeconds(0.2f);
 
-        RestoreElement(ednaPanel, ednaHighlight.Item1, ednaHighlight.Item2);
-        RestoreElement(poster, posterHighlight.Item1, posterHighlight.Item2);
+
         RestoreElement(posterOverlay, posterOverlayHighlight.Item1, posterOverlayHighlight.Item2);
+        RestoreElement(poster, posterHighlight.Item1, posterHighlight.Item2);
+        RestoreElement(ednaPanel, ednaHighlight.Item1, ednaHighlight.Item2);
 
         rightTutorialPanel.SetActive(false);
         leftTutorialPanel.SetActive(true);
