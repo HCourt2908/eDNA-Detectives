@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using EDNA.Core;
 using EDNA.Investigation.Domain;
@@ -9,14 +10,31 @@ namespace EDNA.Investigation
 {
     public sealed partial class InvestigationRuntimeView
     {
+        private readonly Dictionary<string, List<GameObject>> speciesPairHighlights = new Dictionary<string, List<GameObject>>(StringComparer.Ordinal);
+        private RectTransform speciesTooltipOwner;
+        private bool speciesTooltipPinned;
+        private Coroutine speciesTooltipDismiss;
+        private string lastRecordedObservationId = string.Empty;
+        private InvestigationSeamountBackdrop seamountBackdrop;
+        private bool observeNotebookVisible;
+
+        private enum NotebookEvidenceStatus
+        {
+            New,
+            Used,
+            OpenQuestion,
+            Report
+        }
+
         private void RenderObserve()
         {
             string processedSummary = string.IsNullOrWhiteSpace(state.ProcessedSampleSummary)
                 ? "Processed survey results"
                 : state.ProcessedSampleSummary;
-            CreateHeading(
+            Text observeHeading = CreateHeading(
                 "What changed on this seamount?",
-                $"{processedSummary}. Compare them with the 20-year baseline and record unusual results on today's survey.");
+                $"{processedSummary}. Record both changes and stable comparisons on today's survey.");
+            RenderEdnaGuide(observeHeading.transform.parent);
 
             RectTransform split = new GameObject("Observe Split", typeof(RectTransform), typeof(InvestigationResponsiveSplitLayout)).GetComponent<RectTransform>();
             split.SetParent(contentRoot, false);
@@ -36,12 +54,19 @@ namespace EDNA.Investigation
             CreateSurveyMap(comparison, SurveyEra.Historical);
             CreateSurveyMap(comparison, SurveyEra.Current);
 
-            RectTransform notebook = CreatePanel("Investigation Notebook", split, new Color32(234, 244, 248, 255), InvestigationTheme.CardRadius);
-            EnsureOutline(notebook.gameObject, new Color32(145, 177, 194, 230), new Vector2(2f, -2f));
+            if (CountVisibleNotebookObservations() == 0)
+            {
+                RenderFirstFindingPrompt(split);
+                return;
+            }
+
+            RectTransform notebook = CreatePanel("Investigation Notebook", split, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
+            EnsureOutline(notebook.gameObject, InvestigationTheme.PaperBorder, new Vector2(1f, -1f));
             Shadow paperShadow = notebook.gameObject.AddComponent<Shadow>();
-            paperShadow.effectColor = new Color(0f, 0f, 0f, 0.32f);
-            paperShadow.effectDistance = new Vector2(4f, -4f);
+            paperShadow.effectColor = InvestigationTheme.PaperShadow;
+            paperShadow.effectDistance = new Vector2(2f, -2f);
             paperShadow.useGraphicAlpha = true;
+            CreateNotebookBinding(notebook);
             Text notebookTitle = CreateText(
                 "Notebook Title",
                 notebook,
@@ -51,23 +76,83 @@ namespace EDNA.Investigation
                 InvestigationTheme.PaperMuted,
                 TextAnchor.MiddleLeft,
                 InvestigationTheme.DataFont);
-            Anchor(notebookTitle.rectTransform, 0f, 0.86f, 1f, 1f, 16f, 0f, -12f, -8f);
+            Anchor(notebookTitle.rectTransform, 0f, 0.86f, 1f, 1f, 42f, 0f, -12f, -8f);
 
             RectTransform notebookEntries = CreateNotebookEntryScroll(notebook);
             RenderNotebookEntries(notebookEntries);
 
-            int remaining = Mathf.Max(0, caseDefinition.MinimumObserveDiscoveries - state.DiscoveredObservationIds.Count);
-            string nextLabel = remaining == 0 ? "Try causes →" : $"Record {remaining} more";
-            Button next = CreateButton("Continue To Simulate", notebook, nextLabel, ButtonVisualStyle.PaperPrimary, () => setPhase?.Invoke(InvestigationPhase.Simulate), out _);
-            next.GetComponent<LayoutElement>().ignoreLayout = true;
-            Anchor(next.GetComponent<RectTransform>(), 0.25f, 0f, 0.75f, 0f, 0f, 8f, 0f, 58f);
-            next.interactable = remaining == 0;
+            int initialFindings = CountInitialFindings();
+            int requiredFindings = InvestigationObserveEvaluator.RequiredCount(caseDefinition);
+            int remaining = Mathf.Max(0, requiredFindings - initialFindings);
+            if (remaining == 0)
+            {
+                Button next = CreateButton("Continue To Simulate", notebook, "Test possible causes →", ButtonVisualStyle.PaperPrimary, () => setPhase?.Invoke(InvestigationPhase.Simulate), out _);
+                next.GetComponent<LayoutElement>().ignoreLayout = true;
+                Anchor(next.GetComponent<RectTransform>(), 0.22f, 0f, 0.78f, 0f, 0f, 8f, 0f, 58f);
+            }
+            else
+            {
+                RectTransform progress = CreatePanel("Observe Finding Progress", notebook, InvestigationTheme.PaperRaised, InvestigationTheme.SmallRadius);
+                progress.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                Anchor(progress, 0.12f, 0f, 0.88f, 0f, 0f, 12f, 0f, 54f);
+                EnsureOutline(progress.gameObject, InvestigationTheme.PaperBorder, new Vector2(1f, -1f));
+                Text progressText = CreateText(
+                    "Observe Finding Progress Text",
+                    progress,
+                    $"FINDINGS {initialFindings} / {requiredFindings}  ·  Select an organism on TODAY",
+                    11,
+                    FontStyle.Bold,
+                    InvestigationTheme.PaperSelectedBorder,
+                    TextAnchor.MiddleCenter,
+                    InvestigationTheme.DataFont);
+                Stretch(progressText.rectTransform, 10f, 4f, -10f, -4f);
+            }
+
+            bool firstReveal = !observeNotebookVisible;
+            observeNotebookVisible = true;
+            if (firstReveal && !string.IsNullOrEmpty(lastRecordedObservationId) && !InvestigationMotionSettings.ReducedMotion)
+                StartCoroutine(RevealObserveNotebook(notebook));
+        }
+
+        private void RenderFirstFindingPrompt(Transform parent)
+        {
+            RectTransform prompt = CreatePanel("Observe First Finding", parent, InvestigationTheme.SurfaceQuiet, InvestigationTheme.CardRadius);
+            InvestigationBorderGraphic border = CreateGraphic<InvestigationBorderGraphic>("First Finding Border", prompt);
+            Stretch(border.rectTransform, 0f, 0f, 0f, 0f);
+            border.Configure(InvestigationTheme.CardRadius, 1f);
+            border.color = InvestigationTheme.Primary;
+            Text step = CreateText("First Finding Step", prompt, "START HERE", 12, FontStyle.Bold,
+                InvestigationTheme.Accent, TextAnchor.MiddleLeft, InvestigationTheme.DataFont);
+            Anchor(step.rectTransform, 0f, 1f, 1f, 1f, 24f, -48f, -24f, -16f);
+            Image icon = CreateStatusIcon("First Finding Icon", prompt, InvestigationScenarioIconLibrary.Investigate, Color.white);
+            Anchor(icon.rectTransform, .5f, .68f, .5f, .68f, -32f, -32f, 32f, 32f);
+            Text title = CreateText("First Finding Title", prompt, "Select a species\non TODAY", 22, FontStyle.Bold,
+                InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.DisplayFont);
+            Anchor(title.rectTransform, 0f, .40f, 1f, .60f, 20f, 0f, -20f, 0f);
+            Text detail = CreateText("First Finding Detail", prompt, "Your first finding will open your notebook.", 15, FontStyle.Normal,
+                InvestigationTheme.TextSecondary, TextAnchor.UpperCenter, InvestigationTheme.BodyFont);
+            Anchor(detail.rectTransform, 0f, .16f, 1f, .37f, 24f, 0f, -24f, 0f);
+        }
+
+        private IEnumerator RevealObserveNotebook(RectTransform notebook)
+        {
+            CanvasGroup group = EnsureCanvasGroup(notebook);
+            float elapsed = 0f;
+            const float duration = .28f;
+            while (elapsed < duration)
+            {
+                if (group == null) yield break;
+                group.alpha = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+            if (group != null) group.alpha = 1f;
         }
 
         private RectTransform CreateNotebookEntryScroll(RectTransform notebook)
         {
             RectTransform scrollRoot = CreatePanel("Notebook Entry Scroll", notebook, new Color(0f, 0f, 0f, 0f), 0f);
-            Anchor(scrollRoot, 0f, 0f, 1f, 1f, 12f, 68f, -12f, -58f);
+            Anchor(scrollRoot, 0f, 0f, 1f, 1f, 40f, 68f, -12f, -58f);
             ScrollRect scroll = scrollRoot.gameObject.AddComponent<ScrollRect>();
             scroll.horizontal = false;
             scroll.vertical = true;
@@ -133,7 +218,7 @@ namespace EDNA.Investigation
             Text title = CreateText(
                 "Survey Title",
                 map,
-                historical ? "20 YEARS AGO" : "TODAY",
+                historical ? "20 years ago" : "Today",
                 18,
                 FontStyle.Bold,
                 historical ? InvestigationTheme.TextSecondary : InvestigationTheme.Primary,
@@ -179,7 +264,8 @@ namespace EDNA.Investigation
             for (int index = 0; index < visibleSpecies.Count; index++)
             {
                 InvestigationSpeciesDefinition species = visibleSpecies[index];
-                if (InvestigationSpeciesMapLayout.ResolveDepthBand(species) == depthBand
+                if (ShouldDisplaySpeciesInEra(species, era)
+                    && ResolveSurveyDepthBand(species, era) == depthBand
                     && InvestigationSpeciesMapLayout.IsBenthic(species) == benthic)
                 {
                     group.Add(species);
@@ -207,11 +293,23 @@ namespace EDNA.Investigation
         private List<InvestigationSpeciesDefinition> GetVisibleObserveSpecies()
         {
             List<InvestigationSpeciesDefinition> visible = new List<InvestigationSpeciesDefinition>();
+            HashSet<string> includedIds = new HashSet<string>(StringComparer.Ordinal);
             for (int index = 0; index < caseDefinition.Species.Count; index++)
             {
                 InvestigationSpeciesDefinition species = caseDefinition.Species[index];
                 if (species != null
+                    && includedIds.Add(species.SpeciesId)
                     && (state.SurveySpeciesIds.Count == 0 || state.HasSurveySpecies(species.SpeciesId)))
+                {
+                    visible.Add(species);
+                }
+            }
+            for (int index = 0; index < caseDefinition.SpeciesCatalog.Count; index++)
+            {
+                InvestigationSpeciesDefinition species = caseDefinition.SpeciesCatalog[index];
+                if (species != null
+                    && includedIds.Add(species.SpeciesId)
+                    && state.HasSurveySpecies(species.SpeciesId))
                 {
                     visible.Add(species);
                 }
@@ -219,8 +317,53 @@ namespace EDNA.Investigation
             return visible;
         }
 
+        private bool ShouldDisplaySpeciesInEra(InvestigationSpeciesDefinition species, SurveyEra era)
+        {
+            if (species == null) return false;
+            if (caseDefinition.IsCaseSpecies(species.SpeciesId)) return true;
+            return FindSurveyRecord(species.SpeciesId, era) != null;
+        }
+
+        private DepthBand ResolveSurveyDepthBand(InvestigationSpeciesDefinition species, SurveyEra era)
+        {
+            InvestigationSurveySummary summary = ResolveSurveySummary(species, era);
+            return summary == null ? InvestigationSpeciesMapLayout.ResolveDepthBand(species) : summary.Depth;
+        }
+
+        private InvestigationSurveySummary ResolveSurveySummary(InvestigationSpeciesDefinition species, SurveyEra era)
+        {
+            return InvestigationSurveyEvaluator.Resolve(caseDefinition, state, species,
+                era == SurveyEra.Historical ? SurveyTimepoint.Historical : SurveyTimepoint.Current);
+        }
+
+        private InvestigationSurveySpeciesRecord FindSurveyRecord(string speciesId, SurveyEra era)
+        {
+            if (string.IsNullOrEmpty(speciesId)) return null;
+            return state.FindSurveySpeciesRecord(
+                speciesId,
+                era == SurveyEra.Historical ? SurveyTimepoint.Historical : SurveyTimepoint.Current);
+        }
+
         private void CreateSeamountVisual(RectTransform plotArea)
         {
+            if (seamountBackdrop == null)
+                seamountBackdrop = GetComponent<InvestigationSeamountBackdrop>() ?? gameObject.AddComponent<InvestigationSeamountBackdrop>();
+            if (seamountBackdrop.TryInitialise())
+            {
+                RawImage mountain = CreateGraphic<RawImage>("Seamount Backdrop", plotArea);
+                mountain.texture = seamountBackdrop.NaturalTexture;
+                mountain.material = seamountBackdrop.RenderMaterial;
+                mountain.raycastTarget = false;
+                mountain.rectTransform.anchorMin = new Vector2(0f, 0f);
+                mountain.rectTransform.anchorMax = new Vector2(1f, 0f);
+                mountain.rectTransform.pivot = new Vector2(0.5f, 0f);
+                mountain.rectTransform.anchoredPosition = Vector2.zero;
+                mountain.rectTransform.sizeDelta = Vector2.zero;
+                AspectRatioFitter aspect = mountain.gameObject.AddComponent<AspectRatioFitter>();
+                aspect.aspectMode = AspectRatioFitter.AspectMode.WidthControlsHeight;
+                aspect.aspectRatio = mountain.texture.width / (float)mountain.texture.height;
+                return;
+            }
             if (seamountSprite != null)
             {
                 Image mountain = CreateGraphic<Image>("Seamount Sprite", plotArea);
@@ -246,20 +389,22 @@ namespace EDNA.Investigation
 
             InvestigationSeamountFogGraphic fog = CreateGraphic<InvestigationSeamountFogGraphic>("Seamount Foot Fog", plotArea);
             Anchor(fog.rectTransform, 0f, 0f, 1f, 0.24f, -8f, -4f, 8f, 0f);
-            fog.color = InvestigationTheme.Primary;
+            Color fogColor = InvestigationTheme.Primary;
+            fogColor.a = 0.55f;
+            fog.color = fogColor;
         }
 
         private void CreateDepthLabel(RectTransform map, string value, float normalizedY)
         {
-            Text label = CreateText($"Depth {value}", map, value, 12, FontStyle.Bold, InvestigationTheme.TextMuted, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
-            label.rectTransform.anchorMin = new Vector2(0f, normalizedY);
-            label.rectTransform.anchorMax = new Vector2(1f, normalizedY);
+            Text label = CreateText($"Depth {value}", map, value, 11, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
+            label.rectTransform.anchorMin = new Vector2(0f, normalizedY + 0.08f);
+            label.rectTransform.anchorMax = new Vector2(1f, normalizedY + 0.08f);
             label.rectTransform.pivot = new Vector2(0f, 1f);
             label.rectTransform.offsetMin = new Vector2(12f, -32f);
             label.rectTransform.offsetMax = new Vector2(-12f, 0f);
-            RectTransform line = CreatePanel($"Depth Line {value}", map, new Color32(145, 177, 194, 42), 0f);
-            line.anchorMin = new Vector2(0f, normalizedY);
-            line.anchorMax = new Vector2(1f, normalizedY);
+            RectTransform line = CreatePanel($"Depth Line {value}", map, InvestigationTheme.BorderSoft, 0f);
+            line.anchorMin = new Vector2(0.03f, normalizedY);
+            line.anchorMax = new Vector2(0.97f, normalizedY);
             line.offsetMin = new Vector2(0f, -1f);
             line.offsetMax = new Vector2(0f, 1f);
         }
@@ -272,7 +417,10 @@ namespace EDNA.Investigation
         {
             InvestigationObservationDefinition observation = FindObserveObservationForSpecies(species.SpeciesId);
             bool historical = era == SurveyEra.Historical;
-            bool anomaly = !historical && observation != null && observation.ClaimType != ObservationClaimType.MatchesBaseline;
+            InvestigationSurveySummary survey = ResolveSurveySummary(species, era);
+            bool notDetected = survey?.Detection == SpeciesDetectionState.NotDetected;
+            bool anomaly = !historical
+                && ((observation != null && observation.ClaimType != ObservationClaimType.MatchesBaseline) || notDetected);
 
             RectTransform rect = null;
             Button marker = CreateButton(
@@ -303,7 +451,10 @@ namespace EDNA.Investigation
                 marker.transform,
                 species,
                 anomaly ? InvestigationTheme.Accent : InvestigationTheme.Primary,
-                !historical && observation != null && observation.ClaimType == ObservationClaimType.NotDetected);
+                notDetected);
+            Image specimen = artwork.GetComponent<Image>();
+            if (historical && specimen != null)
+                specimen.color = new Color(0.82f, 0.90f, 0.91f, specimen.color.a * 0.76f);
             bool showGroup = !historical
                 && observation != null
                 && observation.ClaimType == ObservationClaimType.ChangedDepthOrDistribution
@@ -319,18 +470,46 @@ namespace EDNA.Investigation
                 Anchor(artwork, 0f, 0f, 1f, 1f, 14f, 8f, -14f, -4f);
             }
 
-            if (!historical && observation != null && observation.ClaimType == ObservationClaimType.NotDetected)
+            if (notDetected)
             {
                 InvestigationMissingSignalGraphic missing = CreateGraphic<InvestigationMissingSignalGraphic>("Missing Signal", marker.transform);
                 missing.color = InvestigationTheme.TextMuted;
                 Anchor(missing.rectTransform, 0.12f, 0.08f, 0.88f, 0.96f, 0f, 0f, 0f, -2f);
             }
 
+            RectTransform pairFocus = CreatePanel("Paired Species Focus", marker.transform, new Color(0.2f, 0.8f, 0.9f, 0.08f), InvestigationTheme.SmallRadius);
+            Stretch(pairFocus, 2f, 2f, -2f, -2f);
+            EnsureOutline(pairFocus.gameObject, InvestigationTheme.Primary, new Vector2(2f, -2f));
+            pairFocus.GetComponent<Image>().raycastTarget = false;
+            pairFocus.SetAsFirstSibling();
+            pairFocus.gameObject.SetActive(false);
+            if (!speciesPairHighlights.TryGetValue(species.SpeciesId, out List<GameObject> highlights))
+            {
+                highlights = new List<GameObject>();
+                speciesPairHighlights.Add(species.SpeciesId, highlights);
+            }
+            highlights.Add(pairFocus.gameObject);
+            if (!historical && observation != null && state.HasDiscoveredObservation(observation.EvidenceId))
+            {
+                Image recorded = CreateStatusIcon("Recorded Finding", marker.transform, InvestigationStatusIconLibrary.Check, InvestigationTheme.Success);
+                Anchor(recorded.rectTransform, 1f, 1f, 1f, 1f, -23f, -23f, -3f, -3f);
+            }
+
             InvestigationHoverTooltipTrigger tooltipTrigger = marker.gameObject.AddComponent<InvestigationHoverTooltipTrigger>();
             tooltipTrigger.Configure(
                 1f,
-                () => ShowSpeciesTooltip(rect, species),
-                HideSpeciesTooltip);
+                () => ShowSpeciesTooltip(rect, species, era),
+                () => HideSpeciesTooltipFor(rect));
+
+            if (!historical
+                && state.Difficulty == InvestigationDifficulty.Easy
+                && !guidanceCollapsed
+                && observation != null
+                && observation.UnlockStage == EvidenceUnlockStage.Observe
+                && !state.HasDiscoveredObservation(observation.EvidenceId))
+            {
+                AddUnrecordedFindingCue(marker);
+            }
 
             if (string.Equals(pendingTappedSpeciesId, species.SpeciesId, StringComparison.Ordinal)
                 && pendingTappedSpeciesHistorical == historical)
@@ -359,12 +538,14 @@ namespace EDNA.Investigation
             bool historical = era == SurveyEra.Historical;
             if (historical || observation == null)
             {
-                ShowSpeciesTooltip(marker, species);
+                if (historical) ShowReferenceSurveyNotice();
+                ShowSpeciesTooltip(marker, species, era, true);
                 return;
             }
 
             pendingTappedSpeciesId = species.SpeciesId;
             pendingTappedSpeciesHistorical = false;
+            lastRecordedObservationId = observation.EvidenceId;
             discoverObservation?.Invoke(observation.EvidenceId);
         }
 
@@ -376,7 +557,7 @@ namespace EDNA.Investigation
             pendingTappedSpeciesId = string.Empty;
             pendingTappedSpeciesMarker = null;
             pendingTappedSpecies = null;
-            ShowSpeciesTooltip(marker, species);
+            ShowSpeciesTooltip(marker, species, pendingTappedSpeciesHistorical ? SurveyEra.Historical : SurveyEra.Current, true);
         }
 
         private int CountVisibleNotebookObservations()
@@ -407,7 +588,7 @@ namespace EDNA.Investigation
                         && (observation.Category == EvidenceCategory.Benthic || observation.Category == EvidenceCategory.Alternative)));
             if (shown == 0)
             {
-                Text empty = CreateText("Notebook Empty", parent, "Select unusual results on the current survey map. Important observations are recorded automatically.", 14, FontStyle.Normal, InvestigationTheme.PaperMuted, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
+                Text empty = CreateText("Notebook Empty", parent, "Your recorded findings will appear here.", 14, FontStyle.Normal, InvestigationTheme.PaperMuted, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
                 AddLayout(empty.rectTransform, 92f, 1f);
             }
         }
@@ -444,30 +625,94 @@ namespace EDNA.Investigation
 
         private void CreateNotebookEntry(Transform parent, InvestigationObservationDefinition observation)
         {
-            RectTransform item = CreatePanel($"Notebook {observation.EvidenceId}", parent, new Color(0f, 0f, 0f, 0f), 0f);
+            bool relatedToSelection = state.Phase == InvestigationPhase.Simulate
+                && !string.IsNullOrEmpty(selectedPredictionSpeciesId)
+                && IsDirectObservationForSelectedTarget(observation);
+            RectTransform item = CreatePanel(
+                $"Notebook {observation.EvidenceId}",
+                parent,
+                relatedToSelection ? new Color32(217, 236, 243, 170) : new Color(0f, 0f, 0f, 0f),
+                relatedToSelection ? 8f : 0f);
             AddLayout(item, 58f, 1f);
+            if (relatedToSelection)
+                EnsureOutline(item.gameObject, InvestigationTheme.PaperSelectedBorder, new Vector2(1f, -1f));
             Color evidenceColor = NotebookStateColor(observation.ClaimType);
-            RectTransform bullet = CreatePanel("Evidence Bullet", item, InvestigationTheme.Accent, 6f);
+            RectTransform bullet = CreatePanel("Evidence Bullet", item, evidenceColor, 4f);
             Anchor(bullet, 0f, 0.56f, 0f, 0.56f, 4f, -6f, 16f, 6f);
-            EnsureOutline(bullet.gameObject, new Color32(191, 80, 51, 220), new Vector2(1f, -1f));
             InvestigationSpeciesDefinition species = caseDefinition.FindSpecies(observation.RelatedSpeciesId);
             string stateLabel = NotebookStateLabel(observation.ClaimType);
             string stateColor = ColorUtility.ToHtmlStringRGB(evidenceColor);
             Text title = CreateText(
                 "Observation",
                 item,
-                $"{species?.DisplayName ?? observation.DisplayName} <b><color=#{stateColor}>{stateLabel}</color></b>",
+                $"{species?.GameplayName ?? observation.DisplayName} <b><color=#{stateColor}>{stateLabel}</color></b>",
                 14,
                 FontStyle.Normal,
                 InvestigationTheme.PaperInk,
                 TextAnchor.LowerLeft,
                 InvestigationTheme.DisplayFont);
             title.supportRichText = true;
-            Anchor(title.rectTransform, 0f, 0.43f, 1f, 1f, 24f, 0f, -8f, 0f);
+            Anchor(title.rectTransform, 0f, 0.43f, 1f, 1f, 24f, 0f, -76f, 0f);
             Text source = CreateText("Source", item, $"{ObservationSourceDisplayName(observation.Source)} · {observation.Confidence} confidence", 10, FontStyle.Normal, InvestigationTheme.PaperMuted, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
-            Anchor(source.rectTransform, 0f, 0f, 1f, 0.46f, 24f, 0f, -8f, 0f);
-            RectTransform paperLine = CreatePanel("Paper Line", item, new Color32(179, 214, 225, 210), 0f);
+            Anchor(source.rectTransform, 0f, 0f, 1f, 0.46f, 24f, 0f, -76f, 0f);
+
+            NotebookEvidenceStatus status = NotebookStatusFor(observation.EvidenceId);
+            Color badgeColor = NotebookStatusColor(status);
+            RectTransform statusBadge = CreatePanel("Evidence Status", item, badgeColor, 7f);
+            Anchor(statusBadge, 1f, 0.5f, 1f, 0.5f, -68f, -12f, -8f, 12f);
+            Text statusText = CreateText(
+                "Evidence Status Text",
+                statusBadge,
+                NotebookStatusLabel(status),
+                9,
+                FontStyle.Bold,
+                status == NotebookEvidenceStatus.Report ? Color.white : InvestigationTheme.PaperInk,
+                TextAnchor.MiddleCenter,
+                InvestigationTheme.DataFont);
+            Stretch(statusText.rectTransform, 4f, 1f, -4f, -1f);
+            RectTransform paperLine = CreatePanel("Paper Line", item, InvestigationTheme.PaperRule, 0f);
             Anchor(paperLine, 0.04f, 0f, 0.96f, 0f, 0f, 0f, 0f, 2f);
+        }
+
+        private NotebookEvidenceStatus NotebookStatusFor(string evidenceId)
+        {
+            if (state.HasSelectedEvidence(evidenceId)) return NotebookEvidenceStatus.Report;
+
+            bool used = false;
+            bool openQuestion = false;
+            for (int index = 0; index < state.ComparisonRecords.Count; index++)
+            {
+                PredictionComparisonRecord record = state.ComparisonRecords[index];
+                if (!string.Equals(record.EvidenceId, evidenceId, StringComparison.Ordinal)) continue;
+                if (record.LocksComparison) used = true;
+                else if (record.IsAccepted && record.Judgement == ComparisonJudgement.NotEnoughEvidence)
+                    openQuestion = true;
+            }
+            if (used) return NotebookEvidenceStatus.Used;
+            if (openQuestion) return NotebookEvidenceStatus.OpenQuestion;
+            return NotebookEvidenceStatus.New;
+        }
+
+        private static string NotebookStatusLabel(NotebookEvidenceStatus status)
+        {
+            switch (status)
+            {
+                case NotebookEvidenceStatus.Used: return "USED";
+                case NotebookEvidenceStatus.OpenQuestion: return "OPEN";
+                case NotebookEvidenceStatus.Report: return "REPORT";
+                default: return "NEW";
+            }
+        }
+
+        private static Color NotebookStatusColor(NotebookEvidenceStatus status)
+        {
+            switch (status)
+            {
+                case NotebookEvidenceStatus.Used: return InvestigationTheme.PaperSelected;
+                case NotebookEvidenceStatus.OpenQuestion: return InvestigationTheme.PaperRule;
+                case NotebookEvidenceStatus.Report: return InvestigationTheme.PaperSelectedBorder;
+                default: return new Color32(231, 229, 213, 255);
+            }
         }
 
         private static string ObservationSourceDisplayName(ObservationSource source)
@@ -482,21 +727,31 @@ namespace EDNA.Investigation
             }
         }
 
-        private void ShowSpeciesTooltip(RectTransform marker, InvestigationSpeciesDefinition species)
+        private void ShowSpeciesTooltip(
+            RectTransform marker,
+            InvestigationSpeciesDefinition species,
+            SurveyEra era = SurveyEra.Current,
+            bool pinned = false)
         {
             if (marker == null || species == null) return;
+            // A delayed hover callback must not replace a card pinned by a tap.
+            if (!pinned && speciesTooltipPinned && speciesTooltipOwner == marker) return;
             HideSpeciesTooltip();
+            speciesTooltipOwner = marker;
+            speciesTooltipPinned = pinned;
+            SetSpeciesPairHighlight(species.SpeciesId);
 
             RectTransform overlay = GetComponent<RectTransform>();
             Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(null, marker.TransformPoint(marker.rect.center));
             RectTransformUtility.ScreenPointToLocalPointInRectangle(overlay, screenPoint, null, out Vector2 localPoint);
             bool placeRight = screenPoint.x < Screen.width * 0.55f;
 
-            speciesTooltip = CreatePanel("Species Facts Tooltip", overlay, new Color32(27, 82, 115, 252), InvestigationTheme.SmallRadius);
+            speciesTooltip = CreatePanel("Species Facts Tooltip", overlay, InvestigationTheme.Deep, InvestigationTheme.SmallRadius);
+            speciesTooltip.GetComponent<Image>().raycastTarget = pinned;
             speciesTooltip.anchorMin = Vector2.one * 0.5f;
             speciesTooltip.anchorMax = Vector2.one * 0.5f;
             speciesTooltip.pivot = new Vector2(placeRight ? 0f : 1f, 0.5f);
-            speciesTooltip.sizeDelta = new Vector2(360f, 188f);
+            speciesTooltip.sizeDelta = new Vector2(Mathf.Min(390f, overlay.rect.width - 24f), 258f);
             Vector2 tooltipPosition = localPoint + new Vector2(placeRight ? 64f : -64f, 0f);
             float width = speciesTooltip.sizeDelta.x;
             float height = speciesTooltip.sizeDelta.y;
@@ -512,28 +767,66 @@ namespace EDNA.Investigation
 
             Outline outline = speciesTooltip.gameObject.AddComponent<Outline>();
             outline.effectColor = InvestigationTheme.Primary;
-            outline.effectDistance = new Vector2(2f, -2f);
+            outline.effectDistance = new Vector2(1f, -1f);
 
             Text eyebrow = CreateText("Tooltip Eyebrow", speciesTooltip, "SPECIES FACTS", 11, FontStyle.Bold, InvestigationTheme.Primary, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
             Anchor(eyebrow.rectTransform, 0f, 0.80f, 1f, 1f, 16f, 0f, -12f, -12f);
+            Button close = CreateButton("Close Species Facts", speciesTooltip, "Close", ButtonVisualStyle.Tertiary, HideSpeciesTooltip, out Text closeLabel);
+            close.GetComponent<LayoutElement>().ignoreLayout = true;
+            closeLabel.fontSize = 12;
+            Anchor(close.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -72f, -42f, -8f, -4f);
             Text title = CreateText("Tooltip Title", speciesTooltip, species.DisplayName, 19, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperLeft, InvestigationTheme.DisplayFont);
             Anchor(title.rectTransform, 0f, 0.61f, 1f, 0.84f, 16f, 0f, -12f, 0f);
             Text description = CreateText("Tooltip Description", speciesTooltip, species.Description, 13, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
-            Anchor(description.rectTransform, 0f, 0.28f, 1f, 0.63f, 16f, 0f, -12f, -2f);
+            Anchor(description.rectTransform, 0f, 0.39f, 1f, 0.63f, 16f, 0f, -12f, -2f);
             Text details = CreateText(
                 "Tooltip Details",
                 speciesTooltip,
-                $"DEPTH  {JoinDepths(species)}\nTEMPERATURE  {species.TemperaturePreference}",
+                BuildSpeciesTooltipDetails(species, era),
                 11,
                 FontStyle.Normal,
                 InvestigationTheme.TextMuted,
                 TextAnchor.UpperLeft,
                 InvestigationTheme.DataFont);
-            Anchor(details.rectTransform, 0f, 0f, 1f, 0.30f, 16f, 10f, -12f, 0f);
+            Anchor(details.rectTransform, 0f, 0f, 1f, 0.40f, 16f, 10f, -12f, 0f);
+            if (pinned) speciesTooltipDismiss = StartCoroutine(DismissTappedSpeciesTooltip(speciesTooltip));
+        }
+
+        private IEnumerator DismissTappedSpeciesTooltip(RectTransform shownTooltip)
+        {
+            yield return new WaitForSecondsRealtime(1.5f);
+            speciesTooltipDismiss = null;
+            if (speciesTooltip == shownTooltip) HideSpeciesTooltip();
+        }
+
+        private string BuildSpeciesTooltipDetails(InvestigationSpeciesDefinition species, SurveyEra era)
+        {
+            InvestigationSurveySummary summary = ResolveSurveySummary(species, era);
+            if (summary == null) return "No record was supplied for this survey era.";
+            string status = era == SurveyEra.Historical ? "Historical reference · read only"
+                : summary.Observation == null ? "Supplementary survey · not a required case finding"
+                : state.HasDiscoveredObservation(summary.Observation.EvidenceId) ? "RECORDED IN NOTEBOOK" : "Select to record this finding";
+            string source = string.IsNullOrEmpty(summary.Confidence) ? summary.Source : $"{summary.Source} · {summary.Confidence}";
+            return $"{summary.Result}\n{source}\nDEPTH  {summary.Depth}\n{status}";
+        }
+
+        private void SetSpeciesPairHighlight(string speciesId)
+        {
+            foreach (KeyValuePair<string, List<GameObject>> pair in speciesPairHighlights)
+                foreach (GameObject highlight in pair.Value)
+                    if (highlight != null) highlight.SetActive(pair.Key == speciesId);
         }
 
         private void HideSpeciesTooltip()
         {
+            if (speciesTooltipDismiss != null)
+            {
+                StopCoroutine(speciesTooltipDismiss);
+                speciesTooltipDismiss = null;
+            }
+            speciesTooltipOwner = null;
+            speciesTooltipPinned = false;
+            SetSpeciesPairHighlight(null);
             if (speciesTooltip == null) return;
             GameObject tooltipObject = speciesTooltip.gameObject;
             speciesTooltip = null;
@@ -542,19 +835,14 @@ namespace EDNA.Investigation
             else DestroyImmediate(tooltipObject);
         }
 
+        private void HideSpeciesTooltipFor(RectTransform marker)
+        {
+            if (speciesTooltipOwner == marker && !speciesTooltipPinned) HideSpeciesTooltip();
+        }
+
         private InvestigationObservationDefinition FindObserveObservationForSpecies(string speciesId)
         {
-            for (int index = 0; index < caseDefinition.Observations.Count; index++)
-            {
-                InvestigationObservationDefinition observation = caseDefinition.Observations[index];
-                if (observation != null
-                    && observation.UnlockStage == EvidenceUnlockStage.Observe
-                    && string.Equals(observation.RelatedSpeciesId, speciesId, StringComparison.Ordinal))
-                {
-                    return observation;
-                }
-            }
-            return null;
+            return InvestigationSurveyEvaluator.FindCaseObservation(caseDefinition, speciesId);
         }
 
         private static string JoinDepths(InvestigationSpeciesDefinition species)
@@ -601,9 +889,9 @@ namespace EDNA.Investigation
         {
             switch (claimType)
             {
-                case ObservationClaimType.NotDetected: return new Color32(165, 65, 58, 255);
-                case ObservationClaimType.ChangedDepthOrDistribution: return new Color32(169, 75, 43, 255);
-                case ObservationClaimType.MatchesBaseline: return new Color32(28, 105, 99, 255);
+                case ObservationClaimType.NotDetected: return InvestigationTheme.PaperInk;
+                case ObservationClaimType.ChangedDepthOrDistribution: return InvestigationTheme.PaperSelectedBorder;
+                case ObservationClaimType.MatchesBaseline: return InvestigationTheme.PaperMuted;
                 case ObservationClaimType.NewDetection: return new Color32(27, 109, 138, 255);
                 case ObservationClaimType.EnvironmentalReading: return new Color32(27, 109, 138, 255);
                 case ObservationClaimType.PhysicalObservation: return new Color32(28, 105, 99, 255);

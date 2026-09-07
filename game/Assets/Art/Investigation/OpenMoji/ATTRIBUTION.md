@@ -20,7 +20,6 @@ Files and original OpenMoji codes:
 | `krill.png` | `1F990` | Shrimp |
 | `sea-star.png` | `2B50` | Star |
 | `mussel.png` | `1F9AA` | Oyster |
-| `warming.png` | `1F321` | Thermometer |
 | `plastic.png` | `E0CC` | Plastic bottle |
 | `long-line.png` | `1F3A3` | Fishing pole |
 | `bottom-trawling.png` | `1FA8D` | Net with handle |

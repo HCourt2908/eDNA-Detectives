@@ -13,16 +13,26 @@ MonoBehaviour:
   m_Name: Species_Shark
   m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
   speciesId: shark
-  displayName: Shark
+  canonicalSpeciesId: great_hammerhead_shark
+  displayName: Great Hammerhead Shark
+  shortDisplayName: Shark
+  scientificName: Sphyrna mokarran
   description: A large predator that normally controls tuna abundance around the
     seamount.
-  icon: {fileID: 21300000, guid: 490d2d09923e1491fb14097a79d21e4c, type: 3}
+  icon: {fileID: 21300000, guid: effaa17ae83354774888074f65866e1b, type: 3}
   glyphKind: 0
+  trophicRole: 5
+  aliases:
+  - great_hammerhead
+  - sphyrna_mokarran
   preferredDepths: 000000000100000002000000
-  temperaturePreference: Broad range; current temperature alone does not explain
-    a repeated all-depth non-detection.
+  habitatTags:
+  - pelagic
+  - reef-associated
+  - shallow
+  - mid-water
   dietSpeciesIds:
-  - tuna
+  - atlantic_bluefin_tuna
   predatorSpeciesIds: []
   sensitivityTags:
   - LargePredator

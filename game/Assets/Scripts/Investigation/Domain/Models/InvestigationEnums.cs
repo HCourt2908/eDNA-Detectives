@@ -80,7 +80,7 @@ namespace EDNA.Investigation.Domain
     public enum PredictionTargetKind
     {
         Species = 0,
-        Temperature = 1,
+        // Value 1 is retired; keep the remaining serialized target IDs stable.
         Seafloor = 2,
         PhysicalConfirmation = 3
     }
@@ -118,12 +118,26 @@ namespace EDNA.Investigation.Domain
         Tuna = 1,
         Krill = 2,
         SeaStar = 3,
-        Mussel = 4
+        Mussel = 4,
+        NameOnly = 5
+    }
+
+    public enum InvestigationTrophicRole
+    {
+        Unknown = 0,
+        PrimaryProducer = 1,
+        PrimaryConsumer = 2,
+        SecondaryConsumer = 3,
+        Predator = 4,
+        ApexPredator = 5,
+        Scavenger = 6,
+        Decomposer = 7,
+        HabitatForming = 8
     }
 
     public enum ThreatGlyphKind
     {
-        Warming = 0,
+        // Value 0 is retired; keep the remaining serialized glyph IDs stable.
         Plastic = 1,
         LongLine = 2,
         BottomTrawling = 3

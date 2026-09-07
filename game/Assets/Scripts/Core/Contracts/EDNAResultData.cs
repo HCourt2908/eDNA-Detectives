@@ -13,6 +13,7 @@ namespace EDNA.Core
         public int roundIndex;
         public SampleQuality sampleQuality;
         public List<string> detectedSpeciesIds = new List<string>();
+        public List<EDNASpeciesObservationData> speciesObservations = new List<EDNASpeciesObservationData>();
         public List<EDNAResultFlag> resultFlags = new List<EDNAResultFlag>();
     }
 }

@@ -34,6 +34,5 @@ MonoBehaviour:
   - speciesId: mussel
     predictedState: 1
     rationale: A plastic-sensitive filter feeder should decline.
-  temperaturePrediction: Temperature may remain normal.
   seafloorPrediction: Seafloor structure remains intact.
   physicalConfirmation: Plastic or contamination patterns may be present.

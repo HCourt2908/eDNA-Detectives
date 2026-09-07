@@ -12,6 +12,7 @@ namespace EDNA.Core
         public string selectedHypothesisId = string.Empty;
         public bool correct;
         public List<string> evidenceIds = new List<string>();
+        public List<string> surveySpeciesIds = new List<string>();
         public int missteps;
         public int finalSubmissionAttempts;
         public bool completed;

@@ -6,10 +6,16 @@ namespace EDNA.Investigation
 {
     public enum InvestigationQaCheckpoint
     {
+        Start = 0,
         ObserveReady = 1,
         SimulateComplete = 2,
         ReportReady = 3,
-        FinalReportReady = 4
+        FinalReportReady = 4,
+        FirstFinding = 5,
+        SimulateStart = 6,
+        ReportQuestions = 7,
+        CaseClosed = 8,
+        EvidenceReady = 9
     }
 
     public static class InvestigationQaStateFactory
@@ -19,18 +25,25 @@ namespace EDNA.Investigation
             InvestigationQaCheckpoint checkpoint)
         {
             if (caseDefinition == null) throw new ArgumentNullException(nameof(caseDefinition));
+            if (!Enum.IsDefined(typeof(InvestigationQaCheckpoint), checkpoint)) throw new ArgumentOutOfRangeException(nameof(checkpoint));
             InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
             InvestigationState state = updater.CreateInitialState();
+            if (checkpoint == InvestigationQaCheckpoint.Start) return state;
             Discover(updater, state, "E01_SHARK_NONDETECTION");
+            if (checkpoint == InvestigationQaCheckpoint.FirstFinding) return state;
             Discover(updater, state, "E02_TUNA_WIDER_DETECTION");
             Discover(updater, state, "E03_KRILL_NONDETECTION");
             Discover(updater, state, "E04_BENTHIC_STABLE");
             Discover(updater, state, "E06_PLASTIC_INDICATOR_STABLE");
             if (checkpoint == InvestigationQaCheckpoint.ObserveReady) return state;
+            if (checkpoint == InvestigationQaCheckpoint.SimulateStart)
+            {
+                Require(updater.TrySetPhase(state, InvestigationPhase.Simulate, out string feedback), feedback);
+                return state;
+            }
 
-            Run(updater, state, "warming");
-            Compare(updater, state, "warming", PredictionTargetKind.Temperature, "temperature", "E05_TEMPERATURE_NORMAL", ComparisonJudgement.Mismatch);
             Run(updater, state, "plastic");
+            if (checkpoint == InvestigationQaCheckpoint.EvidenceReady) return state;
             Compare(updater, state, "plastic", PredictionTargetKind.Species, "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch);
             Run(updater, state, "longline");
             Compare(updater, state, "longline", PredictionTargetKind.Species, "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match);
@@ -48,6 +61,7 @@ namespace EDNA.Investigation
             Compare(updater, state, "longline", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match);
             Compare(updater, state, "bottom_trawling", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch);
             Require(updater.TrySetPhase(state, InvestigationPhase.Report, out string reportFeedback), reportFeedback);
+            if (checkpoint == InvestigationQaCheckpoint.ReportQuestions) return state;
             Require(updater.TrySetFinalThreat(state, "longline", out string causeFeedback), causeFeedback);
             SelectEvidence(updater, state, "E01_SHARK_NONDETECTION");
             SelectEvidence(updater, state, "E02_TUNA_WIDER_DETECTION");
@@ -55,6 +69,11 @@ namespace EDNA.Investigation
             SelectEvidence(updater, state, "E07_FISHING_LINE");
             Require(updater.TrySetReasoning(state, "food_web_cascade", out string reasoningFeedback), reasoningFeedback);
             Require(updater.TrySetLimitation(state, "L01_NONDETECTION_LIMITATION", out string limitationFeedback), limitationFeedback);
+            if (checkpoint == InvestigationQaCheckpoint.CaseClosed)
+            {
+                InvestigationConclusionResult result = updater.SubmitFinal(state);
+                Require(result.Status == InvestigationConclusionStatus.Correct, result.Feedback);
+            }
             return state;
         }
 
@@ -77,7 +96,8 @@ namespace EDNA.Investigation
             string evidenceId,
             ComparisonJudgement judgement)
         {
-            PredictionComparisonRecord record = updater.Compare(state, threatId, targetKind, targetId, evidenceId, judgement);
+            PredictionComparisonRecord record = updater.CompareEvidence(state, threatId, targetKind, targetId, evidenceId);
+            Require(record.Judgement == judgement, "The selected evidence resolved to an unexpected relationship.");
             Require(record.CompletesObjective, record.Feedback);
         }
 

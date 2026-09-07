@@ -13,13 +13,18 @@ MonoBehaviour:
   m_Name: Species_SeaStar
   m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
   speciesId: sea_star
+  canonicalSpeciesId:
   displayName: Sea star
+  shortDisplayName:
+  scientificName:
   description: A benthic indicator used to test whether the seafloor community was
     disturbed.
-  icon: {fileID: 21300000, guid: 0ca5b13b6a01746868c8f240d8bb109d, type: 3}
+  icon: {fileID: 21300000, guid: d286ca2986e62494b8abddcad0cfa0d5, type: 3}
   glyphKind: 3
+  trophicRole: 0
+  aliases: []
   preferredDepths: 02000000
-  temperaturePreference: Broad temperature tolerance in this case.
+  habitatTags: []
   dietSpeciesIds: []
   predatorSpeciesIds: []
   sensitivityTags:

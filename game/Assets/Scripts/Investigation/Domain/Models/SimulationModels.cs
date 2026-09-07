@@ -24,20 +24,17 @@ namespace EDNA.Investigation.Domain
         public SimulationResult(
             string threatId,
             IEnumerable<SimulationPrediction> predictions,
-            string temperaturePrediction,
             string seafloorPrediction,
             string physicalConfirmation)
         {
             ThreatId = threatId ?? string.Empty;
             Predictions = new List<SimulationPrediction>(predictions ?? Array.Empty<SimulationPrediction>());
-            TemperaturePrediction = temperaturePrediction ?? string.Empty;
             SeafloorPrediction = seafloorPrediction ?? string.Empty;
             PhysicalConfirmation = physicalConfirmation ?? string.Empty;
         }
 
         public string ThreatId { get; }
         public IReadOnlyList<SimulationPrediction> Predictions { get; }
-        public string TemperaturePrediction { get; }
         public string SeafloorPrediction { get; }
         public string PhysicalConfirmation { get; }
 

@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db735edd82b540bca2a33e8561c0f27, type: 3}
+  m_Name: Species_OrangeRoughy
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
+  speciesId: orange_roughy
+  canonicalSpeciesId: orange_roughy
+  displayName: Orange Roughy
+  shortDisplayName:
+  scientificName: Hoplostethus atlanticus
+  description: A long-lived deep-water fish that feeds on smaller fish and invertebrates.
+  icon: {fileID: 0}
+  glyphKind: 5
+  trophicRole: 4
+  aliases:
+  - hoplostethus_atlanticus
+  preferredDepths: 02000000
+  habitatTags:
+  - deep
+  - seamount
+  dietSpeciesIds:
+  - spotted_lanternfish
+  predatorSpeciesIds:
+  - kitefin_shark
+  sensitivityTags: []
+  mapDepthBand: 2

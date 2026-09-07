@@ -13,20 +13,28 @@ MonoBehaviour:
   m_Name: Species_Tuna
   m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
   speciesId: tuna
-  displayName: Tuna
+  canonicalSpeciesId: atlantic_bluefin_tuna
+  displayName: Atlantic Bluefin Tuna
+  shortDisplayName: Tuna
+  scientificName: Thunnus thynnus
   description: A mobile fish that eats krill and is normally preyed on by sharks
     in this simplified food web.
-  icon: {fileID: 21300000, guid: 8533fb008d6014a18832837351309eae, type: 3}
+  icon: {fileID: 21300000, guid: da8a035e10dfb4664a77803e255c06f4, type: 3}
   glyphKind: 1
+  trophicRole: 4
+  aliases:
+  - bluefin_tuna
+  - thunnus_thynnus
   preferredDepths: 0000000001000000
-  temperaturePreference: Warm-affinity visitor; distribution can also respond to
-    predator removal.
+  habitatTags:
+  - pelagic
+  - shallow
+  - mid-water
   dietSpeciesIds:
-  - krill
+  - atlantic_herring
   predatorSpeciesIds:
-  - shark
+  - great_hammerhead_shark
   sensitivityTags:
   - Mobile
-  - WarmAffinity
   - FoodWeb
   mapDepthBand: 0

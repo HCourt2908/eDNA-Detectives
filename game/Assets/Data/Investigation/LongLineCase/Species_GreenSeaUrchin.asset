@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db735edd82b540bca2a33e8561c0f27, type: 3}
+  m_Name: Species_GreenSeaUrchin
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
+  speciesId: green_sea_urchin
+  canonicalSpeciesId: green_sea_urchin
+  displayName: Green Sea Urchin
+  shortDisplayName:
+  scientificName: Strongylocentrotus droebachiensis
+  description: A cold-water grazer associated with rocky benthic habitat.
+  icon: {fileID: 0}
+  glyphKind: 5
+  trophicRole: 2
+  aliases:
+  - strongylocentrotus_droebachiensis
+  preferredDepths: 0100000002000000
+  habitatTags:
+  - benthic
+  - rocky-habitat
+  dietSpeciesIds:
+  - phytoplankton
+  predatorSpeciesIds: []
+  sensitivityTags: []
+  mapDepthBand: 2

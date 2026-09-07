@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db735edd82b540bca2a33e8561c0f27, type: 3}
+  m_Name: Species_BoneEatingWorm
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
+  speciesId: bone_eating_worm
+  canonicalSpeciesId: bone_eating_worm
+  displayName: Bone Eating Worm
+  shortDisplayName:
+  scientificName: Osedax frankpressi
+  description: A specialist decomposer that colonises vertebrate bones on the deep
+    seafloor.
+  icon: {fileID: 0}
+  glyphKind: 5
+  trophicRole: 7
+  aliases:
+  - osedax_frankpressi
+  preferredDepths: 02000000
+  habitatTags:
+  - benthic
+  - deep
+  - whale-fall
+  dietSpeciesIds: []
+  predatorSpeciesIds: []
+  sensitivityTags: []
+  mapDepthBand: 2

@@ -23,9 +23,8 @@ namespace EDNA.Investigation.Domain
         [SerializeField] private string displayName = string.Empty;
         [SerializeField, TextArea(2, 5)] private string summary = string.Empty;
         [SerializeField] private Sprite icon;
-        [SerializeField] private ThreatGlyphKind glyphKind;
+        [SerializeField] private ThreatGlyphKind glyphKind = ThreatGlyphKind.Plastic;
         [SerializeField] private List<ThreatSpeciesPredictionDefinition> speciesPredictions = new List<ThreatSpeciesPredictionDefinition>();
-        [SerializeField, TextArea(1, 3)] private string temperaturePrediction = string.Empty;
         [SerializeField, TextArea(1, 3)] private string seafloorPrediction = string.Empty;
         [SerializeField, TextArea(1, 3)] private string physicalConfirmation = string.Empty;
 
@@ -35,7 +34,6 @@ namespace EDNA.Investigation.Domain
         public Sprite Icon => icon;
         public ThreatGlyphKind GlyphKind => glyphKind;
         public IReadOnlyList<ThreatSpeciesPredictionDefinition> SpeciesPredictions => speciesPredictions;
-        public string TemperaturePrediction => temperaturePrediction;
         public string SeafloorPrediction => seafloorPrediction;
         public string PhysicalConfirmation => physicalConfirmation;
 

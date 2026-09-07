@@ -22,11 +22,14 @@ namespace EDNA.Investigation.Domain
                     definition.PredictedState,
                     definition.Rationale));
             }
+            new FoodWebCascadeEvaluator().FillMissingPredictions(
+                caseDefinition,
+                caseDefinition.SimulationFoodWebId,
+                predictions);
 
             return new SimulationResult(
                 threat.ThreatId,
                 predictions,
-                threat.TemperaturePrediction,
                 threat.SeafloorPrediction,
                 threat.PhysicalConfirmation);
         }

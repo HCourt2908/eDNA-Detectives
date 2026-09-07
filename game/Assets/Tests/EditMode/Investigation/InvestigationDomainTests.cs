@@ -48,21 +48,205 @@ namespace EDNA.Investigation.Tests
         }
 
         [Test]
-        public void ThreatMatrix_ContainsFourThreatsAndFivePredictionsEach()
+        public void ThreatMatrix_ContainsThreeThreatsAndFivePredictionsEach()
         {
-            Assert.That(caseDefinition.Threats, Has.Count.EqualTo(4));
+            Assert.That(caseDefinition.Threats, Has.Count.EqualTo(3));
             Assert.That(caseDefinition.Species, Has.Count.EqualTo(5));
             for (int index = 0; index < caseDefinition.Threats.Count; index++)
             {
                 Assert.That(caseDefinition.Threats[index].SpeciesPredictions, Has.Count.EqualTo(5));
             }
-            Assert.That(caseDefinition.ComparisonRules, Has.Count.EqualTo(21));
-            Assert.That(caseDefinition.InvestigationObjectives, Has.Count.EqualTo(8));
+            Assert.That(caseDefinition.ComparisonRules, Has.Count.EqualTo(15));
+            Assert.That(caseDefinition.InvestigationObjectives, Has.Count.EqualTo(7));
             Assert.That(caseDefinition.FindSpecies("shark").MapDepthBand, Is.EqualTo(DepthBand.Shallow));
             Assert.That(caseDefinition.FindSpecies("tuna").MapDepthBand, Is.EqualTo(DepthBand.Shallow));
             Assert.That(caseDefinition.FindSpecies("krill").MapDepthBand, Is.EqualTo(DepthBand.Mid));
             Assert.That(caseDefinition.FindSpecies("sea_star").MapDepthBand, Is.EqualTo(DepthBand.Deep));
             Assert.That(caseDefinition.FindSpecies("mussel").MapDepthBand, Is.EqualTo(DepthBand.Deep));
+        }
+
+        [Test]
+        public void SharedSpeciesCatalog_ContainsCanonicalRosterAndAuthoredPresentationGroups()
+        {
+            Assert.That(caseDefinition.SpeciesCatalog, Has.Count.EqualTo(20));
+            HashSet<string> canonicalIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < caseDefinition.SpeciesCatalog.Count; index++)
+            {
+                InvestigationSpeciesDefinition species = caseDefinition.SpeciesCatalog[index];
+                Assert.That(species, Is.Not.Null);
+                Assert.That(species.CanonicalSpeciesId, Is.Not.Empty);
+                Assert.That(species.ScientificName, Is.Not.Empty);
+                Assert.That(canonicalIds.Add(species.CanonicalSpeciesId), Is.True, species.CanonicalSpeciesId);
+            }
+
+            Assert.That(canonicalIds, Is.EquivalentTo(new[]
+            {
+                "green_sea_urchin", "reef_manta_ray", "kitefin_shark", "great_hammerhead_shark",
+                "orange_roughy", "pinecone_fish", "atlantic_bluefin_tuna", "atlantic_herring",
+                "spotted_lanternfish", "northern_krill", "king_crab", "warty_squid",
+                "flapjack_octopus", "giant_pacific_octopus", "bone_eating_worm",
+                "tree_bubblegum_coral", "precious_coral", "zigzag_coral", "moon_jellyfish",
+                "phytoplankton"
+            }));
+
+            Assert.That(caseDefinition.FindSpecies("great_hammerhead_shark"), Is.SameAs(caseDefinition.FindSpecies("shark")));
+            Assert.That(caseDefinition.FindSpecies("sphyrna_mokarran"), Is.SameAs(caseDefinition.FindSpecies("shark")));
+            Assert.That(caseDefinition.FindSpecies("shark").DisplayName, Is.EqualTo("Great Hammerhead Shark"));
+            Assert.That(caseDefinition.FindSpecies("shark").GameplayName, Is.EqualTo("Shark"));
+            Assert.That(caseDefinition.FindSpecies("moon_jellyfish").Icon, Is.Null);
+            Assert.That(caseDefinition.FoodWebChainSpeciesIds, Is.EqualTo(new[] { "shark", "tuna", "krill" }));
+            Assert.That(caseDefinition.SimulationFoodWebId, Is.EqualTo("case_simplified"));
+            Assert.That(caseDefinition.FoodWebEdges, Has.Count.EqualTo(12));
+            Assert.That(caseDefinition.BenthicIndicatorSpeciesIds, Is.EqualTo(new[] { "sea_star", "mussel" }));
+            Assert.That(caseDefinition.FollowUpLockedSpeciesIds, Is.EqualTo(new[] { "sea_star" }));
+            Assert.That(caseDefinition.MaximumSurveySpecies, Is.EqualTo(7));
+        }
+
+        [Test]
+        public void ExternalEdnaResults_NormalizeCanonicalAliasesToCaseSpeciesIds()
+        {
+            InvestigationState state = updater.CreateInitialState();
+            InvestigationGameInput input = new InvestigationGameInput();
+            EDNAResultData result = new EDNAResultData();
+            result.speciesObservations.Add(new EDNASpeciesObservationData
+            {
+                speciesId = "great_hammerhead_shark", detectionState = SpeciesDetectionState.NotDetected
+            });
+            result.detectedSpeciesIds.Add("moon_jellyfish");
+            input.ednaResults.Add(result);
+
+            Assert.That(updater.TryApplyExternalInput(state, input, out _), Is.True);
+            Assert.That(state.HasSurveySpecies("shark"), Is.True);
+            Assert.That(state.HasSurveySpecies("great_hammerhead_shark"), Is.False);
+            Assert.That(state.HasSurveySpecies("moon_jellyfish"), Is.True);
+        }
+
+        [Test]
+        public void DetailedEdnaResults_BuildACappedDepthAwareRoster()
+        {
+            InvestigationState state = updater.CreateInitialState();
+            InvestigationGameInput input = new InvestigationGameInput();
+            EDNAResultData result = new EDNAResultData { sampleId = "sample-7", siteId = "ridge", sampleQuality = SampleQuality.High };
+            result.speciesObservations.Add(new EDNASpeciesObservationData
+            {
+                speciesId = "atlantic_herring",
+                depthBand = DepthBand.Mid,
+                surveyTimepoint = SurveyTimepoint.Current,
+                detectionState = SpeciesDetectionState.Detected,
+                confidence = SurveyConfidence.High
+            });
+            result.speciesObservations.Add(new EDNASpeciesObservationData
+            {
+                speciesId = "tree_bubblegum_coral",
+                depthBand = DepthBand.Deep,
+                surveyTimepoint = SurveyTimepoint.Current,
+                detectionState = SpeciesDetectionState.NotDetected,
+                confidence = SurveyConfidence.High
+            });
+            result.speciesObservations.Add(new EDNASpeciesObservationData
+            {
+                speciesId = "moon_jellyfish",
+                depthBand = DepthBand.Shallow,
+                surveyTimepoint = SurveyTimepoint.Current,
+                detectionState = SpeciesDetectionState.Detected,
+                confidence = SurveyConfidence.Low
+            });
+            result.speciesObservations.Add(new EDNASpeciesObservationData { speciesId = "unknown_species" });
+            input.ednaResults.Add(result);
+
+            Assert.That(updater.TryApplyExternalInput(state, input, out string feedback), Is.True);
+            Assert.That(state.SurveySpeciesIds, Has.Count.EqualTo(7));
+            Assert.That(state.HasSurveySpecies("atlantic_herring"), Is.True);
+            Assert.That(state.HasSurveySpecies("tree_bubblegum_coral"), Is.True);
+            Assert.That(state.HasSurveySpecies("moon_jellyfish"), Is.False);
+            Assert.That(state.HasSurveySpecies("unknown_species"), Is.False);
+            InvestigationSurveySpeciesRecord coral = state.FindSurveySpeciesRecord("tree_bubblegum_coral", SurveyTimepoint.Current);
+            Assert.That(coral, Is.Not.Null);
+            Assert.That(coral.DepthBand, Is.EqualTo(DepthBand.Deep));
+            Assert.That(coral.DetectionState, Is.EqualTo(SpeciesDetectionState.NotDetected));
+            Assert.That(coral.SampleId, Is.EqualTo("sample-7"));
+            Assert.That(feedback, Does.Contain("2 additional survey species"));
+        }
+
+        [Test]
+        public void ReferenceFoodWebCascade_PropagatesAcrossTheFiveNodeChain()
+        {
+            IReadOnlyDictionary<string, PredictionState> states = new FoodWebCascadeEvaluator().Evaluate(
+                caseDefinition,
+                "reference_main",
+                "great_hammerhead_shark",
+                PredictionState.Decrease);
+
+            Assert.That(states["great_hammerhead_shark"], Is.EqualTo(PredictionState.Decrease));
+            Assert.That(states["atlantic_bluefin_tuna"], Is.EqualTo(PredictionState.Increase));
+            Assert.That(states["atlantic_herring"], Is.EqualTo(PredictionState.Decrease));
+            Assert.That(states["northern_krill"], Is.EqualTo(PredictionState.Increase));
+            Assert.That(states["phytoplankton"], Is.EqualTo(PredictionState.Decrease));
+        }
+
+        [Test]
+        public void Simulator_FillsMissingPredictionsFromTheAuthoredCaseNetwork()
+        {
+            InvestigationCaseDefinition caseClone = UnityEngine.Object.Instantiate(caseDefinition);
+            ThreatSimulationDefinition threatClone = UnityEngine.Object.Instantiate(caseDefinition.FindThreat("longline"));
+            try
+            {
+                SerializedObject threatObject = new SerializedObject(threatClone);
+                threatObject.FindProperty("speciesPredictions").arraySize = 1;
+                threatObject.ApplyModifiedPropertiesWithoutUndo();
+                SerializedObject caseObject = new SerializedObject(caseClone);
+                SerializedProperty threats = caseObject.FindProperty("threats");
+                for (int index = 0; index < threats.arraySize; index++)
+                {
+                    ThreatSimulationDefinition candidate = threats.GetArrayElementAtIndex(index).objectReferenceValue as ThreatSimulationDefinition;
+                    if (candidate != null && candidate.ThreatId == "longline")
+                        threats.GetArrayElementAtIndex(index).objectReferenceValue = threatClone;
+                }
+                caseObject.ApplyModifiedPropertiesWithoutUndo();
+
+                SimulationResult simulation = new EcosystemSimulatorEvaluator().Evaluate(caseClone, "longline");
+                Assert.That(simulation.FindPrediction("shark").PredictedState, Is.EqualTo(PredictionState.Decrease));
+                Assert.That(simulation.FindPrediction("tuna").PredictedState, Is.EqualTo(PredictionState.Increase));
+                Assert.That(simulation.FindPrediction("krill").PredictedState, Is.EqualTo(PredictionState.Decrease));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(threatClone);
+                UnityEngine.Object.DestroyImmediate(caseClone);
+            }
+        }
+
+        [Test]
+        public void Simulator_ExplicitIntermediatePredictionControlsDownstreamInference()
+        {
+            InvestigationCaseDefinition caseClone = UnityEngine.Object.Instantiate(caseDefinition);
+            ThreatSimulationDefinition threatClone = UnityEngine.Object.Instantiate(caseDefinition.FindThreat("longline"));
+            try
+            {
+                SerializedObject threatObject = new SerializedObject(threatClone);
+                SerializedProperty predictions = threatObject.FindProperty("speciesPredictions");
+                predictions.arraySize = 2;
+                predictions.GetArrayElementAtIndex(1).FindPropertyRelative("predictedState").enumValueIndex = (int)PredictionState.Stable;
+                threatObject.ApplyModifiedPropertiesWithoutUndo();
+                SerializedObject caseObject = new SerializedObject(caseClone);
+                SerializedProperty threats = caseObject.FindProperty("threats");
+                for (int index = 0; index < threats.arraySize; index++)
+                {
+                    ThreatSimulationDefinition candidate = threats.GetArrayElementAtIndex(index).objectReferenceValue as ThreatSimulationDefinition;
+                    if (candidate != null && candidate.ThreatId == "longline")
+                        threats.GetArrayElementAtIndex(index).objectReferenceValue = threatClone;
+                }
+                caseObject.ApplyModifiedPropertiesWithoutUndo();
+
+                SimulationResult simulation = new EcosystemSimulatorEvaluator().Evaluate(caseClone, "longline");
+                Assert.That(simulation.FindPrediction("tuna").PredictedState, Is.EqualTo(PredictionState.Stable));
+                Assert.That(simulation.FindPrediction("krill").PredictedState, Is.EqualTo(PredictionState.Stable));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(threatClone);
+                UnityEngine.Object.DestroyImmediate(caseClone);
+            }
         }
 
         [Test]
@@ -148,7 +332,7 @@ namespace EDNA.Investigation.Tests
                 Assert.That(cloneUpdater.TryApplyExternalInput(state, input, out string feedback), Is.True);
                 Assert.That(state.HasSurveySpecies("background_jelly"), Is.True);
                 Assert.That(state.HasSurveySpecies("unknown_species"), Is.False);
-                Assert.That(feedback, Does.Contain("1 additional detected species"));
+                Assert.That(feedback, Does.Contain("1 additional survey species"));
             }
             finally
             {
@@ -208,6 +392,21 @@ namespace EDNA.Investigation.Tests
         }
 
         [Test]
+        public void CoreSpecies_UseTheFieldGuideSetWithBoundedTransparentTextures()
+        {
+            foreach (InvestigationSpeciesDefinition species in caseDefinition.Species)
+            {
+                string path = AssetDatabase.GetAssetPath(species.Icon);
+                Assert.That(path, Does.StartWith("Assets/Art/Investigation/FieldGuide/"));
+                TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(path);
+                Assert.That(importer.alphaIsTransparency, Is.True);
+                Assert.That(importer.maxTextureSize, Is.EqualTo(512));
+                Assert.That(importer.mipmapEnabled, Is.False);
+                Assert.That(importer.wrapMode, Is.EqualTo(TextureWrapMode.Clamp));
+            }
+        }
+
+        [Test]
         public void SeamountSprite_IsSingleAngleCompressedAndWithinSourceBudget()
         {
             const string path = "Assets/Art/Investigation/Seamount/seamount_hero.png";
@@ -257,6 +456,83 @@ namespace EDNA.Investigation.Tests
             Assert.That(result.FindPrediction("krill").PredictedState, Is.EqualTo(PredictionState.Decrease));
             Assert.That(result.SeafloorPrediction, Does.Contain("intact").IgnoreCase);
             Assert.That(result.PhysicalConfirmation, Does.Contain("gear").IgnoreCase);
+        }
+
+        [TestCase("longline", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match, ComparisonEvaluationOutcome.AcceptedWithCaveat)]
+        [TestCase("plastic", "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch, ComparisonEvaluationOutcome.Accepted)]
+        public void EvidenceSelection_ResolvesTheAuthoredRelationshipImmediately(
+            string threatId, string speciesId, string evidenceId,
+            ComparisonJudgement expectedJudgement, ComparisonEvaluationOutcome expectedOutcome)
+        {
+            InvestigationState state = CreateSimulationReadyState();
+            RunModel(state, threatId);
+            PredictionComparisonRecord record = updater.CompareEvidence(state, threatId, PredictionTargetKind.Species, speciesId, evidenceId);
+            Assert.That(record.Judgement, Is.EqualTo(expectedJudgement));
+            Assert.That(record.Outcome, Is.EqualTo(expectedOutcome));
+            Assert.That(record.CompletesObjective, Is.True, record.Feedback);
+            Assert.That(state.CompletedObjectiveCount, Is.EqualTo(1));
+            if (expectedOutcome == ComparisonEvaluationOutcome.AcceptedWithCaveat)
+                Assert.That(record.Feedback, Does.Contain("does not prove"));
+        }
+
+        [Test]
+        public void EvidenceSelection_UnrelatedFindingStaysOpenUntilARelevantFindingIsChosen()
+        {
+            InvestigationState state = CreateSimulationReadyState();
+            RunModel(state, "longline");
+            PredictionComparisonRecord open = updater.CompareEvidence(state, "longline", PredictionTargetKind.Species,
+                "shark", "E04_BENTHIC_STABLE");
+            Assert.That(open.Judgement, Is.EqualTo(ComparisonJudgement.NotEnoughEvidence));
+            Assert.That(open.IsAccepted, Is.True);
+            Assert.That(open.LocksComparison, Is.False);
+            Assert.That(state.CompletedObjectiveCount, Is.Zero);
+            Assert.That(state.AcceptedComparisonCount, Is.Zero);
+            Assert.That(state.MisstepCount, Is.Zero);
+
+            PredictionComparisonRecord saved = updater.CompareEvidence(state, "longline", PredictionTargetKind.Species,
+                "shark", "E01_SHARK_NONDETECTION");
+            Assert.That(saved.Judgement, Is.EqualTo(ComparisonJudgement.Match));
+            Assert.That(state.CompletedObjectiveCount, Is.EqualTo(1));
+            PredictionComparisonRecord repeated = updater.CompareEvidence(state, "longline", PredictionTargetKind.Species,
+                "shark", "E04_BENTHIC_STABLE");
+            Assert.That(repeated.EvidenceId, Is.EqualTo(saved.EvidenceId));
+            Assert.That(repeated.Judgement, Is.EqualTo(saved.Judgement));
+            Assert.That(state.CompletedObjectiveCount, Is.EqualTo(1));
+            Assert.That(state.ComparisonRecords, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void EvidenceSelection_PreservesTheAuthoredCaveatForAnUncertainModel()
+        {
+            InvestigationState state = CreateSimulationReadyState();
+            RunModel(state, "plastic");
+            PredictionComparisonRecord record = updater.CompareEvidence(state, "plastic", PredictionTargetKind.Species,
+                "shark", "E01_SHARK_NONDETECTION");
+            Assert.That(record.Judgement, Is.EqualTo(ComparisonJudgement.Mismatch));
+            Assert.That(record.Outcome, Is.EqualTo(ComparisonEvaluationOutcome.AcceptedWithCaveat));
+            Assert.That(record.Feedback, Does.Contain("no directional explanation"));
+            Assert.That(state.CompletedObjectiveCount, Is.Zero);
+        }
+
+        [Test]
+        public void EvidenceSelection_RespectsModelDiscoveryAndRovGates()
+        {
+            InvestigationState state = CreateSimulationReadyState();
+            Assert.That(updater.CompareEvidence(state, "longline", PredictionTargetKind.Species,
+                "shark", "E01_SHARK_NONDETECTION").IsAccepted, Is.False);
+            RunModel(state, "longline");
+            Assert.That(updater.CompareEvidence(state, "longline", PredictionTargetKind.Species,
+                "shark", "E07_FISHING_LINE").IsAccepted, Is.False);
+            Assert.That(updater.CompareEvidence(state, "longline", PredictionTargetKind.Species,
+                "sea_star", "E04_BENTHIC_STABLE").IsAccepted, Is.False);
+            Assert.That(state.ComparisonRecords, Is.Empty);
+            Assert.That(state.CompletedObjectiveCount, Is.Zero);
+
+            state = PrepareProvisionalReadyState();
+            Assert.That(updater.TrySubmitProvisional(state, "longline", out _), Is.True);
+            Assert.That(updater.TryReviewConfirmation(state, out _), Is.True);
+            Assert.That(updater.CompareEvidence(state, "longline", PredictionTargetKind.Species,
+                "sea_star", "E04_BENTHIC_STABLE").CompletesObjective, Is.True);
         }
 
         [Test]
@@ -400,7 +676,15 @@ namespace EDNA.Investigation.Tests
             try
             {
                 SerializedObject serialized = new SerializedObject(clone);
-                serialized.FindProperty("minimumObserveDiscoveries").intValue = 4;
+                SerializedProperty objectives = serialized.FindProperty("investigationObjectives");
+                for (int index = 0; index < objectives.arraySize; index++)
+                {
+                    if (objectives.GetArrayElementAtIndex(index).FindPropertyRelative("objectiveId").stringValue == "longline_krill")
+                    {
+                        objectives.MoveArrayElement(index, 0);
+                        break;
+                    }
+                }
                 serialized.ApplyModifiedPropertiesWithoutUndo();
                 InvestigationStateUpdater cloneUpdater = new InvestigationStateUpdater(clone);
                 InvestigationState state = cloneUpdater.CreateInitialState();
@@ -408,14 +692,7 @@ namespace EDNA.Investigation.Tests
                 DiscoverWith(cloneUpdater, state, "E02_TUNA_WIDER_DETECTION");
                 DiscoverWith(cloneUpdater, state, "E04_BENTHIC_STABLE");
                 DiscoverWith(cloneUpdater, state, "E06_PLASTIC_INDICATOR_STABLE");
-                Assert.That(cloneUpdater.TrySetPhase(state, InvestigationPhase.Simulate, out _), Is.True);
-                RunWith(cloneUpdater, state, "warming");
-                Assert.That(cloneUpdater.Compare(state, "warming", PredictionTargetKind.Temperature, "temperature", "E05_TEMPERATURE_NORMAL", ComparisonJudgement.Mismatch).CompletesObjective, Is.True);
-                RunWith(cloneUpdater, state, "plastic");
-                Assert.That(cloneUpdater.Compare(state, "plastic", "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch).CompletesObjective, Is.True);
-                RunWith(cloneUpdater, state, "longline");
-                Assert.That(cloneUpdater.Compare(state, "longline", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match).CompletesObjective, Is.True);
-                Assert.That(cloneUpdater.Compare(state, "longline", "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match).CompletesObjective, Is.True);
+                Assert.That(cloneUpdater.TrySetPhase(state, InvestigationPhase.Simulate, out _), Is.False);
 
                 InvestigationReadiness readiness = cloneUpdater.EvaluateReadiness(state);
                 Assert.That(readiness.CanEnterProvisional, Is.False);
@@ -502,21 +779,36 @@ namespace EDNA.Investigation.Tests
         }
 
         [Test]
-        public void WarmingModel_UnlocksTemperatureObjectiveEvidence()
+        public void RetiredWarmingModel_IsUnavailableAndDoesNotBlockRemainingObjectives()
         {
-            InvestigationState state = updater.CreateInitialState();
-            Assert.That(state.HasDiscoveredObservation("E05_TEMPERATURE_NORMAL"), Is.False);
-            DiscoverCoreObservations(state);
-            RunModel(state, "warming");
-            Assert.That(state.HasDiscoveredObservation("E05_TEMPERATURE_NORMAL"), Is.True);
-            PredictionComparisonRecord comparison = updater.Compare(
-                state,
-                "warming",
-                PredictionTargetKind.Temperature,
-                "temperature",
-                "E05_TEMPERATURE_NORMAL",
-                ComparisonJudgement.Mismatch);
-            Assert.That(comparison.CompletesObjective, Is.True, comparison.Feedback);
+            InvestigationState state = PrepareProvisionalReadyState();
+            Assert.That(caseDefinition.FindThreat("warming"), Is.Null);
+            Assert.That(caseDefinition.FindObservation("E05_TEMPERATURE_NORMAL"), Is.Null);
+            Assert.That(caseDefinition.FindComparisonRule("warming", "shark"), Is.Null);
+            Assert.That(updater.TryRunThreat(state, "warming", out _, out _), Is.False);
+            Assert.That(state.FindSimulation("warming"), Is.Null);
+            Assert.That(state.TriedThreatIds, Has.Count.EqualTo(3));
+            Assert.That(state.CompletedObjectiveCount, Is.EqualTo(5));
+            Assert.That(updater.EvaluateReadiness(state).CanEnterProvisional, Is.True);
+            Assert.That(updater.TrySubmitProvisional(state, "warming", out _), Is.False);
+            Assert.That(updater.TrySubmitProvisional(state, "longline", out _), Is.True);
+        }
+
+        [Test]
+        public void RemainingThreatAssets_KeepTheirSerializedGlyphIds()
+        {
+            Assert.That((int)PredictionTargetKind.Seafloor, Is.EqualTo(2));
+            Assert.That((int)PredictionTargetKind.PhysicalConfirmation, Is.EqualTo(3));
+            Assert.That(Enum.IsDefined(typeof(PredictionTargetKind), 1), Is.False);
+            Assert.That(Enum.IsDefined(typeof(ThreatGlyphKind), 0), Is.False);
+            string[] ids = { "plastic", "longline", "bottom_trawling" };
+            for (int index = 0; index < ids.Length; index++)
+            {
+                ThreatSimulationDefinition threat = caseDefinition.FindThreat(ids[index]);
+                Assert.That((int)threat.GlyphKind, Is.EqualTo(index + 1), ids[index]);
+                Assert.That(new SerializedObject(threat).FindProperty("glyphKind").intValue,
+                    Is.EqualTo(index + 1), "Existing asset IDs must not shift when an enum member is removed.");
+            }
         }
 
         [Test]
@@ -611,13 +903,11 @@ namespace EDNA.Investigation.Tests
                 {
                     "E01_SHARK_NONDETECTION",
                     "E02_TUNA_WIDER_DETECTION",
-                    "E05_TEMPERATURE_NORMAL",
                     "L01_NONDETECTION_LIMITATION",
                     "E07_FISHING_LINE"
                 },
                 environmentalObservations = new List<InvestigationExternalObservationData>
                 {
-                    new InvestigationExternalObservationData { observationId = "E05_TEMPERATURE_NORMAL" },
                     new InvestigationExternalObservationData { observationId = "E01_SHARK_NONDETECTION" }
                 },
                 physicalObservations = new List<InvestigationExternalObservationData>
@@ -634,7 +924,6 @@ namespace EDNA.Investigation.Tests
             Assert.That(state.HasDiscoveredObservation("E01_SHARK_NONDETECTION"), Is.True);
             Assert.That(state.HasDiscoveredObservation("E02_TUNA_WIDER_DETECTION"), Is.True);
             Assert.That(state.HasDiscoveredObservation("L01_NONDETECTION_LIMITATION"), Is.True);
-            Assert.That(state.HasDiscoveredObservation("E05_TEMPERATURE_NORMAL"), Is.False);
             Assert.That(state.HasDiscoveredObservation("E07_FISHING_LINE"), Is.False);
         }
 
@@ -715,6 +1004,143 @@ namespace EDNA.Investigation.Tests
             Assert.That(state.MisstepCount, Is.EqualTo(1));
         }
 
+        [Test]
+        public void ObserveGate_MethodNotesCannotReplaceCoreFindings()
+        {
+            InvestigationState state = updater.CreateInitialState();
+            InvestigationGameInput input = new InvestigationGameInput();
+            input.discoveredObservationIds.AddRange(new[] { "E01_SHARK_NONDETECTION", "E02_TUNA_WIDER_DETECTION",
+                "E03_KRILL_NONDETECTION", "E04_BENTHIC_STABLE", "L01_NONDETECTION_LIMITATION" });
+            Assert.That(updater.TryApplyExternalInput(state, input, out _), Is.True);
+            Assert.That(state.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(InvestigationObserveEvaluator.CountFindings(caseDefinition, state), Is.EqualTo(4));
+            Assert.That(updater.TrySetPhase(state, InvestigationPhase.Simulate, out _), Is.False);
+            Assert.That(updater.TryRunThreat(state, "longline", out _, out _), Is.False);
+            Discover(state, "E06_PLASTIC_INDICATOR_STABLE");
+            Discover(state, "E06_PLASTIC_INDICATOR_STABLE");
+            Assert.That(InvestigationObserveEvaluator.CountFindings(caseDefinition, state), Is.EqualTo(5));
+            Assert.That(updater.TrySetPhase(state, InvestigationPhase.Simulate, out _), Is.True);
+        }
+
+        [Test]
+        public void ExternalSurvey_ConflictingCoreInputIsRejectedWithoutPartialMutation()
+        {
+            InvestigationState state = updater.CreateInitialState();
+            string originalSurvey = state.SurveyId;
+            InvestigationGameInput input = new InvestigationGameInput();
+            input.surveyContext.surveyId = "should-not-be-applied";
+            input.discoveredObservationIds.Add("E02_TUNA_WIDER_DETECTION");
+            input.ednaResults.Add(new EDNAResultData { detectedSpeciesIds = new List<string> { "great_hammerhead_shark", "moon_jellyfish" } });
+            Assert.That(updater.TryApplyExternalInput(state, input, out string feedback), Is.False);
+            Assert.That(feedback, Does.Contain("fixed case"));
+            Assert.That(state.SurveyId, Is.EqualTo(originalSurvey));
+            Assert.That(state.DiscoveredObservationIds, Is.Empty);
+            Assert.That(state.HasSurveySpecies("moon_jellyfish"), Is.False);
+        }
+
+        [Test]
+        public void ExternalSurvey_DetailedCurrentRecordTakesPrecedenceOverLegacyDetection()
+        {
+            InvestigationState state = updater.CreateInitialState();
+            EDNAResultData result = new EDNAResultData { sampleQuality = SampleQuality.High };
+            result.detectedSpeciesIds.Add("great_hammerhead_shark");
+            result.speciesObservations.Add(new EDNASpeciesObservationData { speciesId = "shark", detectionState = SpeciesDetectionState.NotDetected });
+            InvestigationGameInput input = new InvestigationGameInput();
+            input.ednaResults.Add(result);
+            Assert.That(updater.TryApplyExternalInput(state, input, out string feedback), Is.True, feedback);
+            Assert.That(state.SurveySpeciesRecords, Has.Count.EqualTo(1));
+            InvestigationSurveySummary current = InvestigationSurveyEvaluator.Resolve(caseDefinition, state, caseDefinition.FindSpecies("shark"), SurveyTimepoint.Current);
+            Assert.That(current.Detection, Is.EqualTo(SpeciesDetectionState.NotDetected));
+            Assert.That(current.Result, Is.EqualTo(caseDefinition.FindObservation("E01_SHARK_NONDETECTION").DisplayName));
+            Assert.That(current.Source, Does.Contain("Case survey"));
+        }
+
+        [Test]
+        public void ExternalSurvey_HistoricalSupplementRetainsItsNonDetection()
+        {
+            InvestigationState state = updater.CreateInitialState();
+            InvestigationGameInput input = new InvestigationGameInput();
+            EDNAResultData result = new EDNAResultData();
+            result.speciesObservations.Add(new EDNASpeciesObservationData { speciesId = "moon_jellyfish",
+                surveyTimepoint = SurveyTimepoint.Historical, detectionState = SpeciesDetectionState.NotDetected, depthBand = DepthBand.Deep });
+            input.ednaResults.Add(result);
+            Assert.That(updater.TryApplyExternalInput(state, input, out _), Is.True);
+            InvestigationSurveySummary historical = InvestigationSurveyEvaluator.Resolve(caseDefinition, state, caseDefinition.FindSpecies("moon_jellyfish"), SurveyTimepoint.Historical);
+            Assert.That(historical.Detection, Is.EqualTo(SpeciesDetectionState.NotDetected));
+            Assert.That(historical.Depth, Is.EqualTo(DepthBand.Deep));
+            Assert.That(historical.Observation, Is.Null);
+            Assert.That(InvestigationSurveyEvaluator.Resolve(caseDefinition, state, caseDefinition.FindSpecies("moon_jellyfish"), SurveyTimepoint.Current), Is.Null);
+        }
+
+        [Test]
+        public void ExternalSurvey_UnknownEraAndWrongSiteHaveActionableErrors()
+        {
+            InvestigationGameInput input = new InvestigationGameInput();
+            input.surveyContext.siteId = "site-a";
+            EDNASpeciesObservationData record = new EDNASpeciesObservationData { speciesId = "moon_jellyfish", surveyTimepoint = SurveyTimepoint.Unknown };
+            EDNAResultData result = new EDNAResultData();
+            result.speciesObservations.Add(record);
+            input.ednaResults.Add(result);
+            Assert.That(updater.TryApplyExternalInput(updater.CreateInitialState(), input, out string feedback), Is.False);
+            Assert.That(feedback, Does.Contain("timepoint"));
+            record.surveyTimepoint = SurveyTimepoint.Current;
+            record.siteId = "site-b";
+            Assert.That(updater.TryApplyExternalInput(updater.CreateInitialState(), input, out feedback), Is.False);
+            Assert.That(feedback, Does.Contain("different site"));
+        }
+
+        [Test]
+        public void ExternalSurvey_ConflictsInOneSampleAreDistinctFromSeparateSamples()
+        {
+            InvestigationGameInput input = new InvestigationGameInput();
+            EDNAResultData result = new EDNAResultData { sampleId = "one-sample" };
+            result.speciesObservations.Add(new EDNASpeciesObservationData { speciesId = "moon_jellyfish", detectionState = SpeciesDetectionState.Detected });
+            EDNASpeciesObservationData second = new EDNASpeciesObservationData { speciesId = "moon_jellyfish", detectionState = SpeciesDetectionState.NotDetected };
+            result.speciesObservations.Add(second);
+            input.ednaResults.Add(result);
+            Assert.That(updater.TryApplyExternalInput(updater.CreateInitialState(), input, out _), Is.False);
+            second.sampleId = "another-sample";
+            Assert.That(updater.TryApplyExternalInput(updater.CreateInitialState(), input, out _), Is.True);
+        }
+
+        [Test]
+        public void HypothesisSummary_DerivesOnlyRecordedChecksAndKeepsUncertaintyOpen()
+        {
+            InvestigationState state = CreateSimulationReadyState();
+            RunModel(state, "longline");
+            PredictionComparisonRecord open = updater.Compare(state, "longline", "shark", "E04_BENTHIC_STABLE", ComparisonJudgement.NotEnoughEvidence);
+            Assert.That(open.IsAccepted, Is.True);
+            InvestigationHypothesisSummary summary = new InvestigationHypothesisSummary(caseDefinition, state, "longline");
+            Assert.That(summary.OpenCount, Is.EqualTo(1));
+            Assert.That(summary.SupportCount, Is.Zero);
+            Assert.That(summary.ChallengeCount, Is.Zero);
+            Assert.That(new InvestigationHypothesisSummary(caseDefinition, state, "plastic").Records, Is.Empty);
+            updater.Compare(state, "longline", "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match);
+            Assert.That(new InvestigationHypothesisSummary(caseDefinition, state, "longline").Records, Has.Count.EqualTo(1));
+            updater.Compare(state, "longline", "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match);
+            summary = new InvestigationHypothesisSummary(caseDefinition, state, "longline");
+            Assert.That(summary.SupportCount, Is.EqualTo(1));
+            Assert.That(summary.OpenCount, Is.Zero);
+        }
+
+        [Test]
+        public void ReportPhase_RequiresASavedProvisionalIdeaEvenWhenComparisonsAreComplete()
+        {
+            InvestigationState state = PrepareProvisionalReadyState();
+            Assert.That(updater.EvaluateReadiness(state).CanEnterProvisional, Is.True);
+            InvestigationPhase phaseBefore = state.Phase;
+            Assert.That(updater.TrySetPhase(state, InvestigationPhase.Report, out string feedback), Is.False);
+            Assert.That(feedback, Does.Contain("Save a first idea"));
+            Assert.That(state.Phase, Is.EqualTo(phaseBefore));
+            Assert.That(state.ProvisionalThreatId, Is.Empty);
+            Assert.That(updater.TryReviewConfirmation(state, out _), Is.False);
+
+            Assert.That(updater.TrySubmitProvisional(state, "longline", out _), Is.True);
+            Assert.That(updater.TrySetPhase(state, InvestigationPhase.Observe, out _), Is.True);
+            Assert.That(updater.TrySetPhase(state, InvestigationPhase.Report, out _), Is.True);
+            Assert.That(state.ProvisionalThreatId, Is.EqualTo("longline"));
+        }
+
         private InvestigationState PrepareCompleteReport(string finalThreatId)
         {
             InvestigationState state = PrepareProvisionalReadyState();
@@ -735,8 +1161,6 @@ namespace EDNA.Investigation.Tests
         {
             InvestigationState state = updater.CreateInitialState();
             DiscoverCoreObservations(state);
-            RunModel(state, "warming");
-            AssertObjective(updater.Compare(state, "warming", PredictionTargetKind.Temperature, "temperature", "E05_TEMPERATURE_NORMAL", ComparisonJudgement.Mismatch));
             RunModel(state, "plastic");
             AssertObjective(updater.Compare(state, "plastic", "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch));
             RunModel(state, "longline");

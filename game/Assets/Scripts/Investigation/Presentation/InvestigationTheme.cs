@@ -4,36 +4,38 @@ namespace EDNA.Investigation
 {
     public static class InvestigationTheme
     {
-        public static readonly Color32 Background = new Color32(4, 18, 28, 255);
-        public static readonly Color32 Deep = new Color32(8, 36, 54, 255);
-        public static readonly Color32 SurfaceQuiet = new Color32(14, 51, 72, 255);
-        public static readonly Color32 Surface = new Color32(20, 65, 92, 255);
-        public static readonly Color32 SurfaceRaised = new Color32(27, 82, 115, 255);
-        public static readonly Color32 BorderSoft = new Color32(95, 212, 214, 42);
-        public static readonly Color32 BorderStrong = new Color32(95, 212, 214, 118);
-        public static readonly Color32 Accent = new Color32(255, 138, 91, 255);
+        public static readonly Color32 Background = new Color32(6, 22, 31, 255);
+        public static readonly Color32 Deep = new Color32(10, 31, 42, 255);
+        public static readonly Color32 SurfaceQuiet = new Color32(15, 43, 55, 255);
+        public static readonly Color32 Surface = new Color32(22, 54, 66, 255);
+        public static readonly Color32 SurfaceRaised = new Color32(29, 70, 79, 255);
+        public static readonly Color32 BorderSoft = new Color32(148, 178, 181, 32);
+        public static readonly Color32 BorderStrong = new Color32(126, 157, 162, 95);
+        public static readonly Color32 Accent = new Color32(240, 155, 119, 255);
         public static readonly Color32 OnAccent = new Color32(43, 15, 6, 255);
-        public static readonly Color32 Primary = new Color32(95, 212, 214, 255);
+        public static readonly Color32 Primary = new Color32(124, 205, 194, 255);
         public static readonly Color32 OnPrimary = new Color32(4, 34, 43, 255);
-        public static readonly Color32 Focus = new Color32(244, 211, 94, 255);
-        public static readonly Color32 Success = new Color32(95, 211, 154, 255);
-        public static readonly Color32 Danger = new Color32(242, 118, 107, 255);
+        public static readonly Color32 Focus = new Color32(237, 218, 152, 255);
+        public static readonly Color32 Success = new Color32(137, 206, 175, 255);
+        public static readonly Color32 Danger = new Color32(238, 153, 141, 255);
         public static readonly Color32 Unknown = new Color32(147, 178, 196, 255);
         public static readonly Color32 TextPrimary = new Color32(242, 248, 251, 255);
         public static readonly Color32 TextSecondary = new Color32(179, 204, 218, 255);
         public static readonly Color32 TextMuted = new Color32(145, 177, 194, 255);
-        public static readonly Color32 Paper = new Color32(234, 241, 244, 255);
-        public static readonly Color32 PaperRaised = new Color32(248, 251, 252, 255);
-        public static readonly Color32 PaperInk = new Color32(18, 48, 67, 255);
-        public static readonly Color32 PaperMuted = new Color32(77, 111, 132, 255);
-        public static readonly Color32 PaperBorder = new Color32(116, 142, 155, 255);
-        public static readonly Color32 PaperSelected = new Color32(217, 236, 243, 255);
-        public static readonly Color32 PaperSelectedBorder = new Color32(27, 109, 138, 255);
-        public static readonly Color32 ReportGuide = new Color32(220, 235, 243, 255);
-        public static readonly Color32 ReportSuccess = new Color32(215, 245, 229, 255);
-        public static readonly Color32 ReportError = new Color32(255, 229, 225, 255);
-        public static readonly Color32 PrimaryShadow = new Color32(0, 0, 0, 82);
-        public static readonly Color32 PaperShadow = new Color32(18, 48, 67, 46);
+        public static readonly Color32 Paper = new Color32(243, 240, 231, 255);
+        public static readonly Color32 PaperRaised = new Color32(251, 250, 245, 255);
+        public static readonly Color32 PaperInk = new Color32(24, 52, 60, 255);
+        public static readonly Color32 PaperMuted = new Color32(76, 98, 101, 255);
+        public static readonly Color32 PaperBorder = new Color32(117, 130, 124, 255);
+        public static readonly Color32 PaperSelected = new Color32(221, 235, 226, 255);
+        public static readonly Color32 PaperSelectedBorder = new Color32(41, 106, 99, 255);
+        public static readonly Color32 ReportGuide = new Color32(228, 236, 232, 255);
+        public static readonly Color32 ReportSuccess = new Color32(221, 238, 223, 255);
+        public static readonly Color32 ReportError = new Color32(245, 226, 218, 255);
+        public static readonly Color32 PrimaryShadow = new Color32(0, 0, 0, 42);
+        public static readonly Color32 PaperShadow = new Color32(18, 48, 67, 22);
+
+        public static readonly Color32 PaperRule = new Color32(210, 214, 202, 255);
 
         // Water column, top to bottom. A flat fill gives the scene no light
         // direction, which is what made the deep sea read as a single dark
@@ -45,22 +47,22 @@ namespace EDNA.Investigation
 
         // Light and particulate. All three stay very low alpha on purpose: the
         // cue reads as water at a whisper and as stage lighting at any strength.
-        public static readonly Color32 GodRay = new Color32(95, 212, 214, 16);
-        public static readonly Color32 Caustic = new Color32(140, 235, 238, 19);
-        public static readonly Color32 Vignette = new Color32(1, 6, 12, 148);
-        public const float MarineSnowFarMaxAlpha = 0.17f;
-        public const float MarineSnowNearMaxAlpha = 0.31f;
-        public const float MarineSnowForegroundMaxAlpha = 0.15f;
+        public static readonly Color32 GodRay = new Color32(141, 194, 200, 9);
+        public static readonly Color32 Caustic = new Color32(140, 218, 218, 10);
+        public static readonly Color32 Vignette = new Color32(1, 6, 12, 110);
+        public const float MarineSnowFarMaxAlpha = 0.10f;
+        public const float MarineSnowNearMaxAlpha = 0.14f;
+        public const float MarineSnowLargeMaxAlpha = 0.06f;
 
         // Semi-transparent so the water column and its particles carry through
         // the survey maps instead of stopping at an opaque panel edge.
-        public static readonly Color32 MapSurface = new Color32(8, 36, 54, 168);
-        public static readonly Color32 MapSurfaceHistorical = new Color32(11, 43, 61, 168);
+        public static readonly Color32 MapSurface = new Color32(9, 35, 46, 210);
+        public static readonly Color32 MapSurfaceHistorical = new Color32(23, 42, 50, 210);
 
-        public const float ShellRadius = 20f;
-        public const float CardRadius = 16f;
-        public const float SmallRadius = 12f;
-        public const float ControlRadius = 14f;
+        public const float ShellRadius = 14f;
+        public const float CardRadius = 12f;
+        public const float SmallRadius = 8f;
+        public const float ControlRadius = 10f;
 
         private static Font bodyFont;
         private static Font displayFont;

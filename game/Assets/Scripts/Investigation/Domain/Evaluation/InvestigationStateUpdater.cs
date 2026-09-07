@@ -9,6 +9,7 @@ namespace EDNA.Investigation.Domain
         private readonly EcosystemSimulatorEvaluator simulatorEvaluator;
         private readonly PredictionComparisonEvaluator comparisonEvaluator;
         private readonly InvestigationConclusionEvaluator conclusionEvaluator;
+        private readonly InvestigationCaseRosterBuilder rosterBuilder;
 
         public InvestigationStateUpdater(InvestigationCaseDefinition caseDefinition)
         {
@@ -16,6 +17,7 @@ namespace EDNA.Investigation.Domain
             simulatorEvaluator = new EcosystemSimulatorEvaluator();
             comparisonEvaluator = new PredictionComparisonEvaluator();
             conclusionEvaluator = new InvestigationConclusionEvaluator();
+            rosterBuilder = new InvestigationCaseRosterBuilder();
         }
 
         public InvestigationState CreateInitialState()
@@ -41,9 +43,12 @@ namespace EDNA.Investigation.Domain
                 return false;
             }
 
+            InvestigationCaseRoster roster = rosterBuilder.Build(caseDefinition, input);
+            if (!InvestigationSurveyEvaluator.ValidateInput(caseDefinition, input, roster, out feedback)) return false;
             state.ApplySurveyContext(input.surveyContext);
             int applied = 0;
-            int importedSpecies = ImportDetectedSpecies(state, input.ednaResults);
+            int importedSpecies = state.ApplySurveyRoster(roster);
+            int surveyRecordCount = roster.SurveyRecords.Count;
             if (input.discoveredObservationIds != null)
             {
                 for (int index = 0; index < input.discoveredObservationIds.Count; index++)
@@ -55,8 +60,8 @@ namespace EDNA.Investigation.Domain
             applied += ImportExternalObservationList(state, input.physicalObservations, ObservationSource.ROV);
 
             bool hasContext = HasSurveyContext(input.surveyContext);
-            feedback = applied > 0 || importedSpecies > 0
-                ? $"Imported {applied} observation(s) and {importedSpecies} additional detected species from the previous mini-games."
+            feedback = applied > 0 || importedSpecies > 0 || surveyRecordCount > 0
+                ? $"Imported {applied} observation(s), {surveyRecordCount} species survey result(s), and {importedSpecies} additional survey species from the previous mini-games."
                 : hasContext
                     ? "Imported the survey context. No case observations were mapped, so authored demo evidence remains available."
                     : "External input contained no directly mapped observations; authored demo evidence remains available.";
@@ -81,25 +86,6 @@ namespace EDNA.Investigation.Domain
                 InvestigationSpeciesDefinition species = caseDefinition.Species[index];
                 if (species != null) state.IncludeSurveySpecies(species.SpeciesId);
             }
-        }
-
-        private int ImportDetectedSpecies(
-            InvestigationState state,
-            System.Collections.Generic.IReadOnlyList<EDNAResultData> results)
-        {
-            if (results == null) return 0;
-            int imported = 0;
-            for (int resultIndex = 0; resultIndex < results.Count; resultIndex++)
-            {
-                EDNAResultData result = results[resultIndex];
-                if (result?.detectedSpeciesIds == null) continue;
-                for (int speciesIndex = 0; speciesIndex < result.detectedSpeciesIds.Count; speciesIndex++)
-                {
-                    string speciesId = result.detectedSpeciesIds[speciesIndex];
-                    if (caseDefinition.FindSpecies(speciesId) != null && state.IncludeSurveySpecies(speciesId)) imported++;
-                }
-            }
-            return imported;
         }
 
         private int ImportExternalObservationList(
@@ -163,11 +149,16 @@ namespace EDNA.Investigation.Domain
                     feedback = "Compare the required overlapping causes before entering the report stage.";
                     return false;
                 }
+                if (string.IsNullOrEmpty(state.ProvisionalThreatId))
+                {
+                    feedback = "Save a first idea before entering the report stage.";
+                    return false;
+                }
             }
             else if (phase == InvestigationPhase.Simulate
-                && state.DiscoveredObservationIds.Count < caseDefinition.MinimumObserveDiscoveries)
+                && !InvestigationObserveEvaluator.IsComplete(caseDefinition, state))
             {
-                feedback = $"Record at least {caseDefinition.MinimumObserveDiscoveries} observations before running ecosystem models.";
+                feedback = $"Record at least {InvestigationObserveEvaluator.RequiredCount(caseDefinition)} observations before running ecosystem models.";
                 return false;
             }
 
@@ -222,9 +213,9 @@ namespace EDNA.Investigation.Domain
                 feedback = "Investigation state is missing.";
                 return false;
             }
-            if (state.DiscoveredObservationIds.Count < caseDefinition.MinimumObserveDiscoveries)
+            if (!InvestigationObserveEvaluator.IsComplete(caseDefinition, state))
             {
-                feedback = $"Record at least {caseDefinition.MinimumObserveDiscoveries} observations before running ecosystem models.";
+                feedback = $"Record at least {InvestigationObserveEvaluator.RequiredCount(caseDefinition)} observations before running ecosystem models.";
                 return false;
             }
             if (caseDefinition.FindThreat(threatId) == null)
@@ -250,6 +241,27 @@ namespace EDNA.Investigation.Domain
 
             feedback = "Model complete.";
             return true;
+        }
+
+        public PredictionComparisonRecord CompareEvidence(
+            InvestigationState state,
+            string threatId,
+            PredictionTargetKind targetKind,
+            string targetId,
+            string evidenceId)
+        {
+            ObservationComparisonOptionDefinition option = caseDefinition
+                .FindComparisonRule(threatId, targetKind, targetId)?.FindOption(evidenceId);
+            JudgementResolutionDefinition match = option?.FindResolution(ComparisonJudgement.Match);
+            JudgementResolutionDefinition mismatch = option?.FindResolution(ComparisonJudgement.Mismatch);
+            bool supports = match != null && match.Outcome != ComparisonEvaluationOutcome.Incorrect;
+            bool challenges = mismatch != null && mismatch.Outcome != ComparisonEvaluationOutcome.Incorrect;
+            // Selecting evidence determines its authored relationship. Ambiguous
+            // or unrelated evidence stays open instead of completing a comparison.
+            ComparisonJudgement judgement = supports != challenges
+                ? supports ? ComparisonJudgement.Match : ComparisonJudgement.Mismatch
+                : ComparisonJudgement.NotEnoughEvidence;
+            return Compare(state, threatId, targetKind, targetId, evidenceId, judgement);
         }
 
         public PredictionComparisonRecord Compare(

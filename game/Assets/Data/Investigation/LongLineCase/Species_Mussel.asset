@@ -13,12 +13,17 @@ MonoBehaviour:
   m_Name: Species_Mussel
   m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
   speciesId: mussel
+  canonicalSpeciesId:
   displayName: Filter-feeding mussel
+  shortDisplayName:
+  scientificName:
   description: A filter feeder used as a plastic-sensitive comparison species.
-  icon: {fileID: 21300000, guid: ba23f3685be6741a1b4503e7117ca001, type: 3}
+  icon: {fileID: 21300000, guid: 03eb8f94f479b4a6787ebaa9c75272ed, type: 3}
   glyphKind: 4
+  trophicRole: 0
+  aliases: []
   preferredDepths: 0100000002000000
-  temperaturePreference: Broad temperature tolerance; sensitive to suspended contaminants.
+  habitatTags: []
   dietSpeciesIds: []
   predatorSpeciesIds: []
   sensitivityTags:

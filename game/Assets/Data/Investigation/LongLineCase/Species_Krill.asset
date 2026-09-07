@@ -13,16 +13,26 @@ MonoBehaviour:
   m_Name: Species_Krill
   m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
   speciesId: krill
-  displayName: Krill
+  canonicalSpeciesId: northern_krill
+  displayName: Northern Krill
+  shortDisplayName: Krill
+  scientificName: Meganyctiphanes norvegica
   description: A small prey species linking plankton production to larger fish.
-  icon: {fileID: 21300000, guid: 7a89701c7ba4e4932b5178e2a1e47ef2, type: 3}
+  icon: {fileID: 21300000, guid: 54054320acac9499fb7212f20cb22b96, type: 3}
   glyphKind: 2
+  trophicRole: 2
+  aliases:
+  - meganyctiphanes_norvegica
   preferredDepths: 0100000002000000
-  temperaturePreference: Sensitive to several pressures; non-detection alone cannot
-    identify the cause.
-  dietSpeciesIds: []
+  habitatTags:
+  - pelagic
+  - mid-water
+  - deep
+  dietSpeciesIds:
+  - phytoplankton
   predatorSpeciesIds:
-  - tuna
+  - atlantic_herring
+  - reef_manta_ray
   sensitivityTags:
   - Prey
   - FoodWeb

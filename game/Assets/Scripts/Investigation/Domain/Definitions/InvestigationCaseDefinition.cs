@@ -83,6 +83,13 @@ namespace EDNA.Investigation.Domain
         [SerializeField, TextArea(2, 6)] private string briefing = string.Empty;
         [SerializeField] private InvestigationSurveyContextData surveyContext = new InvestigationSurveyContextData();
         [SerializeField] private List<InvestigationSpeciesDefinition> species = new List<InvestigationSpeciesDefinition>();
+        [SerializeField] private List<InvestigationSpeciesDefinition> speciesCatalog = new List<InvestigationSpeciesDefinition>();
+        [SerializeField] private List<string> foodWebChainSpeciesIds = new List<string>();
+        [SerializeField] private string simulationFoodWebId = "case_simplified";
+        [SerializeField] private List<FoodWebEdgeDefinition> foodWebEdges = new List<FoodWebEdgeDefinition>();
+        [SerializeField] private List<string> benthicIndicatorSpeciesIds = new List<string>();
+        [SerializeField] private List<string> followUpLockedSpeciesIds = new List<string>();
+        [SerializeField, Range(5, 12)] private int maximumSurveySpecies = 7;
         [SerializeField] private List<InvestigationObservationDefinition> observations = new List<InvestigationObservationDefinition>();
         [SerializeField] private List<ThreatSimulationDefinition> threats = new List<ThreatSimulationDefinition>();
         [SerializeField] private List<PredictionComparisonRuleDefinition> comparisonRules = new List<PredictionComparisonRuleDefinition>();
@@ -108,6 +115,13 @@ namespace EDNA.Investigation.Domain
         public string Briefing => briefing;
         public InvestigationSurveyContextData SurveyContext => surveyContext;
         public IReadOnlyList<InvestigationSpeciesDefinition> Species => species;
+        public IReadOnlyList<InvestigationSpeciesDefinition> SpeciesCatalog => speciesCatalog;
+        public IReadOnlyList<string> FoodWebChainSpeciesIds => foodWebChainSpeciesIds;
+        public string SimulationFoodWebId => simulationFoodWebId;
+        public IReadOnlyList<FoodWebEdgeDefinition> FoodWebEdges => foodWebEdges;
+        public IReadOnlyList<string> BenthicIndicatorSpeciesIds => benthicIndicatorSpeciesIds;
+        public IReadOnlyList<string> FollowUpLockedSpeciesIds => followUpLockedSpeciesIds;
+        public int MaximumSurveySpecies => Mathf.Clamp(maximumSurveySpecies, 5, 12);
         public IReadOnlyList<InvestigationObservationDefinition> Observations => observations;
         public IReadOnlyList<ThreatSimulationDefinition> Threats => threats;
         public IReadOnlyList<PredictionComparisonRuleDefinition> ComparisonRules => comparisonRules;
@@ -133,9 +147,51 @@ namespace EDNA.Investigation.Domain
             for (int index = 0; index < species.Count; index++)
             {
                 InvestigationSpeciesDefinition definition = species[index];
-                if (definition != null && string.Equals(definition.SpeciesId, speciesId, StringComparison.Ordinal)) return definition;
+                if (definition != null && definition.MatchesIdentifier(speciesId)) return definition;
+            }
+            for (int index = 0; index < speciesCatalog.Count; index++)
+            {
+                InvestigationSpeciesDefinition definition = speciesCatalog[index];
+                if (definition != null && definition.MatchesIdentifier(speciesId)) return definition;
             }
             return null;
+        }
+
+        public bool IsFollowUpLockedSpecies(string speciesId)
+        {
+            for (int index = 0; index < followUpLockedSpeciesIds.Count; index++)
+            {
+                if (string.Equals(followUpLockedSpeciesIds[index], speciesId, StringComparison.Ordinal)) return true;
+            }
+            return false;
+        }
+
+        public bool IsCaseSpecies(string speciesId)
+        {
+            for (int index = 0; index < species.Count; index++)
+            {
+                InvestigationSpeciesDefinition definition = species[index];
+                if (definition != null && string.Equals(definition.SpeciesId, speciesId, StringComparison.Ordinal)) return true;
+            }
+            return false;
+        }
+
+        public bool HasFoodWebConnection(string speciesId)
+        {
+            InvestigationSpeciesDefinition speciesDefinition = FindSpecies(speciesId);
+            if (speciesDefinition == null) return false;
+            string canonicalId = speciesDefinition.CanonicalSpeciesId;
+            for (int index = 0; index < foodWebEdges.Count; index++)
+            {
+                FoodWebEdgeDefinition edge = foodWebEdges[index];
+                if (edge != null
+                    && (string.Equals(edge.PredatorSpeciesId, canonicalId, StringComparison.Ordinal)
+                        || string.Equals(edge.PreySpeciesId, canonicalId, StringComparison.Ordinal)))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public InvestigationObservationDefinition FindObservation(string evidenceId)

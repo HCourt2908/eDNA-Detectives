@@ -16,7 +16,7 @@ namespace EDNA.Investigation.Domain
 
             if (string.IsNullOrWhiteSpace(caseDefinition.CaseId)) errors.Add("Case ID is missing.");
             if (caseDefinition.Species.Count != 5) errors.Add("The investigation vertical slice requires exactly five species.");
-            if (caseDefinition.Threats.Count != 4) errors.Add("The investigation vertical slice requires exactly four threats.");
+            if (caseDefinition.Threats.Count < 2) errors.Add("The investigation requires at least two threats to compare.");
 
             HashSet<string> speciesIds = new HashSet<string>(StringComparer.Ordinal);
             for (int index = 0; index < caseDefinition.Species.Count; index++)
@@ -40,6 +40,91 @@ namespace EDNA.Investigation.Domain
                     if (!supportsMapDepth)
                         errors.Add($"Species {species.SpeciesId} map depth {species.MapDepthBand} is outside its preferred depth range.");
                 }
+            }
+
+            if (caseDefinition.SpeciesCatalog.Count != 20)
+                errors.Add("The shared species catalog must contain exactly 20 species.");
+            HashSet<string> catalogSpeciesIds = new HashSet<string>(StringComparer.Ordinal);
+            HashSet<string> canonicalSpeciesIds = new HashSet<string>(StringComparer.Ordinal);
+            HashSet<string> catalogIdentifiers = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < caseDefinition.SpeciesCatalog.Count; index++)
+            {
+                InvestigationSpeciesDefinition catalogSpecies = caseDefinition.SpeciesCatalog[index];
+                if (catalogSpecies == null || string.IsNullOrWhiteSpace(catalogSpecies.SpeciesId))
+                {
+                    errors.Add($"Species catalog entry {index} is missing an ID.");
+                    continue;
+                }
+                if (!catalogSpeciesIds.Add(catalogSpecies.SpeciesId))
+                    errors.Add($"Duplicate species catalog ID: {catalogSpecies.SpeciesId}.");
+                if (!catalogIdentifiers.Add(catalogSpecies.SpeciesId))
+                    errors.Add($"Species catalog identifier is ambiguous: {catalogSpecies.SpeciesId}.");
+                if (string.IsNullOrWhiteSpace(catalogSpecies.CanonicalSpeciesId)
+                    || !canonicalSpeciesIds.Add(catalogSpecies.CanonicalSpeciesId))
+                {
+                    errors.Add($"Species catalog entry {catalogSpecies.SpeciesId} has a missing or duplicate canonical ID.");
+                }
+                else if (!string.Equals(catalogSpecies.SpeciesId, catalogSpecies.CanonicalSpeciesId, StringComparison.Ordinal)
+                    && !catalogIdentifiers.Add(catalogSpecies.CanonicalSpeciesId))
+                {
+                    errors.Add($"Species catalog identifier is ambiguous: {catalogSpecies.CanonicalSpeciesId}.");
+                }
+                for (int aliasIndex = 0; aliasIndex < catalogSpecies.Aliases.Count; aliasIndex++)
+                {
+                    string alias = catalogSpecies.Aliases[aliasIndex];
+                    if (string.IsNullOrWhiteSpace(alias) || !catalogIdentifiers.Add(alias))
+                        errors.Add($"Species catalog alias is missing or ambiguous for {catalogSpecies.SpeciesId}: {alias}.");
+                }
+                if (string.IsNullOrWhiteSpace(catalogSpecies.DisplayName))
+                    errors.Add($"Species catalog entry {catalogSpecies.SpeciesId} is missing a display name.");
+                if (string.IsNullOrWhiteSpace(catalogSpecies.ScientificName))
+                    errors.Add($"Species catalog entry {catalogSpecies.SpeciesId} is missing a scientific name.");
+                if (catalogSpecies.PreferredDepths.Count == 0)
+                    errors.Add($"Species catalog entry {catalogSpecies.SpeciesId} is missing its preferred depth range.");
+                else if (!ContainsDepth(catalogSpecies.PreferredDepths, catalogSpecies.MapDepthBand))
+                    errors.Add($"Species catalog entry {catalogSpecies.SpeciesId} map depth is outside its preferred depth range.");
+            }
+            for (int index = 0; index < caseDefinition.SpeciesCatalog.Count; index++)
+            {
+                InvestigationSpeciesDefinition catalogSpecies = caseDefinition.SpeciesCatalog[index];
+                if (catalogSpecies == null) continue;
+                ValidateSpeciesReferences(catalogSpecies, catalogSpecies.DietSpeciesIds, "diet", canonicalSpeciesIds, errors);
+                ValidateSpeciesReferences(catalogSpecies, catalogSpecies.PredatorSpeciesIds, "predator", canonicalSpeciesIds, errors);
+            }
+
+            HashSet<string> presentationSpeciesIds = new HashSet<string>(StringComparer.Ordinal);
+            ValidatePresentationSpeciesList(
+                "food-web chain",
+                caseDefinition.FoodWebChainSpeciesIds,
+                speciesIds,
+                presentationSpeciesIds,
+                2,
+                errors);
+            ValidatePresentationSpeciesList(
+                "benthic indicators",
+                caseDefinition.BenthicIndicatorSpeciesIds,
+                speciesIds,
+                presentationSpeciesIds,
+                1,
+                errors);
+            if (caseDefinition.MaximumSurveySpecies < speciesIds.Count)
+                errors.Add("maximumSurveySpecies cannot be lower than the active case-species count.");
+            if (string.IsNullOrWhiteSpace(caseDefinition.SimulationFoodWebId))
+                errors.Add("The case requires a simulation food-web network ID.");
+            ValidateFoodWebEdges(caseDefinition, errors);
+            foreach (string speciesId in speciesIds)
+            {
+                if (!presentationSpeciesIds.Contains(speciesId))
+                    errors.Add($"Active species {speciesId} is not assigned to the food-web chain or benthic indicators.");
+            }
+            HashSet<string> followUpSpeciesIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < caseDefinition.FollowUpLockedSpeciesIds.Count; index++)
+            {
+                string speciesId = caseDefinition.FollowUpLockedSpeciesIds[index];
+                if (!followUpSpeciesIds.Add(speciesId))
+                    errors.Add($"Follow-up locked species is duplicated: {speciesId}.");
+                if (!ContainsOrdinal(caseDefinition.BenthicIndicatorSpeciesIds, speciesId))
+                    errors.Add($"Follow-up locked species {speciesId} must be a benthic indicator.");
             }
 
             HashSet<string> threatIds = new HashSet<string>(StringComparer.Ordinal);
@@ -300,6 +385,99 @@ namespace EDNA.Investigation.Domain
                 errors.Add("Required reasoning ID is not one of the authored reasoning choices.");
 
             return errors;
+        }
+
+        private static void ValidateSpeciesReferences(
+            InvestigationSpeciesDefinition species,
+            IReadOnlyList<string> references,
+            string relationship,
+            HashSet<string> canonicalSpeciesIds,
+            List<string> errors)
+        {
+            HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < references.Count; index++)
+            {
+                string referencedId = references[index];
+                if (!seen.Add(referencedId))
+                    errors.Add($"Species {species.SpeciesId} repeats {relationship} reference {referencedId}.");
+                if (!canonicalSpeciesIds.Contains(referencedId))
+                    errors.Add($"Species {species.SpeciesId} references unknown canonical {relationship} species {referencedId}.");
+            }
+        }
+
+        private static bool ContainsOrdinal(IReadOnlyList<string> values, string expected)
+        {
+            for (int index = 0; index < values.Count; index++)
+            {
+                if (string.Equals(values[index], expected, StringComparison.Ordinal)) return true;
+            }
+            return false;
+        }
+
+        private static bool ContainsDepth(IReadOnlyList<EDNA.Core.DepthBand> values, EDNA.Core.DepthBand expected)
+        {
+            for (int index = 0; index < values.Count; index++)
+            {
+                if (values[index] == expected) return true;
+            }
+            return false;
+        }
+
+        private static void ValidatePresentationSpeciesList(
+            string label,
+            IReadOnlyList<string> ids,
+            HashSet<string> activeSpeciesIds,
+            HashSet<string> assignedIds,
+            int minimumCount,
+            List<string> errors)
+        {
+            if (ids.Count < minimumCount) errors.Add($"The {label} requires at least {minimumCount} species.");
+            HashSet<string> localIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < ids.Count; index++)
+            {
+                string speciesId = ids[index];
+                if (!localIds.Add(speciesId)) errors.Add($"The {label} repeats species {speciesId}.");
+                if (!activeSpeciesIds.Contains(speciesId)) errors.Add($"The {label} references inactive species {speciesId}.");
+                if (!assignedIds.Add(speciesId)) errors.Add($"Species {speciesId} appears in more than one simulation presentation group.");
+            }
+        }
+
+        private static void ValidateFoodWebEdges(
+            InvestigationCaseDefinition caseDefinition,
+            List<string> errors)
+        {
+            if (caseDefinition.FoodWebEdges.Count == 0)
+            {
+                errors.Add("The shared species catalog requires authored food-web edges.");
+                return;
+            }
+            var edgeKeys = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < caseDefinition.FoodWebEdges.Count; index++)
+            {
+                FoodWebEdgeDefinition edge = caseDefinition.FoodWebEdges[index];
+                if (edge == null || string.IsNullOrWhiteSpace(edge.EdgeId))
+                {
+                    errors.Add($"Food-web edge {index} is missing an ID.");
+                    continue;
+                }
+                if (string.IsNullOrWhiteSpace(edge.NetworkId)) errors.Add($"Food-web edge {edge.EdgeId} is missing its network ID.");
+                if (caseDefinition.FindSpecies(edge.PredatorSpeciesId) == null)
+                    errors.Add($"Food-web edge {edge.EdgeId} references unknown predator {edge.PredatorSpeciesId}.");
+                if (caseDefinition.FindSpecies(edge.PreySpeciesId) == null)
+                    errors.Add($"Food-web edge {edge.EdgeId} references unknown prey {edge.PreySpeciesId}.");
+                string key = $"{edge.NetworkId}|{edge.PredatorSpeciesId}|{edge.PreySpeciesId}";
+                if (!edgeKeys.Add(key)) errors.Add($"Food-web edge is duplicated within network {edge.NetworkId}: {edge.PredatorSpeciesId}/{edge.PreySpeciesId}.");
+            }
+
+            for (int index = 0; index < caseDefinition.FoodWebChainSpeciesIds.Count - 1; index++)
+            {
+                InvestigationSpeciesDefinition predator = caseDefinition.FindSpecies(caseDefinition.FoodWebChainSpeciesIds[index]);
+                InvestigationSpeciesDefinition prey = caseDefinition.FindSpecies(caseDefinition.FoodWebChainSpeciesIds[index + 1]);
+                if (predator == null || prey == null) continue;
+                string key = $"{caseDefinition.SimulationFoodWebId}|{predator.CanonicalSpeciesId}|{prey.CanonicalSpeciesId}";
+                if (!edgeKeys.Contains(key))
+                    errors.Add($"Simulation food-web network {caseDefinition.SimulationFoodWebId} is missing {predator.CanonicalSpeciesId} → {prey.CanonicalSpeciesId}.");
+            }
         }
     }
 }

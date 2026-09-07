@@ -1,10 +1,16 @@
 fileFormatVersion: 2
-guid: 62b08e3255c304a1f974dee3d25ba612
+guid: d286ca2986e62494b8abddcad0cfa0d5
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 4376064155013705356
-    second: warming_0
+      213: -605343308051471078
+    second: sea-star_0
+  - first:
+      213: 6820686041598502082
+    second: sea-star_1
+  - first:
+      213: 5137979009170847890
+    second: sea-star_2
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -72,10 +78,10 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 1024
+    maxTextureSize: 512
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 0
+    textureCompression: 2
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -100,44 +106,90 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: warming_0
+      name: sea-star_0
       rect:
         serializedVersion: 2
-        x: 212
-        y: 28
-        width: 195
-        height: 570
+        x: 0
+        y: 23
+        width: 1207
+        height: 1213
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
+      customData:
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: c8e69e1e927eabc30800000000000000
-      internalID: 4376064155013705356
+      spriteID: a15ae64f7736997f0800000000000000
+      internalID: -605343308051471078
       vertices: []
-      indices: 
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sea-star_1
+      rect:
+        serializedVersion: 2
+        x: 530
+        y: 1217
+        width: 10
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2c4a1f931d1f7ae50800000000000000
+      internalID: 6820686041598502082
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: sea-star_2
+      rect:
+        serializedVersion: 2
+        x: 543
+        y: 1219
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData:
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 298ba09cfa4cd4740800000000000000
+      internalID: 5137979009170847890
+      vertices: []
+      indices:
       edges: []
       weights: []
     outline: []
-    customData: 
+    customData:
     physicsShape: []
     bones: []
     spriteID: 5e97eb03825dee720800000000000000
     internalID: 0
     vertices: []
-    indices: 
+    indices:
     edges: []
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      warming_0: 4376064155013705356
-  mipmapLimitGroupName: 
+      sea-star_0: -605343308051471078
+      sea-star_1: 6820686041598502082
+      sea-star_2: 5137979009170847890
+  mipmapLimitGroupName:
   pSDRemoveMatte: 0
-  userData: 
-  assetBundleName: 
-  assetBundleVariant: 
+  userData:
+  assetBundleName:
+  assetBundleVariant:

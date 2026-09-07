@@ -8,8 +8,8 @@ namespace EDNA.Investigation
     /// speeds to build depth: the parallax between layers is what reads as
     /// "suspended in water" rather than "noise on a flat colour".
     ///
-    /// At least one layer belongs in front of the scene. With particles only ever
-    /// behind it, a rendered subject reads as a sticker on glass.
+    /// Particle size and speed provide depth within the water background. Keep
+    /// these decorative layers behind the interface's reading surfaces.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class InvestigationMarineSnowGraphic : MaskableGraphic

@@ -15,6 +15,7 @@ namespace EDNA.Investigation.Editor
     {
         private const string DataRoot = "Assets/Data/Investigation/LongLineCase";
         private const string ArtRoot = "Assets/Art/Investigation/OpenMoji";
+        private const string FieldGuideArtRoot = "Assets/Art/Investigation/FieldGuide";
         private const string SeamountSpritePath = "Assets/Art/Investigation/Seamount/seamount_hero.png";
         private const string StatusIconRoot = "Assets/Resources/Investigation/Icons/Heroicons";
         private const string PrefabRoot = "Assets/Prefabs/Investigation";
@@ -47,7 +48,6 @@ namespace EDNA.Investigation.Editor
                 "A large predator that normally controls tuna abundance around the seamount.",
                 SpeciesGlyphKind.Shark,
                 new[] { DepthBand.Shallow, DepthBand.Mid, DepthBand.Deep },
-                "Broad range; current temperature alone does not explain a repeated all-depth non-detection.",
                 new[] { "tuna" }, Array.Empty<string>(),
                 new[] { "LargePredator", "LongLineSensitive", "TrawlBycatch" },
                 DepthBand.Shallow);
@@ -56,16 +56,14 @@ namespace EDNA.Investigation.Editor
                 "A mobile fish that eats krill and is normally preyed on by sharks in this simplified food web.",
                 SpeciesGlyphKind.Tuna,
                 new[] { DepthBand.Shallow, DepthBand.Mid },
-                "Warm-affinity visitor; distribution can also respond to predator removal.",
                 new[] { "krill" }, new[] { "shark" },
-                new[] { "Mobile", "WarmAffinity", "FoodWeb" },
+                new[] { "Mobile", "FoodWeb" },
                 DepthBand.Shallow);
             InvestigationSpeciesDefinition krill = CreateSpecies(
                 "Species_Krill.asset", "krill", "Krill",
                 "A small prey species linking plankton production to larger fish.",
                 SpeciesGlyphKind.Krill,
                 new[] { DepthBand.Mid, DepthBand.Deep },
-                "Sensitive to several pressures; non-detection alone cannot identify the cause.",
                 Array.Empty<string>(), new[] { "tuna" },
                 new[] { "Prey", "FoodWeb", "PlasticSensitive" },
                 DepthBand.Mid);
@@ -74,7 +72,6 @@ namespace EDNA.Investigation.Editor
                 "A benthic indicator used to test whether the seafloor community was disturbed.",
                 SpeciesGlyphKind.SeaStar,
                 new[] { DepthBand.Deep },
-                "Broad temperature tolerance in this case.",
                 Array.Empty<string>(), Array.Empty<string>(),
                 new[] { "BenthicIndicator", "TrawlSensitive", "StableIndicator" },
                 DepthBand.Deep);
@@ -83,27 +80,12 @@ namespace EDNA.Investigation.Editor
                 "A filter feeder used as a plastic-sensitive comparison species.",
                 SpeciesGlyphKind.Mussel,
                 new[] { DepthBand.Mid, DepthBand.Deep },
-                "Broad temperature tolerance; sensitive to suspended contaminants.",
                 Array.Empty<string>(), Array.Empty<string>(),
                 new[] { "FilterFeeder", "PlasticSensitive", "StableIndicator" },
                 DepthBand.Deep);
 
             InvestigationSpeciesDefinition[] species = { shark, tuna, krill, seaStar, mussel };
-            ThreatSimulationDefinition warming = CreateThreat(
-                "Threat_Warming.asset", "warming", "Ocean warming",
-                "Temperature change can shift distributions, but it should produce a coherent depth-shift pattern rather than only a predator cascade.",
-                ThreatGlyphKind.Warming,
-                new[]
-                {
-                    P("shark", PredictionState.DepthShift, "A warming explanation predicts redistribution before claiming disappearance."),
-                    P("tuna", PredictionState.Increase, "Warm-affinity tuna may be detected at more sites."),
-                    P("krill", PredictionState.Decrease, "Some krill signals may decline under changed conditions."),
-                    P("sea_star", PredictionState.Unknown, "The benthic response is not determined by this simple model."),
-                    P("mussel", PredictionState.Stable, "The reference mussel remains stable in this scenario.")
-                },
-                "Historical range exceeded or a consistent depth-shift pattern.",
-                "Seafloor remains structurally intact.",
-                "No fishing gear or trawl marks are required by this model.");
+            InvestigationSpeciesDefinition[] speciesCatalog = CreateCanonicalSpeciesCatalog(shark, tuna, krill);
             ThreatSimulationDefinition plastic = CreateThreat(
                 "Threat_Plastic.asset", "plastic", "Plastic pollution",
                 "Plastic pollution should affect sensitive filter feeders as well as prey signals; it does not predict a selective shark–tuna cascade.",
@@ -116,7 +98,6 @@ namespace EDNA.Investigation.Editor
                     P("sea_star", PredictionState.Stable, "The benthic indicator remains stable in this simplified scenario."),
                     P("mussel", PredictionState.Decrease, "A plastic-sensitive filter feeder should decline.")
                 },
-                "Temperature may remain normal.",
                 "Seafloor structure remains intact.",
                 "Plastic or contamination patterns may be present.");
             ThreatSimulationDefinition longLine = CreateThreat(
@@ -131,7 +112,6 @@ namespace EDNA.Investigation.Editor
                     P("sea_star", PredictionState.Stable, "Selective fishing does not directly damage the seafloor indicator."),
                     P("mussel", PredictionState.Stable, "The plastic-sensitive reference remains stable.")
                 },
-                "Temperature may remain within its historical range.",
                 "Seafloor remains intact.",
                 "Fishing gear may be recorded near predator habitat.");
             ThreatSimulationDefinition trawling = CreateThreat(
@@ -146,10 +126,9 @@ namespace EDNA.Investigation.Editor
                     P("sea_star", PredictionState.Decrease, "Dragging gear damages the benthic indicator."),
                     P("mussel", PredictionState.Stable, "The plastic-sensitive reference remains stable.")
                 },
-                "Temperature may remain within its historical range.",
                 "Seafloor should be disturbed or damaged.",
                 "Trawl marks or damaged habitat should be visible.");
-            ThreatSimulationDefinition[] threats = { warming, plastic, longLine, trawling };
+            ThreatSimulationDefinition[] threats = { plastic, longLine, trawling };
 
             InvestigationCaseDefinition caseDefinition = LoadOrCreate<InvestigationCaseDefinition>($"{DataRoot}/InvestigationCase_LongLine.asset");
             SerializedObject caseObject = new SerializedObject(caseDefinition);
@@ -164,6 +143,13 @@ namespace EDNA.Investigation.Editor
                 "Seamount A",
                 "Processed eDNA results from shallow, mid and deep samples");
             SetObjectArray(caseObject, "species", species);
+            SetObjectArray(caseObject, "speciesCatalog", speciesCatalog);
+            SetStringArray(caseObject, "foodWebChainSpeciesIds", new[] { "shark", "tuna", "krill" });
+            SetString(caseObject, "simulationFoodWebId", "case_simplified");
+            SetFoodWebEdges(caseObject);
+            SetStringArray(caseObject, "benthicIndicatorSpeciesIds", new[] { "sea_star", "mussel" });
+            SetStringArray(caseObject, "followUpLockedSpeciesIds", new[] { "sea_star" });
+            SetInteger(caseObject, "maximumSurveySpecies", 7);
             SetObservations(caseObject);
             SetObjectArray(caseObject, "threats", threats);
             SetComparisonRules(caseObject, threats, species);
@@ -172,7 +158,6 @@ namespace EDNA.Investigation.Editor
             SetStringArray(caseObject, "requiredComparedThreatIds", new[] { "longline", "bottom_trawling" });
             SetRequiredComparisonSpecies(caseObject);
             SetInteger(caseObject, "requiredComparisonsPerThreat", 2);
-            SetInteger(caseObject, "minimumCompletedComparisons", 8);
             SetString(caseObject, "correctThreatId", "longline");
             SetStringArray(caseObject, "confirmationEvidenceIds", new[] { "E07_FISHING_LINE", "E08_SEAFLOOR_INTACT" });
             SetInteger(caseObject, "minimumReportEvidence", 4);
@@ -196,6 +181,117 @@ namespace EDNA.Investigation.Editor
 
         public static void BuildFromCommandLine() => CreateProject();
 
+        [MenuItem("eDNA Detectives/Update Species Catalog")]
+        public static void UpdateSpeciesCatalog()
+        {
+            EnsureFolder(DataRoot);
+            InvestigationSpeciesDefinition shark = AssetDatabase.LoadAssetAtPath<InvestigationSpeciesDefinition>($"{DataRoot}/Species_Shark.asset");
+            InvestigationSpeciesDefinition tuna = AssetDatabase.LoadAssetAtPath<InvestigationSpeciesDefinition>($"{DataRoot}/Species_Tuna.asset");
+            InvestigationSpeciesDefinition krill = AssetDatabase.LoadAssetAtPath<InvestigationSpeciesDefinition>($"{DataRoot}/Species_Krill.asset");
+            InvestigationCaseDefinition caseDefinition = AssetDatabase.LoadAssetAtPath<InvestigationCaseDefinition>($"{DataRoot}/InvestigationCase_LongLine.asset");
+            if (shark == null || tuna == null || krill == null || caseDefinition == null)
+            {
+                Debug.LogError("Build the investigation case before updating its shared species catalog.");
+                return;
+            }
+
+            InvestigationSpeciesDefinition[] catalog = CreateCanonicalSpeciesCatalog(shark, tuna, krill);
+            SerializedObject caseObject = new SerializedObject(caseDefinition);
+            SetObjectArray(caseObject, "speciesCatalog", catalog);
+            SetStringArray(caseObject, "foodWebChainSpeciesIds", new[] { "shark", "tuna", "krill" });
+            SetString(caseObject, "simulationFoodWebId", "case_simplified");
+            SetFoodWebEdges(caseObject);
+            SetStringArray(caseObject, "benthicIndicatorSpeciesIds", new[] { "sea_star", "mussel" });
+            SetStringArray(caseObject, "followUpLockedSpeciesIds", new[] { "sea_star" });
+            SetInteger(caseObject, "maximumSurveySpecies", 7);
+            caseObject.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(caseDefinition);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("Investigation species catalog updated with 20 canonical entries.");
+        }
+
+        [MenuItem("eDNA Detectives/Remove Warming Scenario")]
+        public static void RemoveWarmingScenario()
+        {
+            InvestigationCaseDefinition caseDefinition = AssetDatabase.LoadAssetAtPath<InvestigationCaseDefinition>($"{DataRoot}/InvestigationCase_LongLine.asset");
+            if (caseDefinition == null) throw new InvalidOperationException("The investigation case is missing.");
+
+            SerializedObject caseObject = new SerializedObject(caseDefinition);
+            SerializedProperty threats = caseObject.FindProperty("threats");
+            for (int index = threats.arraySize - 1; index >= 0; index--)
+            {
+                SerializedProperty entry = threats.GetArrayElementAtIndex(index);
+                ThreatSimulationDefinition threat = entry.objectReferenceValue as ThreatSimulationDefinition;
+                if (threat == null || threat.ThreatId != "warming") continue;
+                entry.objectReferenceValue = null;
+                threats.DeleteArrayElementAtIndex(index);
+            }
+            foreach (string propertyName in new[] { "comparisonRules", "investigationObjectives" })
+            {
+                SerializedProperty entries = caseObject.FindProperty(propertyName);
+                for (int index = entries.arraySize - 1; index >= 0; index--)
+                {
+                    SerializedProperty entry = entries.GetArrayElementAtIndex(index);
+                    // Target ID 1 belonged to the retired temperature prediction.
+                    if (entry.FindPropertyRelative("threatId").stringValue == "warming"
+                        || entry.FindPropertyRelative("targetKind").intValue == 1)
+                        entries.DeleteArrayElementAtIndex(index);
+                }
+            }
+            SerializedProperty objectives = caseObject.FindProperty("investigationObjectives");
+            int requiredCount = 0;
+            for (int index = 0; index < objectives.arraySize; index++)
+                if (objectives.GetArrayElementAtIndex(index).FindPropertyRelative("required").boolValue) requiredCount++;
+            SetInteger(caseObject, "minimumCompletedComparisons", requiredCount);
+            caseObject.ApplyModifiedProperties();
+
+            var migratedPaths = new List<string> { AssetDatabase.GetAssetPath(caseDefinition) };
+            foreach (string guid in AssetDatabase.FindAssets("t:InvestigationSpeciesDefinition", new[] { DataRoot }))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                migratedPaths.Add(path);
+                InvestigationSpeciesDefinition species = AssetDatabase.LoadAssetAtPath<InvestigationSpeciesDefinition>(path);
+                SerializedObject speciesObject = new SerializedObject(species);
+                SerializedProperty tags = speciesObject.FindProperty("sensitivityTags");
+                for (int index = tags.arraySize - 1; index >= 0; index--)
+                    if (tags.GetArrayElementAtIndex(index).stringValue == "WarmAffinity") tags.DeleteArrayElementAtIndex(index);
+                speciesObject.ApplyModifiedProperties();
+            }
+            foreach (ThreatSimulationDefinition threat in caseDefinition.Threats)
+                migratedPaths.Add(AssetDatabase.GetAssetPath(threat));
+            AssetDatabase.SaveAssets();
+            // Reserialize only the affected definitions to remove retired fields.
+            AssetDatabase.ForceReserializeAssets(migratedPaths, ForceReserializeAssetsOptions.ReserializeAssets);
+            AssetDatabase.DeleteAsset($"{DataRoot}/Threat_Warming.asset");
+            AssetDatabase.DeleteAsset($"{ArtRoot}/warming.png");
+            AssetDatabase.SaveAssets();
+
+            List<string> errors = new InvestigationCaseValidator().Validate(caseDefinition);
+            if (errors.Count > 0) throw new InvalidOperationException(string.Join("\n", errors));
+            Debug.Log($"Warming removed: {caseDefinition.Threats.Count} models and {requiredCount} required comparisons remain.");
+        }
+
+        [MenuItem("eDNA Detectives/Update Case Evidence")]
+        public static void UpdateCaseEvidence()
+        {
+            InvestigationCaseDefinition caseDefinition = AssetDatabase.LoadAssetAtPath<InvestigationCaseDefinition>($"{DataRoot}/InvestigationCase_LongLine.asset");
+            if (caseDefinition == null)
+            {
+                Debug.LogError("Build the investigation case before updating its evidence.");
+                return;
+            }
+            SerializedObject caseObject = new SerializedObject(caseDefinition);
+            SetObservations(caseObject);
+            SetComparisonRules(caseObject, caseDefinition.Threats, caseDefinition.Species);
+            SetInvestigationObjectives(caseObject);
+            caseObject.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(caseDefinition);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("Investigation evidence updated for the three-cause case.");
+        }
+
         private static PredictionSpec P(string speciesId, PredictionState state, string rationale) => new PredictionSpec(speciesId, state, rationale);
 
         private static InvestigationSpeciesDefinition CreateSpecies(
@@ -205,21 +301,31 @@ namespace EDNA.Investigation.Editor
             string description,
             SpeciesGlyphKind glyphKind,
             DepthBand[] depths,
-            string temperature,
             string[] dietIds,
             string[] predatorIds,
             string[] sensitivityTags,
-            DepthBand mapDepthBand)
+            DepthBand mapDepthBand,
+            string canonicalSpeciesId = "",
+            string scientificName = "",
+            InvestigationTrophicRole trophicRole = InvestigationTrophicRole.Unknown,
+            string[] aliases = null,
+            string[] habitatTags = null,
+            string shortDisplayName = "")
         {
             InvestigationSpeciesDefinition asset = LoadOrCreate<InvestigationSpeciesDefinition>($"{DataRoot}/{fileName}");
             SerializedObject serialized = new SerializedObject(asset);
             SetString(serialized, "speciesId", speciesId);
+            SetString(serialized, "canonicalSpeciesId", string.IsNullOrWhiteSpace(canonicalSpeciesId) ? speciesId : canonicalSpeciesId);
             SetString(serialized, "displayName", displayName);
+            SetString(serialized, "shortDisplayName", shortDisplayName);
+            SetString(serialized, "scientificName", scientificName);
             SetString(serialized, "description", description);
             serialized.FindProperty("icon").objectReferenceValue = LoadSpeciesIcon(speciesId);
-            serialized.FindProperty("glyphKind").enumValueIndex = (int)glyphKind;
+            serialized.FindProperty("glyphKind").intValue = (int)glyphKind;
+            serialized.FindProperty("trophicRole").enumValueIndex = (int)trophicRole;
+            SetStringArray(serialized, "aliases", aliases ?? Array.Empty<string>());
             SetEnumArray(serialized, "preferredDepths", depths);
-            SetString(serialized, "temperaturePreference", temperature);
+            SetStringArray(serialized, "habitatTags", habitatTags ?? Array.Empty<string>());
             SetStringArray(serialized, "dietSpeciesIds", dietIds);
             SetStringArray(serialized, "predatorSpeciesIds", predatorIds);
             SetStringArray(serialized, "sensitivityTags", sensitivityTags);
@@ -229,6 +335,127 @@ namespace EDNA.Investigation.Editor
             return asset;
         }
 
+        private static InvestigationSpeciesDefinition[] CreateCanonicalSpeciesCatalog(
+            InvestigationSpeciesDefinition shark,
+            InvestigationSpeciesDefinition tuna,
+            InvestigationSpeciesDefinition krill)
+        {
+            ApplyCanonicalMetadata(
+                shark,
+                "great_hammerhead_shark",
+                "Great Hammerhead Shark",
+                "Sphyrna mokarran",
+                InvestigationTrophicRole.ApexPredator,
+                new[] { "great_hammerhead", "sphyrna_mokarran" },
+                new[] { "pelagic", "reef-associated", "shallow", "mid-water" },
+                new[] { "atlantic_bluefin_tuna" },
+                Array.Empty<string>(),
+                "Shark");
+            ApplyCanonicalMetadata(
+                tuna,
+                "atlantic_bluefin_tuna",
+                "Atlantic Bluefin Tuna",
+                "Thunnus thynnus",
+                InvestigationTrophicRole.Predator,
+                new[] { "bluefin_tuna", "thunnus_thynnus" },
+                new[] { "pelagic", "shallow", "mid-water" },
+                new[] { "atlantic_herring" },
+                new[] { "great_hammerhead_shark" },
+                "Tuna");
+            ApplyCanonicalMetadata(
+                krill,
+                "northern_krill",
+                "Northern Krill",
+                "Meganyctiphanes norvegica",
+                InvestigationTrophicRole.PrimaryConsumer,
+                new[] { "meganyctiphanes_norvegica" },
+                new[] { "pelagic", "mid-water", "deep" },
+                new[] { "phytoplankton" },
+                new[] { "atlantic_herring", "reef_manta_ray" },
+                "Krill");
+
+            return new[]
+            {
+                CreateCatalogSpecies("Species_GreenSeaUrchin.asset", "green_sea_urchin", "Green Sea Urchin", "Strongylocentrotus droebachiensis", "A cold-water grazer associated with rocky benthic habitat.", InvestigationTrophicRole.PrimaryConsumer, new[] { DepthBand.Mid, DepthBand.Deep }, DepthBand.Deep, new[] { "phytoplankton" }, Array.Empty<string>(), new[] { "benthic", "rocky-habitat" }),
+                CreateCatalogSpecies("Species_ReefMantaRay.asset", "reef_manta_ray", "Reef Manta Ray", "Mobula alfredi", "A large filter-feeding ray that consumes plankton in productive surface waters.", InvestigationTrophicRole.SecondaryConsumer, new[] { DepthBand.Shallow, DepthBand.Mid }, DepthBand.Shallow, new[] { "northern_krill", "phytoplankton" }, Array.Empty<string>(), new[] { "pelagic", "reef-associated" }),
+                CreateCatalogSpecies("Species_KitefinShark.asset", "kitefin_shark", "Kitefin Shark", "Dalatias licha", "A deep-water shark used in an alternative offshore food-chain branch.", InvestigationTrophicRole.ApexPredator, new[] { DepthBand.Deep }, DepthBand.Deep, new[] { "orange_roughy" }, Array.Empty<string>(), new[] { "deep", "pelagic" }),
+                shark,
+                CreateCatalogSpecies("Species_OrangeRoughy.asset", "orange_roughy", "Orange Roughy", "Hoplostethus atlanticus", "A long-lived deep-water fish that feeds on smaller fish and invertebrates.", InvestigationTrophicRole.Predator, new[] { DepthBand.Deep }, DepthBand.Deep, new[] { "spotted_lanternfish" }, new[] { "kitefin_shark" }, new[] { "deep", "seamount" }),
+                CreateCatalogSpecies("Species_PineconeFish.asset", "pinecone_fish", "Pinecone Fish", "Monocentris japonica", "A reef-associated fish that forages for small crustaceans at night.", InvestigationTrophicRole.SecondaryConsumer, new[] { DepthBand.Mid, DepthBand.Deep }, DepthBand.Mid, new[] { "northern_krill" }, Array.Empty<string>(), new[] { "reef-associated", "mid-water" }),
+                tuna,
+                CreateCatalogSpecies("Species_AtlanticHerring.asset", "atlantic_herring", "Atlantic Herring", "Clupea harengus", "A schooling forage fish connecting plankton to larger predators.", InvestigationTrophicRole.SecondaryConsumer, new[] { DepthBand.Shallow, DepthBand.Mid }, DepthBand.Shallow, new[] { "northern_krill", "phytoplankton" }, new[] { "atlantic_bluefin_tuna" }, new[] { "pelagic", "schooling" }),
+                CreateCatalogSpecies("Species_SpottedLanternfish.asset", "spotted_lanternfish", "Spotted Lanternfish", "Myctophum punctatum", "A vertically migrating mesopelagic fish that transfers energy through the water column.", InvestigationTrophicRole.SecondaryConsumer, new[] { DepthBand.Mid, DepthBand.Deep }, DepthBand.Mid, new[] { "northern_krill", "phytoplankton" }, new[] { "orange_roughy" }, new[] { "mesopelagic", "vertical-migrant" }),
+                krill,
+                CreateCatalogSpecies("Species_KingCrab.asset", "king_crab", "King Crab", "Neolithodes agassizii", "A deep benthic crab that scavenges and preys on seafloor organisms.", InvestigationTrophicRole.Scavenger, new[] { DepthBand.Deep }, DepthBand.Deep, Array.Empty<string>(), new[] { "giant_pacific_octopus" }, new[] { "benthic", "deep" }),
+                CreateCatalogSpecies("Species_WartySquid.asset", "warty_squid", "Warty Squid", "Moroteuthopsis longimana", "A deep-water squid that hunts fish and crustaceans.", InvestigationTrophicRole.Predator, new[] { DepthBand.Deep }, DepthBand.Deep, new[] { "spotted_lanternfish" }, Array.Empty<string>(), new[] { "deep", "pelagic" }),
+                CreateCatalogSpecies("Species_FlapjackOctopus.asset", "flapjack_octopus", "Flapjack Octopus", "Opisthoteuthis californiana", "A soft-bodied deep-sea octopus that searches the seafloor for small prey.", InvestigationTrophicRole.Predator, new[] { DepthBand.Deep }, DepthBand.Deep, Array.Empty<string>(), Array.Empty<string>(), new[] { "benthic", "deep" }),
+                CreateCatalogSpecies("Species_GiantPacificOctopus.asset", "giant_pacific_octopus", "Giant Pacific Octopus", "Enteroctopus dofleini", "A large benthic predator included in a crab-focused food-chain branch.", InvestigationTrophicRole.Predator, new[] { DepthBand.Mid, DepthBand.Deep }, DepthBand.Deep, new[] { "king_crab" }, Array.Empty<string>(), new[] { "benthic", "reef-associated" }),
+                CreateCatalogSpecies("Species_BoneEatingWorm.asset", "bone_eating_worm", "Bone Eating Worm", "Osedax frankpressi", "A specialist decomposer that colonises vertebrate bones on the deep seafloor.", InvestigationTrophicRole.Decomposer, new[] { DepthBand.Deep }, DepthBand.Deep, Array.Empty<string>(), Array.Empty<string>(), new[] { "benthic", "deep", "whale-fall" }),
+                CreateCatalogSpecies("Species_TreeBubblegumCoral.asset", "tree_bubblegum_coral", "Tree Bubblegum Coral", "Paragorgia arborea", "A habitat-forming cold-water coral vulnerable to physical seafloor disturbance.", InvestigationTrophicRole.HabitatForming, new[] { DepthBand.Deep }, DepthBand.Deep, Array.Empty<string>(), Array.Empty<string>(), new[] { "benthic", "deep", "coral" }),
+                CreateCatalogSpecies("Species_PreciousCoral.asset", "precious_coral", "Precious Coral", "Corallium rubrum", "A slow-growing habitat-forming coral associated with hard substrate.", InvestigationTrophicRole.HabitatForming, new[] { DepthBand.Mid, DepthBand.Deep }, DepthBand.Deep, Array.Empty<string>(), Array.Empty<string>(), new[] { "benthic", "coral", "rocky-habitat" }),
+                CreateCatalogSpecies("Species_ZigzagCoral.asset", "zigzag_coral", "Zigzag Coral", "Madrepora oculata", "A branching cold-water coral that provides three-dimensional habitat.", InvestigationTrophicRole.HabitatForming, new[] { DepthBand.Deep }, DepthBand.Deep, Array.Empty<string>(), Array.Empty<string>(), new[] { "benthic", "deep", "coral" }),
+                CreateCatalogSpecies("Species_MoonJellyfish.asset", "moon_jellyfish", "Moon Jellyfish", "Aurelia aurita", "A gelatinous predator that consumes zooplankton and small crustaceans.", InvestigationTrophicRole.SecondaryConsumer, new[] { DepthBand.Shallow, DepthBand.Mid }, DepthBand.Shallow, new[] { "northern_krill" }, Array.Empty<string>(), new[] { "pelagic", "shallow" }),
+                CreateCatalogSpecies("Species_Phytoplankton.asset", "phytoplankton", "Phytoplankton", "Prochlorococcus marinus", "A photosynthetic primary producer forming the base of the pelagic food web.", InvestigationTrophicRole.PrimaryProducer, new[] { DepthBand.Shallow }, DepthBand.Shallow, Array.Empty<string>(), new[] { "northern_krill", "atlantic_herring", "reef_manta_ray" }, new[] { "pelagic", "sunlit-zone" })
+            };
+        }
+
+        private static InvestigationSpeciesDefinition CreateCatalogSpecies(
+            string fileName,
+            string speciesId,
+            string displayName,
+            string scientificName,
+            string description,
+            InvestigationTrophicRole trophicRole,
+            DepthBand[] depths,
+            DepthBand mapDepthBand,
+            string[] dietIds,
+            string[] predatorIds,
+            string[] habitatTags)
+        {
+            return CreateSpecies(
+                fileName,
+                speciesId,
+                displayName,
+                description,
+                SpeciesGlyphKind.NameOnly,
+                depths,
+                dietIds,
+                predatorIds,
+                Array.Empty<string>(),
+                mapDepthBand,
+                speciesId,
+                scientificName,
+                trophicRole,
+                new[] { scientificName.ToLowerInvariant().Replace(' ', '_') },
+                habitatTags);
+        }
+
+        private static void ApplyCanonicalMetadata(
+            InvestigationSpeciesDefinition species,
+            string canonicalId,
+            string displayName,
+            string scientificName,
+            InvestigationTrophicRole trophicRole,
+            string[] aliases,
+            string[] habitatTags,
+            string[] dietIds,
+            string[] predatorIds,
+            string shortDisplayName)
+        {
+            SerializedObject serialized = new SerializedObject(species);
+            SetString(serialized, "canonicalSpeciesId", canonicalId);
+            SetString(serialized, "displayName", displayName);
+            SetString(serialized, "shortDisplayName", shortDisplayName);
+            SetString(serialized, "scientificName", scientificName);
+            serialized.FindProperty("trophicRole").enumValueIndex = (int)trophicRole;
+            SetStringArray(serialized, "aliases", aliases);
+            SetStringArray(serialized, "habitatTags", habitatTags);
+            SetStringArray(serialized, "dietSpeciesIds", dietIds);
+            SetStringArray(serialized, "predatorSpeciesIds", predatorIds);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(species);
+        }
+
         private static ThreatSimulationDefinition CreateThreat(
             string fileName,
             string threatId,
@@ -236,7 +463,6 @@ namespace EDNA.Investigation.Editor
             string summary,
             ThreatGlyphKind glyphKind,
             PredictionSpec[] predictions,
-            string temperature,
             string seafloor,
             string physical)
         {
@@ -246,7 +472,7 @@ namespace EDNA.Investigation.Editor
             SetString(serialized, "displayName", displayName);
             SetString(serialized, "summary", summary);
             serialized.FindProperty("icon").objectReferenceValue = LoadThreatIcon(threatId);
-            serialized.FindProperty("glyphKind").enumValueIndex = (int)glyphKind;
+            serialized.FindProperty("glyphKind").intValue = (int)glyphKind;
             SerializedProperty predictionArray = serialized.FindProperty("speciesPredictions");
             predictionArray.arraySize = predictions.Length;
             for (int index = 0; index < predictions.Length; index++)
@@ -256,7 +482,6 @@ namespace EDNA.Investigation.Editor
                 property.FindPropertyRelative("predictedState").enumValueIndex = (int)predictions[index].State;
                 property.FindPropertyRelative("rationale").stringValue = predictions[index].Rationale;
             }
-            SetString(serialized, "temperaturePrediction", temperature);
             SetString(serialized, "seafloorPrediction", seafloor);
             SetString(serialized, "physicalConfirmation", physical);
             serialized.ApplyModifiedPropertiesWithoutUndo();
@@ -266,6 +491,8 @@ namespace EDNA.Investigation.Editor
 
         private static void ConfigureArtworkImporters()
         {
+            foreach (string file in new[] { "hammerhead.png", "tuna.png", "krill.png", "sea-star.png", "mussel.png" })
+                ConfigureSpriteImporter($"{FieldGuideArtRoot}/{file}");
             string[] artworkFiles =
             {
                 "shark.png",
@@ -273,7 +500,6 @@ namespace EDNA.Investigation.Editor
                 "krill.png",
                 "sea-star.png",
                 "mussel.png",
-                "warming.png",
                 "plastic.png",
                 "long-line.png",
                 "bottom-trawling.png"
@@ -313,9 +539,32 @@ namespace EDNA.Investigation.Editor
             importer.spriteImportMode = SpriteImportMode.Single;
             importer.alphaIsTransparency = true;
             importer.mipmapEnabled = false;
-            importer.textureCompression = TextureImporterCompression.Uncompressed;
-            importer.maxTextureSize = 1024;
+            importer.textureCompression = path.StartsWith(FieldGuideArtRoot, StringComparison.Ordinal)
+                ? TextureImporterCompression.CompressedHQ : TextureImporterCompression.Uncompressed;
+            importer.maxTextureSize = path.StartsWith(FieldGuideArtRoot, StringComparison.Ordinal) ? 512 : 1024;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.isReadable = false;
             importer.SaveAndReimport();
+        }
+
+        [MenuItem("eDNA Detectives/Update Visual Artwork")]
+        public static void UpdateVisualArtwork()
+        {
+            AssetDatabase.Refresh();
+            string[] ids = { "shark", "tuna", "krill", "sea_star", "mussel" };
+            string[] names = { "Shark", "Tuna", "Krill", "SeaStar", "Mussel" };
+            string[] files = { "hammerhead", "tuna", "krill", "sea-star", "mussel" };
+            for (int index = 0; index < ids.Length; index++)
+            {
+                ConfigureSpriteImporter($"{FieldGuideArtRoot}/{files[index]}.png");
+                InvestigationSpeciesDefinition species = AssetDatabase.LoadAssetAtPath<InvestigationSpeciesDefinition>($"{DataRoot}/Species_{names[index]}.asset");
+                if (species == null) throw new InvalidOperationException($"Missing case species: {ids[index]}");
+                SerializedObject serialized = new SerializedObject(species);
+                serialized.FindProperty("icon").objectReferenceValue = LoadSpeciesIcon(ids[index]);
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                AssetDatabase.SaveAssetIfDirty(species);
+            }
+            Debug.Log("INVESTIGATION_VISUAL_ARTWORK_UPDATED species=5");
         }
 
         private static void ConfigureSeamountImporter(string path)
@@ -346,6 +595,9 @@ namespace EDNA.Investigation.Editor
 
         private static Sprite LoadSpeciesIcon(string speciesId)
         {
+            string fieldGuideFile = speciesId == "shark" ? "hammerhead" : speciesId == "sea_star" ? "sea-star" : speciesId;
+            Sprite fieldGuide = AssetDatabase.LoadAssetAtPath<Sprite>($"{FieldGuideArtRoot}/{fieldGuideFile}.png");
+            if (fieldGuide != null) return fieldGuide;
             switch (speciesId)
             {
                 case "shark": return LoadIcon("shark.png");
@@ -361,7 +613,6 @@ namespace EDNA.Investigation.Editor
         {
             switch (threatId)
             {
-                case "warming": return LoadIcon("warming.png");
                 case "plastic": return LoadIcon("plastic.png");
                 case "longline": return LoadIcon("long-line.png");
                 case "bottom_trawling": return LoadIcon("bottom-trawling.png");
@@ -377,16 +628,15 @@ namespace EDNA.Investigation.Editor
         private static void SetObservations(SerializedObject caseObject)
         {
             SerializedProperty array = caseObject.FindProperty("observations");
-            array.arraySize = 9;
+            array.arraySize = 8;
             SetObservation(array.GetArrayElementAtIndex(0), "E01_SHARK_NONDETECTION", "Shark repeatedly not detected", "Shark DNA was not detected in several high-quality samples across the surveyed depths.", "shark", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, EvidenceConfidence.High, ObservationClaimType.NotDetected, EvidenceCategory.FoodWeb, "Repeated high-quality non-detection is stronger than one sample, but it still does not prove absence.");
             SetObservation(array.GetArrayElementAtIndex(1), "E02_TUNA_WIDER_DETECTION", "Tuna detected at more sites", "Tuna DNA was detected across more survey locations than in the historical baseline.", "tuna", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, EvidenceConfidence.Medium, ObservationClaimType.ChangedDepthOrDistribution, EvidenceCategory.FoodWeb, "Wider detection is consistent with expansion but does not directly measure abundance.");
             SetObservation(array.GetArrayElementAtIndex(2), "E03_KRILL_NONDETECTION", "Krill repeatedly not detected", "Krill DNA was not detected in several high-quality samples where it was historically expected.", "krill", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, EvidenceConfidence.High, ObservationClaimType.NotDetected, EvidenceCategory.FoodWeb, "The pattern supports a decline hypothesis but does not prove a population count.");
             SetObservation(array.GetArrayElementAtIndex(3), "E04_BENTHIC_STABLE", "Sea star remains stable", "The benthic indicator was repeatedly detected at its historical deep sites.", "sea_star", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, EvidenceConfidence.Medium, ObservationClaimType.MatchesBaseline, EvidenceCategory.Benthic, "Repeated detection across the same sites supports stability, pending ROV confirmation of habitat condition.");
-            SetObservation(array.GetArrayElementAtIndex(4), "E05_TEMPERATURE_NORMAL", "Temperature remains in the historical range", "The multi-depth CTD profile remains within the historical range and no coherent depth-shift pattern appears.", "shark", ObservationSource.CTDLog, EvidenceUnlockStage.OnThreatRun, "warming", EvidenceConfidence.Medium, ObservationClaimType.EnvironmentalReading, EvidenceCategory.Environmental, "A normal profile challenges warming but cannot rule it out alone.");
-            SetObservation(array.GetArrayElementAtIndex(5), "E06_PLASTIC_INDICATOR_STABLE", "Filter-feeding mussel remains stable", "The plastic-sensitive reference species remains detected at its historical sites.", "mussel", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, EvidenceConfidence.Medium, ObservationClaimType.MatchesBaseline, EvidenceCategory.Alternative, "This challenges a broad plastic-impact pattern but cannot rule it out alone.");
-            SetObservation(array.GetArrayElementAtIndex(6), "E07_FISHING_LINE", "Fishing line recorded near shark habitat", "ROV footage shows fishing line near the area where sharks were historically recorded.", "shark", ObservationSource.ROV, EvidenceUnlockStage.AfterProvisional, string.Empty, EvidenceConfidence.High, ObservationClaimType.PhysicalObservation, EvidenceCategory.Confirmation, "A physical gear observation confirms an already-developed long-line hypothesis.");
-            SetObservation(array.GetArrayElementAtIndex(7), "E08_SEAFLOOR_INTACT", "Seafloor remains intact", "ROV footage shows no obvious trawl marks or broad habitat damage.", "sea_star", ObservationSource.ROV, EvidenceUnlockStage.AfterProvisional, string.Empty, EvidenceConfidence.High, ObservationClaimType.PhysicalObservation, EvidenceCategory.Confirmation, "The intact habitat strongly challenges bottom trawling alongside the stable benthic eDNA pattern.");
-            SetObservation(array.GetArrayElementAtIndex(8), "L01_NONDETECTION_LIMITATION", "Not detected does not mean gone", "eDNA non-detection does not prove complete absence; sampling and detection limits remain.", string.Empty, ObservationSource.Methodology, EvidenceUnlockStage.Always, string.Empty, EvidenceConfidence.High, ObservationClaimType.MethodologicalLimitation, EvidenceCategory.General, "This scientific limitation is always available in the final report.");
+            SetObservation(array.GetArrayElementAtIndex(4), "E06_PLASTIC_INDICATOR_STABLE", "Filter-feeding mussel remains stable", "The plastic-sensitive reference species remains detected at its historical sites.", "mussel", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, EvidenceConfidence.Medium, ObservationClaimType.MatchesBaseline, EvidenceCategory.Alternative, "This challenges a broad plastic-impact pattern but cannot rule it out alone.");
+            SetObservation(array.GetArrayElementAtIndex(5), "E07_FISHING_LINE", "Fishing line recorded near shark habitat", "ROV footage shows fishing line near the area where sharks were historically recorded.", "shark", ObservationSource.ROV, EvidenceUnlockStage.AfterProvisional, string.Empty, EvidenceConfidence.High, ObservationClaimType.PhysicalObservation, EvidenceCategory.Confirmation, "A physical gear observation confirms an already-developed long-line hypothesis.");
+            SetObservation(array.GetArrayElementAtIndex(6), "E08_SEAFLOOR_INTACT", "Seafloor remains intact", "ROV footage shows no obvious trawl marks or broad habitat damage.", "sea_star", ObservationSource.ROV, EvidenceUnlockStage.AfterProvisional, string.Empty, EvidenceConfidence.High, ObservationClaimType.PhysicalObservation, EvidenceCategory.Confirmation, "The intact habitat strongly challenges bottom trawling alongside the stable benthic eDNA pattern.");
+            SetObservation(array.GetArrayElementAtIndex(7), "L01_NONDETECTION_LIMITATION", "Not detected does not mean gone", "eDNA non-detection does not prove complete absence; sampling and detection limits remain.", string.Empty, ObservationSource.Methodology, EvidenceUnlockStage.Always, string.Empty, EvidenceConfidence.High, ObservationClaimType.MethodologicalLimitation, EvidenceCategory.General, "This scientific limitation is always available in the final report.");
         }
 
         private static void SetObservation(
@@ -422,7 +672,7 @@ namespace EDNA.Investigation.Editor
             IReadOnlyList<InvestigationSpeciesDefinition> species)
         {
             SerializedProperty rules = caseObject.FindProperty("comparisonRules");
-            rules.arraySize = threats.Count * species.Count + 1;
+            rules.arraySize = threats.Count * species.Count;
             int ruleIndex = 0;
             for (int threatIndex = 0; threatIndex < threats.Count; threatIndex++)
             {
@@ -434,7 +684,7 @@ namespace EDNA.Investigation.Editor
                     SerializedProperty rule = rules.GetArrayElementAtIndex(ruleIndex++);
                     rule.FindPropertyRelative("threatId").stringValue = threat.ThreatId;
                     rule.FindPropertyRelative("speciesId").stringValue = speciesDefinition.SpeciesId;
-                    rule.FindPropertyRelative("targetKind").enumValueIndex = (int)PredictionTargetKind.Species;
+                    rule.FindPropertyRelative("targetKind").intValue = (int)PredictionTargetKind.Species;
                     rule.FindPropertyRelative("targetId").stringValue = speciesDefinition.SpeciesId;
                     rule.FindPropertyRelative("progressRole").enumValueIndex = (int)ProgressRoleFor(threat.ThreatId, speciesDefinition.SpeciesId);
                     string[] candidates = CandidateEvidence(speciesDefinition.SpeciesId);
@@ -453,7 +703,6 @@ namespace EDNA.Investigation.Editor
                 }
             }
 
-            SetTemperatureComparisonRule(rules.GetArrayElementAtIndex(ruleIndex));
         }
 
         private static ComparisonProgressRole ProgressRoleFor(string threatId, string speciesId)
@@ -465,66 +714,6 @@ namespace EDNA.Investigation.Editor
             if ((threatId == "longline" || threatId == "bottom_trawling") && speciesId == "sea_star")
                 return ComparisonProgressRole.BenthicDiscriminator;
             return ComparisonProgressRole.ContextOnly;
-        }
-
-        private static void SetTemperatureComparisonRule(SerializedProperty rule)
-        {
-            rule.FindPropertyRelative("threatId").stringValue = "warming";
-            rule.FindPropertyRelative("speciesId").stringValue = string.Empty;
-            rule.FindPropertyRelative("targetKind").enumValueIndex = (int)PredictionTargetKind.Temperature;
-            rule.FindPropertyRelative("targetId").stringValue = "temperature";
-            rule.FindPropertyRelative("progressRole").enumValueIndex = (int)ComparisonProgressRole.AlternativeCauseCheck;
-            SerializedProperty options = rule.FindPropertyRelative("observationOptions");
-            options.arraySize = 3;
-            SetTemperatureOption(options.GetArrayElementAtIndex(0), "E05_TEMPERATURE_NORMAL", ComparisonJudgement.Mismatch,
-                "Accepted: the historical-range CTD profile challenges the warming model's expected temperature or depth-shift pattern.");
-            SetUnrelatedOption(options.GetArrayElementAtIndex(1), "E04_BENTHIC_STABLE");
-            SetUnrelatedOption(options.GetArrayElementAtIndex(2), "E01_SHARK_NONDETECTION");
-        }
-
-        private static void SetTemperatureOption(
-            SerializedProperty option,
-            string evidenceId,
-            ComparisonJudgement acceptedJudgement,
-            string acceptedFeedback)
-        {
-            option.FindPropertyRelative("evidenceId").stringValue = evidenceId;
-            SerializedProperty resolutions = option.FindPropertyRelative("resolutions");
-            resolutions.arraySize = 3;
-            for (int index = 0; index < 3; index++)
-            {
-                ComparisonJudgement judgement = (ComparisonJudgement)index;
-                SerializedProperty resolution = resolutions.GetArrayElementAtIndex(index);
-                resolution.FindPropertyRelative("judgement").enumValueIndex = index;
-                bool accepted = judgement == acceptedJudgement;
-                resolution.FindPropertyRelative("outcome").enumValueIndex = accepted
-                    ? (int)ComparisonEvaluationOutcome.Accepted
-                    : (int)ComparisonEvaluationOutcome.Incorrect;
-                resolution.FindPropertyRelative("feedback").stringValue = accepted
-                    ? acceptedFeedback
-                    : judgement == ComparisonJudgement.NotEnoughEvidence
-                        ? "The CTD profile directly tests this temperature prediction. Decide whether it matches or challenges the model."
-                        : "Compare the model's expected temperature pattern with the historical-range CTD observation.";
-            }
-        }
-
-        private static void SetUnrelatedOption(SerializedProperty option, string evidenceId)
-        {
-            option.FindPropertyRelative("evidenceId").stringValue = evidenceId;
-            SerializedProperty resolutions = option.FindPropertyRelative("resolutions");
-            resolutions.arraySize = 3;
-            for (int index = 0; index < 3; index++)
-            {
-                ComparisonJudgement judgement = (ComparisonJudgement)index;
-                SerializedProperty resolution = resolutions.GetArrayElementAtIndex(index);
-                resolution.FindPropertyRelative("judgement").enumValueIndex = index;
-                resolution.FindPropertyRelative("outcome").enumValueIndex = judgement == ComparisonJudgement.NotEnoughEvidence
-                    ? (int)ComparisonEvaluationOutcome.Accepted
-                    : (int)ComparisonEvaluationOutcome.Incorrect;
-                resolution.FindPropertyRelative("feedback").stringValue = judgement == ComparisonJudgement.NotEnoughEvidence
-                    ? "Reasonable, but this observation does not complete the temperature comparison."
-                    : "This observation does not directly test the model's temperature prediction.";
-            }
         }
 
         private static string[] CandidateEvidence(string speciesId)
@@ -660,15 +849,15 @@ namespace EDNA.Investigation.Editor
         private static void SetInvestigationObjectives(SerializedObject caseObject)
         {
             SerializedProperty objectives = caseObject.FindProperty("investigationObjectives");
-            objectives.arraySize = 8;
-            SetObjective(objectives.GetArrayElementAtIndex(0), "warming_temperature", "warming", "Could warming explain the pattern?", "warming", PredictionTargetKind.Temperature, "temperature", "E05_TEMPERATURE_NORMAL", ComparisonJudgement.Mismatch, ComparisonProgressRole.AlternativeCauseCheck);
-            SetObjective(objectives.GetArrayElementAtIndex(1), "plastic_mussel", "plastic", "Does plastic fit the indicator species?", "plastic", PredictionTargetKind.Species, "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch, ComparisonProgressRole.AlternativeCauseCheck);
-            SetObjective(objectives.GetArrayElementAtIndex(2), "longline_shark", "food_web", "Can fishing trigger the food-web changes?", "longline", PredictionTargetKind.Species, "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match, ComparisonProgressRole.FoodWebCascade);
-            SetObjective(objectives.GetArrayElementAtIndex(3), "longline_tuna", "food_web", "Can fishing trigger the food-web changes?", "longline", PredictionTargetKind.Species, "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match, ComparisonProgressRole.FoodWebCascade);
-            SetObjective(objectives.GetArrayElementAtIndex(4), "longline_krill", "food_web", "Can fishing trigger the food-web changes?", "longline", PredictionTargetKind.Species, "krill", "E03_KRILL_NONDETECTION", ComparisonJudgement.Match, ComparisonProgressRole.FoodWebCascade);
-            SetObjective(objectives.GetArrayElementAtIndex(5), "bottom_tuna", "overlap", "Why do two fishing models partly match?", "bottom_trawling", PredictionTargetKind.Species, "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match, ComparisonProgressRole.SharedPrediction);
-            SetObjective(objectives.GetArrayElementAtIndex(6), "longline_seastar", "benthic", "Which clue separates the fishing models?", "longline", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match, ComparisonProgressRole.BenthicDiscriminator);
-            SetObjective(objectives.GetArrayElementAtIndex(7), "bottom_seastar", "benthic", "Which clue separates the fishing models?", "bottom_trawling", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch, ComparisonProgressRole.BenthicDiscriminator);
+            objectives.arraySize = 7;
+            SetInteger(caseObject, "minimumCompletedComparisons", objectives.arraySize);
+            SetObjective(objectives.GetArrayElementAtIndex(0), "plastic_mussel", "plastic", "Does plastic fit the indicator species?", "plastic", PredictionTargetKind.Species, "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch, ComparisonProgressRole.AlternativeCauseCheck);
+            SetObjective(objectives.GetArrayElementAtIndex(1), "longline_shark", "food_web", "Can fishing trigger the food-web changes?", "longline", PredictionTargetKind.Species, "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match, ComparisonProgressRole.FoodWebCascade);
+            SetObjective(objectives.GetArrayElementAtIndex(2), "longline_tuna", "food_web", "Can fishing trigger the food-web changes?", "longline", PredictionTargetKind.Species, "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match, ComparisonProgressRole.FoodWebCascade);
+            SetObjective(objectives.GetArrayElementAtIndex(3), "longline_krill", "food_web", "Can fishing trigger the food-web changes?", "longline", PredictionTargetKind.Species, "krill", "E03_KRILL_NONDETECTION", ComparisonJudgement.Match, ComparisonProgressRole.FoodWebCascade);
+            SetObjective(objectives.GetArrayElementAtIndex(4), "bottom_tuna", "overlap", "Why do two fishing models partly match?", "bottom_trawling", PredictionTargetKind.Species, "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match, ComparisonProgressRole.SharedPrediction);
+            SetObjective(objectives.GetArrayElementAtIndex(5), "longline_seastar", "benthic", "Which clue separates the fishing models?", "longline", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match, ComparisonProgressRole.BenthicDiscriminator);
+            SetObjective(objectives.GetArrayElementAtIndex(6), "bottom_seastar", "benthic", "Which clue separates the fishing models?", "bottom_trawling", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch, ComparisonProgressRole.BenthicDiscriminator);
         }
 
         private static void SetObjective(
@@ -687,7 +876,7 @@ namespace EDNA.Investigation.Editor
             property.FindPropertyRelative("questionId").stringValue = questionId;
             property.FindPropertyRelative("questionPrompt").stringValue = questionPrompt;
             property.FindPropertyRelative("threatId").stringValue = threatId;
-            property.FindPropertyRelative("targetKind").enumValueIndex = (int)targetKind;
+            property.FindPropertyRelative("targetKind").intValue = (int)targetKind;
             property.FindPropertyRelative("targetId").stringValue = targetId;
             property.FindPropertyRelative("requiredEvidenceId").stringValue = evidenceId;
             property.FindPropertyRelative("requiredJudgement").enumValueIndex = (int)judgement;
@@ -702,6 +891,45 @@ namespace EDNA.Investigation.Editor
             SetEvidenceCategoryRequirement(requirements.GetArrayElementAtIndex(0), EvidenceCategory.FoodWeb, 2);
             SetEvidenceCategoryRequirement(requirements.GetArrayElementAtIndex(1), EvidenceCategory.Benthic, 1);
             SetEvidenceCategoryRequirement(requirements.GetArrayElementAtIndex(2), EvidenceCategory.Confirmation, 1);
+        }
+
+        private static void SetFoodWebEdges(SerializedObject caseObject)
+        {
+            SerializedProperty edges = caseObject.FindProperty("foodWebEdges");
+            edges.arraySize = 12;
+            SetFoodWebEdge(edges.GetArrayElementAtIndex(0), "case_shark_tuna", "case_simplified", "great_hammerhead_shark", "atlantic_bluefin_tuna", FoodWebRelationshipStrength.High, FoodWebRelationshipConfidence.Provisional, true, "Simplified case link used to model predator removal; retained separately from the reference chain.");
+            SetFoodWebEdge(edges.GetArrayElementAtIndex(1), "case_tuna_krill", "case_simplified", "atlantic_bluefin_tuna", "northern_krill", FoodWebRelationshipStrength.Medium, FoodWebRelationshipConfidence.Provisional, true, "Simplified case link used by the current three-node detective puzzle.");
+            SetFoodWebEdge(edges.GetArrayElementAtIndex(2), "reference_hammerhead_bluefin", "reference_main", "great_hammerhead_shark", "atlantic_bluefin_tuna", FoodWebRelationshipStrength.Low, FoodWebRelationshipConfidence.Provisional, false, "Storyboard relationship; scientific suitability for the final exhibit still requires review.");
+            SetFoodWebEdge(edges.GetArrayElementAtIndex(3), "reference_bluefin_herring", "reference_main", "atlantic_bluefin_tuna", "atlantic_herring", FoodWebRelationshipStrength.High, FoodWebRelationshipConfidence.Supported, false, "Bluefin tuna prey on schooling forage fish including Atlantic herring.");
+            SetFoodWebEdge(edges.GetArrayElementAtIndex(4), "reference_herring_krill", "reference_main", "atlantic_herring", "northern_krill", FoodWebRelationshipStrength.High, FoodWebRelationshipConfidence.Supported, false, "Atlantic herring consume krill and other zooplankton.");
+            SetFoodWebEdge(edges.GetArrayElementAtIndex(5), "reference_krill_phytoplankton", "reference_main", "northern_krill", "phytoplankton", FoodWebRelationshipStrength.High, FoodWebRelationshipConfidence.Supported, false, "Northern krill graze on phytoplankton.");
+            SetFoodWebEdge(edges.GetArrayElementAtIndex(6), "manta_krill", "manta_branch", "reef_manta_ray", "northern_krill", FoodWebRelationshipStrength.Medium, FoodWebRelationshipConfidence.Provisional, false, "Filter-feeding branch derived from the storyboard and awaiting location-specific review.");
+            SetFoodWebEdge(edges.GetArrayElementAtIndex(7), "manta_krill_phytoplankton", "manta_branch", "northern_krill", "phytoplankton", FoodWebRelationshipStrength.High, FoodWebRelationshipConfidence.Supported, false, "Krill connect the manta branch to primary production.");
+            SetFoodWebEdge(edges.GetArrayElementAtIndex(8), "kitefin_orange_roughy", "deep_branch", "kitefin_shark", "orange_roughy", FoodWebRelationshipStrength.Medium, FoodWebRelationshipConfidence.Provisional, false, "Deep-water storyboard branch; final ecological review is pending.");
+            SetFoodWebEdge(edges.GetArrayElementAtIndex(9), "orange_roughy_lanternfish", "deep_branch", "orange_roughy", "spotted_lanternfish", FoodWebRelationshipStrength.Medium, FoodWebRelationshipConfidence.Provisional, false, "Deep-water storyboard branch; final ecological review is pending.");
+            SetFoodWebEdge(edges.GetArrayElementAtIndex(10), "lanternfish_krill", "deep_branch", "spotted_lanternfish", "northern_krill", FoodWebRelationshipStrength.Medium, FoodWebRelationshipConfidence.Provisional, false, "Mesopelagic fish link the deep branch to zooplankton.");
+            SetFoodWebEdge(edges.GetArrayElementAtIndex(11), "octopus_king_crab", "benthic_branch", "giant_pacific_octopus", "king_crab", FoodWebRelationshipStrength.Medium, FoodWebRelationshipConfidence.Provisional, false, "Benthic predator branch from the shared storyboard.");
+        }
+
+        private static void SetFoodWebEdge(
+            SerializedProperty property,
+            string edgeId,
+            string networkId,
+            string predatorId,
+            string preyId,
+            FoodWebRelationshipStrength strength,
+            FoodWebRelationshipConfidence confidence,
+            bool caseRelevant,
+            string explanation)
+        {
+            property.FindPropertyRelative("edgeId").stringValue = edgeId;
+            property.FindPropertyRelative("networkId").stringValue = networkId;
+            property.FindPropertyRelative("predatorSpeciesId").stringValue = predatorId;
+            property.FindPropertyRelative("preySpeciesId").stringValue = preyId;
+            property.FindPropertyRelative("strength").enumValueIndex = (int)strength;
+            property.FindPropertyRelative("confidence").enumValueIndex = (int)confidence;
+            property.FindPropertyRelative("caseRelevant").boolValue = caseRelevant;
+            property.FindPropertyRelative("explanation").stringValue = explanation;
         }
 
         private static void SetEvidenceCategoryRequirement(
@@ -805,19 +1033,12 @@ namespace EDNA.Investigation.Editor
             EditorSceneManager.SaveScene(scene, ScenePath);
         }
 
-        private static void AddSceneToBuildSettings()
+        [MenuItem("eDNA Detectives/Use Investigation Startup Scene")]
+        public static void AddSceneToBuildSettings()
         {
             List<EditorBuildSettingsScene> scenes = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
-            for (int index = 0; index < scenes.Count; index++)
-            {
-                if (string.Equals(scenes[index].path, ScenePath, StringComparison.Ordinal))
-                {
-                    scenes[index].enabled = true;
-                    EditorBuildSettings.scenes = scenes.ToArray();
-                    return;
-                }
-            }
-            scenes.Add(new EditorBuildSettingsScene(ScenePath, true));
+            scenes.RemoveAll(scene => string.Equals(scene.path, ScenePath, StringComparison.Ordinal));
+            scenes.Insert(0, new EditorBuildSettingsScene(ScenePath, true));
             EditorBuildSettings.scenes = scenes.ToArray();
         }
 

@@ -6,21 +6,21 @@ namespace EDNA.Investigation
 {
     public enum InvestigationGlyph
     {
-        Shark,
-        Tuna,
-        Krill,
-        SeaStar,
-        Mussel,
-        Warming,
-        Plastic,
-        LongLine,
-        BottomTrawling,
-        Check,
-        Cross,
-        Question,
-        ArrowRight,
-        FishingLine,
-        Seafloor
+        Shark = 0,
+        Tuna = 1,
+        Krill = 2,
+        SeaStar = 3,
+        Mussel = 4,
+        // Value 5 is retired; preserve the IDs of any serialized graphics.
+        Plastic = 6,
+        LongLine = 7,
+        BottomTrawling = 8,
+        Check = 9,
+        Cross = 10,
+        Question = 11,
+        ArrowRight = 12,
+        FishingLine = 13,
+        Seafloor = 14
     }
 
     [DisallowMultipleComponent]
@@ -59,7 +59,6 @@ namespace EDNA.Investigation
                 case InvestigationGlyph.Krill: DrawKrill(vh, drawColor); break;
                 case InvestigationGlyph.SeaStar: DrawSeaStar(vh, drawColor); break;
                 case InvestigationGlyph.Mussel: DrawMussel(vh, drawColor); break;
-                case InvestigationGlyph.Warming: DrawWarming(vh, drawColor); break;
                 case InvestigationGlyph.Plastic: DrawPlastic(vh, drawColor); break;
                 case InvestigationGlyph.LongLine: DrawLongLine(vh, drawColor); break;
                 case InvestigationGlyph.BottomTrawling: DrawTrawl(vh, drawColor); break;
@@ -123,17 +122,6 @@ namespace EDNA.Investigation
             };
             AddPolygon(vh, points, c);
             AddLine(vh, P(0.5f, 0.82f), P(0.5f, 0.19f), InvestigationTheme.Background, 0.018f);
-        }
-
-        private void DrawWarming(VertexHelper vh, Color c)
-        {
-            AddLine(vh, P(0.45f, 0.77f), P(0.45f, 0.34f), c, 0.055f);
-            AddLine(vh, P(0.55f, 0.77f), P(0.55f, 0.34f), c, 0.055f);
-            AddCircle(vh, P(0.5f, 0.25f), 0.15f, c, 18);
-            AddLine(vh, P(0.5f, 0.63f), P(0.5f, 0.31f), InvestigationTheme.Background, 0.025f);
-            AddLine(vh, P(0.70f, 0.70f), P(0.86f, 0.79f), c, 0.025f);
-            AddLine(vh, P(0.73f, 0.50f), P(0.91f, 0.50f), c, 0.025f);
-            AddLine(vh, P(0.70f, 0.31f), P(0.86f, 0.22f), c, 0.025f);
         }
 
         private void DrawPlastic(VertexHelper vh, Color c)

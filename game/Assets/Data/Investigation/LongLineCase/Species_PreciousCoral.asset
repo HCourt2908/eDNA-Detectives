@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db735edd82b540bca2a33e8561c0f27, type: 3}
+  m_Name: Species_PreciousCoral
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
+  speciesId: precious_coral
+  canonicalSpeciesId: precious_coral
+  displayName: Precious Coral
+  shortDisplayName:
+  scientificName: Corallium rubrum
+  description: A slow-growing habitat-forming coral associated with hard substrate.
+  icon: {fileID: 0}
+  glyphKind: 5
+  trophicRole: 8
+  aliases:
+  - corallium_rubrum
+  preferredDepths: 0100000002000000
+  habitatTags:
+  - benthic
+  - coral
+  - rocky-habitat
+  dietSpeciesIds: []
+  predatorSpeciesIds: []
+  sensitivityTags: []
+  mapDepthBand: 2

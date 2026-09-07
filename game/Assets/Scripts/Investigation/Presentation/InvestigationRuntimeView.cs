@@ -29,6 +29,7 @@ namespace EDNA.Investigation
         private static readonly Vector2 LandscapeReferenceResolution = new Vector2(1280f, 720f);
         private static readonly Vector2 PortraitReferenceResolution = new Vector2(720f, 1280f);
         private const float OuterMargin = 8f;
+        private const float ContentTopInset = 122f;
 
         [SerializeField] private Sprite seamountSprite;
 
@@ -38,7 +39,7 @@ namespace EDNA.Investigation
         private Action<InvestigationDifficulty> setDifficulty;
         private Action<string> discoverObservation;
         private Action<string> runThreat;
-        private Action<string, PredictionTargetKind, string, string, ComparisonJudgement> compare;
+        private Action<string, PredictionTargetKind, string, string> compareEvidence;
         private Action<string> submitProvisional;
         private Action reviewConfirmation;
         private Action<string> setFinalThreat;
@@ -85,6 +86,7 @@ namespace EDNA.Investigation
         private bool restartConfirmationPending;
         private bool hasRenderedPhase;
         private InvestigationPhase lastRenderedPhase;
+        private bool lastRenderedConfirmationReviewed;
         private InvestigationConclusionStatus lastRenderedConclusionStatus = InvestigationConclusionStatus.NotSubmitted;
 
         public InvestigationState State => state;
@@ -97,7 +99,7 @@ namespace EDNA.Investigation
             Action<InvestigationDifficulty> onSetDifficulty,
             Action<string> onDiscoverObservation,
             Action<string> onRunThreat,
-            Action<string, PredictionTargetKind, string, string, ComparisonJudgement> onCompare,
+            Action<string, PredictionTargetKind, string, string> onCompareEvidence,
             Action<string> onSubmitProvisional,
             Action onReviewConfirmation,
             Action<string> onSetFinalThreat,
@@ -113,7 +115,7 @@ namespace EDNA.Investigation
             setDifficulty = onSetDifficulty;
             discoverObservation = onDiscoverObservation;
             runThreat = onRunThreat;
-            compare = onCompare;
+            compareEvidence = onCompareEvidence;
             submitProvisional = onSubmitProvisional;
             reviewConfirmation = onReviewConfirmation;
             setFinalThreat = onSetFinalThreat;
@@ -128,6 +130,7 @@ namespace EDNA.Investigation
 
         public void ResetPresentationState()
         {
+            seamountBackdrop?.RestartCycle();
             observeLayoutSessionSeed = Guid.NewGuid().ToString("N");
             selectedThreatId = string.Empty;
             selectedPredictionTargetKind = PredictionTargetKind.Species;
@@ -138,8 +141,31 @@ namespace EDNA.Investigation
             pendingTappedSpecies = null;
             HideSpeciesTooltip();
             animatedThreatIds.Clear();
+            guidanceCollapsed = false;
+            ednaHintLevel = 1;
+            activeGuidanceStep = null;
+            activeGuidanceTask = string.Empty;
+            reportFeedbackFocusPending = false;
+            reportDiagnosticSection = ReportGuidanceSection.None;
+            reportDiagnosticMessage = string.Empty;
+            reportDialogueSection = ReportGuidanceSection.None;
+            reportReturnToReview = false;
+            reportDialogueFocusPending = false;
+            reportHintLevel = 1;
+            reportDialogueReply = string.Empty;
+            lastRecordedObservationId = string.Empty;
+            observeNotebookVisible = false;
+            provisionalReviewOpen = false;
+            lastObservedMisstepCount = 0;
+            notebookDrawerOpen = false;
+            notebookOpeningAnimationPending = false;
+            hypothesisSummaryExpanded = false;
+            expandedHypothesisId = string.Empty;
+            notebookDrawerScrollPosition = 1f;
+            notebookFocusTargetAfterRender = string.Empty;
             restartConfirmationPending = false;
             hasRenderedPhase = false;
+            lastRenderedConfirmationReviewed = false;
             lastRenderedConclusionStatus = InvestigationConclusionStatus.NotSubmitted;
             contentScroll?.StopMovement();
             if (contentScroll != null) contentScroll.verticalNormalizedPosition = 1f;
@@ -147,17 +173,32 @@ namespace EDNA.Investigation
 
         public void Refresh(InvestigationState currentState, string message, InvestigationStatusTone tone)
         {
+            if (currentState != null
+                && currentState.Difficulty == InvestigationDifficulty.Easy
+                && currentState.MisstepCount > lastObservedMisstepCount)
+            {
+                ednaHintLevel = Mathf.Min(3, ednaHintLevel + 1);
+            }
+            lastObservedMisstepCount = currentState == null ? 0 : currentState.MisstepCount;
             state = currentState;
+            if (state == null || state.ConclusionStatus == InvestigationConclusionStatus.NotSubmitted)
+                reportDiagnosticMessage = string.Empty;
             statusMessage = message ?? string.Empty;
             statusTone = tone;
             EnsureUi();
             RenderAll();
         }
 
-        public void ShowFatalError(string message)
+        public void ShowFatalError(string message, Action startStandalone = null)
         {
             EnsureUi();
             state = null;
+            ResetPresentationState();
+            StopAllCoroutines();
+            viewportRefreshScheduled = false;
+            ResetPageEntranceVisuals();
+            RemoveNotebookDrawer();
+            RemoveProvisionalReview();
             statusMessage = message ?? "Unknown Investigation error.";
             statusTone = InvestigationStatusTone.Warning;
             RenderChrome();
@@ -166,6 +207,17 @@ namespace EDNA.Investigation
             AddLayout(error.rectTransform, 120f, 1f);
             Clear(footerLeft);
             Clear(footerRight);
+            if (startStandalone != null)
+            {
+                Button standalone = CreateButton("Start Standalone Case", contentRoot, "Start standalone case", ButtonVisualStyle.Primary, () => startStandalone(), out _);
+                AddLayout(standalone.GetComponent<RectTransform>(), 48f, 1f);
+            }
+        }
+
+        public void RefreshMotionPreference()
+        {
+            EnsureUi();
+            motionText.text = InvestigationMotionSettings.ReducedMotion ? "Motion: Reduced" : "Motion: Full";
         }
 
         private void Awake()
@@ -213,9 +265,8 @@ namespace EDNA.Investigation
             RectTransform background = CreatePanel("Deep Sea Background", transform, InvestigationTheme.Background, 0f);
             Stretch(background, 0f, 0f, 0f, 0f);
 
-            // Water is built as a stack, back to front. Sibling order is the
-            // render order, so everything before "Safe Area" sits behind the
-            // interface and everything after it sits in front.
+            // Water uses a layered background. All decorative layers are ordered
+            // before Safe Area so the interface remains above the water effects.
             InvestigationWaterColumnGraphic waterColumn =
                 CreateGraphic<InvestigationWaterColumnGraphic>("Water Column", background);
             Stretch(waterColumn.rectTransform, 0f, 0f, 0f, 0f);
@@ -228,19 +279,19 @@ namespace EDNA.Investigation
             CreateMarineSnowLayer(
                 "Marine Snow Far",
                 background,
-                30,
+                18,
                 new Vector2(1f, 2.2f),
                 4f,
-                new Vector2(0.10f, InvestigationTheme.MarineSnowFarMaxAlpha),
+                new Vector2(0.04f, InvestigationTheme.MarineSnowFarMaxAlpha),
                 6f,
                 0x9E3779B9u);
             CreateMarineSnowLayer(
                 "Marine Snow",
                 background,
-                20,
+                12,
                 new Vector2(2f, 3.4f),
                 9f,
-                new Vector2(0.20f, InvestigationTheme.MarineSnowNearMaxAlpha),
+                new Vector2(0.06f, InvestigationTheme.MarineSnowNearMaxAlpha),
                 11f,
                 0x85EBCA6Bu);
 
@@ -252,46 +303,44 @@ namespace EDNA.Investigation
             Stretch(safeAreaRoot, 0f, 0f, 0f, 0f);
             safeAreaRoot.gameObject.AddComponent<InvestigationSafeAreaFitter>();
 
-            // In front of the interface. Deliberately sparse, large and faint:
-            // enough for something to pass between the player and the scene,
-            // few enough that it never competes with text.
+            // All water particles sit behind the reading and interaction surfaces.
             CreateMarineSnowLayer(
-                "Marine Snow Foreground",
+                "Marine Snow Large",
                 background,
-                7,
-                new Vector2(4.5f, 8f),
-                19f,
-                new Vector2(0.09f, InvestigationTheme.MarineSnowForegroundMaxAlpha),
+                4,
+                new Vector2(2.5f, 4f),
+                8f,
+                new Vector2(0.02f, InvestigationTheme.MarineSnowLargeMaxAlpha),
                 16f,
                 0xC2B2AE35u);
+            background.Find("Marine Snow Large").SetSiblingIndex(safeAreaRoot.GetSiblingIndex());
 
-            RectTransform header = CreatePanel("Investigation Header", safeAreaRoot, new Color32(8, 36, 54, 248), InvestigationTheme.SmallRadius);
-            Anchor(header, 0f, 1f, 1f, 1f, OuterMargin, -132f, -OuterMargin, -OuterMargin);
-            AddSubtleOutline(header, new Color32(95, 212, 214, 70));
+            RectTransform header = CreatePanel("Investigation Header", safeAreaRoot, InvestigationTheme.Deep, InvestigationTheme.SmallRadius);
+            Anchor(header, 0f, 1f, 1f, 1f, OuterMargin, -112f, -OuterMargin, -OuterMargin);
 
-            Text brand = CreateText("Brand", header, "ECOSYSTEM DETECTIVE", 23, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperLeft, InvestigationTheme.DisplayFont);
-            Anchor(brand.rectTransform, 0f, 0.56f, 0.42f, 1f, 14f, 0f, 0f, -8f);
+            Text brand = CreateText("Brand", header, "Ecosystem Detective", 22, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperLeft, InvestigationTheme.DisplayFont);
+            Anchor(brand.rectTransform, 0f, 1f, 0.58f, 1f, 16f, -36f, 0f, -2f);
             caseSubtitleText = CreateText("Case Subtitle", header, string.Empty, 11, FontStyle.Normal, InvestigationTheme.TextMuted, TextAnchor.LowerLeft, InvestigationTheme.DataFont);
-            Anchor(caseSubtitleText.rectTransform, 0f, 0.56f, 0.42f, 1f, 14f, 5f, 0f, -36f);
+            Anchor(caseSubtitleText.rectTransform, 0f, 1f, 0.68f, 1f, 16f, -58f, 0f, -41f);
 
-            metricsText = CreateText("Metrics", header, "", 14, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperRight, InvestigationTheme.DataFont);
-            Anchor(metricsText.rectTransform, 0.42f, 0.60f, 0.78f, 1f, 0f, 0f, -8f, -14f);
+            metricsText = CreateText("Metrics", header, "", 11, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.MiddleRight, InvestigationTheme.DataFont);
+            Anchor(metricsText.rectTransform, 0.36f, 1f, 1f, 1f, 8f, -40f, -248f, -6f);
 
             difficultyButton = CreateButton("Difficulty Toggle", header, "Easy", ButtonVisualStyle.Secondary, () =>
             {
                 if (state == null) return;
                 setDifficulty?.Invoke(state.Difficulty == InvestigationDifficulty.Easy ? InvestigationDifficulty.Hard : InvestigationDifficulty.Easy);
             }, out difficultyText);
-            Anchor(difficultyButton.GetComponent<RectTransform>(), 0.79f, 0.62f, 0.89f, 1f, 0f, 7f, -6f, -10f);
+            Anchor(difficultyButton.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -232f, -38f, -128f, -6f);
 
             motionButton = CreateButton("Motion Toggle", header, "Motion: Full", ButtonVisualStyle.Secondary, () =>
             {
                 setReducedMotion?.Invoke(!InvestigationMotionSettings.ReducedMotion);
             }, out motionText);
-            Anchor(motionButton.GetComponent<RectTransform>(), 0.89f, 0.62f, 1f, 1f, 0f, 7f, -12f, -10f);
+            Anchor(motionButton.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -120f, -38f, -12f, -6f);
 
             stageRoot = CreatePanel("Stage Navigation", header, new Color(0f, 0f, 0f, 0f), 0f);
-            Anchor(stageRoot, 0f, 0.04f, 1f, 0.50f, 8f, 0f, -8f, 0f);
+            Anchor(stageRoot, 0.18f, 0f, 0.82f, 0f, 12f, 4f, -12f, 46f);
             HorizontalLayoutGroup stageLayout = stageRoot.gameObject.AddComponent<HorizontalLayoutGroup>();
             stageLayout.spacing = 8f;
             stageLayout.childControlWidth = true;
@@ -300,7 +349,7 @@ namespace EDNA.Investigation
             stageLayout.childForceExpandHeight = true;
 
             statusPanelRoot = CreatePanel("Status Toast", safeAreaRoot, new Color32(14, 51, 72, 252), InvestigationTheme.SmallRadius);
-            Anchor(statusPanelRoot, 0.16f, 1f, 0.84f, 1f, 0f, -184f, 0f, -142f);
+            Anchor(statusPanelRoot, 0.16f, 1f, 0.84f, 1f, 0f, -168f, 0f, -126f);
             statusAccent = CreatePanel("Status Accent", statusPanelRoot, InvestigationTheme.Danger, 0f).GetComponent<Image>();
             Anchor(statusAccent.rectTransform, 0f, 0f, 0f, 1f, 0f, 0f, 6f, 0f);
             statusText = CreateText("Status Message", statusPanelRoot, "", 14, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
@@ -308,7 +357,7 @@ namespace EDNA.Investigation
             statusPanelRoot.gameObject.SetActive(false);
 
             contentPanel = CreatePanel("Investigation Content", safeAreaRoot, new Color(0f, 0f, 0f, 0f), 0f);
-            Anchor(contentPanel, 0f, 0f, 1f, 1f, OuterMargin, 84f, -OuterMargin, -138f);
+            Anchor(contentPanel, 0f, 0f, 1f, 1f, OuterMargin, 84f, -OuterMargin, -ContentTopInset);
             contentScroll = contentPanel.gameObject.AddComponent<ScrollRect>();
             contentScroll.horizontal = false;
             contentScroll.vertical = true;
@@ -376,6 +425,8 @@ namespace EDNA.Investigation
 
         private void RenderAll()
         {
+            UpdateReportDiagnostic();
+            PrepareReportDialogue();
             FocusSnapshot focusSnapshot = CaptureFocus();
             bool enteringCaseClosed = state != null
                 && hasRenderedPhase
@@ -383,10 +434,15 @@ namespace EDNA.Investigation
                 && lastRenderedPhase == InvestigationPhase.Report
                 && state.ConclusionStatus == InvestigationConclusionStatus.Correct
                 && lastRenderedConclusionStatus != InvestigationConclusionStatus.Correct;
+            bool enteringRovEvidence = state != null
+                && state.Phase == InvestigationPhase.Report
+                && state.ConfirmationReviewed
+                && !lastRenderedConfirmationReviewed;
             bool preservePhaseScroll = state != null
                 && hasRenderedPhase
                 && state.Phase == lastRenderedPhase
-                && !enteringCaseClosed;
+                && !enteringCaseClosed
+                && !reportDialogueFocusPending;
             float previousPageScroll = preservePhaseScroll && contentScroll != null
                 ? contentScroll.verticalNormalizedPosition
                 : 1f;
@@ -396,10 +452,17 @@ namespace EDNA.Investigation
             float previousNotebookPosition = previousNotebookScroll == null
                 ? 1f
                 : previousNotebookScroll.verticalNormalizedPosition;
+            ScrollRect previousNotebookDrawerScroll = FindActiveScrollRect(contentPanel, "Notebook Drawer Scroll");
+            if (previousNotebookDrawerScroll != null)
+                notebookDrawerScrollPosition = previousNotebookDrawerScroll.verticalNormalizedPosition;
 
             HideSpeciesTooltip();
             StopAllCoroutines();
+            viewportRefreshScheduled = false;
+            speciesPairHighlights.Clear();
             ResetPageEntranceVisuals();
+            RemoveNotebookDrawer();
+            RemoveProvisionalReview();
             bool animatePhaseChange = state != null && (!hasRenderedPhase || state.Phase != lastRenderedPhase);
             if (animatePhaseChange) restartConfirmationPending = false;
             RenderChrome();
@@ -416,6 +479,8 @@ namespace EDNA.Investigation
                 case InvestigationPhase.Simulate: RenderSimulate(); break;
                 case InvestigationPhase.Report: RenderReport(); break;
             }
+            RenderNotebookDrawer();
+            RenderProvisionalReview();
             Canvas.ForceUpdateCanvases();
             LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
             ShowPendingTappedSpeciesTooltip();
@@ -436,19 +501,48 @@ namespace EDNA.Investigation
             if (state != null)
             {
                 lastRenderedPhase = state.Phase;
+                lastRenderedConfirmationReviewed = state.ConfirmationReviewed;
                 lastRenderedConclusionStatus = state.ConclusionStatus;
                 hasRenderedPhase = true;
             }
-            if (enteringCaseClosed) StartCoroutine(FocusCaseClosedActionNextFrame());
+            if (reportFeedbackFocusPending && reportDiagnosticSection != ReportGuidanceSection.None)
+            {
+                reportFeedbackFocusPending = false;
+                StartCoroutine(FocusReportDiagnosticNextFrame());
+            }
+            else if (enteringCaseClosed)
+            {
+                StartCoroutine(FocusCaseClosedActionNextFrame());
+                StartCoroutine(AnimateCaseClosedStamp());
+            }
+            else if (!string.IsNullOrEmpty(notebookFocusTargetAfterRender))
+            {
+                string focusTarget = notebookFocusTargetAfterRender;
+                notebookFocusTargetAfterRender = string.Empty;
+                StartCoroutine(FocusNotebookControlNextFrame(focusTarget));
+            }
+            else if (reportDialogueFocusPending && CanWriteFinalReport())
+                StartCoroutine(FocusReportDialogueNextFrame());
             else ScheduleFocusRestore(focusSnapshot);
+            reportDialogueFocusPending = false;
+            if (enteringRovEvidence && !InvestigationMotionSettings.ReducedMotion)
+                StartCoroutine(AnimateRovEvidenceReveal());
             if (animatePhaseChange && !InvestigationMotionSettings.ReducedMotion) StartCoroutine(AnimatePageEntrance());
+            if (notebookOpeningAnimationPending && notebookDrawerOpen) StartCoroutine(AnimateNotebookOpening());
+            notebookOpeningAnimationPending = false;
+            reportFeedbackFocusPending = false;
         }
 
         private void ResetPageEntranceVisuals()
         {
             if (contentRoot == null) return;
             CanvasGroup group = contentRoot.GetComponent<CanvasGroup>();
-            if (group != null) group.alpha = 1f;
+            if (group != null)
+            {
+                group.alpha = 1f;
+                group.interactable = true;
+                group.blocksRaycasts = true;
+            }
             contentRoot.anchoredPosition = Vector2.zero;
         }
 
@@ -458,7 +552,7 @@ namespace EDNA.Investigation
             if (footerRoot != null) footerRoot.gameObject.SetActive(report);
             if (footerRoot != null && report)
             {
-                Anchor(footerRoot, 0f, 0f, 1f, 0f, OuterMargin, OuterMargin, -OuterMargin, OuterMargin + 44f);
+                Anchor(footerRoot, 0f, 0f, 1f, 0f, OuterMargin, OuterMargin, -OuterMargin, OuterMargin + 60f);
             }
             if (footerLeft != null && report)
                 Anchor(footerLeft, 0f, 0f, 0.5f, 1f, 10f, 4f, -4f, -4f);
@@ -466,8 +560,8 @@ namespace EDNA.Investigation
                 Anchor(footerRight, 0.5f, 0f, 1f, 1f, 4f, 4f, -10f, -4f);
             if (contentPanel != null)
             {
-                float bottom = report ? 58f : OuterMargin;
-                Anchor(contentPanel, 0f, 0f, 1f, 1f, OuterMargin, bottom, -OuterMargin, -138f);
+                float bottom = report ? 74f : OuterMargin;
+                Anchor(contentPanel, 0f, 0f, 1f, 1f, OuterMargin, bottom, -OuterMargin, -ContentTopInset);
             }
         }
 
@@ -495,31 +589,29 @@ namespace EDNA.Investigation
                 CreateStageButton("2 · Simulate", InvestigationPhase.Simulate);
                 CreateStageButton("3 · Report", InvestigationPhase.Report);
                 string revisions = state.MisstepCount > 0 ? $"    REVISIONS {state.MisstepCount}" : string.Empty;
-                metricsText.text = $"CASE PROGRESS    FINDINGS {CountInitialFindings()}/{caseDefinition.MinimumObserveDiscoveries}    MODELS {state.TriedThreatIds.Count}/{caseDefinition.Threats.Count}    QUESTIONS {VisibleCompletedObjectiveCount()}/{VisibleRequiredObjectiveCount()}{revisions}";
+                metricsText.text = $"FINDINGS {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)} · MODELS {state.TriedThreatIds.Count}/{caseDefinition.Threats.Count}\nCHECKS {VisibleCompletedObjectiveCount()}/{VisibleRequiredObjectiveCount()}{revisions}";
                 difficultyText.text = state.Difficulty == InvestigationDifficulty.Easy ? "Easy" : "Hard";
-                caseSubtitleText.text = $"{caseDefinition.DisplayName.ToUpperInvariant()} // {state.SiteDisplayName.ToUpperInvariant()} // {state.SurveyDisplayName.ToUpperInvariant()}";
+                caseSubtitleText.text = $"{caseDefinition.DisplayName} · {state.SiteDisplayName} · {state.SurveyDisplayName}";
             }
             else
             {
                 metricsText.text = "CASE ERROR";
                 caseSubtitleText.text = "CASE UNAVAILABLE";
             }
-            motionText.text = InvestigationMotionSettings.ReducedMotion ? "Motion: Reduced" : "Motion: Full";
+            difficultyButton.interactable = state != null;
+            RefreshMotionPreference();
             bool hasStatusMessage = !string.IsNullOrWhiteSpace(statusMessage);
-            bool showReportDiagnostic = state != null
-                && state.Phase == InvestigationPhase.Report
-                && state.ConclusionStatus == InvestigationConclusionStatus.InsufficientEvidence
-                && statusTone == InvestigationStatusTone.Guide
-                && hasStatusMessage;
+            bool hasInlineReportFeedback = state != null && state.Phase == InvestigationPhase.Report
+                && state.ConclusionStatus != InvestigationConclusionStatus.NotSubmitted
+                && string.Equals(statusMessage, reportDiagnosticMessage, StringComparison.Ordinal);
             bool showImportNotice = statusTone == InvestigationStatusTone.Notice && hasStatusMessage;
-            bool showStatus = (statusTone == InvestigationStatusTone.Warning && hasStatusMessage)
-                || showImportNotice
-                || showReportDiagnostic;
+            bool showStatus = (statusTone == InvestigationStatusTone.Warning && hasStatusMessage && !hasInlineReportFeedback)
+                || showImportNotice;
             statusPanelRoot.gameObject.SetActive(showStatus);
             if (showStatus)
             {
                 statusText.text = statusMessage;
-                statusAccent.color = showReportDiagnostic || showImportNotice
+                statusAccent.color = showImportNotice
                     ? InvestigationTheme.Primary
                     : InvestigationTheme.Danger;
                 statusPanelRoot.SetAsLastSibling();
@@ -541,24 +633,24 @@ namespace EDNA.Investigation
             {
                 image.color = InvestigationTheme.SurfaceRaised;
                 button.GetComponentInChildren<Text>().color = InvestigationTheme.TextPrimary;
-                EnsureOutline(button.gameObject, InvestigationTheme.Primary, new Vector2(3f, -3f));
+                RectTransform accent = CreatePanel("Active Stage Accent", button.transform, InvestigationTheme.Primary, 0f);
+                Anchor(accent, 0.12f, 0f, 0.88f, 0f, 0f, 0f, 0f, 2f);
+            }
+            bool complete = phase == InvestigationPhase.Observe
+                ? InvestigationObserveEvaluator.IsComplete(caseDefinition, state)
+                : phase == InvestigationPhase.Simulate
+                    ? !string.IsNullOrEmpty(state.ProvisionalThreatId) && (!state.ConfirmationReviewed || new InvestigationConclusionEvaluator().EvaluateReadiness(caseDefinition, state).RequiredObjectivesComplete)
+                    : state.ConclusionStatus == InvestigationConclusionStatus.Correct;
+            if (complete)
+            {
+                Image check = CreateStatusIcon("Stage Complete", button.transform, InvestigationStatusIconLibrary.Check, InvestigationTheme.Primary);
+                Anchor(check.rectTransform, 1f, 0.5f, 1f, 0.5f, -26f, -7f, -12f, 7f);
             }
         }
 
         private int CountInitialFindings()
         {
-            int count = 0;
-            for (int index = 0; index < state.DiscoveredObservationIds.Count; index++)
-            {
-                InvestigationObservationDefinition observation = caseDefinition.FindObservation(state.DiscoveredObservationIds[index]);
-                if (observation != null
-                    && observation.UnlockStage == EvidenceUnlockStage.Observe
-                    && observation.Source != ObservationSource.Methodology)
-                {
-                    count++;
-                }
-            }
-            return count;
+            return InvestigationObserveEvaluator.CountFindings(caseDefinition, state);
         }
 
         private bool IsObjectiveVisible(InvestigationObjectiveDefinition objective)
@@ -613,6 +705,7 @@ namespace EDNA.Investigation
 
         private void RefreshPresentationOnly()
         {
+            if (state == null) return;
             RenderAll();
         }
 
@@ -672,7 +765,7 @@ namespace EDNA.Investigation
             GameObject buttonObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button), typeof(InvestigationRoundedCorners));
             buttonObject.transform.SetParent(parent, false);
             Image image = buttonObject.GetComponent<Image>();
-            float radius = 18f;
+            float radius = InvestigationTheme.ControlRadius;
             Color background = InvestigationTheme.Surface;
             Color foreground = InvestigationTheme.TextPrimary;
             switch (style)
@@ -681,9 +774,9 @@ namespace EDNA.Investigation
                 case ButtonVisualStyle.PaperPrimary: background = InvestigationTheme.Accent; foreground = InvestigationTheme.OnAccent; break;
                 case ButtonVisualStyle.Tertiary: background = new Color(0f, 0f, 0f, 0f); foreground = InvestigationTheme.TextMuted; break;
                 case ButtonVisualStyle.Secondary: background = InvestigationTheme.SurfaceRaised; foreground = InvestigationTheme.TextPrimary; break;
-                case ButtonVisualStyle.Stage: background = new Color32(22, 69, 94, 225); foreground = InvestigationTheme.TextPrimary; radius = 16f; break;
-                case ButtonVisualStyle.Choice: background = new Color32(25, 77, 106, 255); foreground = InvestigationTheme.TextPrimary; radius = 16f; break;
-                case ButtonVisualStyle.PaperChoice: background = InvestigationTheme.PaperBorder; foreground = InvestigationTheme.PaperInk; radius = 16f; break;
+                case ButtonVisualStyle.Stage: background = InvestigationTheme.Deep; foreground = InvestigationTheme.TextSecondary; radius = 6f; break;
+                case ButtonVisualStyle.Choice: background = InvestigationTheme.Surface; foreground = InvestigationTheme.TextPrimary; radius = InvestigationTheme.SmallRadius; break;
+                case ButtonVisualStyle.PaperChoice: background = InvestigationTheme.PaperBorder; foreground = InvestigationTheme.PaperInk; radius = InvestigationTheme.SmallRadius; break;
                 case ButtonVisualStyle.Danger: background = new Color32(88, 28, 31, 255); foreground = InvestigationTheme.Danger; break;
             }
             image.color = background;
@@ -702,9 +795,7 @@ namespace EDNA.Investigation
             button.colors = colors;
             if (action != null) button.onClick.AddListener(action);
 
-            if (style == ButtonVisualStyle.Choice || style == ButtonVisualStyle.Secondary || style == ButtonVisualStyle.Stage)
-                EnsureOutline(buttonObject, InvestigationTheme.BorderStrong, new Vector2(2f, -2f));
-            else if (style == ButtonVisualStyle.Danger)
+            if (style == ButtonVisualStyle.Danger)
                 EnsureOutline(buttonObject, new Color32(242, 118, 107, 120), new Vector2(1f, -1f));
 
             if (style == ButtonVisualStyle.Primary)
@@ -735,7 +826,7 @@ namespace EDNA.Investigation
         {
             AddSingleShadow(buttonObject, InvestigationTheme.PaperShadow, new Vector2(3f, -3f));
             RectTransform face = CreatePanel("Paper Choice Face", buttonObject.transform, InvestigationTheme.PaperRaised, Mathf.Max(8f, radius - 2f));
-            Anchor(face, 0f, 0f, 1f, 1f, 2f, 2f, -2f, -2f);
+            Anchor(face, 0f, 0f, 1f, 1f, 1f, 1f, -1f, -1f);
             button.targetGraphic = face.GetComponent<Image>();
         }
 
@@ -788,7 +879,7 @@ namespace EDNA.Investigation
             Outline outline = target.GetComponent<Outline>();
             if (outline == null) outline = target.AddComponent<Outline>();
             outline.effectColor = color;
-            outline.effectDistance = distance;
+            outline.effectDistance = new Vector2(Mathf.Clamp(distance.x, -1f, 1f), Mathf.Clamp(distance.y, -1f, 1f));
             outline.useGraphicAlpha = true;
             return outline;
         }
@@ -856,11 +947,18 @@ namespace EDNA.Investigation
                 return image.rectTransform;
             }
 
-            InvestigationGlyphGraphic glyph = CreateGraphic<InvestigationGlyphGraphic>(name, parent);
-            glyph.color = fallbackColor;
-            glyph.SetGlyph(ToSpeciesGlyph(species == null ? SpeciesGlyphKind.Tuna : species.GlyphKind));
-            glyph.SetGhost(ghost);
-            return glyph.rectTransform;
+            Text fallback = CreateText(
+                name,
+                parent,
+                species == null ? "Unknown species" : species.DisplayName,
+                11,
+                FontStyle.Bold,
+                new Color(fallbackColor.r, fallbackColor.g, fallbackColor.b, ghost ? 0.38f : 1f),
+                TextAnchor.MiddleCenter,
+                InvestigationTheme.DisplayFont);
+            fallback.horizontalOverflow = HorizontalWrapMode.Wrap;
+            fallback.verticalOverflow = VerticalWrapMode.Truncate;
+            return fallback.rectTransform;
         }
 
         private RectTransform CreateThreatArtwork(string name, Transform parent, ThreatSimulationDefinition threat)
@@ -877,7 +975,7 @@ namespace EDNA.Investigation
 
             InvestigationGlyphGraphic glyph = CreateGraphic<InvestigationGlyphGraphic>(name, parent);
             glyph.color = InvestigationTheme.Primary;
-            glyph.SetGlyph(ToThreatGlyph(threat == null ? ThreatGlyphKind.Warming : threat.GlyphKind));
+            glyph.SetGlyph(threat == null ? InvestigationGlyph.Question : ToThreatGlyph(threat.GlyphKind));
             return glyph.rectTransform;
         }
 
@@ -971,8 +1069,13 @@ namespace EDNA.Investigation
             if (EventSystem.current == null) yield break;
 
             Button target = FindInteractableButton(snapshot.ObjectName);
+            if (target == null && snapshot.ObjectName.StartsWith("Observation ", StringComparison.Ordinal))
+                target = FindInteractableButton(selectedPredictionTargetKind == PredictionTargetKind.Species
+                    ? $"Prediction {selectedPredictionSpeciesId}"
+                    : $"Prediction Target {selectedPredictionTargetKind} {selectedPredictionSpeciesId}");
             if (target == null && snapshot.ObjectName == "Review ROV Follow-up")
-                target = FindInteractableButton("Submit Final Report");
+                target = FindInteractableButton("Re-test Fishing Models")
+                    ?? FindInteractableButton("Submit Final Report");
             if (target == null && snapshot.ObjectName == "Restart Case")
                 target = FindInteractableButton("Cancel Restart Case");
             if (target == null && snapshot.ObjectName == "Cancel Restart Case")
@@ -1049,7 +1152,6 @@ namespace EDNA.Investigation
         {
             switch (glyphKind)
             {
-                case ThreatGlyphKind.Warming: return InvestigationGlyph.Warming;
                 case ThreatGlyphKind.Plastic: return InvestigationGlyph.Plastic;
                 case ThreatGlyphKind.LongLine: return InvestigationGlyph.LongLine;
                 case ThreatGlyphKind.BottomTrawling: return InvestigationGlyph.BottomTrawling;

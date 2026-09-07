@@ -34,6 +34,5 @@ MonoBehaviour:
   - speciesId: mussel
     predictedState: 2
     rationale: The plastic-sensitive reference remains stable.
-  temperaturePrediction: Temperature may remain within its historical range.
   seafloorPrediction: Seafloor should be disturbed or damaged.
   physicalConfirmation: Trawl marks or damaged habitat should be visible.

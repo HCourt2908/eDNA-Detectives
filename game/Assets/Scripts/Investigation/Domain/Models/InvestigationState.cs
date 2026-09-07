@@ -8,6 +8,7 @@ namespace EDNA.Investigation.Domain
     {
         private readonly List<string> discoveredObservationIds = new List<string>();
         private readonly List<string> surveySpeciesIds = new List<string>();
+        private readonly List<InvestigationSurveySpeciesRecord> surveySpeciesRecords = new List<InvestigationSurveySpeciesRecord>();
         private readonly List<string> triedThreatIds = new List<string>();
         private readonly List<SimulationResult> simulationResults = new List<SimulationResult>();
         private readonly List<PredictionComparisonRecord> comparisonRecords = new List<PredictionComparisonRecord>();
@@ -32,6 +33,7 @@ namespace EDNA.Investigation.Domain
 
         public IReadOnlyList<string> DiscoveredObservationIds => discoveredObservationIds;
         public IReadOnlyList<string> SurveySpeciesIds => surveySpeciesIds;
+        public IReadOnlyList<InvestigationSurveySpeciesRecord> SurveySpeciesRecords => surveySpeciesRecords;
         public IReadOnlyList<string> TriedThreatIds => triedThreatIds;
         public IReadOnlyList<SimulationResult> SimulationResults => simulationResults;
         public IReadOnlyList<PredictionComparisonRecord> ComparisonRecords => comparisonRecords;
@@ -131,6 +133,43 @@ namespace EDNA.Investigation.Domain
             return true;
         }
 
+        public InvestigationSurveySpeciesRecord FindSurveySpeciesRecord(
+            string speciesId,
+            SurveyTimepoint timepoint)
+        {
+            InvestigationSurveySpeciesRecord best = null;
+            for (int index = 0; index < surveySpeciesRecords.Count; index++)
+            {
+                InvestigationSurveySpeciesRecord record = surveySpeciesRecords[index];
+                if (record == null
+                    || !string.Equals(record.SpeciesId, speciesId, StringComparison.Ordinal)
+                    || (record.SurveyTimepoint != timepoint && record.SurveyTimepoint != SurveyTimepoint.Unknown))
+                {
+                    continue;
+                }
+                if (best == null || RecordPriority(record, timepoint) > RecordPriority(best, timepoint)) best = record;
+            }
+            return best;
+        }
+
+        internal int ApplySurveyRoster(InvestigationCaseRoster roster)
+        {
+            if (roster == null) return 0;
+            var previous = new List<string>(surveySpeciesIds);
+            surveySpeciesIds.Clear();
+            for (int index = 0; index < roster.SpeciesIds.Count; index++) AddUnique(surveySpeciesIds, roster.SpeciesIds[index]);
+            surveySpeciesRecords.Clear();
+            for (int index = 0; index < roster.SurveyRecords.Count; index++)
+            {
+                InvestigationSurveySpeciesRecord record = roster.SurveyRecords[index];
+                if (record != null && Contains(surveySpeciesIds, record.SpeciesId)) surveySpeciesRecords.Add(record);
+            }
+            int added = 0;
+            for (int index = 0; index < surveySpeciesIds.Count; index++)
+                if (!Contains(previous, surveySpeciesIds[index])) added++;
+            return added;
+        }
+
         internal void ApplySurveyContext(InvestigationSurveyContextData context)
         {
             if (context == null) return;
@@ -220,6 +259,12 @@ namespace EDNA.Investigation.Domain
         private static string Prefer(string candidate, string fallback)
         {
             return string.IsNullOrWhiteSpace(candidate) ? fallback : candidate.Trim();
+        }
+
+        private static int RecordPriority(InvestigationSurveySpeciesRecord record, SurveyTimepoint requestedTimepoint)
+        {
+            int exactTimepoint = record.SurveyTimepoint == requestedTimepoint ? 100 : 0;
+            return exactTimepoint + (int)record.Confidence * 10 + (int)record.SampleQuality;
         }
     }
 }

@@ -9,6 +9,16 @@ namespace EDNA.Investigation
 {
     public sealed partial class InvestigationRuntimeView
     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        public void PrepareQaEvidenceChoice()
+        {
+            selectedThreatId = "plastic";
+            selectedPredictionTargetKind = PredictionTargetKind.Species;
+            selectedPredictionSpeciesId = "mussel";
+            selectedObservationId = string.Empty;
+        }
+#endif
+        private const float SimulationIntroductionHeight = 96f;
         private sealed class PredictionAnimationTarget
         {
             public RectTransform Artwork;
@@ -35,8 +45,11 @@ namespace EDNA.Investigation
             const float modelPanelHeight = 293f;
             const float modelColumnHeight = 385f;
             float pairingHeight = simulation == null ? 0f : CalculateSimulationPairingHeight(simulation);
-            float comparisonHeight = simulation == null ? 318f : 154f + pairingHeight;
-            float workspaceHeight = Mathf.Max(435f, 118f + comparisonHeight);
+            float comparisonHeight;
+            if (simulation == null) comparisonHeight = 224f;
+            else if (string.IsNullOrEmpty(selectedPredictionSpeciesId)) comparisonHeight = 180f;
+            else comparisonHeight = 96f + pairingHeight + (string.IsNullOrEmpty(selectedObservationId) ? 0f : 66f);
+            float workspaceHeight = Mathf.Max(SimulationIntroductionHeight + 8f + modelColumnHeight, 118f + comparisonHeight);
             RectTransform workspace = new GameObject("Simulate Workspace", typeof(RectTransform), typeof(InvestigationResponsiveSplitLayout)).GetComponent<RectTransform>();
             workspace.SetParent(contentRoot, false);
             InvestigationResponsiveSplitLayout workspaceLayout = workspace.GetComponent<InvestigationResponsiveSplitLayout>();
@@ -77,6 +90,22 @@ namespace EDNA.Investigation
                 ThreatSimulationDefinition threat = caseDefinition.Threats[index];
                 if (threat != null) CreateThreatButton(threatGrid, threat);
             }
+            if (state.Difficulty == InvestigationDifficulty.Easy && !guidanceCollapsed)
+            {
+                InvestigationObjectiveDefinition next = FindNextGuidedObjective();
+                bool needsCause = selectedThreat == null
+                    || (simulation != null && next != null && next.ThreatId != selectedThreatId);
+                if (needsCause)
+                {
+                    foreach (ThreatSimulationDefinition cause in caseDefinition.Threats)
+                    {
+                        GetThreatCheckProgress(cause.ThreatId, out int completed, out int total, out bool waitingForRov);
+                        if (waitingForRov || (total > 0 && completed == total)) continue;
+                        Transform target = threatGrid.Find($"Threat {cause.ThreatId}");
+                        if (target != null) AddActionArrow("Choose Cause Arrow", target);
+                    }
+                }
+            }
 
             RectTransform modelPanel = CreateSection("Model Workspace", modelColumn, InvestigationTheme.Deep, modelPanelHeight, InvestigationTheme.SmallRadius);
             VerticalLayoutGroup modelLayout = modelPanel.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -108,11 +137,13 @@ namespace EDNA.Investigation
             rightLayout.childForceExpandHeight = false;
 
             RectTransform questions = CreatePanel("Case Questions", rightColumn, new Color32(8, 36, 54, 225), InvestigationTheme.SmallRadius);
-            AddLayout(questions, 110f, 1f);
+            LayoutElement questionsLayout = AddLayout(questions, state.Difficulty == InvestigationDifficulty.Easy ? 66f : 110f, 1f);
+            questionsLayout.flexibleHeight = 0f;
             PopulateCaseQuestions(questions);
 
             RectTransform comparisonColumn = CreatePanel("Comparison Workspace", rightColumn, InvestigationTheme.SurfaceQuiet, InvestigationTheme.SmallRadius);
-            AddLayout(comparisonColumn, comparisonHeight, 1f);
+            LayoutElement comparisonColumnLayout = AddLayout(comparisonColumn, comparisonHeight, 1f);
+            comparisonColumnLayout.flexibleHeight = 0f;
             VerticalLayoutGroup comparisonLayout = comparisonColumn.gameObject.AddComponent<VerticalLayoutGroup>();
             comparisonLayout.padding = new RectOffset(10, 10, 10, 4);
             comparisonLayout.spacing = 8f;
@@ -124,7 +155,7 @@ namespace EDNA.Investigation
             if (simulation == null)
             {
                 RenderModelPreview(modelPanel, selectedThreat);
-                RenderComparisonPlaceholder(comparisonColumn);
+                RenderComparisonPlaceholder(comparisonColumn, selectedThreat);
             }
             else
             {
@@ -133,12 +164,18 @@ namespace EDNA.Investigation
             }
 
             RenderSimulationNavigation(comparisonColumn, simulation);
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(comparisonColumn);
+            float comparisonContentHeight = comparisonLayout.preferredHeight;
+            comparisonColumnLayout.preferredHeight = Mathf.Max(comparisonHeight, comparisonContentHeight);
+            workspaceLayout.Configure(0.5f, 12f, 960f, workspaceHeight,
+                Mathf.Max(workspaceHeight, comparisonColumnLayout.preferredHeight + questionsLayout.preferredHeight + 8f));
         }
 
         private void RenderSimulateIntroduction(Transform parent)
         {
             RectTransform introduction = CreatePanel("Simulate Introduction", parent, new Color(0f, 0f, 0f, 0f), 0f);
-            AddLayout(introduction, 42f, 1f);
+            AddLayout(introduction, SimulationIntroductionHeight, 1f);
             HorizontalLayoutGroup layout = introduction.gameObject.AddComponent<HorizontalLayoutGroup>();
             layout.padding = new RectOffset(4, 4, 0, 0);
             layout.spacing = 8f;
@@ -167,9 +204,10 @@ namespace EDNA.Investigation
             description.horizontalOverflow = HorizontalWrapMode.Wrap;
             description.verticalOverflow = VerticalWrapMode.Overflow;
             LayoutElement descriptionLayout = description.gameObject.AddComponent<LayoutElement>();
-            descriptionLayout.minWidth = 220f;
+            descriptionLayout.minWidth = 140f;
             descriptionLayout.preferredHeight = 40f;
             descriptionLayout.flexibleWidth = 1f;
+            RenderEdnaGuide(introduction, "Simulate Description");
         }
 
         private float CalculateSimulationPairingHeight(SimulationResult simulation)
@@ -190,13 +228,22 @@ namespace EDNA.Investigation
             }
 
             float observationContentHeight = visible > 0 ? 20f + visible * 47f : 76f;
-            return Mathf.Clamp(Mathf.Max(128f, observationContentHeight), 118f, 220f);
+            if (visible > 0 && NeedsEvidenceChoiceGuide(simulation)) observationContentHeight += 64f;
+            return Mathf.Clamp(Mathf.Max(128f, observationContentHeight), 118f, 284f);
+        }
+
+        private bool NeedsEvidenceChoiceGuide(SimulationResult simulation)
+        {
+            if (state.Difficulty != InvestigationDifficulty.Easy || guidanceCollapsed || simulation == null
+                || string.IsNullOrEmpty(selectedPredictionSpeciesId)) return false;
+            PredictionComparisonRecord record = state.FindComparison(simulation.ThreatId, selectedPredictionTargetKind, selectedPredictionSpeciesId);
+            return record == null || !record.LocksComparison;
         }
 
         private void RenderSimulationNavigation(RectTransform parent, SimulationResult simulation)
         {
             RectTransform navigation = CreatePanel("Simulation Navigation", parent, new Color(0f, 0f, 0f, 0f), 0f);
-            AddLayout(navigation, 28f, 1f);
+            AddLayout(navigation, 52f, 1f);
             HorizontalLayoutGroup navigationLayout = navigation.gameObject.AddComponent<HorizontalLayoutGroup>();
             navigationLayout.padding = new RectOffset(0, 0, 0, 0);
             navigationLayout.spacing = 4f;
@@ -207,15 +254,22 @@ namespace EDNA.Investigation
             navigationLayout.childForceExpandHeight = false;
 
             InvestigationReadiness readiness = new InvestigationConclusionEvaluator().EvaluateReadiness(caseDefinition, state);
-            string backLabel = string.IsNullOrEmpty(readiness.MissingEvidenceId)
-                ? "← Back to notebook"
-                : $"← Record {MissingEvidenceSubject(readiness.MissingEvidenceId)} in Observe";
-            Button back = CreateButton("Back To Observe", navigation, backLabel, ButtonVisualStyle.Tertiary, () => setPhase?.Invoke(InvestigationPhase.Observe), out _);
-            ConfigureCompactNavigationButton(back, string.IsNullOrEmpty(readiness.MissingEvidenceId) ? 124f : 210f);
+            CreateNotebookDrawerButton(navigation);
+            if (!string.IsNullOrEmpty(readiness.MissingEvidenceId))
+            {
+                Button back = CreateButton(
+                    "Back To Observe",
+                    navigation,
+                    $"← Record {MissingEvidenceSubject(readiness.MissingEvidenceId)} in Observe",
+                    ButtonVisualStyle.Tertiary,
+                    () => setPhase?.Invoke(InvestigationPhase.Observe),
+                    out _);
+                ConfigureCompactNavigationButton(back, 210f);
+            }
 
             if (string.IsNullOrEmpty(state.ProvisionalThreatId) && readiness.CanEnterProvisional)
             {
-                Button report = CreateButton("Write Provisional Report", navigation, "Write first idea →", ButtonVisualStyle.Primary, () => submitProvisional?.Invoke(selectedThreatId), out _);
+                Button report = CreateButton("Write Provisional Report", navigation, "Write first idea →", ButtonVisualStyle.Primary, OpenProvisionalReview, out _);
                 ConfigureCompactNavigationButton(report, 148f);
             }
             else if (!string.IsNullOrEmpty(state.ProvisionalThreatId) && !state.ConfirmationReviewed)
@@ -266,10 +320,30 @@ namespace EDNA.Investigation
             layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
+            InvestigationObjectiveDefinition guidedObjective = state.Difficulty == InvestigationDifficulty.Easy
+                ? FindNextGuidedObjective()
+                : null;
+            int visibleQuestionCount = CountVisibleCaseQuestions();
+            int completedQuestionCount = CountCompletedCaseQuestions();
+            string headingText;
+            if (state.Difficulty == InvestigationDifficulty.Easy)
+            {
+                int currentQuestion = guidedObjective == null
+                    ? visibleQuestionCount
+                    : VisibleCaseQuestionPosition(guidedObjective.QuestionId);
+                headingText = guidedObjective == null
+                    ? $"CASE QUESTIONS · COMPLETE {completedQuestionCount}/{visibleQuestionCount}"
+                    : $"CASE QUESTION {currentQuestion} OF {visibleQuestionCount} · GUIDED";
+            }
+            else
+            {
+                headingText = $"CASE QUESTIONS · INDEPENDENT {completedQuestionCount}/{visibleQuestionCount}";
+            }
+
             Text heading = CreateText(
                 "Case Questions Heading",
                 panel,
-                state.Difficulty == InvestigationDifficulty.Easy ? "CASE QUESTIONS · GUIDED" : "CASE QUESTIONS · INDEPENDENT",
+                headingText,
                 11,
                 FontStyle.Bold,
                 InvestigationTheme.Primary,
@@ -281,16 +355,38 @@ namespace EDNA.Investigation
             grid.SetParent(panel, false);
             InvestigationResponsiveGridLayout gridLayout = grid.GetComponent<InvestigationResponsiveGridLayout>();
             gridLayout.padding = new RectOffset(0, 0, 0, 0);
-            gridLayout.Configure(2, 2, 2, 24f, 2f);
+            gridLayout.Configure(
+                state.Difficulty == InvestigationDifficulty.Easy ? 1 : 2,
+                state.Difficulty == InvestigationDifficulty.Easy ? 1 : 2,
+                state.Difficulty == InvestigationDifficulty.Easy ? 1 : 2,
+                state.Difficulty == InvestigationDifficulty.Easy ? 34f : 24f,
+                2f);
+
+            if (state.Difficulty == InvestigationDifficulty.Easy && guidedObjective == null)
+            {
+                Text complete = CreateText(
+                    "Case Questions Complete",
+                    grid,
+                    "All currently available questions are answered.",
+                    13,
+                    FontStyle.Bold,
+                    InvestigationTheme.Success,
+                    TextAnchor.MiddleLeft,
+                    InvestigationTheme.BodyFont);
+                return;
+            }
 
             HashSet<string> shownQuestionIds = new HashSet<string>(StringComparer.Ordinal);
-            InvestigationObjectiveDefinition guidedObjective = state.Difficulty == InvestigationDifficulty.Easy
-                ? FindNextGuidedObjective()
-                : null;
             for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
             {
                 InvestigationObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
                 if (!IsObjectiveVisible(objective) || !shownQuestionIds.Add(objective.QuestionId)) continue;
+                if (state.Difficulty == InvestigationDifficulty.Easy
+                    && (guidedObjective == null
+                        || !string.Equals(objective.QuestionId, guidedObjective.QuestionId, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
                 bool complete = IsQuestionComplete(objective.QuestionId);
                 bool easyNext = !complete
                     && guidedObjective != null
@@ -298,7 +394,7 @@ namespace EDNA.Investigation
                 RectTransform row = CreatePanel(
                     $"Case Question {objective.QuestionId}",
                     grid,
-                    easyNext ? new Color32(27, 82, 115, 150) : new Color(0f, 0f, 0f, 0f),
+                    easyNext ? InvestigationTheme.SurfaceRaised : Color.clear,
                     easyNext ? 6f : 0f);
                 if (easyNext) EnsureOutline(row.gameObject, InvestigationTheme.Primary, new Vector2(1f, -1f));
                 Image icon = CreateStatusIcon(
@@ -307,10 +403,48 @@ namespace EDNA.Investigation
                     complete ? InvestigationStatusIconLibrary.Check : InvestigationStatusIconLibrary.Question,
                     complete ? InvestigationTheme.Success : easyNext ? InvestigationTheme.Primary : InvestigationTheme.Unknown);
                 Anchor(icon.rectTransform, 0f, 0f, 0f, 1f, 0f, 3f, 16f, -3f);
-                Text prompt = CreateText("Question Prompt", row, objective.QuestionPrompt, 13, FontStyle.Bold, complete ? InvestigationTheme.TextPrimary : InvestigationTheme.TextSecondary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
+                Text prompt = CreateText("Question Prompt", row, objective.QuestionPrompt, 13, FontStyle.Bold, complete || easyNext ? InvestigationTheme.TextPrimary : InvestigationTheme.TextSecondary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
                 prompt.verticalOverflow = VerticalWrapMode.Overflow;
                 Anchor(prompt.rectTransform, 0f, 0f, 1f, 1f, 20f, 0f, 0f, 0f);
             }
+        }
+
+        private int CountVisibleCaseQuestions()
+        {
+            var questionIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
+            {
+                InvestigationObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
+                if (IsObjectiveVisible(objective)) questionIds.Add(objective.QuestionId);
+            }
+            return questionIds.Count;
+        }
+
+        private int CountCompletedCaseQuestions()
+        {
+            int completed = 0;
+            var questionIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
+            {
+                InvestigationObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
+                if (!IsObjectiveVisible(objective) || !questionIds.Add(objective.QuestionId)) continue;
+                if (IsQuestionComplete(objective.QuestionId)) completed++;
+            }
+            return completed;
+        }
+
+        private int VisibleCaseQuestionPosition(string questionId)
+        {
+            int position = 0;
+            var questionIds = new HashSet<string>(StringComparer.Ordinal);
+            for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
+            {
+                InvestigationObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
+                if (!IsObjectiveVisible(objective) || !questionIds.Add(objective.QuestionId)) continue;
+                position++;
+                if (string.Equals(objective.QuestionId, questionId, StringComparison.Ordinal)) return position;
+            }
+            return Mathf.Max(1, position);
         }
 
         private bool IsQuestionComplete(string questionId)
@@ -326,33 +460,44 @@ namespace EDNA.Investigation
             return found;
         }
 
-        private string ThreatInvestigationStatus(string threatId)
+        private void GetThreatCheckProgress(string threatId, out int completed, out int total, out bool waitingForRov)
         {
-            if (!state.HasTriedThreat(threatId)) return "NOT TESTED";
-            bool hasRequired = false;
-            bool hasUnavailableObjective = false;
+            completed = 0;
+            total = 0;
+            bool pendingVisible = false;
+            bool pendingLocked = false;
             for (int index = 0; index < caseDefinition.InvestigationObjectives.Count; index++)
             {
                 InvestigationObjectiveDefinition objective = caseDefinition.InvestigationObjectives[index];
                 if (objective == null || !objective.Required || !string.Equals(objective.ThreatId, threatId, StringComparison.Ordinal)) continue;
-                hasRequired = true;
-                if (!IsObjectiveVisible(objective))
-                {
-                    if (!state.HasCompletedObjective(objective.ObjectiveId)) hasUnavailableObjective = true;
-                    continue;
-                }
-                if (!state.HasCompletedObjective(objective.ObjectiveId))
-                {
-                    return state.Difficulty == InvestigationDifficulty.Easy
-                        ? $"CHECK {ObjectiveTargetStatusLabel(objective)}"
-                        : "CHECK EVIDENCE";
-                }
+                total++;
+                if (state.HasCompletedObjective(objective.ObjectiveId)) completed++;
+                else if (IsObjectiveVisible(objective)) pendingVisible = true;
+                else pendingLocked = true;
             }
-            if (!hasRequired) return "MODEL RUN";
-            if (hasUnavailableObjective) return "STILL POSSIBLE";
-            return string.Equals(threatId, caseDefinition.CorrectThreatId, StringComparison.Ordinal)
-                ? "STILL POSSIBLE"
-                : "CHALLENGED";
+            waitingForRov = pendingLocked && !pendingVisible;
+        }
+
+        private string ThreatEvidenceRelationship(string threatId, out Color tint)
+        {
+            InvestigationHypothesisSummary summary = new InvestigationHypothesisSummary(caseDefinition, state, threatId);
+            tint = InvestigationTheme.TextSecondary;
+            if (summary.SupportCount > 0 && summary.ChallengeCount > 0)
+            {
+                tint = InvestigationTheme.Unknown;
+                return "MIXED EVIDENCE";
+            }
+            if (summary.ChallengeCount > 0)
+            {
+                tint = InvestigationTheme.Accent;
+                return summary.OpenCount > 0 ? "CHALLENGE + OPEN" : "CHALLENGES";
+            }
+            if (summary.SupportCount > 0)
+            {
+                tint = InvestigationTheme.Primary;
+                return summary.OpenCount > 0 ? "SUPPORT + OPEN" : "SUPPORTS";
+            }
+            return summary.OpenCount > 0 ? "UNRESOLVED" : string.Empty;
         }
 
         private string MissingEvidenceSubject(string evidenceId)
@@ -405,24 +550,28 @@ namespace EDNA.Investigation
             Text summary = CreateText(
                 "Scenario Summary",
                 preview,
-                threat == null ? "Select one of the four candidate causes." : threat.Summary,
+                threat == null ? "Select a cause to see its model." : threat.Summary,
                 15,
                 FontStyle.Normal,
                 InvestigationTheme.TextSecondary,
                 TextAnchor.MiddleLeft,
                 InvestigationTheme.BodyFont);
-            Anchor(summary.rectTransform, 0.17f, 0f, 0.73f, 1f, 8f, 12f, -12f, -12f);
+            Anchor(summary.rectTransform, 0.17f, 0f, threat == null ? 0.96f : 0.73f, 1f, 8f, 12f, -12f, -12f);
 
-            Button run = CreateButton(
-                "Run Selected Model",
-                preview,
-                "Run simulation",
-                ButtonVisualStyle.Primary,
-                () => runThreat?.Invoke(selectedThreatId),
-                out _);
-            run.interactable = threat != null;
-            Anchor(run.GetComponent<RectTransform>(), 0.75f, 0.22f, 1f, 0.78f, 4f, 0f, -14f, 0f);
-            run.GetComponent<LayoutElement>().ignoreLayout = true;
+            if (threat != null)
+            {
+                Button run = CreateButton(
+                    "Run Selected Model",
+                    preview,
+                    "Run simulation",
+                    ButtonVisualStyle.Primary,
+                    () => runThreat?.Invoke(selectedThreatId),
+                    out _);
+                Anchor(run.GetComponent<RectTransform>(), 0.75f, 0.22f, 1f, 0.78f, 4f, 0f, -14f, 0f);
+                run.GetComponent<LayoutElement>().ignoreLayout = true;
+                if (state.Difficulty == InvestigationDifficulty.Easy && !guidanceCollapsed)
+                    AddActionArrow("Run Model Arrow", run.transform);
+            }
         }
 
         private static RectTransform CreateScenarioPlaceholderArtwork(Transform parent)
@@ -459,32 +608,45 @@ namespace EDNA.Investigation
             layout.preferredWidth = 0f;
             Image background = button.GetComponent<Image>();
             background.color = string.Equals(selectedThreatId, threat.ThreatId, StringComparison.Ordinal)
-                ? new Color32(70, 48, 48, 255)
+                ? InvestigationTheme.SurfaceRaised
                 : InvestigationTheme.SurfaceQuiet;
             if (string.Equals(selectedThreatId, threat.ThreatId, StringComparison.Ordinal))
             {
-                EnsureOutline(button.gameObject, InvestigationTheme.Accent, new Vector2(2f, -2f));
+                EnsureOutline(button.gameObject, InvestigationTheme.Primary, new Vector2(1f, -1f));
             }
 
             RectTransform icon = CreateThreatArtwork("Threat Artwork", button.transform, threat);
             Anchor(icon, 0f, 0.08f, 0.30f, 1f, 6f, 6f, -2f, -6f);
             Text title = CreateText("Threat Name", button.transform, threat.DisplayName, 12, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.DisplayFont);
-            Anchor(title.rectTransform, 0.30f, 0.24f, 0.88f, 1f, 2f, 0f, -2f, 0f);
-            Text status = CreateText("Threat Status", button.transform, ThreatInvestigationStatus(threat.ThreatId), 10, FontStyle.Bold, InvestigationTheme.TextMuted, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
-            Anchor(status.rectTransform, 0.30f, 0f, 0.88f, 0.32f, 2f, 2f, -2f, 0f);
-            if (state.HasTriedThreat(threat.ThreatId))
+            Anchor(title.rectTransform, 0.30f, 0.40f, 0.88f, 1f, 2f, 0f, -2f, 0f);
+            bool hasRun = state.HasTriedThreat(threat.ThreatId);
+            GetThreatCheckProgress(threat.ThreatId, out int completed, out int total, out bool waitingForRov);
+            bool checkedAll = hasRun && total > 0 && completed == total;
+            string progress = !hasRun ? "NOT RUN"
+                : total == 0 ? "MODEL RUN"
+                : $"{(checkedAll ? "CHECKED" : waitingForRov ? "ROV NEXT" : "TO CHECK")} · {completed}/{total}";
+            Text status = CreateText("Threat Status", button.transform, progress, 10, FontStyle.Bold,
+                InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.DataFont);
+            Anchor(status.rectTransform, 0.30f, .19f, 1f, .41f, 2f, 0f, -5f, 0f);
+            string relationship = ThreatEvidenceRelationship(threat.ThreatId, out Color relationColor);
+            Text relation = CreateText("Threat Evidence Relationship", button.transform, relationship, 10, FontStyle.Bold,
+                relationColor, TextAnchor.MiddleLeft, InvestigationTheme.DataFont);
+            Anchor(relation.rectTransform, .30f, 0f, 1f, .21f, 2f, 0f, -5f, 0f);
+            if (hasRun)
             {
-                Image tried = CreateStatusIcon("Threat Tried", button.transform, InvestigationStatusIconLibrary.Check, InvestigationTheme.Success);
-                Anchor(tried.rectTransform, 0.88f, 0.58f, 1f, 0.94f, 0f, 0f, -5f, 0f);
+                Image stateIcon = CreateStatusIcon(checkedAll ? "Threat Checks Complete" : "Threat Checks Pending", button.transform,
+                    checkedAll ? InvestigationStatusIconLibrary.Check : waitingForRov ? InvestigationStatusIconLibrary.Question : InvestigationScenarioIconLibrary.Investigate,
+                    checkedAll ? InvestigationTheme.Success : InvestigationTheme.Primary);
+                Anchor(stateIcon.rectTransform, 0.88f, 0.58f, 1f, 0.94f, 0f, 0f, -5f, 0f);
             }
         }
 
-        private void RenderComparisonPlaceholder(RectTransform parent)
+        private void RenderComparisonPlaceholder(RectTransform parent, ThreatSimulationDefinition threat)
         {
             Text heading = CreateText(
                 "Prediction Versus Survey",
                 parent,
-                "PREDICTION VS SURVEY",
+                "Prediction and evidence",
                 18,
                 FontStyle.Bold,
                 InvestigationTheme.TextPrimary,
@@ -493,12 +655,16 @@ namespace EDNA.Investigation
             AddLayout(heading.rectTransform, 30f, 1f);
 
             RectTransform placeholder = CreatePanel("Comparison Placeholder", parent, InvestigationTheme.Surface, InvestigationTheme.SmallRadius);
-            LayoutElement placeholderLayout = AddLayout(placeholder, 230f, 1f);
+            LayoutElement placeholderLayout = AddLayout(placeholder, 136f, 1f);
             placeholderLayout.flexibleHeight = 1f;
-            Text title = CreateText("Placeholder Title", placeholder, "Run the selected model", 20, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.DisplayFont);
-            Anchor(title.rectTransform, 0.08f, 0.46f, 0.92f, 0.66f, 0f, 0f, 0f, 0f);
-            Text detail = CreateText("Placeholder Detail", placeholder, "Its food-web prediction will appear on the left. Then compare one species prediction with the survey evidence here.", 14, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperCenter, InvestigationTheme.BodyFont);
-            Anchor(detail.rectTransform, 0.12f, 0.20f, 0.88f, 0.47f, 0f, 0f, 0f, 0f);
+            string titleText = threat == null ? "Choose a cause on the left" : $"Run the {threat.DisplayName} model";
+            string detailText = threat == null
+                ? "Start with any candidate. You will test its prediction against evidence from your notebook."
+                : "The model will reveal predictions you can compare with the real survey.";
+            Text title = CreateText("Placeholder Title", placeholder, titleText, 18, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.LowerCenter, InvestigationTheme.DisplayFont);
+            Anchor(title.rectTransform, 0.08f, 0.48f, 0.92f, 0.76f, 0f, 0f, 0f, 0f);
+            Text detail = CreateText("Placeholder Detail", placeholder, detailText, 14, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperCenter, InvestigationTheme.BodyFont);
+            Anchor(detail.rectTransform, 0.12f, 0.18f, 0.88f, 0.50f, 0f, 0f, 0f, 0f);
         }
 
         private void RenderSimulationVisualization(RectTransform parent, SimulationResult simulation, float modelHeight)
@@ -512,14 +678,6 @@ namespace EDNA.Investigation
             environmentLayout.childControlHeight = true;
             environmentLayout.childForceExpandWidth = true;
             environmentLayout.childForceExpandHeight = false;
-            CreateModelIndicatorChip(
-                environment,
-                "TEMP",
-                CompactIndicatorValue(simulation.TemperaturePrediction),
-                InvestigationTheme.Primary,
-                simulation,
-                PredictionTargetKind.Temperature,
-                "temperature");
             CreateModelIndicatorChip(environment, "SEAFLOOR", CompactIndicatorValue(simulation.SeafloorPrediction), InvestigationTheme.Success);
             CreateModelIndicatorChip(environment, "LOOK FOR", CompactIndicatorValue(simulation.PhysicalConfirmation), InvestigationTheme.Accent);
 
@@ -539,8 +697,8 @@ namespace EDNA.Investigation
 
             List<PredictionAnimationTarget> foodWebTargets = new List<PredictionAnimationTarget>();
             List<PredictionAnimationTarget> benthicTargets = new List<PredictionAnimationTarget>();
-            string[] foodWebSpeciesIds = { "shark", "tuna", "krill" };
-            for (int index = 0; index < foodWebSpeciesIds.Length; index++)
+            IReadOnlyList<string> foodWebSpeciesIds = caseDefinition.FoodWebChainSpeciesIds;
+            for (int index = 0; index < foodWebSpeciesIds.Count; index++)
             {
                 string speciesId = foodWebSpeciesIds[index];
                 SimulationPrediction prediction = simulation.FindPrediction(speciesId);
@@ -548,7 +706,7 @@ namespace EDNA.Investigation
                 if (species == null || prediction == null) continue;
                 Button node = CreatePredictionButton(chain, species, prediction, 164f, 78f, true);
                 foodWebTargets.Add(CreatePredictionAnimationTarget(node, prediction));
-                if (index < foodWebSpeciesIds.Length - 1) CreateFoodWebArrow(chain, 24f, 78f, 26);
+                if (index < foodWebSpeciesIds.Count - 1) CreateFoodWebArrow(chain, 24f, 78f, 26);
             }
 
             float benthicHeight = Mathf.Clamp(modelHeight - 206f, 44f, 104f);
@@ -566,7 +724,9 @@ namespace EDNA.Investigation
             Text indicatorLabel = CreateText(
                 "Indicator Heading",
                 indicators,
-                state.ConfirmationReviewed ? "BENTHIC CHECK · SELECT A SPECIES" : "BENTHIC CHECK · SEA STAR UNLOCKS AFTER ROV",
+                state.ConfirmationReviewed
+                    ? "BENTHIC CHECK · SELECT A SPECIES"
+                    : $"BENTHIC CHECK · {FollowUpLockedSpeciesLabel()} UNLOCKS AFTER ROV",
                 11,
                 FontStyle.Bold,
                 InvestigationTheme.Primary,
@@ -574,8 +734,8 @@ namespace EDNA.Investigation
                 InvestigationTheme.DataFont);
             Anchor(indicatorLabel.rectTransform, 0f, 1f, 1f, 1f, 10f, -18f, -8f, -2f);
             indicatorLabel.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-            string[] indicatorIds = { "sea_star", "mussel" };
-            for (int index = 0; index < indicatorIds.Length; index++)
+            IReadOnlyList<string> indicatorIds = caseDefinition.BenthicIndicatorSpeciesIds;
+            for (int index = 0; index < indicatorIds.Count; index++)
             {
                 SimulationPrediction prediction = simulation.FindPrediction(indicatorIds[index]);
                 InvestigationSpeciesDefinition species = caseDefinition.FindSpecies(indicatorIds[index]);
@@ -596,6 +756,17 @@ namespace EDNA.Investigation
                     StartCoroutine(AnimateSimulationSequence(foodWebTargets, benthicTargets));
                 }
             }
+        }
+
+        private string FollowUpLockedSpeciesLabel()
+        {
+            var labels = new List<string>();
+            for (int index = 0; index < caseDefinition.FollowUpLockedSpeciesIds.Count; index++)
+            {
+                InvestigationSpeciesDefinition species = caseDefinition.FindSpecies(caseDefinition.FollowUpLockedSpeciesIds[index]);
+                if (species != null) labels.Add(species.GameplayName.ToUpperInvariant());
+            }
+            return labels.Count == 0 ? "BENTHIC EVIDENCE" : string.Join(" + ", labels);
         }
 
         private void CreateModelIndicatorChip(
@@ -644,7 +815,7 @@ namespace EDNA.Investigation
             {
                 chip = CreatePanel($"Model Indicator {label}", parent, new Color32(8, 36, 54, 215), 8f);
             }
-            EnsureOutline(chip.gameObject, accentColor, selected ? new Vector2(3f, -3f) : new Vector2(2f, -2f));
+            if (selected) EnsureOutline(chip.gameObject, InvestigationTheme.Primary, new Vector2(1f, -1f));
             LayoutElement chipLayout = chip.GetComponent<LayoutElement>();
             if (chipLayout == null) chipLayout = chip.gameObject.AddComponent<LayoutElement>();
             chipLayout.minWidth = 0f;
@@ -653,7 +824,7 @@ namespace EDNA.Investigation
             chipLayout.minHeight = 36f;
             chipLayout.preferredHeight = 36f;
             chipLayout.flexibleHeight = 0f;
-            Text title = CreateText("Indicator Label", chip, label, 12, FontStyle.Bold, accentColor, TextAnchor.MiddleLeft, InvestigationTheme.DataFont);
+            Text title = CreateText("Indicator Label", chip, label, 11, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.MiddleLeft, InvestigationTheme.DataFont);
             Anchor(title.rectTransform, 0f, 0.55f, 1f, 1f, 7f, 0f, -4f, 0f);
             Text detail = CreateText("Indicator Value", chip, value, 14, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(detail.rectTransform, 0f, 0f, 1f, 0.58f, 7f, 0f, -4f, 0f);
@@ -679,13 +850,27 @@ namespace EDNA.Investigation
             Text comparisonHeading = CreateText(
                 "Prediction Versus Survey",
                 parent,
-                "PREDICTION VS SURVEY",
+                "Prediction and evidence",
                 18,
                 FontStyle.Bold,
                 InvestigationTheme.TextPrimary,
                 TextAnchor.MiddleLeft,
                 InvestigationTheme.DisplayFont);
             AddLayout(comparisonHeading.rectTransform, 30f, 1f);
+
+            if (string.IsNullOrEmpty(selectedPredictionSpeciesId))
+            {
+                RectTransform nextStep = CreatePanel("Choose Prediction Step", parent, InvestigationTheme.Surface, InvestigationTheme.SmallRadius);
+                AddLayout(nextStep, 92f, 1f);
+                EnsureOutline(nextStep.gameObject, InvestigationTheme.Primary, new Vector2(2f, -2f));
+                Image icon = CreateStatusIcon("Choose Prediction Icon", nextStep, InvestigationScenarioIconLibrary.Investigate, InvestigationTheme.Primary);
+                Anchor(icon.rectTransform, 0f, 0f, 0.14f, 1f, 14f, 16f, -4f, -16f);
+                Text title = CreateText("Choose Prediction Title", nextStep, "Choose one prediction in the model", 17, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.LowerLeft, InvestigationTheme.DisplayFont);
+                Anchor(title.rectTransform, 0.14f, 0.48f, 1f, 1f, 6f, 0f, -12f, -4f);
+                Text detail = CreateText("Choose Prediction Detail", nextStep, "Select a food-web or environmental prediction on the left to begin the evidence check.", 13, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
+                Anchor(detail.rectTransform, 0.14f, 0f, 1f, 0.52f, 6f, 4f, -12f, 0f);
+                return;
+            }
 
             RectTransform pairing = new GameObject("Prediction Observation Pairing", typeof(RectTransform), typeof(InvestigationResponsiveSplitLayout)).GetComponent<RectTransform>();
             pairing.SetParent(parent, false);
@@ -694,24 +879,54 @@ namespace EDNA.Investigation
             split.Configure(0.5f, 8f, 520f, pairingHeight, pairingHeight);
 
             RectTransform predictionPanel = CreatePanel("Prediction Selection", pairing, new Color32(13, 55, 76, 255), InvestigationTheme.SmallRadius);
-            EnsureOutline(predictionPanel.gameObject, InvestigationTheme.Primary, new Vector2(2f, -2f));
+            AddPanelAccent(predictionPanel, InvestigationTheme.Primary, 2f);
             RenderSelectedPredictionPanel(predictionPanel, simulation);
             RectTransform observationPanel = CreatePanel("Observation Selection", pairing, InvestigationTheme.Surface, InvestigationTheme.SmallRadius);
-            EnsureOutline(observationPanel.gameObject, InvestigationTheme.Accent, new Vector2(2f, -2f));
+            AddPanelAccent(observationPanel, InvestigationTheme.TextSecondary, 2f);
             RenderCandidateObservations(observationPanel, simulation);
 
-            RectTransform judgementRow = CreatePanel("Judgement Row", parent, new Color(0f, 0f, 0f, 0f), 0f);
-            AddLayout(judgementRow, 58f, 1f);
-            HorizontalLayoutGroup judgementLayout = judgementRow.gameObject.AddComponent<HorizontalLayoutGroup>();
-            judgementLayout.spacing = 8f;
-            judgementLayout.childAlignment = TextAnchor.MiddleCenter;
-            judgementLayout.childControlWidth = false;
-            judgementLayout.childControlHeight = true;
-            judgementLayout.childForceExpandWidth = false;
-            judgementLayout.childForceExpandHeight = true;
-            CreateJudgementButton(judgementRow, "It matches", ComparisonJudgement.Match, InvestigationStatusIconLibrary.Check, InvestigationTheme.Success, 168f);
-            CreateJudgementButton(judgementRow, "It doesn't match", ComparisonJudgement.Mismatch, InvestigationStatusIconLibrary.Cross, InvestigationTheme.Danger, 168f);
-            CreateJudgementButton(judgementRow, "Not enough evidence", ComparisonJudgement.NotEnoughEvidence, InvestigationStatusIconLibrary.Question, InvestigationTheme.Unknown, 184f);
+            PredictionComparisonRecord savedComparison = state.FindComparison(
+                simulation.ThreatId,
+                selectedPredictionTargetKind,
+                selectedPredictionSpeciesId);
+            if (savedComparison != null && savedComparison.EvidenceId == selectedObservationId)
+            {
+                bool complete = savedComparison.LocksComparison;
+                Color resultColor = complete ? InvestigationTheme.Success
+                    : savedComparison.IsAccepted ? InvestigationTheme.Unknown : InvestigationTheme.Focus;
+                RectTransform result = CreatePanel(complete ? "Comparison Saved Summary" : "Comparison Open Summary",
+                    parent, complete ? new Color32(18, 77, 72, 235) : InvestigationTheme.SurfaceQuiet,
+                    InvestigationTheme.SmallRadius);
+                AddLayout(result, 58f, 1f);
+                EnsureOutline(result.gameObject, resultColor, new Vector2(2f, -2f));
+                Image icon = CreateStatusIcon("Comparison Result Icon", result,
+                    complete ? InvestigationStatusIconLibrary.Check : InvestigationStatusIconLibrary.Question, resultColor);
+                Anchor(icon.rectTransform, 0f, 0f, 0.08f, 1f, 12f, 12f, -4f, -12f);
+                string relationship = savedComparison.Judgement == ComparisonJudgement.Match
+                    ? "This finding supports the model."
+                    : savedComparison.Judgement == ComparisonJudgement.Mismatch
+                        ? "This finding challenges the model."
+                        : "This finding cannot settle the prediction.";
+                Text confirmation = CreateText(
+                    complete ? "Comparison Saved Text" : "Comparison Open Text",
+                    result,
+                    complete
+                        ? relationship + " Comparison saved."
+                        : relationship,
+                    14,
+                    FontStyle.Bold,
+                    InvestigationTheme.TextPrimary,
+                    TextAnchor.MiddleLeft,
+                    InvestigationTheme.BodyFont);
+                Anchor(confirmation.rectTransform, 0.08f, 0f, 1f, 1f, 4f, 4f, -12f, -4f);
+                string target = caseDefinition.FindSpecies(savedComparison.TargetId)?.GameplayName ?? savedComparison.TargetId;
+                string evidence = caseDefinition.FindObservation(savedComparison.EvidenceId)?.DisplayName ?? savedComparison.EvidenceId;
+                Text feedback = CreateText("Comparison Feedback", parent,
+                    $"{target} + {evidence}\n{savedComparison.Feedback}", 13, FontStyle.Normal,
+                    savedComparison.IsAccepted ? InvestigationTheme.TextPrimary : InvestigationTheme.Focus,
+                    TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
+                ConfigureContentDrivenText(feedback);
+            }
         }
 
         private void CreateFoodWebArrow(Transform parent, float width = 52f, float height = 158f, int fontSize = 42)
@@ -743,7 +958,7 @@ namespace EDNA.Investigation
             float height,
             bool compact)
         {
-            bool followUpLocked = string.Equals(prediction.SpeciesId, "sea_star", StringComparison.Ordinal)
+            bool followUpLocked = caseDefinition.IsFollowUpLockedSpecies(prediction.SpeciesId)
                 && !state.ConfirmationReviewed;
             PredictionState displayState = followUpLocked ? PredictionState.Unknown : prediction.PredictedState;
             Button button = CreateButton(
@@ -774,16 +989,13 @@ namespace EDNA.Investigation
             Color stateColor = PredictionStateColor(displayState);
             PredictionComparisonRecord comparisonRecord = state.FindComparison(selectedThreatId, PredictionTargetKind.Species, prediction.SpeciesId);
             bool comparisonLocked = comparisonRecord != null && comparisonRecord.LocksComparison;
-            EnsureOutline(
-                button.gameObject,
-                comparisonLocked ? InvestigationTheme.Success : selected ? InvestigationTheme.Primary : stateColor,
-                comparisonLocked || selected ? new Vector2(2f, -2f) : new Vector2(1f, -1f));
+            if (selected) EnsureOutline(button.gameObject, InvestigationTheme.Primary, new Vector2(1f, -1f));
 
             RectTransform artwork = CreateSpeciesArtwork("Species Artwork", button.transform, species, stateColor);
             if (compact)
             {
                 Anchor(artwork, 0f, 0f, 0.34f, 1f, 12f, 9f, -4f, -9f);
-                Text title = CreateText("Name", button.transform, species.DisplayName, 14, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.LowerLeft, InvestigationTheme.DisplayFont);
+                Text title = CreateText("Name", button.transform, species.GameplayName, 14, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.LowerLeft, InvestigationTheme.DisplayFont);
                 Anchor(title.rectTransform, 0.35f, 0.44f, 1f, 1f, 8f, 0f, -8f, -6f);
                 Text stateLabel = CreateText("Prediction", button.transform, followUpLocked ? "ROV first" : PredictionLabel(displayState), 13, FontStyle.Bold, stateColor, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
                 Anchor(stateLabel.rectTransform, 0.35f, 0f, 1f, 0.46f, 8f, 5f, -8f, 0f);
@@ -791,7 +1003,7 @@ namespace EDNA.Investigation
             else
             {
                 Anchor(artwork, 0f, 0.36f, 1f, 1f, 34f, 0f, -34f, -8f);
-                Text title = CreateText("Name", button.transform, species.DisplayName, 15, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.DisplayFont);
+                Text title = CreateText("Name", button.transform, species.GameplayName, 15, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.DisplayFont);
                 Anchor(title.rectTransform, 0f, 0.18f, 1f, 0.42f, 4f, 0f, -4f, 0f);
                 Text stateLabel = CreateText("Prediction", button.transform, followUpLocked ? "ROV first" : PredictionLabel(displayState), 13, FontStyle.Bold, stateColor, TextAnchor.UpperCenter, InvestigationTheme.DataFont);
                 Anchor(stateLabel.rectTransform, 0f, 0f, 1f, 0.20f, 4f, 0f, -4f, 0f);
@@ -871,17 +1083,9 @@ namespace EDNA.Investigation
             InvestigationSpeciesDefinition species = selectedPredictionTargetKind == PredictionTargetKind.Species
                 ? caseDefinition.FindSpecies(selectedPredictionSpeciesId)
                 : null;
-            string predictionText;
-            if (selectedPredictionTargetKind == PredictionTargetKind.Temperature)
-            {
-                predictionText = $"Temperature pattern\n{simulation.TemperaturePrediction}";
-            }
-            else
-            {
-                predictionText = selected == null || species == null
-                    ? "Prediction unavailable."
-                    : $"{species.DisplayName}: {PredictionLabel(selected.PredictedState)}\n{selected.Rationale}";
-            }
+            string predictionText = selected == null || species == null
+                ? "Prediction unavailable."
+                : $"{species.DisplayName}: {PredictionLabel(selected.PredictedState)}\n{selected.Rationale}";
             Text prediction = CreateText(
                 "Selected Prediction",
                 panel,
@@ -923,6 +1127,27 @@ namespace EDNA.Investigation
             bool comparisonLocked = lockedComparison != null && lockedComparison.LocksComparison;
             int maxCandidates = state.Difficulty == InvestigationDifficulty.Easy ? 3 : 4;
             List<InvestigationObservationDefinition> candidates = BuildVisibleObservationCandidates(rule, maxCandidates);
+            if (candidates.Count > 0 && NeedsEvidenceChoiceGuide(simulation))
+            {
+                RectTransform prompt = CreatePanel("Evidence Action Prompt", panel, Color.clear, 0f);
+                AddLayout(prompt, 56f, 1f);
+                Text action = CreateText("Evidence Action Label", prompt, "SELECT ONE FINDING", 11, FontStyle.Bold,
+                    InvestigationTheme.Accent, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
+                Anchor(action.rectTransform, 0f, 1f, 1f, 1f, 0f, -18f, -42f, 0f);
+                Text detail = CreateText("Evidence Action Detail", prompt, "Click to compare it with the model.", 13, FontStyle.Normal,
+                    InvestigationTheme.TextPrimary, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
+                Anchor(detail.rectTransform, 0f, 0f, 1f, 1f, 0f, 0f, -42f, -20f);
+                InvestigationGuideArrowGraphic arrow = AddActionArrow("Choose Evidence Arrow", prompt);
+                Anchor(arrow.rectTransform, 1f, .5f, 1f, .5f, -38f, -19f, -2f, 19f);
+                RectTransform cue = CreatePanel("Evidence Choice Cue", panel, Color.clear, 0f);
+                cue.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                Stretch(cue, -2f, -2f, 2f, 2f);
+                InvestigationBorderGraphic border = CreateGraphic<InvestigationBorderGraphic>("Evidence Guide Border", cue);
+                Stretch(border.rectTransform, 0f, 0f, 0f, 0f);
+                border.Configure(InvestigationTheme.SmallRadius, 2f);
+                border.color = InvestigationTheme.Accent;
+                cue.gameObject.AddComponent<InvestigationGuidancePulse>();
+            }
             for (int index = 0; index < candidates.Count; index++)
             {
                 InvestigationObservationDefinition observation = candidates[index];
@@ -934,7 +1159,11 @@ namespace EDNA.Investigation
                     () =>
                     {
                         selectedObservationId = observation.EvidenceId;
-                        RefreshPresentationOnly();
+                        compareEvidence?.Invoke(
+                            simulation.ThreatId,
+                            selectedPredictionTargetKind,
+                            selectedPredictionSpeciesId,
+                            selectedObservationId);
                     },
                     out Text label);
                 label.alignment = TextAnchor.MiddleLeft;
@@ -947,7 +1176,10 @@ namespace EDNA.Investigation
                     button.GetComponent<Image>().color = InvestigationTheme.SurfaceRaised;
                     EnsureOutline(button.gameObject, InvestigationTheme.Primary, new Vector2(2f, -2f));
                     label.rectTransform.offsetMax = new Vector2(-30f, label.rectTransform.offsetMax.y);
-                    Image check = CreateStatusIcon("Selected Evidence Check", button.transform, InvestigationStatusIconLibrary.Check, InvestigationTheme.Primary);
+                    Image check = CreateStatusIcon(comparisonLocked ? "Selected Evidence Check" : "Selected Evidence Open",
+                        button.transform,
+                        comparisonLocked ? InvestigationStatusIconLibrary.Check : InvestigationStatusIconLibrary.Question,
+                        comparisonLocked ? InvestigationTheme.Primary : InvestigationTheme.Unknown);
                     Anchor(check.rectTransform, 0.88f, 0.18f, 1f, 0.82f, 0f, 0f, -8f, 0f);
                 }
                 else if (state.Difficulty == InvestigationDifficulty.Easy
@@ -1026,9 +1258,9 @@ namespace EDNA.Investigation
         {
             switch (claimType)
             {
-                case ObservationClaimType.NotDetected: return InvestigationTheme.Danger;
-                case ObservationClaimType.ChangedDepthOrDistribution: return InvestigationTheme.Accent;
-                case ObservationClaimType.MatchesBaseline: return InvestigationTheme.Success;
+                case ObservationClaimType.NotDetected: return InvestigationTheme.TextSecondary;
+                case ObservationClaimType.ChangedDepthOrDistribution: return InvestigationTheme.Primary;
+                case ObservationClaimType.MatchesBaseline: return InvestigationTheme.TextSecondary;
                 case ObservationClaimType.NewDetection: return InvestigationTheme.Primary;
                 case ObservationClaimType.ResultWarning: return InvestigationTheme.Focus;
                 case ObservationClaimType.EnvironmentalReading: return InvestigationTheme.Primary;
@@ -1036,42 +1268,9 @@ namespace EDNA.Investigation
             }
         }
 
-        private void CreateJudgementButton(Transform parent, string label, ComparisonJudgement judgement, Sprite iconSprite, Color color, float preferredWidth)
-        {
-            Button button = CreateButton($"Judge {judgement}", parent, label, ButtonVisualStyle.Secondary, () =>
-            {
-                if (string.IsNullOrEmpty(selectedPredictionSpeciesId) || string.IsNullOrEmpty(selectedObservationId))
-                {
-                    statusMessage = "Choose one prediction and one observation before judging the connection.";
-                    statusTone = InvestigationStatusTone.Warning;
-                    RefreshPresentationOnly();
-                    return;
-                }
-                compare?.Invoke(
-                    selectedThreatId,
-                    selectedPredictionTargetKind,
-                    selectedPredictionSpeciesId,
-                    selectedObservationId,
-                    judgement);
-            }, out Text text);
-            text.rectTransform.offsetMin = new Vector2(38f, 4f);
-            EnsureOutline(button.gameObject, color, new Vector2(2f, -2f));
-            Image glyph = CreateStatusIcon("State Shape", button.transform, iconSprite, color);
-            Anchor(glyph.rectTransform, 0f, 0f, 0f, 1f, 9f, 9f, 37f, -9f);
-            LayoutElement layout = button.GetComponent<LayoutElement>();
-            layout.preferredWidth = preferredWidth;
-            layout.minWidth = preferredWidth;
-            PredictionComparisonRecord saved = string.IsNullOrEmpty(selectedPredictionSpeciesId)
-                ? null
-                : state.FindComparison(selectedThreatId, selectedPredictionTargetKind, selectedPredictionSpeciesId);
-            button.interactable = saved == null || !saved.LocksComparison;
-        }
-
         private bool IsDirectObservationForSelectedTarget(InvestigationObservationDefinition observation)
         {
             if (observation == null) return false;
-            if (selectedPredictionTargetKind == PredictionTargetKind.Temperature)
-                return observation.Source == ObservationSource.CTDLog;
             return selectedPredictionTargetKind == PredictionTargetKind.Species
                 && string.Equals(observation.RelatedSpeciesId, selectedPredictionSpeciesId, StringComparison.Ordinal);
         }
@@ -1179,24 +1378,9 @@ namespace EDNA.Investigation
             if (objective == null) return "evidence";
             switch (objective.TargetKind)
             {
-                case PredictionTargetKind.Temperature: return "temperature";
                 case PredictionTargetKind.Seafloor: return "seafloor";
                 case PredictionTargetKind.PhysicalConfirmation: return "follow-up";
                 default: return caseDefinition.FindSpecies(objective.TargetId)?.DisplayName ?? objective.TargetId;
-            }
-        }
-
-        private static string ObjectiveTargetStatusLabel(InvestigationObjectiveDefinition objective)
-        {
-            if (objective == null) return "CLUE";
-            switch (objective.TargetKind)
-            {
-                case PredictionTargetKind.Temperature: return "TEMP";
-                case PredictionTargetKind.Seafloor: return "SEAFLOOR";
-                case PredictionTargetKind.PhysicalConfirmation: return "FOLLOW-UP";
-                default: return string.IsNullOrWhiteSpace(objective.TargetId)
-                    ? "SPECIES"
-                    : objective.TargetId.Replace('_', ' ').ToUpperInvariant();
             }
         }
 
@@ -1348,8 +1532,8 @@ namespace EDNA.Investigation
 
         private static Color PredictionStateColor(PredictionState state)
         {
-            if (state == PredictionState.Increase) return InvestigationTheme.Success;
-            if (state == PredictionState.Decrease) return InvestigationTheme.Danger;
+            if (state == PredictionState.Increase || state == PredictionState.DepthShift) return InvestigationTheme.Primary;
+            if (state == PredictionState.Decrease || state == PredictionState.Stable) return InvestigationTheme.TextSecondary;
             return InvestigationTheme.Unknown;
         }
 

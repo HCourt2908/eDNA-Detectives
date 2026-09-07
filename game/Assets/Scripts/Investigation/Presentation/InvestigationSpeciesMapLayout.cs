@@ -75,6 +75,11 @@ namespace EDNA.Investigation
                     return true;
                 }
             }
+            for (int index = 0; index < species.HabitatTags.Count; index++)
+            {
+                if (string.Equals(species.HabitatTags[index], "benthic", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
             return false;
         }
 

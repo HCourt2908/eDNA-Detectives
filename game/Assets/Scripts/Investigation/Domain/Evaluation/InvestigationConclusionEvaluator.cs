@@ -171,14 +171,14 @@ namespace EDNA.Investigation.Domain
             }
             if (!readiness.FinalCauseSelected)
                 return "Choose a final cause after reviewing the ROV evidence.";
+            if (!readiness.ReasoningComplete)
+                return "Explain the shark–tuna–krill food-web cascade.";
             if (!readiness.EvidenceComplete)
                 return $"Select at least {caseDefinition.MinimumReportEvidence} observations for the evidence section.";
             if (!readiness.ConfirmationEvidenceIncluded)
                 return "Include at least one ROV confirmation observation in the report.";
             if (!readiness.EvidenceCategoriesComplete)
                 return $"Add more {EvidenceCategoryLabel(readiness.MissingEvidenceCategory)} evidence to the report.";
-            if (!readiness.ReasoningComplete)
-                return "Explain the shark–tuna–krill food-web cascade.";
             if (!readiness.LimitationComplete)
                 return "Record one scientific limitation, such as non-detection not proving complete absence.";
             return "The report is not ready yet.";
