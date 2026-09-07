@@ -4,10 +4,10 @@ using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class Interactable : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
+public class Interactable : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler, ISubmitHandler, ISelectHandler, IDeselectHandler
 {
     private Outline outline;
-    public bool interactable;
+    public bool isInteractable;
 
     [SerializeField] private UnityEvent onInteract;
 
@@ -16,7 +16,7 @@ public class Interactable : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     private void Awake()
     {
         outline = GetComponent<Outline>();
-        interactable = true;
+        isInteractable = true;
 
         Color color = outline.effectColor;
         color.a = 0f;
@@ -25,7 +25,7 @@ public class Interactable : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (interactable) SetGlow(100f/255f);
+        if (isInteractable) SetGlow(100f/255f);
     }
 
     public void OnPointerExit(PointerEventData eventData)
@@ -38,6 +38,27 @@ public class Interactable : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         if (glowCoroutine != null) StopCoroutine(glowCoroutine);
 
         glowCoroutine = StartCoroutine(FadeGlow(alpha));
+    }
+
+    public void OnSubmit(BaseEventData eventData)
+    {
+        if (!isInteractable) return;
+
+        SetGlow(0f);
+        onInteract.Invoke();
+    }
+
+    public void OnSelect(BaseEventData eventData)
+    {
+        if (isInteractable)
+        {
+            SetGlow(100f / 255f);
+        }
+    }
+
+    public void OnDeselect(BaseEventData eventData)
+    {
+        SetGlow(0f);
     }
 
     private IEnumerator FadeGlow(float alpha)
@@ -63,17 +84,17 @@ public class Interactable : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     public void disableInteraction()
     {
-        interactable = false;
+        isInteractable = false;
     }
 
     public void enableInteraction()
     {
-        interactable = true;
+        isInteractable = true;
     }
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (!interactable) return;
+        if (!isInteractable) return;
         SetGlow(0f);
         onInteract.Invoke();
     }
