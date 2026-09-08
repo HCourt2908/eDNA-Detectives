@@ -9,8 +9,6 @@ namespace EDNA.Investigation
 {
     public sealed partial class InvestigationRuntimeView
     {
-        private const string OpenRovFindingsLabel = "Open ROV findings";
-        private const string CompareFishingModelsLabel = "Compare fishing models";
         private enum ReportGuidanceSection
         {
             None,
@@ -33,35 +31,24 @@ namespace EDNA.Investigation
 
         private void RenderReport()
         {
-            ThreatSimulationDefinition provisional = caseDefinition.FindThreat(state.ProvisionalThreatId);
             bool caseClosed = state.ConclusionStatus == InvestigationConclusionStatus.Correct;
-            InvestigationReadiness readiness = new InvestigationConclusionEvaluator().EvaluateReadiness(caseDefinition, state);
-            bool needsFollowUpComparison = state.ConfirmationReviewed && !readiness.RequiredObjectivesComplete;
-            Text reportHeading = CreateHeading(
-                caseClosed
-                    ? "Case closed"
-                    : needsFollowUpComparison
-                        ? "Re-test the close match"
-                        : state.ConfirmationReviewed ? "Explain your findings" : "Your first idea is saved",
-                caseClosed
-                    ? "Review how the survey, ecosystem model and follow-up evidence support your conclusion."
-                    : needsFollowUpComparison
-                        ? "Use the intact seafloor clue to compare Sea star under both fishing models, then return to the report."
-                    : state.ConfirmationReviewed
-                    ? "Answer one question at a time, then review your report with Edna."
-                    : $"Your provisional explanation is {provisional?.DisplayName ?? "not selected"}. The same ROV follow-up appears for every provisional choice.");
-            bool writingReport = CanWriteFinalReport();
-            if (!writingReport) RenderEdnaGuide(reportHeading.transform.parent);
-            if (!caseClosed && !writingReport) RenderConfirmationPanel();
-            else RenderReportPaper();
-
-            if (state.ConclusionStatus == InvestigationConclusionStatus.Correct)
+            Text heading = CreateHeading(caseClosed ? "Case closed" : "Close the case with EDNA",
+                caseClosed ? "Your report connects the survey, models and ROV findings."
+                : "Look at the clues · Weigh our explanation · Send our report");
+            if (!caseClosed)
+            {
+                if (!state.ConfirmationReviewed && !string.IsNullOrEmpty(rovScanId)) RenderWorkbenchRovScan();
+                else RenderReportConversation();
+                if (state.ConfirmationReviewed && reportConversationRound == ReportConversationRound.Clues)
+                    RenderConfirmationPanel();
+            }
+            if (caseClosed || (state.ConfirmationReviewed && reportConversationRound == ReportConversationRound.Review)) RenderReportPaper();
+            if (caseClosed)
             {
                 Button again = CreateButton("Restart Completed Case", footerRight, "Investigate again", ButtonVisualStyle.Primary, () => restart?.Invoke(), out _);
                 ConfigureReportFooterButton(again, 116f);
                 return;
             }
-
             if (restartConfirmationPending)
             {
                 Button cancel = CreateButton("Cancel Restart Case", footerLeft, "Cancel", ButtonVisualStyle.Tertiary, CancelRestartConfirmation, out _);
@@ -70,93 +57,33 @@ namespace EDNA.Investigation
                 ConfigureReportFooterButton(confirm, 116f);
                 return;
             }
-
-            Button back = CreateButton("Back To Simulator", footerLeft, "← Back to simulator", ButtonVisualStyle.Tertiary, () => setPhase?.Invoke(InvestigationPhase.Simulate), out _);
-            ConfigureReportFooterButton(back, 126f);
             Button restartButton = CreateButton("Restart Case", footerLeft, "Restart case", ButtonVisualStyle.Danger, RequestRestartConfirmation, out _);
             ConfigureReportFooterButton(restartButton, 100f);
-
             CreateNotebookDrawerButton(footerRight);
-            if (state.ConfirmationReviewed && readiness.RequiredObjectivesComplete)
-            {
-                if (reportDialogueSection == ReportGuidanceSection.Review)
-                {
-                    Button submit = CreateButton("Submit Final Report", footerRight,
-                        readiness.CanSubmitFinal ? "Send report" : "Check report",
-                        ButtonVisualStyle.Primary, () => submitFinal?.Invoke(), out _);
-                    ConfigureReportFooterButton(submit, readiness.CanSubmitFinal ? 104f : 116f);
-                }
-                else
-                {
-                    Button next = CreateButton("Continue Report Dialogue", footerRight,
-                        reportDialogueSection == ReportGuidanceSection.Limitation ? "Review report →" : "Continue →",
-                        ButtonVisualStyle.Primary, ContinueReportDialogue, out _);
-                    ConfigureReportFooterButton(next, reportDialogueSection == ReportGuidanceSection.Limitation ? 132f : 104f);
-                }
-            }
         }
 
         private void RenderConfirmationPanel()
         {
-            RectTransform confirmation = CreatePanel("ROV Confirmation", contentRoot,
-                InvestigationTheme.SurfaceQuiet, InvestigationTheme.SmallRadius);
-            EnsureOutline(confirmation.gameObject,
-                state.ConfirmationReviewed ? InvestigationTheme.Success : InvestigationTheme.Primary, new Vector2(1f, -1f));
-            VerticalLayoutGroup layout = confirmation.gameObject.AddComponent<VerticalLayoutGroup>();
+            RectTransform panel = CreatePanel("ROV Confirmation", contentRoot, InvestigationTheme.SurfaceQuiet, InvestigationTheme.SmallRadius);
+            VerticalLayoutGroup layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.padding = new RectOffset(16, 16, 14, 14);
-            layout.spacing = 12f;
+            layout.spacing = 10f;
             layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
-            Text title = CreateText("ROV Title", confirmation,
-                state.ConfirmationReviewed ? "New ROV evidence received" : "ROV field notes are ready",
-                20, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperLeft, InvestigationTheme.DisplayFont);
+            Text title = CreateText("ROV Title", panel, state.ConfirmationReviewed ? "The ROV found…" : "ROV field notes are ready", 20, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperLeft, InvestigationTheme.DisplayFont);
             ConfigureContentDrivenText(title);
-            Text detail = CreateText("ROV Detail", confirmation,
-                state.ConfirmationReviewed
-                    ? "Two findings were added to your notebook. Check them against the two fishing models."
-                    : "Your first idea is saved. Open these two findings to see what the ROV recorded.",
-                14, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
+            Text detail = CreateText("ROV Detail", panel, state.ConfirmationReviewed
+                ? "Fishing line adds a physical clue; the intact seafloor adds context to your Sea star finding."
+                : "Open the findings to see what the camera recorded. Your model comparisons are already saved.", 14, FontStyle.Bold, InvestigationTheme.TextSecondary, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(detail);
-
-            RectTransform evidenceRow = new GameObject("ROV Evidence", typeof(RectTransform), typeof(InvestigationResponsiveGridLayout)).GetComponent<RectTransform>();
-            evidenceRow.SetParent(confirmation, false);
-            evidenceRow.GetComponent<InvestigationResponsiveGridLayout>().Configure(2, 1, 190f, 12f);
-            if (state.ConfirmationReviewed)
-            {
-                CreateConfirmationItem(evidenceRow, "E07_FISHING_LINE", InvestigationEvidenceIconLibrary.FishingLine);
-                CreateConfirmationItem(evidenceRow, "E08_SEAFLOOR_INTACT", InvestigationEvidenceIconLibrary.Seafloor);
-            }
-            else
-            {
-                for (int index = 1; index <= 2; index++)
-                {
-                    RectTransform sealedNote = CreatePanel($"Sealed ROV Finding {index}", evidenceRow,
-                        InvestigationTheme.Surface, InvestigationTheme.SmallRadius);
-                    Image icon = CreateStatusIcon("Sealed Finding Icon", sealedNote, InvestigationStatusIconLibrary.Question, InvestigationTheme.Primary);
-                    Anchor(icon.rectTransform, 0f, 0.5f, 0f, 0.5f, 20f, -28f, 76f, 28f);
-                    Text note = CreateText("Sealed Finding Title", sealedNote, $"ROV finding {index:00}",
-                        19, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.LowerLeft, InvestigationTheme.DisplayFont);
-                    Anchor(note.rectTransform, 0f, 0.5f, 1f, 0.82f, 96f, 2f, -18f, 0f);
-                    Text ready = CreateText("Sealed Finding Status", sealedNote, "Ready to review",
-                        14, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
-                    Anchor(ready.rectTransform, 0f, 0.18f, 1f, 0.5f, 96f, 0f, -18f, -6f);
-                }
-            }
-
-            RectTransform actions = CreatePanel("ROV Actions", confirmation, Color.clear, 0f);
-            AddLayout(actions, 48f, 1f);
-            HorizontalLayoutGroup actionLayout = actions.gameObject.AddComponent<HorizontalLayoutGroup>();
-            actionLayout.childAlignment = TextAnchor.MiddleRight;
-            actionLayout.childControlWidth = actionLayout.childControlHeight = false;
-            actionLayout.childForceExpandWidth = actionLayout.childForceExpandHeight = false;
-            Button action = state.ConfirmationReviewed
-                ? CreateButton("Re-test Fishing Models", actions, CompareFishingModelsLabel + " →", ButtonVisualStyle.Primary,
-                    () => setPhase?.Invoke(InvestigationPhase.Simulate), out _)
-                : CreateButton("Review ROV Follow-up", actions, OpenRovFindingsLabel, ButtonVisualStyle.Primary,
-                    () => reviewConfirmation?.Invoke(), out _);
-            action.GetComponent<RectTransform>().sizeDelta = new Vector2(220f, 48f);
-            action.GetComponent<InvestigationFocusRing>().KeepVisibleOnKeyboardFocus = true;
+            RectTransform row = new GameObject("ROV Evidence", typeof(RectTransform), typeof(InvestigationResponsiveGridLayout)).GetComponent<RectTransform>();
+            row.SetParent(panel, false);
+            row.GetComponent<InvestigationResponsiveGridLayout>().Configure(2, 1, 190f, 12f);
+            string first = reportRovFocus == "E08_SEAFLOOR_INTACT" ? "E08_SEAFLOOR_INTACT" : "E07_FISHING_LINE";
+            string second = first == "E07_FISHING_LINE" ? "E08_SEAFLOOR_INTACT" : "E07_FISHING_LINE";
+            CreateConfirmationItem(row, first, first == "E07_FISHING_LINE" ? InvestigationEvidenceIconLibrary.FishingLine : InvestigationEvidenceIconLibrary.Seafloor);
+            CreateConfirmationItem(row, second, second == "E07_FISHING_LINE" ? InvestigationEvidenceIconLibrary.FishingLine : InvestigationEvidenceIconLibrary.Seafloor);
         }
 
         private void CreateConfirmationItem(Transform parent, string evidenceId, Sprite iconSprite)
@@ -170,7 +97,7 @@ namespace EDNA.Investigation
                 18, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.DisplayFont);
             Anchor(label.rectTransform, 0f, 1f, 1f, 1f, 96f, -84f, -18f, -16f);
             Text details = CreateText("Confirmation Detail", item, observation.Detail,
-                14, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
+                14, FontStyle.Bold, InvestigationTheme.TextSecondary, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             Anchor(details.rectTransform, 0f, 0f, 1f, 1f, 20f, 42f, -20f, -94f);
             Text added = CreateText("Notebook Added", item, "ADDED TO NOTEBOOK · ROV", 11,
                 FontStyle.Bold, InvestigationTheme.Success, TextAnchor.MiddleLeft, InvestigationTheme.DataFont);
@@ -179,8 +106,9 @@ namespace EDNA.Investigation
 
         private IEnumerator AnimateRovEvidenceReveal()
         {
-            RectTransform fishingLine = FindNamedRect(contentRoot, "Confirmation E07_FISHING_LINE");
-            RectTransform seafloor = FindNamedRect(contentRoot, "Confirmation E08_SEAFLOOR_INTACT");
+            bool seafloorFirst = reportRovFocus == "E08_SEAFLOOR_INTACT";
+            RectTransform fishingLine = FindNamedRect(contentRoot, seafloorFirst ? "Confirmation E08_SEAFLOOR_INTACT" : "Confirmation E07_FISHING_LINE");
+            RectTransform seafloor = FindNamedRect(contentRoot, seafloorFirst ? "Confirmation E07_FISHING_LINE" : "Confirmation E08_SEAFLOOR_INTACT");
             if (fishingLine == null || seafloor == null) yield break;
 
             CanvasGroup first = EnsureCanvasGroup(fishingLine);
@@ -251,8 +179,7 @@ namespace EDNA.Investigation
             headerLayout.childForceExpandWidth = false;
             headerLayout.childForceExpandHeight = true;
 
-            string reportTitle = state.ConclusionStatus == InvestigationConclusionStatus.Correct ? "Survey report"
-                : reportDialogueSection == ReportGuidanceSection.Review ? "Review report" : "Your report";
+            string reportTitle = state.ConclusionStatus == InvestigationConclusionStatus.Correct ? "Survey report" : "Your report";
             Text title = CreateText("Report Title", reportHeader, reportTitle, 25, FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.DisplayFont);
             LayoutElement titleLayout = title.gameObject.AddComponent<LayoutElement>();
             titleLayout.minWidth = 170f;
@@ -274,15 +201,14 @@ namespace EDNA.Investigation
             RectTransform rule = CreatePanel("Report Header Rule", paper, InvestigationTheme.PaperRule, 0f);
             AddLayout(rule, 1f, 1f);
 
-            if (state.ConclusionStatus == InvestigationConclusionStatus.Correct || reportDialogueSection == ReportGuidanceSection.Review)
-                CreateReportOutcome(paper);
             if (state.ConclusionStatus == InvestigationConclusionStatus.Correct)
             {
+                CreateReportOutcome(paper);
                 CreateCaseClosedSummary(paper);
                 return;
             }
 
-            RenderReportDialogue(paper);
+            RenderReportReview(paper);
         }
 
         private static string CompactReportMetadataValue(string value, int maximumCharacters, string fallback)
@@ -309,8 +235,8 @@ namespace EDNA.Investigation
                     feedbackIcon = InvestigationStatusIconLibrary.Question;
                     break;
                 default:
-                    feedbackColor = InvestigationTheme.ReportError;
-                    feedbackIcon = InvestigationStatusIconLibrary.Cross;
+                    feedbackColor = InvestigationTheme.ReportGuide;
+                    feedbackIcon = InvestigationStatusIconLibrary.Question;
                     break;
             }
 
@@ -399,6 +325,9 @@ namespace EDNA.Investigation
                 InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(explanation);
 
+            if (reportKeyClue != ReportKeyClue.None)
+                CreateDebriefRow(summary, "YOUR KEY CLUE", ReportKeyClueLabel(reportKeyClue),
+                    ReportKeyClueResponse(), InvestigationTheme.Primary);
             CreateDebriefRow(
                 summary,
                 "FOOD-WEB MECHANISM",
@@ -476,190 +405,6 @@ namespace EDNA.Investigation
             return string.IsNullOrEmpty(result) ? "ROV follow-up reviewed" : result;
         }
 
-        private void CreateReportCauseSection(Transform parent)
-        {
-            RectTransform section = CreatePaperSlot(parent, "Report Cause Section", "Which cause best explains your findings?");
-            ThreatSimulationDefinition provisional = caseDefinition.FindThreat(state.ProvisionalThreatId);
-            Text provisionalNote = CreateText(
-                "Provisional Reminder",
-                section,
-                state.ConfirmationReviewed
-                    ? $"Your first idea was {provisional?.DisplayName ?? "not recorded"}. Use the ROV evidence, then choose your final cause below."
-                    : $"Your first idea is {provisional?.DisplayName ?? "not recorded"}. Review the sealed ROV follow-up before choosing a final cause.",
-                13,
-                FontStyle.Bold,
-                InvestigationTheme.PaperMuted,
-                TextAnchor.MiddleLeft,
-                InvestigationTheme.BodyFont);
-            ConfigureContentDrivenText(provisionalNote);
-            RectTransform grid = new GameObject("Cause Choices", typeof(RectTransform), typeof(InvestigationResponsiveGridLayout)).GetComponent<RectTransform>();
-            grid.SetParent(section, false);
-            InvestigationResponsiveGridLayout layout = grid.GetComponent<InvestigationResponsiveGridLayout>();
-            layout.padding = new RectOffset(0, 0, 0, 0);
-            layout.Configure(Mathf.Min(3, caseDefinition.Threats.Count), 1, 66f, 8f);
-            for (int index = 0; index < caseDefinition.Threats.Count; index++)
-            {
-                ThreatSimulationDefinition threat = caseDefinition.Threats[index];
-                if (threat == null) continue;
-                Button button = CreateButton(
-                    $"Final Cause {threat.ThreatId}",
-                    grid,
-                    threat.DisplayName,
-                    ButtonVisualStyle.PaperChoice,
-                    () => AnswerReportQuestion(ReportGuidanceSection.Cause, () => setFinalThreat?.Invoke(threat.ThreatId)),
-                    out _);
-                button.interactable = state.ConfirmationReviewed;
-                button.GetComponent<InvestigationFocusRing>().KeepVisibleOnKeyboardFocus = true;
-                StylePaperChoice(button, string.Equals(state.FinalThreatId, threat.ThreatId, StringComparison.Ordinal));
-            }
-        }
-
-        private void CreateReportEvidenceSection(Transform parent)
-        {
-            RectTransform section = CreatePaperSlot(parent, "Report Evidence Section", "Which findings support your explanation?");
-            int confirmationSelected = 0;
-            for (int index = 0; index < caseDefinition.ConfirmationEvidenceIds.Count; index++)
-            {
-                if (state.HasSelectedEvidence(caseDefinition.ConfirmationEvidenceIds[index])) confirmationSelected++;
-            }
-            bool evidenceMinimumMet = state.SelectedReportEvidenceIds.Count >= caseDefinition.MinimumReportEvidence;
-            bool confirmationMinimumMet = confirmationSelected >= caseDefinition.MinimumConfirmationEvidenceInReport;
-            bool categoriesComplete = true;
-            string categoryProgress = string.Empty;
-            for (int requirementIndex = 0; requirementIndex < caseDefinition.EvidenceCategoryRequirements.Count; requirementIndex++)
-            {
-                InvestigationEvidenceCategoryRequirement requirement = caseDefinition.EvidenceCategoryRequirements[requirementIndex];
-                if (requirement == null) continue;
-                int selectedCount = CountSelectedEvidenceInCategory(requirement.Category);
-                if (selectedCount < requirement.MinimumCount) categoriesComplete = false;
-                categoryProgress += $"  ·  {EvidenceCategoryShortLabel(requirement.Category)} {selectedCount} / {requirement.MinimumCount}";
-            }
-            Text progress = CreateText(
-                "Evidence Progress",
-                section,
-                $"Selected {state.SelectedReportEvidenceIds.Count} / {caseDefinition.MinimumReportEvidence}{categoryProgress}",
-                12,
-                FontStyle.Bold,
-                evidenceMinimumMet && confirmationMinimumMet && categoriesComplete
-                    ? InvestigationTheme.PaperSelectedBorder
-                    : InvestigationTheme.PaperMuted,
-                TextAnchor.MiddleLeft,
-                InvestigationTheme.DataFont);
-            ConfigureContentDrivenText(progress);
-            RectTransform grid = new GameObject("Evidence Choices", typeof(RectTransform), typeof(InvestigationResponsiveGridLayout)).GetComponent<RectTransform>();
-            grid.SetParent(section, false);
-            InvestigationResponsiveGridLayout layout = grid.GetComponent<InvestigationResponsiveGridLayout>();
-            layout.padding = new RectOffset(0, 0, 0, 0);
-            layout.Configure(3, 2, 72f, 8f);
-            for (int index = 0; index < state.DiscoveredObservationIds.Count; index++)
-            {
-                InvestigationObservationDefinition observation = caseDefinition.FindObservation(state.DiscoveredObservationIds[index]);
-                if (observation == null || observation.Source == ObservationSource.Methodology) continue;
-                bool selected = state.HasSelectedEvidence(observation.EvidenceId);
-                Button button = CreateButton(
-                    $"Report Evidence {observation.EvidenceId}",
-                    grid,
-                    observation.DisplayName,
-                    ButtonVisualStyle.PaperChoice,
-                    () =>
-                    {
-                        reportDialogueReply = string.Empty;
-                        setReportEvidence?.Invoke(observation.EvidenceId, !state.HasSelectedEvidence(observation.EvidenceId));
-                    },
-                    out Text label);
-                button.GetComponent<InvestigationFocusRing>().KeepVisibleOnKeyboardFocus = true;
-                label.alignment = TextAnchor.MiddleLeft;
-                label.rectTransform.offsetMin = new Vector2(42f, label.rectTransform.offsetMin.y);
-                Image icon = CreateStatusIcon(
-                    "Evidence Icon",
-                    button.transform,
-                    InvestigationEvidenceIconLibrary.ForObservation(observation),
-                    selected ? InvestigationTheme.PaperSelectedBorder : InvestigationTheme.PaperMuted);
-                Anchor(icon.rectTransform, 0f, 0f, 0f, 1f, 10f, 14f, 36f, -14f);
-                StylePaperChoice(button, selected);
-            }
-        }
-
-        private int CountSelectedEvidenceInCategory(EvidenceCategory category)
-        {
-            int count = 0;
-            for (int index = 0; index < state.SelectedReportEvidenceIds.Count; index++)
-            {
-                InvestigationObservationDefinition observation = caseDefinition.FindObservation(state.SelectedReportEvidenceIds[index]);
-                if (observation != null && observation.Category == category) count++;
-            }
-            return count;
-        }
-
-        private static string EvidenceCategoryShortLabel(EvidenceCategory category)
-        {
-            switch (category)
-            {
-                case EvidenceCategory.FoodWeb: return "FOOD WEB";
-                case EvidenceCategory.Benthic: return "BENTHIC";
-                case EvidenceCategory.Confirmation: return "ROV";
-                case EvidenceCategory.Environmental: return "ENV";
-                case EvidenceCategory.Alternative: return "ALTERNATIVE";
-                default: return "EVIDENCE";
-            }
-        }
-
-        private void CreateReportReasoningSection(Transform parent)
-        {
-            RectTransform section = CreatePaperSlot(parent, "Report Reasoning Section", "How did that cause the food-web changes?");
-            RectTransform row = CreatePanel("Reasoning Choices", section, new Color(0f, 0f, 0f, 0f), 0f);
-            VerticalLayoutGroup layout = row.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.spacing = 8f;
-            layout.childControlWidth = true;
-            layout.childControlHeight = true;
-            layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = false;
-            for (int index = 0; index < caseDefinition.ReasoningOptions.Count; index++)
-            {
-                InvestigationReasoningDefinition reasoning = caseDefinition.ReasoningOptions[index];
-                if (reasoning != null) CreateReasoningChoice(row, reasoning.ReasoningId, reasoning.DisplayName);
-            }
-        }
-
-        private void CreateReasoningChoice(Transform parent, string reasoningId, string label)
-        {
-            Button button = CreateButton(
-                $"Reasoning {reasoningId}",
-                parent,
-                label,
-                ButtonVisualStyle.PaperChoice,
-                () => AnswerReportQuestion(ReportGuidanceSection.Reasoning, () => setReasoning?.Invoke(reasoningId)),
-                out Text choiceLabel);
-            ConfigureWrappingChoice(button, choiceLabel);
-            StylePaperChoice(button, string.Equals(state.SelectedReasoningId, reasoningId, StringComparison.Ordinal));
-        }
-
-        private void CreateReportLimitationSection(Transform parent)
-        {
-            RectTransform section = CreatePaperSlot(parent, "Report Limitation Section", "What can your evidence still not tell us?");
-            RectTransform row = CreatePanel("Limitation Choices", section, new Color(0f, 0f, 0f, 0f), 0f);
-            VerticalLayoutGroup layout = row.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.spacing = 8f;
-            layout.childControlWidth = true;
-            layout.childControlHeight = true;
-            layout.childForceExpandWidth = true;
-            layout.childForceExpandHeight = false;
-            for (int index = 0; index < caseDefinition.Limitations.Count; index++)
-            {
-                InvestigationLimitationDefinition limitation = caseDefinition.Limitations[index];
-                if (limitation == null) continue;
-                Button button = CreateButton(
-                    $"Limitation {limitation.LimitationId}",
-                    row,
-                    limitation.DisplayName,
-                    ButtonVisualStyle.PaperChoice,
-                    () => AnswerReportQuestion(ReportGuidanceSection.Limitation, () => setLimitation?.Invoke(limitation.LimitationId)),
-                    out Text choiceLabel);
-                ConfigureWrappingChoice(button, choiceLabel);
-                StylePaperChoice(button, string.Equals(state.SelectedLimitationId, limitation.LimitationId, StringComparison.Ordinal));
-            }
-        }
-
         private ReportGuidanceSection NextReportSection()
         {
             if (state == null) return ReportGuidanceSection.None;
@@ -694,29 +439,6 @@ namespace EDNA.Investigation
                 : section == ReportGuidanceSection.Limitation ? "Report Limitation Section" : "Report Cause Section";
         }
 
-        private IEnumerator FocusReportDiagnosticNextFrame()
-        {
-            yield return null;
-            if (state == null || state.Phase != InvestigationPhase.Report || reportDiagnosticSection == ReportGuidanceSection.None) yield break;
-            RectTransform section = FindNamedRect(contentRoot, ReportSectionName(reportDiagnosticSection));
-            if (section == null) yield break;
-            Canvas.ForceUpdateCanvases();
-            float scrollableHeight = contentScroll.content.rect.height - contentScroll.viewport.rect.height;
-            if (scrollableHeight > 0f)
-            {
-                Bounds bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(contentScroll.viewport, section);
-                contentScroll.StopMovement();
-                contentScroll.verticalNormalizedPosition = Mathf.Clamp01(contentScroll.verticalNormalizedPosition
-                    + (bounds.max.y - contentScroll.viewport.rect.yMax + 12f) / scrollableHeight);
-            }
-            Button target = FindFirstInteractableButton(section);
-            if (target != null && EventSystem.current != null)
-            {
-                EventSystem.current.SetSelectedGameObject(null);
-                EventSystem.current.SetSelectedGameObject(target.gameObject);
-            }
-        }
-
         private RectTransform CreatePaperSlot(Transform parent, string sectionName, string question)
         {
             RectTransform section = CreatePanel(sectionName, parent, InvestigationTheme.PaperRaised, InvestigationTheme.SmallRadius);
@@ -727,7 +449,7 @@ namespace EDNA.Investigation
             layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
-            Text label = CreateText("Question", section, question, 16, FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.DisplayFont);
+            Text label = CreateText("Section Heading", section, question, 16, FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.DisplayFont);
             ConfigureContentDrivenText(label);
             if (reportDiagnosticSection != ReportGuidanceSection.None && sectionName == ReportSectionName(reportDiagnosticSection))
             {

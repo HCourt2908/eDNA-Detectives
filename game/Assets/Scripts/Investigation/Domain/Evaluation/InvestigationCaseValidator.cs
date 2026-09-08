@@ -311,7 +311,7 @@ namespace EDNA.Investigation.Domain
                 if (provisionalObjectiveCount == 0)
                     errors.Add("The case requires at least one objective before the provisional explanation.");
                 if (followUpObjectiveCount == 0)
-                    errors.Add("The case requires at least one benthic discriminator objective after the ROV follow-up.");
+                    errors.Add("The case requires at least one benthic discriminator objective to compare the fishing models.");
             }
             else
             {

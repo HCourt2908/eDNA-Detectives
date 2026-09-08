@@ -317,23 +317,6 @@ namespace EDNA.Investigation.Domain
                     string.Empty);
             }
 
-            PredictionComparisonRuleDefinition availableRule = caseDefinition.FindComparisonRule(threatId, targetKind, targetId);
-            if (availableRule != null
-                && availableRule.ProgressRole == ComparisonProgressRole.BenthicDiscriminator
-                && !state.ConfirmationReviewed)
-            {
-                return new PredictionComparisonRecord(
-                    threatId,
-                    targetKind,
-                    targetId,
-                    evidenceId,
-                    judgement,
-                    ComparisonEvaluationOutcome.Incorrect,
-                    "Submit a first idea and review the ROV follow-up before using this benthic comparison.",
-                    availableRule.ProgressRole,
-                    string.Empty);
-            }
-
             PredictionComparisonRecord accepted = state.FindComparison(threatId, targetKind, targetId);
             if (accepted != null && accepted.LocksComparison)
             {
@@ -410,8 +393,29 @@ namespace EDNA.Investigation.Domain
                 state.DiscoverObservation(caseDefinition.ConfirmationEvidenceIds[index]);
             }
             state.ConfirmationReviewed = true;
+            PrepareReportDraft(state);
             feedback = "ROV follow-up reviewed: fishing line was recorded and the seafloor remains intact.";
             return true;
+        }
+
+        private void PrepareReportDraft(InvestigationState state)
+        {
+            if (!conclusionEvaluator.EvaluateReadiness(caseDefinition, state).RequiredObjectivesComplete) return;
+            // Carry forward the player's explanation, including an unsupported one.
+            // The report records work already done; it never chooses the answer.
+            if (string.IsNullOrEmpty(state.FinalThreatId)) state.FinalThreatId = state.ProvisionalThreatId;
+            foreach (PredictionComparisonRecord record in state.ComparisonRecords)
+            {
+                if (record.LocksComparison && state.HasDiscoveredObservation(record.EvidenceId))
+                    state.SetEvidenceSelected(record.EvidenceId, true);
+            }
+            foreach (string evidenceId in caseDefinition.ConfirmationEvidenceIds)
+            {
+                if (state.HasDiscoveredObservation(evidenceId)) state.SetEvidenceSelected(evidenceId, true);
+            }
+            state.SelectedReasoningId = caseDefinition.RequiredReasoningId;
+            if (string.IsNullOrEmpty(state.SelectedLimitationId) && caseDefinition.Limitations.Count > 0)
+                state.SelectedLimitationId = caseDefinition.Limitations[0].LimitationId;
         }
 
         public bool TrySetFinalThreat(InvestigationState state, string threatId, out string feedback)

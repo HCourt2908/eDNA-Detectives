@@ -10,8 +10,7 @@ namespace EDNA.Investigation.Domain
             foreach (PredictionComparisonRecord record in state.ComparisonRecords)
             {
                 if (record.ThreatId != threatId || !state.HasTriedThreat(threatId)
-                    || !state.HasDiscoveredObservation(record.EvidenceId)
-                    || (record.ProgressRole == ComparisonProgressRole.BenthicDiscriminator && !state.ConfirmationReviewed)) continue;
+                    || !state.HasDiscoveredObservation(record.EvidenceId)) continue;
                 if (definition.FindComparisonRule(threatId, record.TargetKind, record.TargetId) == null) continue;
                 records.Add(record);
                 if (!record.LocksComparison) OpenCount++;

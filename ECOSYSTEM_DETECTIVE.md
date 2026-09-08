@@ -2,9 +2,20 @@
 
 Documentation for the Ecosystem Detective part of the OceanX eDNA Detectives Unity project. This three-stage investigation asks players to compare survey results, test competing causes, and build an evidence-based report.
 
-Edna introduces the investigation and keeps the current action visible. Observe and Simulate offer a collapsible task prompt; Report becomes a four-question conversation with Edna. Easy mode offers two increasingly specific `More help` levels; Hard keeps the same questions and scientific rules with less guidance. A new task or report question resets the help level.
+EDNA guides the investigation through short, contextual conversations. In Observe, a paper conversation beside the survey asks one species question at a time, with a transparent portrait on the right. The locator reads “Find EDNA at the top right.” Answer choices stay in a stable shuffled order for each question and session. In Simulate, her dialogue stays at the bottom and updates at each new task, combining the current investigation question, comparison feedback, optional hints and direct next actions. Dismissal lasts until the task changes; opening the Notebook temporarily hides the floating conversation. Report uses its own three-round EDNA conversation, with no second help overlay.
+At the model prediction selection step, unchecked species cards have gently pulsing borders in either difficulty. Selecting a prediction stops those cues while the player chooses evidence; saved checks keep their checkmarks. After the first completed comparison, EDNA introduces the Notebook with a direct **Open notebook** action, and its usual icon glows until first opened. An optional first-visit note inside the Notebook explains scrolling through findings, **Compare causes**, and reopening a saved check. It does not replay on subsequent visits and resets with a new case. The cues do not change card dimensions or intercept clicks.
 
-`More help`, `Minimise`, and `Show task` use filled, outlined buttons with bold labels and clear help or expand/collapse icons.
+EDNA offers only relevant controls: **Run simulation**, **Guide my next check**, **Next check**, **Write first idea**, **Open notebook**, and optional **What next? / Why?**. A next-step action never chooses or submits the evidence answer for the player.
+
+## Interactive investigation workbench
+
+The playable prototype now adds hands-on operations to the existing case:
+
+- **Observe:** slide a historical/current survey lens over aligned maps. Answer EDNA’s questions about non-detection, wider/fewer detection sites, or stable results. Correct answers record the authored finding; incorrect answers give a retry cue without a penalty. Optional organism facts are read-only. The notebook button appears after the first answer and returns to the same question when closed. The slide handle pulses until first used.
+- **Simulate:** assemble the simplified food web by dragging a predator card onto its prey, or selecting the two cards. Diet notes explain the links. Place a cause on the model to apply a disturbance, and remove it to view the stable model baseline without deleting saved comparisons. Recorded food-web, benthic and pollution patterns can be dragged onto the evidence table or selected and tested. A grouped card checks its constituent findings through the existing scientific rules; the seven required objectives are preserved, but no longer require seven separate species-selection loops. Individual prediction details remain available for review. The saved food-web connections can also be reopened.
+- **Report:** sweep a ROV camera across an inspection frame and pin the discovered finding to collect the ROV field-note set. Then connect a main clue and a distinct cross-check to the explanation using drag-and-drop or click-to-place. EDNA discusses the argument before the explanation is kept or revised. Clue emphasis is not separately scored.
+
+This version uses the existing authored case and species. It does not yet wire the identification minigame's live results into the investigation. QA checkpoints retain fully prepared data for quick scene testing.
 
 ## Quick start
 
@@ -16,7 +27,7 @@ Edna introduces the investigation and keeps the current action visible. Observe 
 
 ### 1 · Observe
 
-Players compare the same seamount **20 years ago** and **today**, divided into shallow, mid, and deep depth bands.
+Players compare the same seamount **20 years ago** and **today** with a sliding lens, divided into shallow, mid, and deep depth bands. The two maps align spatially; moving the divider changes which survey is visible without scaling the maps.
 
 Before the first recorded finding, the Notebook area shows a short **Select a
 species on TODAY** prompt. Recording that first finding reveals the paper
@@ -31,26 +42,25 @@ species and recorded-finding checks do not pulse.
 Both maps share a synchronised 20-second background cycle: natural rock (A) →
 brighter illustration (B) → bathymetric colours (C) → B → A. The mountain and
 camera stay fixed, so the appearance cycle does not imply an ecological change.
-Recording findings and refreshing the UI do not restart it. Reduced Motion
-holds the natural view.
+Recording findings and refreshing the UI do not restart it. Full motion is used throughout the game.
 
-- Five case-critical organisms always appear, and up to two additional species can be selected from the shared 20-species catalog when upstream survey results are supplied.
+- Five case-critical organisms are included in the historical baseline, and up to two additional species can be selected from the shared 20-species catalog when upstream survey results are supplied.
 - Visible organisms use depth-aware scattering rather than fixed slots, so larger survey rosters can fill each depth band without leaving authored gaps. Each new case or Restart gets a fresh arrangement, while positions remain stable throughout that run.
 - Detected and confidently not-detected species from an upstream eDNA result can join the survey roster automatically. The deterministic roster ranks food-web relevance, unusual results, confidence and sample quality, caps the screen at seven species, and falls back to the five authored case organisms when no input is supplied.
 - Detailed handoff records carry species ID, detection state, survey era, depth, confidence, sample quality, site, sample and source. Legacy `detectedSpeciesIds` inputs remain supported.
-- Imported catalog species appear only in the survey era supplied by the input. Their depth controls map placement, and an imported non-detection uses the same ghosted artwork and dashed removal mark as authored evidence.
+- Imported catalog species appear only in the survey era supplied by the input. Their depth controls map placement, and current non-detections are omitted from the map, including imported non-detections.
 - The seamount maps show organism artwork only; names, survey status and species facts appear on hover, keyboard focus or tap and are recorded in the Notebook.
-- Easy mode marks one initial organism on **TODAY** with a temporary focus frame so the first interaction is discoverable; the frame disappears after the first finding.
-- Edna opens with the purpose of the investigation and one first action. After a finding is selected, her response names it and distinguishes stable results from non-detection, then gives the remaining Observe count.
-- A current non-detection uses ghosted artwork and a dashed removal mark instead of an empty space.
+- The organism in EDNA’s current question is highlighted wherever it is detected. The slide handle has a non-blocking pulse that stops after its first meaningful movement.
+- EDNA asks one question at a time. A correct answer records the finding and advances to the next question; prior imported findings are skipped. Feedback distinguishes detections from animal counts, and non-detection from disappearance.
+- Current non-detections leave empty space: no ghost, dashed cross, or invisible clickable historical organism. The opaque current layer fully covers historical artwork, and the remaining organisms retain their aligned positions. Historical water is brighter and historical organisms use full opacity.
 - Wider detection appears as a small group.
 - Hovering, keyboard-focusing, or tapping a marker opens its species facts.
-- Tapping a current marker records the observation; historical markers are read-only.
+- Tapping a marker opens optional facts on either map. Only answering EDNA records a finding.
 - Recorded case findings show a check on their current marker. Viewing a species highlights its corresponding markers on both maps. Details identify the survey era, source and whether a finding has been recorded.
 - Clicked species details and their paired-map highlight disappear after 1.5 seconds; another tap restarts that interval. The recorded-finding check remains visible. Hover and keyboard focus retain their transient behavior, and Close can dismiss details sooner. Compact Notebook entries use the case's short gameplay names; species details retain the full name.
 - Stable species are explicitly part of the Observe task. Supplementary imported species are labelled as background survey records and do not count towards the required findings.
 - Authored case findings remain the source of truth for the five core species. Incompatible upstream detection patterns are rejected before any input is applied; players may explicitly choose **Start standalone case** to use the authored survey instead. Additional species use the same resolved result in map styling and tooltips, including historical non-detections.
-- Before the findings are complete, the Notebook shows neutral `Findings 0 / 5` progress instead of a disabled primary button. The `Test possible causes` action appears only after all five initial findings are recorded.
+- Before the findings are complete, EDNA shows the current question number; the Notebook is available after the first recorded finding. The `Test possible causes` action appears only after all five initial findings are recorded.
 - Selecting a historical organism opens its facts and explains that the 20-year survey is a read-only reference.
 - All five initial findings must be recorded before Simulate unlocks.
 - The domain and UI share the same required-finding calculation; method notes and repeated discoveries cannot substitute for a missing case finding.
@@ -60,7 +70,9 @@ The same Notebook remains available in Simulate and Report as a non-destructive 
 
 The Notebook's **Compare causes** section shows three compact cards with Support, Challenge and Open counts. Only the selected cause expands its short comparison links. These counts come from the player's checks, not probabilities or a ranking of the correct answer. Unreviewed ROV clues and locked follow-up comparisons remain hidden. Keyboard focus scrolls the controls into view.
 
-In Simulate and Report, the collapsed Notebook is a small illustrated book with a teal spine, bookmark and finding-count badge. It has no persistent text caption. Hover or keyboard focus identifies its open/close action; activating it opens the existing drawer with a brief transition (instant in reduced-motion mode). Closing the drawer returns focus to the book and preserves the reading position.
+Closing the Notebook resumes EDNA's previous conversation and reply; an explicitly dismissed conversation stays dismissed. Normal Notebook openings preserve the reading position. The Report dialogue's **Review comparisons** action instead expands and reveals the current explanation's saved checks. EDNA's guided next-check action reveals the evidence choices when they would fall below the viewport, including stacked layouts, without submitting an answer.
+
+During Observe questions after the first finding, and in Simulate and Report, the collapsed Notebook is a small illustrated book with a teal spine, bookmark and finding-count badge. It has no persistent text caption. Hover or keyboard focus identifies its open/close action; activating it opens the existing drawer with a brief transition. Closing the drawer returns focus to the book and preserves the reading position.
 
 The expanded Notebook uses a punched paper margin and six shaded binding rings along its left edge. The same binding appears on the Observe notebook. Text and scrolling content are inset beyond the binding, and the rings remain fixed while the entries scroll; all binding artwork is non-interactive.
 
@@ -72,11 +84,11 @@ Players test three competing explanations:
 - Long-line fishing
 - Bottom trawling
 
-The temperature/warming scenario has been removed from this prototype. Five comparisons lead to the first idea, followed by two benthic comparisons after the ROV reveal. Observe still requires all five core findings.
+The temperature/warming scenario has been removed from this prototype. All seven comparisons, including Sea star under both fishing models, are completed before the first idea. Observe still requires all five core findings.
 
 Running a model reveals its seafloor prediction, physical signs to look for, Shark → Tuna → Krill food-web response, and a separate benthic check for Sea star and Filter-feeding mussel.
 
-Model cards separate check progress (**NOT RUN**, **TO CHECK**, **ROV NEXT**,
+Model cards separate check progress (**NOT RUN**, **TO CHECK**,
 **CHECKED**, with completed/required counts) from the recorded evidence's
 relationship (**SUPPORTS**, **CHALLENGES**, **MIXED EVIDENCE**, or **UNRESOLVED**).
 A green check appears only when all required comparisons for that model are
@@ -84,13 +96,16 @@ complete. These labels use recorded comparisons rather than the authored answer.
 
 During cause selection, Easy mode gives all available unfinished models equal
 pulsing arrows. Choosing a model switches to the **Run simulation** arrow.
-Selecting a prediction adds a short **SELECT ONE FINDING** instruction, a down
+Selecting a prediction moves the written instruction into EDNA and adds a down
 arrow and a pulsing border to **WHAT WE FOUND**. The evidence cue remains after
 an inconclusive selection and disappears when the comparison is settled. All
-cues share a stronger, slow pulse; collapsing Edna hides them and Reduced Motion
-keeps them still and fully visible.
+cues share a stronger, slow pulse; dismissing EDNA hides the decorative cues.
 
 Food-web relationships are stored as explicit predator → prey edges grouped into named networks. The current mystery uses a deliberately simplified `case_simplified` network so its existing evidence and comparison rules remain valid. A separate five-node `reference_main` network and the storyboard's manta, deep-water and benthic branches are also authored. Missing model predictions can be propagated through the selected network, while explicit threat predictions always take precedence.
+
+Evidence choices are shuffled once per model/prediction in each investigation. The relevant option remains in the candidate set, but is not pinned to the first row. Reopening EDNA, revisiting a prediction, or submitting a comparison preserves its order; restarting creates fresh orders.
+
+The simulator’s model column has its own fixed heights, independent of the evidence column. The separate Case Question panel, evidence instruction block and report-gate hint strip have been removed. A reserved scrollbar gutter and pixel-based scroll preservation prevent help from stretching, narrowing or shifting the model cards.
 
 The comparison workspace uses progressive disclosure: players choose a cause, run it, select a prediction, and choose a recorded observation directly under **WHAT WE FOUND**. Selecting the observation immediately checks and records its relationship to the prediction.
 
@@ -102,45 +117,21 @@ The result explains whether the selected finding:
 
 A relevant supporting or challenging finding is saved and locked. Inconclusive or unrelated evidence stays open for another selection and does not advance an objective. The check uses the authored scientific rules and preserves their caveats. Keyboard and pointer selection share this same action; keyboard focus returns to the prediction controls after a comparison is saved.
 
-Feedback remains beside the selected prediction and observation after selection. The comparison workspace grows to fit the explanation.
+A compact comparison result remains beside the selected prediction and observation. EDNA explains the result, and **Why?** reveals the authored scientific feedback. Her dialogue header contains the investigation question; its text wraps independently of the model controls. Hints follow the species actually selected by the player, including choices outside the suggested route.
 
-Simulate places Edna's controls on the heading row and its message underneath, giving the current task room to wrap independently of the model controls.
-
-The case contains seven required investigation objectives grouped into four Case Questions. The first five screen plastic, establish the Shark → Tuna → Krill cascade, and show why the two fishing models partly overlap. The Sea star discriminator remains hidden until after the provisional explanation and ROV follow-up. Easy mode shows only the current Case Question, follows the selected cause, prioritises the directly related `GUIDE` clue, and names the next action. Hard mode keeps the same evidence and scientific feedback, removes guided targets, and shows the full question and candidate sets.
+The case contains seven required investigation objectives grouped into four Case Questions. The first five screen plastic, establish the Shark → Tuna → Krill cascade, and show why the two fishing models partly overlap. Sea star is available alongside the other species from the first model run. ROV findings remain separate physical evidence revealed in Report. EDNA follows the selected cause and presents the current investigation question in her dialogue. Easy includes and marks the directly related `GUIDE` clue and can open the next required prediction. Hard keeps the same scientific rules and feedback, offers more evidence candidates without a `GUIDE` marker, and leaves prediction selection to the player.
 
 ### 3 · Report
 
-Players first submit a provisional explanation. Only then does the fixed ROV follow-up unlock:
+After all seven model checks, players save an initial explanation and enter a three-round conversation:
 
-- Fishing line recorded near shark habitat
-- Seafloor remains intact
+1. **Look at the clues.** Choose **Inspect former shark habitat** or **Inspect the seafloor**, then sweep the camera frame. Pin the located finding to collect the ROV field-note set and hear the selected note first. The action starts an inspection rather than immediately revealing a result.
+2. **Weigh our explanation.** Connect a main clue and a different cross-check to the explanation, choosing from: the shark–tuna–krill pattern, stable sea star and intact seafloor, or ROV fishing line. EDNA explains the value and limits of that clue before offering to keep or change the cause. These choices are not scored and do not change the player's cause or completed checks. **Another clue** revisits the discussion; Notebook comparisons remain available. Looking back at Simulate and returning preserves the selected clue, conversation and draft.
+3. **Send our report.** Review the assembled findings, food-web model and scientific caution, then send. Players can return to the explanation or ROV clues before submitting.
 
-**Write first idea** opens a review panel showing the proposed cause and its recorded checks. Players can change the cause, cancel, or explicitly save the idea. The review scrolls in short viewports, and keyboard-focused actions remain visible.
+The report carries forward the player's explanation, accepted comparisons and both ROV findings. The draft shows the main clue and cross-check linked by the player; the case-closed summary retains the highlighted main clue. It includes the tested food-web mechanism and a scientific limitation, without substituting the correct cause. The former quiz, evidence quotas and repeated mechanism/limitation choices remain absent from the player flow. QA's already prepared report can still be reviewed and sent directly without inventing a player's key-clue choice.
 
-The same follow-up appears regardless of the provisional choice, so the game never changes its evidence to match the player's answer. The intact-seafloor clue then sends the player back to Simulate for a focused Sea star comparison under Long-line fishing and Bottom trawling. Completing those final two objectives unlocks the final report.
-
-When the ROV follow-up opens, the fishing-line and intact-seafloor cards reveal in sequence and are explicitly marked as added to the Notebook. Reduced-motion mode shows both immediately. Keyboard focus then moves to the single `Compare fishing models` action.
-
-The ROV step displays two sealed finding cards before review, then larger evidence cards containing the authored field-note details. Its Open/Compare action sits inside the evidence panel so the next step is visible next to the findings.
-
-After the ROV findings have been checked against both fishing models, the report presents one question at a time:
-
-- Which cause best explains your findings?
-- How did that cause the food-web changes?
-- Which findings support your explanation?
-- What can your evidence still not tell us?
-
-A valid report requires all seven comparison objectives plus four unique findings, including at least two food-web observations, one benthic observation, and one ROV confirmation observation. It also requires the food-web mechanism and one scientific limitation. Incorrect submissions are recorded as revisions and explain which part of the pattern remains unsupported.
-
-Single-choice answers advance to the next question when valid. Evidence is a multi-selection question with a Continue action. Edna acknowledges the previous answer, and a question counter shows progress. The ROV task appears before the conversation; the full report form is not exposed prematurely.
-
-An incomplete answer receives feedback beside that question without counting as a submission. The feedback is available in both difficulties and survives a difficulty change. Previous answers remain in the current session when navigating back, opening the Notebook, or changing stages. Moving to another question resets reading position and moves keyboard focus to its answers.
-
-After the fourth answer, a read-only review shows the complete draft with an Edit action for each part. Editing returns to the review while retaining the other answers. Only Send report submits the final judgement. A rejected report opens the part that needs revision.
-
-A correct report replaces the editable form with a **Case Closed** debrief covering the best-supported cause, food-web mechanism, benthic discriminator, ROV follow-up, and remaining uncertainty.
-
-Edna supplies the next action, comparison feedback explains the selected result, and the Notebook keeps the recorded findings and comparison history. Report diagnostics appear locally rather than being repeated in a toast. The header labels completed comparisons as **CHECKS**, keeping them distinct from grouped Case Questions and the four report questions.
+The domain evaluator still checks completeness and scientific support. If a conclusion conflicts with a saved comparison, EDNA explains that specific finding in round two and offers revision or another look. Draft evidence and completed checks remain intact. A correct report opens the case-closed summary and publishes the investigation result. QA **Report** opens the fully prepared third round without submitting it.
 
 ## The Missing Predator case
 
@@ -162,11 +153,10 @@ The case currently includes:
 ## Difficulty, input, and accessibility
 
 - Easy and Hard change guidance, not the scientific rules or correct answer.
-- Edna guides every stage. Observe and Simulate task hints can be collapsed; Report presents one question at a time, with optional extra help in Easy mode.
-- Help and collapse controls use filled backgrounds, visible outlines, icons and bold labels.
+- EDNA introduces Observe milestones, follows each Simulate task, and leads the three-round Report conversation. Her avatar reopens help or returns to the current report conversation.
+- EDNA’s dialogue offers What next?, Why? and a dismiss button; the avatar remains available after dismissal. Opening the Notebook temporarily removes the character overlay.
 - Restarting a case preserves the selected difficulty; a new scene session starts at Easy.
-- Full and reduced-motion modes are available from every stage.
-- Motion is disabled or simplified when reduced motion is active.
+- Easy/Hard is the only player-facing mode control. Motion stays Full across all stages; old saved Reduced preferences are ignored.
 - Pointer, keyboard, and touch interactions share the same gameplay path.
 - Species markers use generous hit targets and visible keyboard focus rings.
 - Selected, suggested, correct, incorrect, and uncertain states use shape or text in addition to colour.
@@ -217,7 +207,7 @@ valid data. Non-development players do not include these controls.
 | Checkpoint | State | Ctrl+Shift key |
 | --- | --- | --- |
 | Observe | All five findings recorded; ready to continue | 1 |
-| Simulate | All initial comparisons done; ready to choose a provisional explanation | 2 |
+| Simulate | All seven comparisons done; ready to choose a provisional explanation | 2 |
 | Report | ROV reviewed, all seven checks done, valid final draft ready to send | 3 |
 
 The case authoring commands generate the three-cause configuration. `eDNA Detectives > Remove Warming Scenario` upgrades older four-cause case assets to this configuration.
@@ -256,4 +246,4 @@ The Observe seamount uses three in-house Blender renders blended in Unity. Its
 source and playback settings are recorded in [GENERATION.md](game/Assets/Resources/Investigation/Seamount/GENERATION.md).
 The original static fallback retains its [generation record](game/Assets/Art/Investigation/Seamount/GENERATION.md).
 
-The interface uses a compact phase navigation with completion checks, restrained blue surfaces, teal selections, coral primary actions and warm paper for investigation records. Prediction direction is carried by labels and arrows; red and green remain available for comparison feedback. Keyboard focus uses a thin hollow stroke. Water particles remain behind the interface, historical specimens are subdued, and both maps use aligned depth guides. Case Closed adds a brief review-stamp animation that is skipped in reduced-motion mode.
+The interface uses a compact phase navigation with completion checks, restrained blue surfaces, teal selections, coral primary actions and warm paper for investigation records. Prediction direction is carried by labels and arrows; red and green remain available for comparison feedback. Keyboard focus uses a thin hollow stroke. Water particles remain behind the interface, historical specimens are subdued, and both maps use aligned depth guides. Case Closed adds a brief review-stamp animation.

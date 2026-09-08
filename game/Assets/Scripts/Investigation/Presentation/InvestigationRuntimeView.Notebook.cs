@@ -14,10 +14,16 @@ namespace EDNA.Investigation
         private bool hypothesisSummaryExpanded;
         private string expandedHypothesisId = string.Empty;
         private bool notebookOpeningAnimationPending;
+        private bool notebookHasBeenOpened;
+        private bool notebookIntroductionVisible;
 
         private void ToggleNotebookDrawer()
         {
+            // The drawer hides EDNA through its visibility rules. Keep the
+            // conversation/reply state so closing resumes it only if it was open.
             notebookDrawerOpen = !notebookDrawerOpen;
+            notebookIntroductionVisible = notebookDrawerOpen && !notebookHasBeenOpened;
+            if (notebookDrawerOpen) notebookHasBeenOpened = true;
             notebookOpeningAnimationPending = notebookDrawerOpen;
             notebookFocusTargetAfterRender = notebookDrawerOpen
                 ? "Close Notebook Drawer"
@@ -29,8 +35,20 @@ namespace EDNA.Investigation
         {
             if (!notebookDrawerOpen) return;
             notebookDrawerOpen = false;
+            notebookIntroductionVisible = false;
             notebookFocusTargetAfterRender = "Toggle Notebook Drawer";
             RefreshPresentationOnly();
+        }
+
+        private void OpenNotebookComparisons(string threatId)
+        {
+            hypothesisSummaryExpanded = true;
+            expandedHypothesisId = threatId;
+            notebookDrawerScrollPosition = 1f;
+            navigationRevealTarget = $"Hypothesis Card {threatId}";
+            navigationRevealAtTop = true;
+            if (notebookDrawerOpen) RefreshPresentationOnly();
+            else ToggleNotebookDrawer();
         }
 
         private void RemoveNotebookDrawer()
@@ -53,8 +71,11 @@ namespace EDNA.Investigation
         {
             if (!notebookDrawerOpen
                 || state == null
-                || state.Phase == InvestigationPhase.Observe
-                || state.ConclusionStatus == InvestigationConclusionStatus.Correct)
+                || (state.Phase == InvestigationPhase.Observe && CountInitialFindings() == 0)
+                // The completed report has its own summary, but returning to
+                // Simulate must still allow the visible Notebook button to open it.
+                || (state.Phase == InvestigationPhase.Report
+                    && state.ConclusionStatus == InvestigationConclusionStatus.Correct))
             {
                 return;
             }
@@ -167,7 +188,8 @@ namespace EDNA.Investigation
             entriesLayout.childForceExpandHeight = false;
             entries.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             scroll.content = entries;
-            RenderHypothesisSummary(entries);
+            if (notebookIntroductionVisible) RenderNotebookIntroduction(entries);
+            if (state.Phase != InvestigationPhase.Observe || state.TriedThreatIds.Count > 0) RenderHypothesisSummary(entries);
             RenderNotebookEntries(entries);
 
             RectTransform scrollbarRect = CreatePanel("Notebook Drawer Scrollbar", scrollRoot, new Color32(179, 204, 218, 110), 5f);
@@ -191,6 +213,43 @@ namespace EDNA.Investigation
 
             scrim.transform.SetAsLastSibling();
             drawer.SetAsLastSibling();
+        }
+
+        private void RenderNotebookIntroduction(Transform parent)
+        {
+            RectTransform note = CreatePanel("Notebook Edna Introduction", parent,
+                InvestigationTheme.PaperSelected, InvestigationTheme.SmallRadius);
+            HorizontalLayoutGroup row = note.gameObject.AddComponent<HorizontalLayoutGroup>();
+            row.padding = new RectOffset(10, 8, 10, 12);
+            row.spacing = 8f;
+            row.childControlWidth = row.childControlHeight = true;
+            row.childForceExpandWidth = row.childForceExpandHeight = false;
+            row.childAlignment = TextAnchor.UpperLeft;
+            RectTransform words = new GameObject("Notebook Introduction Words", typeof(RectTransform),
+                typeof(VerticalLayoutGroup), typeof(LayoutElement)).GetComponent<RectTransform>();
+            words.SetParent(note, false);
+            words.GetComponent<LayoutElement>().flexibleWidth = 1f;
+            VerticalLayoutGroup column = words.GetComponent<VerticalLayoutGroup>();
+            column.spacing = 4f;
+            column.childControlWidth = column.childControlHeight = true;
+            column.childForceExpandWidth = true;
+            column.childForceExpandHeight = false;
+            Text name = CreateText("Notebook Edna Name", words, "EDNA", 11, FontStyle.Bold,
+                InvestigationTheme.PaperSelectedBorder, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
+            ConfigureContentDrivenText(name);
+            string instruction = state.Phase == InvestigationPhase.Observe
+                ? "Your answers are saved here. Scroll to reread a finding, then close the notebook to return to Edna's question."
+                : hypothesisSummaryExpanded
+                ? "Select a cause with recorded checks, then a check to reopen it in the model. Close the notebook to continue investigating."
+                : "Scroll below to revisit your survey findings. Use Compare causes to review the checks you save while testing models.";
+            Text message = CreateText("Notebook Edna Instructions", words, instruction, 13, FontStyle.Normal,
+                InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
+            ConfigureContentDrivenText(message);
+            EnsureEdnaArtwork();
+            Image avatar = CreateStatusIcon("Notebook Edna Avatar", note, ednaAvatar ?? ednaPortrait, Color.white);
+            LayoutElement avatarSize = avatar.gameObject.AddComponent<LayoutElement>();
+            avatarSize.minWidth = avatarSize.preferredWidth = 44f;
+            avatarSize.minHeight = avatarSize.preferredHeight = 44f;
         }
 
         private void CreateNotebookBinding(RectTransform paper)
@@ -257,6 +316,8 @@ namespace EDNA.Investigation
             trigger.Configure(0.3f,
                 () => { if (tooltip != null) tooltip.gameObject.SetActive(true); },
                 () => { if (tooltip != null) tooltip.gameObject.SetActive(false); });
+            if (!notebookHasBeenOpened && ednaIntroductions.Contains("notebook-introduction"))
+                AddChoiceBorderCue("Open Notebook Cue", button.transform);
             return button;
         }
 
@@ -398,6 +459,9 @@ namespace EDNA.Investigation
 
         private void RevisitComparison(PredictionComparisonRecord record)
         {
+            workbenchInspectPrediction = true;
+            workbenchFoodWebReady = true;
+            restingExperiments.Remove(record.ThreatId);
             selectedThreatId = record.ThreatId;
             selectedPredictionTargetKind = record.TargetKind;
             selectedPredictionSpeciesId = record.TargetId;

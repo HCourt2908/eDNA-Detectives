@@ -36,8 +36,7 @@ namespace EDNA.Investigation.Domain
                         missingObjectiveId = objective.ObjectiveId;
                         missingEvidenceId = unavailableEvidenceId;
                     }
-                    if (objective.ProgressRole != ComparisonProgressRole.BenthicDiscriminator
-                        && string.IsNullOrEmpty(missingProvisionalObjectiveId))
+                    if (string.IsNullOrEmpty(missingProvisionalObjectiveId))
                     {
                         provisionalObjectivesComplete = false;
                         missingProvisionalObjectiveId = objective.ObjectiveId;

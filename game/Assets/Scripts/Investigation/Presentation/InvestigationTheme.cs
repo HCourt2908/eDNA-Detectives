@@ -56,8 +56,8 @@ namespace EDNA.Investigation
 
         // Semi-transparent so the water column and its particles carry through
         // the survey maps instead of stopping at an opaque panel edge.
-        public static readonly Color32 MapSurface = new Color32(9, 35, 46, 210);
-        public static readonly Color32 MapSurfaceHistorical = new Color32(23, 42, 50, 210);
+        public static readonly Color32 MapSurface = new Color32(9, 35, 46, 255);
+        public static readonly Color32 MapSurfaceHistorical = new Color32(46, 83, 94, 255);
 
         public const float ShellRadius = 14f;
         public const float CardRadius = 12f;

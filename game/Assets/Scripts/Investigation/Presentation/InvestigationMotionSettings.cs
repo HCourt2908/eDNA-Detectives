@@ -4,14 +4,20 @@ namespace EDNA.Investigation
 {
     public static class InvestigationMotionSettings
     {
-        private const string ReducedMotionPreferenceKey = "EDNA.Investigation.ReducedMotion";
+#if UNITY_EDITOR || UNITY_INCLUDE_TESTS
+        // Rendering tests can freeze animation without changing any saved player setting.
+        private static bool reducedMotionForTests;
+        public static bool ReducedMotion => reducedMotionForTests;
 
-        public static bool ReducedMotion => PlayerPrefs.GetInt(ReducedMotionPreferenceKey, 0) == 1;
-
-        public static void SetReducedMotion(bool reducedMotion)
+        public static void SetReducedMotionForTests(bool reducedMotion)
         {
-            PlayerPrefs.SetInt(ReducedMotionPreferenceKey, reducedMotion ? 1 : 0);
-            PlayerPrefs.Save();
+            reducedMotionForTests = reducedMotion;
         }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetTestOverride() => reducedMotionForTests = false;
+#else
+        public static bool ReducedMotion => false;
+#endif
     }
 }

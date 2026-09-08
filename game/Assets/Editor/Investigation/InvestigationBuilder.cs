@@ -148,7 +148,7 @@ namespace EDNA.Investigation.Editor
             SetString(caseObject, "simulationFoodWebId", "case_simplified");
             SetFoodWebEdges(caseObject);
             SetStringArray(caseObject, "benthicIndicatorSpeciesIds", new[] { "sea_star", "mussel" });
-            SetStringArray(caseObject, "followUpLockedSpeciesIds", new[] { "sea_star" });
+            SetStringArray(caseObject, "followUpLockedSpeciesIds", Array.Empty<string>());
             SetInteger(caseObject, "maximumSurveySpecies", 7);
             SetObservations(caseObject);
             SetObjectArray(caseObject, "threats", threats);
@@ -202,7 +202,7 @@ namespace EDNA.Investigation.Editor
             SetString(caseObject, "simulationFoodWebId", "case_simplified");
             SetFoodWebEdges(caseObject);
             SetStringArray(caseObject, "benthicIndicatorSpeciesIds", new[] { "sea_star", "mussel" });
-            SetStringArray(caseObject, "followUpLockedSpeciesIds", new[] { "sea_star" });
+            SetStringArray(caseObject, "followUpLockedSpeciesIds", Array.Empty<string>());
             SetInteger(caseObject, "maximumSurveySpecies", 7);
             caseObject.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(caseDefinition);

@@ -33,8 +33,7 @@ namespace EDNA.Investigation
                 : state.ProcessedSampleSummary;
             Text observeHeading = CreateHeading(
                 "What changed on this seamount?",
-                $"{processedSummary}. Record both changes and stable comparisons on today's survey.");
-            RenderEdnaGuide(observeHeading.transform.parent);
+                $"{processedSummary}. Slide between surveys and answer Edna's questions.");
 
             RectTransform split = new GameObject("Observe Split", typeof(RectTransform), typeof(InvestigationResponsiveSplitLayout)).GetComponent<RectTransform>();
             split.SetParent(contentRoot, false);
@@ -42,21 +41,16 @@ namespace EDNA.Investigation
             splitLayout.padding = new RectOffset(0, 0, 0, 0);
             float availableHeight = contentPanel == null ? 480f : contentPanel.rect.height;
             float surveyHeight = Mathf.Clamp(availableHeight - 50f, 360f, 430f);
-            splitLayout.Configure(0.76f, 14f, 930f, surveyHeight, surveyHeight);
+            splitLayout.Configure(0.68f, 14f, 930f, surveyHeight, surveyHeight);
 
             RectTransform comparison = CreatePanel("Survey Comparison", split, new Color(0f, 0f, 0f, 0f), 0f);
-            HorizontalLayoutGroup comparisonLayout = comparison.gameObject.AddComponent<HorizontalLayoutGroup>();
-            comparisonLayout.spacing = 10f;
-            comparisonLayout.childControlWidth = true;
-            comparisonLayout.childControlHeight = true;
-            comparisonLayout.childForceExpandWidth = true;
-            comparisonLayout.childForceExpandHeight = true;
-            CreateSurveyMap(comparison, SurveyEra.Historical);
-            CreateSurveyMap(comparison, SurveyEra.Current);
-
-            if (CountVisibleNotebookObservations() == 0)
+            RenderSurveyLens(comparison);
+            if (ObserveQuestion != null)
             {
-                RenderFirstFindingPrompt(split);
+                RectTransform question = RenderObserveQuestion(split);
+                Canvas.ForceUpdateCanvases();
+                splitLayout.Configure(0.68f, 14f, 930f, surveyHeight,
+                    Mathf.Max(surveyHeight, LayoutUtility.GetPreferredHeight(question)));
                 return;
             }
 
@@ -99,7 +93,7 @@ namespace EDNA.Investigation
                 Text progressText = CreateText(
                     "Observe Finding Progress Text",
                     progress,
-                    $"FINDINGS {initialFindings} / {requiredFindings}  ·  Select an organism on TODAY",
+                    $"FINDINGS {initialFindings} / {requiredFindings}  ·  Answer Edna's next question",
                     11,
                     FontStyle.Bold,
                     InvestigationTheme.PaperSelectedBorder,
@@ -112,26 +106,6 @@ namespace EDNA.Investigation
             observeNotebookVisible = true;
             if (firstReveal && !string.IsNullOrEmpty(lastRecordedObservationId) && !InvestigationMotionSettings.ReducedMotion)
                 StartCoroutine(RevealObserveNotebook(notebook));
-        }
-
-        private void RenderFirstFindingPrompt(Transform parent)
-        {
-            RectTransform prompt = CreatePanel("Observe First Finding", parent, InvestigationTheme.SurfaceQuiet, InvestigationTheme.CardRadius);
-            InvestigationBorderGraphic border = CreateGraphic<InvestigationBorderGraphic>("First Finding Border", prompt);
-            Stretch(border.rectTransform, 0f, 0f, 0f, 0f);
-            border.Configure(InvestigationTheme.CardRadius, 1f);
-            border.color = InvestigationTheme.Primary;
-            Text step = CreateText("First Finding Step", prompt, "START HERE", 12, FontStyle.Bold,
-                InvestigationTheme.Accent, TextAnchor.MiddleLeft, InvestigationTheme.DataFont);
-            Anchor(step.rectTransform, 0f, 1f, 1f, 1f, 24f, -48f, -24f, -16f);
-            Image icon = CreateStatusIcon("First Finding Icon", prompt, InvestigationScenarioIconLibrary.Investigate, Color.white);
-            Anchor(icon.rectTransform, .5f, .68f, .5f, .68f, -32f, -32f, 32f, 32f);
-            Text title = CreateText("First Finding Title", prompt, "Select a species\non TODAY", 22, FontStyle.Bold,
-                InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.DisplayFont);
-            Anchor(title.rectTransform, 0f, .40f, 1f, .60f, 20f, 0f, -20f, 0f);
-            Text detail = CreateText("First Finding Detail", prompt, "Your first finding will open your notebook.", 15, FontStyle.Normal,
-                InvestigationTheme.TextSecondary, TextAnchor.UpperCenter, InvestigationTheme.BodyFont);
-            Anchor(detail.rectTransform, 0f, .16f, 1f, .37f, 24f, 0f, -24f, 0f);
         }
 
         private IEnumerator RevealObserveNotebook(RectTransform notebook)
@@ -221,7 +195,7 @@ namespace EDNA.Investigation
                 historical ? "20 years ago" : "Today",
                 18,
                 FontStyle.Bold,
-                historical ? InvestigationTheme.TextSecondary : InvestigationTheme.Primary,
+                historical ? InvestigationTheme.TextPrimary : InvestigationTheme.Primary,
                 TextAnchor.UpperLeft,
                 InvestigationTheme.DisplayFont);
             Anchor(title.rectTransform, 0f, 0.84f, 1f, 1f, 14f, 0f, -12f, -10f);
@@ -237,6 +211,18 @@ namespace EDNA.Investigation
             CreateDepthLabel(map, "DEEP", 0.10f);
 
             CreateSpeciesMarkers(plotArea, era);
+            RectTransform artwork = FindNamedRect(visualClip, "Seamount Backdrop") ?? FindNamedRect(visualClip, "Seamount Sprite");
+            if (artwork != null)
+            {
+                var pins = new List<RectTransform>();
+                foreach (InvestigationSpeciesDefinition species in GetVisibleObserveSpecies())
+                {
+                    if (!InvestigationSpeciesMapLayout.IsBenthic(species)) continue;
+                    RectTransform pin = FindNamedRect(plotArea, (historical ? "Historical Species Marker " : "Species Marker ") + species.SpeciesId);
+                    if (pin != null) pins.Add(pin);
+                }
+                plotArea.gameObject.AddComponent<InvestigationBenthicAlignment>().Configure(plotArea, artwork, pins.ToArray());
+            }
         }
 
         private void CreateSpeciesMarkers(RectTransform plotArea, SurveyEra era)
@@ -264,7 +250,7 @@ namespace EDNA.Investigation
             for (int index = 0; index < visibleSpecies.Count; index++)
             {
                 InvestigationSpeciesDefinition species = visibleSpecies[index];
-                if (ShouldDisplaySpeciesInEra(species, era)
+                if ((caseDefinition.IsCaseSpecies(species.SpeciesId) || FindSurveyRecord(species.SpeciesId, era) != null)
                     && ResolveSurveyDepthBand(species, era) == depthBand
                     && InvestigationSpeciesMapLayout.IsBenthic(species) == benthic)
                 {
@@ -283,10 +269,10 @@ namespace EDNA.Investigation
                     species.SpeciesId,
                     depthBand,
                     benthic,
-                    era,
+                    SurveyEra.Historical,
                     index,
                     group.Count);
-                CreateSpeciesMarker(plotArea, species, era, placement);
+                if (ShouldDisplaySpeciesInEra(species, era)) CreateSpeciesMarker(plotArea, species, era, placement);
             }
         }
 
@@ -320,6 +306,7 @@ namespace EDNA.Investigation
         private bool ShouldDisplaySpeciesInEra(InvestigationSpeciesDefinition species, SurveyEra era)
         {
             if (species == null) return false;
+            if (era == SurveyEra.Current && ResolveSurveySummary(species, era)?.Detection == SpeciesDetectionState.NotDetected) return false;
             if (caseDefinition.IsCaseSpecies(species.SpeciesId)) return true;
             return FindSurveyRecord(species.SpeciesId, era) != null;
         }
@@ -360,7 +347,7 @@ namespace EDNA.Investigation
                 mountain.rectTransform.anchoredPosition = Vector2.zero;
                 mountain.rectTransform.sizeDelta = Vector2.zero;
                 AspectRatioFitter aspect = mountain.gameObject.AddComponent<AspectRatioFitter>();
-                aspect.aspectMode = AspectRatioFitter.AspectMode.WidthControlsHeight;
+                aspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
                 aspect.aspectRatio = mountain.texture.width / (float)mountain.texture.height;
                 return;
             }
@@ -377,7 +364,7 @@ namespace EDNA.Investigation
                 mountain.rectTransform.anchoredPosition = Vector2.zero;
                 mountain.rectTransform.sizeDelta = Vector2.zero;
                 AspectRatioFitter aspect = mountain.gameObject.AddComponent<AspectRatioFitter>();
-                aspect.aspectMode = AspectRatioFitter.AspectMode.WidthControlsHeight;
+                aspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
                 aspect.aspectRatio = seamountSprite.rect.width / seamountSprite.rect.height;
             }
             else
@@ -454,7 +441,7 @@ namespace EDNA.Investigation
                 notDetected);
             Image specimen = artwork.GetComponent<Image>();
             if (historical && specimen != null)
-                specimen.color = new Color(0.82f, 0.90f, 0.91f, specimen.color.a * 0.76f);
+                specimen.color = Color.white;
             bool showGroup = !historical
                 && observation != null
                 && observation.ClaimType == ObservationClaimType.ChangedDepthOrDistribution
@@ -477,12 +464,14 @@ namespace EDNA.Investigation
                 Anchor(missing.rectTransform, 0.12f, 0.08f, 0.88f, 0.96f, 0f, 0f, 0f, -2f);
             }
 
-            RectTransform pairFocus = CreatePanel("Paired Species Focus", marker.transform, new Color(0.2f, 0.8f, 0.9f, 0.08f), InvestigationTheme.SmallRadius);
+            InvestigationBorderGraphic focusBorder = CreateGraphic<InvestigationBorderGraphic>("Paired Species Focus", marker.transform);
+            focusBorder.Configure(InvestigationTheme.SmallRadius, 1.5f);
+            focusBorder.color = InvestigationTheme.Primary;
+            focusBorder.raycastTarget = false;
+            RectTransform pairFocus = focusBorder.rectTransform;
             Stretch(pairFocus, 2f, 2f, -2f, -2f);
-            EnsureOutline(pairFocus.gameObject, InvestigationTheme.Primary, new Vector2(2f, -2f));
-            pairFocus.GetComponent<Image>().raycastTarget = false;
             pairFocus.SetAsFirstSibling();
-            pairFocus.gameObject.SetActive(false);
+            pairFocus.gameObject.SetActive(ObserveQuestion?.RelatedSpeciesId == species.SpeciesId);
             if (!speciesPairHighlights.TryGetValue(species.SpeciesId, out List<GameObject> highlights))
             {
                 highlights = new List<GameObject>();
@@ -500,16 +489,6 @@ namespace EDNA.Investigation
                 1f,
                 () => ShowSpeciesTooltip(rect, species, era),
                 () => HideSpeciesTooltipFor(rect));
-
-            if (!historical
-                && state.Difficulty == InvestigationDifficulty.Easy
-                && !guidanceCollapsed
-                && observation != null
-                && observation.UnlockStage == EvidenceUnlockStage.Observe
-                && !state.HasDiscoveredObservation(observation.EvidenceId))
-            {
-                AddUnrecordedFindingCue(marker);
-            }
 
             if (string.Equals(pendingTappedSpeciesId, species.SpeciesId, StringComparison.Ordinal)
                 && pendingTappedSpeciesHistorical == historical)
@@ -535,18 +514,8 @@ namespace EDNA.Investigation
             SurveyEra era,
             InvestigationObservationDefinition observation)
         {
-            bool historical = era == SurveyEra.Historical;
-            if (historical || observation == null)
-            {
-                if (historical) ShowReferenceSurveyNotice();
-                ShowSpeciesTooltip(marker, species, era, true);
-                return;
-            }
-
-            pendingTappedSpeciesId = species.SpeciesId;
-            pendingTappedSpeciesHistorical = false;
-            lastRecordedObservationId = observation.EvidenceId;
-            discoverObservation?.Invoke(observation.EvidenceId);
+            if (era == SurveyEra.Historical) ShowReferenceSurveyNotice();
+            ShowSpeciesTooltip(marker, species, era, true);
         }
 
         private void ShowPendingTappedSpeciesTooltip()
@@ -805,7 +774,7 @@ namespace EDNA.Investigation
             if (summary == null) return "No record was supplied for this survey era.";
             string status = era == SurveyEra.Historical ? "Historical reference · read only"
                 : summary.Observation == null ? "Supplementary survey · not a required case finding"
-                : state.HasDiscoveredObservation(summary.Observation.EvidenceId) ? "RECORDED IN NOTEBOOK" : "Select to record this finding";
+                : state.HasDiscoveredObservation(summary.Observation.EvidenceId) ? "RECORDED IN NOTEBOOK" : "Answer Edna to record this finding";
             string source = string.IsNullOrEmpty(summary.Confidence) ? summary.Source : $"{summary.Source} · {summary.Confidence}";
             return $"{summary.Result}\n{source}\nDEPTH  {summary.Depth}\n{status}";
         }
@@ -826,7 +795,7 @@ namespace EDNA.Investigation
             }
             speciesTooltipOwner = null;
             speciesTooltipPinned = false;
-            SetSpeciesPairHighlight(null);
+            SetSpeciesPairHighlight(ObserveQuestion?.RelatedSpeciesId);
             if (speciesTooltip == null) return;
             GameObject tooltipObject = speciesTooltip.gameObject;
             speciesTooltip = null;

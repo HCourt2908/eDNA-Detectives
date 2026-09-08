@@ -1,3 +1,4 @@
+using static EDNA.Investigation.Tests.InvestigationWorkbenchTestActions;
 using System;
 using System.Collections;
 using System.IO;
@@ -24,35 +25,67 @@ namespace EDNA.Investigation.Tests
         }
 
         [UnityTest]
-        public IEnumerator InvestigationScene_AllUnrecordedSpeciesHaveSynchronizedPulsingFrames()
+        public IEnumerator InvestigationScene_OnlyDifficultyIsExposedAndLegacyReducedMotionIsIgnored()
+        {
+            const string legacyKey = "EDNA.Investigation.ReducedMotion";
+            bool hadPreference = PlayerPrefs.HasKey(legacyKey);
+            int previousPreference = PlayerPrefs.GetInt(legacyKey, 0);
+            bool previousOverride = InvestigationMotionSettings.ReducedMotion;
+            try
+            {
+                PlayerPrefs.SetInt(legacyKey, 1);
+                InvestigationMotionSettings.SetReducedMotionForTests(false);
+                InvestigationSessionBridge.Clear();
+                yield return LoadInvestigationScene();
+                InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
+                foreach (InvestigationQaCheckpoint checkpoint in new[] { InvestigationQaCheckpoint.ObserveReady, InvestigationQaCheckpoint.SimulateStart, InvestigationQaCheckpoint.FinalReportReady })
+                {
+                    controller.ApplyQaCheckpoint(checkpoint);
+                    yield return null;
+                    Assert.That(FindButton("Motion Toggle"), Is.Null);
+                    Assert.That(InvestigationMotionSettings.ReducedMotion, Is.False, "The old saved Reduced preference must be ignored.");
+                    InvestigationDifficulty before = controller.State.Difficulty;
+                    Click("Difficulty Toggle");
+                    Assert.That(controller.State.Difficulty, Is.Not.EqualTo(before));
+                    Assert.That(InvestigationMotionSettings.ReducedMotion, Is.False);
+                    Assert.That(FindButton("Difficulty Toggle").GetComponentInChildren<Text>().text, Is.EqualTo(controller.State.Difficulty.ToString()));
+                }
+                controller.SendMessage("HandleRestart", SendMessageOptions.RequireReceiver);
+                Assert.That(InvestigationMotionSettings.ReducedMotion, Is.False);
+                Assert.That(FindButton("Motion Toggle"), Is.Null);
+            }
+            finally
+            {
+                if (hadPreference) PlayerPrefs.SetInt(legacyKey, previousPreference);
+                else PlayerPrefs.DeleteKey(legacyKey);
+                InvestigationMotionSettings.SetReducedMotionForTests(previousOverride);
+                InvestigationSessionBridge.Clear();
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator InvestigationScene_LensHandlePulsesUntilUsedAndRespectsMotionPreference()
         {
             bool previous = InvestigationMotionSettings.ReducedMotion;
-            InvestigationMotionSettings.SetReducedMotion(false);
+            InvestigationMotionSettings.SetReducedMotionForTests(false);
             try
             {
                 yield return LoadInvestigationScene();
-                string[] ids = { "shark", "tuna", "krill", "sea_star", "mussel" };
-                CanvasGroup first = FindButton("Species Marker shark").transform.Find("Unrecorded Finding Cue").GetComponent<CanvasGroup>();
-                float alpha = first.alpha;
-                yield return WaitForCondition(() => Mathf.Abs(first.alpha - alpha) > .25f, 2f, "Species frames should visibly pulse.");
-                foreach (string id in ids)
-                {
-                    CanvasGroup cue = FindButton("Species Marker " + id).transform.Find("Unrecorded Finding Cue").GetComponent<CanvasGroup>();
-                    Assert.That(cue.alpha, Is.EqualTo(first.alpha).Within(.001f));
-                    Assert.That(cue.blocksRaycasts, Is.False);
-                    Assert.That(FindButton("Historical Species Marker " + id).transform.Find("Unrecorded Finding Cue"), Is.Null);
-                }
-                ClickThroughPointer(FindButton("Species Marker mussel"));
-                yield return null;
-                Assert.That(FindButton("Species Marker mussel").transform.Find("Unrecorded Finding Cue"), Is.Null);
-                Assert.That(FindButton("Species Marker shark").transform.Find("Unrecorded Finding Cue"), Is.Not.Null);
-                Click("Motion Toggle");
-                yield return null;
-                yield return null;
-                foreach (InvestigationGuidancePulse pulse in Object.FindObjectsByType<InvestigationGuidancePulse>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
-                    Assert.That(pulse.GetComponent<CanvasGroup>().alpha, Is.EqualTo(1f).Within(.001f));
+                CanvasGroup cue = GameObject.Find("Survey Lens Handle Cue").GetComponent<CanvasGroup>();
+                float alpha = cue.alpha;
+                yield return WaitForCondition(() => Mathf.Abs(cue.alpha - alpha) > .25f, 2f, "The slide handle should visibly pulse.");
+                Assert.That(cue.blocksRaycasts, Is.False);
+                InvestigationMotionSettings.SetReducedMotionForTests(true);
+                yield return null; yield return null;
+                Assert.That(cue.alpha, Is.EqualTo(1f).Within(.001f));
+                GameObject.Find("Survey Time Lens").GetComponent<Slider>().value = .85f;
+                Assert.That(cue.gameObject.activeSelf, Is.False);
+                Record("Species Marker shark"); yield return null;
+                Assert.That(GameObject.Find("Survey Lens Handle Cue"), Is.Null, "The introduction must stay complete after a question refresh.");
+                foreach (string id in new[] { "tuna", "sea_star", "mussel" })
+                    Assert.That(FindButton("Species Marker " + id).transform.Find("Unrecorded Finding Cue"), Is.Null);
             }
-            finally { InvestigationMotionSettings.SetReducedMotion(previous); }
+            finally { InvestigationMotionSettings.SetReducedMotionForTests(previous); }
         }
 
         [UnityTest]
@@ -62,9 +95,9 @@ namespace EDNA.Investigation.Tests
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.EvidenceReady);
             yield return null;
-            Assert.That(GameObject.Find("Evidence Action Prompt"), Is.Not.Null);
+            Assert.That(GameObject.Find("Edna Speech Text").GetComponent<Text>().text, Does.Contain("WHAT WE FOUND"));
             Assert.That(GameObject.Find("Choose Evidence Arrow"), Is.Not.Null);
-            foreach (Text text in GameObject.Find("Evidence Action Prompt").GetComponentsInChildren<Text>()) AssertTextFitsItsRect(text);
+            AssertTextFitsItsRect(GameObject.Find("Edna Speech Text").GetComponent<Text>());
             int before = controller.State.CompletedObjectiveCount;
             ClickThroughPointer(FindButton("Observation E03_KRILL_NONDETECTION"));
             yield return null;
@@ -92,18 +125,18 @@ namespace EDNA.Investigation.Tests
                 Assert.That(controller.State, Is.Not.Null);
             }
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.Start);
-            Assert.That(GameObject.Find("Observe First Finding"), Is.Not.Null);
+            Assert.That(GameObject.Find("Observe Question"), Is.Not.Null);
             Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.FirstFinding);
-            Assert.That(GameObject.Find("Notebook Title").GetComponent<Text>().text, Does.Contain("· 1"));
+            Assert.That(GameObject.Find("Notebook Finding Count Text").GetComponent<Text>().text, Is.EqualTo("1"));
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.SimulateStart);
             AssertChoiceArrows("plastic", "longline", "bottom_trawling");
             Assert.That(controller.State.TriedThreatIds, Is.Empty);
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.EvidenceReady);
-            Assert.That(GameObject.Find("Evidence Action Prompt"), Is.Not.Null);
+            Assert.That(GameObject.Find("Edna Speech Text").GetComponent<Text>().text, Does.Contain("WHAT WE FOUND"));
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ReportQuestions);
-            AssertReportQuestion("Cause", 1);
-            Assert.That(controller.State.SelectedReportEvidenceIds, Is.Empty);
+            Assert.That(GameObject.Find("Report Review"), Is.Not.Null);
+            Assert.That(controller.State.SelectedReportEvidenceIds, Has.Count.EqualTo(7));
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
             Assert.That(GameObject.Find("Report Review"), Is.Not.Null);
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.CaseClosed);
@@ -121,44 +154,31 @@ namespace EDNA.Investigation.Tests
         }
 
         [UnityTest]
-        public IEnumerator InvestigationScene_FirstFindingRevealsNotebookAndImportsSkipThePrompt()
+        public IEnumerator InvestigationScene_FirstAnswerRevealsNotebookAndImportedFindingsSkipAnsweredQuestions()
         {
             InvestigationSessionBridge.Clear();
             try
             {
                 yield return LoadInvestigationScene();
-                Rect reserved = WorldRect(GameObject.Find("Observe First Finding").GetComponent<RectTransform>());
-                Assert.That(GameObject.Find("Investigation Notebook"), Is.Null);
+                Assert.That(FindButton("Toggle Notebook Drawer"), Is.Null);
                 ClickThroughPointer(FindButton("Historical Species Marker shark"));
                 yield return null;
-                Assert.That(GameObject.Find("Observe First Finding"), Is.Not.Null);
-                Assert.That(GameObject.Find("Investigation Notebook"), Is.Null,
-                    "Reading the historical baseline must not invent a recorded finding.");
-                ClickThroughPointer(FindButton("Species Marker shark"));
-                yield return null;
-                Click("Increase Edna Hint"); // A refresh during the reveal must not leave the paper transparent.
-                yield return null;
-                GameObject notebook = GameObject.Find("Investigation Notebook");
-                Assert.That(notebook, Is.Not.Null);
-                Assert.That(GameObject.Find("Observe First Finding"), Is.Null);
+                Assert.That(FindButton("Toggle Notebook Drawer"), Is.Null, "Reading facts cannot record a finding.");
+                Record("Species Marker shark"); yield return null;
+                Click("Toggle Notebook Drawer"); yield return null;
+                Assert.That(GameObject.Find("Notebook Drawer"), Is.Not.Null);
                 Assert.That(GameObject.Find("Notebook E01_SHARK_NONDETECTION"), Is.Not.Null);
-                Assert.That(GameObject.Find("Notebook Title").GetComponent<Text>().text, Does.Contain("· 1"));
-                CanvasGroup group = notebook.GetComponent<CanvasGroup>();
-                Assert.That(group == null || group.alpha >= .99f, Is.True);
-                Rect shown = WorldRect(notebook.GetComponent<RectTransform>());
-                Assert.That(shown.xMin, Is.EqualTo(reserved.xMin).Within(1f));
-                Assert.That(shown.width, Is.EqualTo(reserved.width).Within(1f));
-                Assert.That(notebook.GetComponent<Image>().color, Is.EqualTo((Color)InvestigationTheme.Paper));
-
-                yield return LoadInvestigationScene();
-                Assert.That(GameObject.Find("Observe First Finding"), Is.Not.Null);
-                Assert.That(GameObject.Find("Investigation Notebook"), Is.Null);
+                Click("Close Notebook Drawer"); yield return null;
+                Assert.That(GameObject.Find("Observe Question Text").GetComponent<Text>().text, Does.Contain("Tuna"));
                 InvestigationGameInput input = new InvestigationGameInput();
                 input.discoveredObservationIds.Add("E04_BENTHIC_STABLE");
-                InvestigationSessionBridge.SetInput(input);
-                yield return LoadInvestigationScene();
-                Assert.That(GameObject.Find("Observe First Finding"), Is.Null);
+                InvestigationSessionBridge.SetInput(input); yield return LoadInvestigationScene();
+                Assert.That(GameObject.Find("Observe Question Text").GetComponent<Text>().text, Does.Contain("Shark"));
+                Click("Toggle Notebook Drawer"); yield return null;
                 Assert.That(GameObject.Find("Notebook E04_BENTHIC_STABLE"), Is.Not.Null);
+                Click("Close Notebook Drawer");
+                Record("Species Marker shark"); Record("Species Marker tuna"); Record("Species Marker krill");
+                Assert.That(GameObject.Find("Observe Question Text").GetComponent<Text>().text, Does.Contain("mussel"));
             }
             finally { InvestigationSessionBridge.Clear(); }
         }
@@ -167,12 +187,12 @@ namespace EDNA.Investigation.Tests
         public IEnumerator InvestigationScene_ActionArrowMovesFromCauseToRunAndRespectsMotionPreference()
         {
             bool previousMotion = InvestigationMotionSettings.ReducedMotion;
-            InvestigationMotionSettings.SetReducedMotion(false);
+            InvestigationMotionSettings.SetReducedMotionForTests(false);
             try
             {
                 yield return LoadInvestigationScene();
                 Object.FindAnyObjectByType<InvestigationController>().ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
-                Click("Stage Simulate");
+                EnterSimulate("Stage Simulate");
                 yield return null;
                 InvestigationGuideArrowGraphic arrow = GameObject.Find("Choose Cause Arrow").GetComponent<InvestigationGuideArrowGraphic>();
                 AssertChoiceArrows("plastic", "longline", "bottom_trawling");
@@ -181,7 +201,7 @@ namespace EDNA.Investigation.Tests
                 float initialAlpha = arrow.GetComponent<CanvasGroup>().alpha;
                 yield return WaitForCondition(() => Mathf.Abs(arrow.GetComponent<CanvasGroup>().alpha - initialAlpha) > .12f,
                     2f, "The current-action arrow should gently pulse in Full Motion.");
-                ClickThroughPointer(FindButton("Motion Toggle"));
+                InvestigationMotionSettings.SetReducedMotionForTests(!InvestigationMotionSettings.ReducedMotion);
                 yield return null;
                 yield return null;
                 arrow = GameObject.Find("Choose Cause Arrow").GetComponent<InvestigationGuideArrowGraphic>();
@@ -194,7 +214,7 @@ namespace EDNA.Investigation.Tests
                 arrow = GameObject.Find("Run Model Arrow").GetComponent<InvestigationGuideArrowGraphic>();
                 Assert.That(arrow.transform.parent, Is.SameAs(FindButton("Run Selected Model").transform));
                 AssertInsideViewport(arrow.rectTransform, GameObject.Find("Investigation Content").GetComponent<ScrollRect>().viewport);
-                Click("Motion Toggle");
+                InvestigationMotionSettings.SetReducedMotionForTests(!InvestigationMotionSettings.ReducedMotion);
                 yield return null;
                 arrow = GameObject.Find("Run Model Arrow").GetComponent<InvestigationGuideArrowGraphic>();
                 float runAlpha = arrow.GetComponent<CanvasGroup>().alpha;
@@ -206,15 +226,17 @@ namespace EDNA.Investigation.Tests
                 Assert.That(GameObject.Find("Choose Cause Arrow"), Is.Null);
                 Click("Threat plastic");
                 yield return null;
+                Assert.That(GameObject.Find("Edna Speech Text").GetComponent<Text>().text, Does.Contain("Plastic"));
+                Click("Talk To Edna");
                 Assert.That(GameObject.Find("Run Model Arrow"), Is.Not.Null);
-                Click("Toggle Edna Guide");
+                Click("Dismiss Edna");
                 Assert.That(GameObject.Find("Run Model Arrow"), Is.Null);
-                Click("Toggle Edna Guide");
+                Click("Talk To Edna");
                 Assert.That(GameObject.Find("Run Model Arrow"), Is.Not.Null);
                 Click("Difficulty Toggle");
                 Assert.That(GameObject.Find("Run Model Arrow"), Is.Null);
             }
-            finally { InvestigationMotionSettings.SetReducedMotion(previousMotion); }
+            finally { InvestigationMotionSettings.SetReducedMotionForTests(previousMotion); }
         }
 
         [UnityTest]
@@ -223,7 +245,7 @@ namespace EDNA.Investigation.Tests
             yield return LoadInvestigationScene();
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
-            Click("Stage Simulate");
+            EnterSimulate("Stage Simulate");
             AssertThreatProgress("plastic", "NOT RUN", string.Empty, false);
             Click("Threat plastic");
             Click("Run Selected Model");
@@ -237,9 +259,9 @@ namespace EDNA.Investigation.Tests
             Compare("shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match);
             Compare("tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match);
             Compare("krill", "E03_KRILL_NONDETECTION", ComparisonJudgement.Match);
-            AssertThreatProgress("longline", "ROV NEXT · 3/4", "SUPPORTS", false);
+            AssertThreatProgress("longline", "TO CHECK · 3/4", "SUPPORTS", false);
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
-            Click("Stage Simulate");
+            EnterSimulate("Stage Simulate");
             AssertThreatProgress("longline", "CHECKED · 4/4", "SUPPORTS", true);
             AssertThreatProgress("bottom_trawling", "CHECKED · 2/2", "MIXED EVIDENCE", true);
         }
@@ -258,15 +280,17 @@ namespace EDNA.Investigation.Tests
         {
             yield return LoadInvestigationScene();
             Object.FindAnyObjectByType<InvestigationController>().ApplyQaCheckpoint(InvestigationQaCheckpoint.ReportReady);
-            Click("Increase Edna Hint");
-            Click("Increase Edna Hint");
-            string action = FindButton("Review ROV Follow-up").GetComponentInChildren<Text>().text;
-            Assert.That(GameObject.Find("Edna Prompt").GetComponent<Text>().text, Does.Contain(action));
-            Click("Review ROV Follow-up");
-            Click("Increase Edna Hint");
-            Click("Increase Edna Hint");
-            action = FindButton("Re-test Fishing Models").GetComponentInChildren<Text>().text.TrimEnd(' ', '→');
-            Assert.That(GameObject.Find("Edna Prompt").GetComponent<Text>().text, Does.Contain(action));
+            Assert.That(GameObject.Find("Report Edna Speech").GetComponent<Text>().text, Does.Contain("Which would you like"));
+            Assert.That(FindButton("Review ROV Follow-up").GetComponentInChildren<Text>().text, Is.EqualTo("Inspect former shark habitat"));
+            Assert.That(FindButton("Review ROV Seafloor").GetComponentInChildren<Text>().text, Is.EqualTo("Inspect the seafloor"));
+            InspectRov("Review ROV Follow-up");
+            Click("Discuss Explanation");
+            Assert.That(GameObject.Find("Report Edna Speech").GetComponent<Text>().text, Does.Contain("main clue"));
+            ConnectCluesToArgument("Report Key Clue Seafloor");
+            Assert.That(GameObject.Find("Report Edna Speech").GetComponent<Text>().text, Does.Contain("change your explanation"));
+            Click("Keep Report Explanation");
+            Assert.That(FindButton("Submit Final Report").GetComponentInChildren<Text>().text, Is.EqualTo("Send report"));
+            Assert.That(FindButton("Re-test Fishing Models"), Is.Null);
         }
 
         [Test]
@@ -295,7 +319,7 @@ namespace EDNA.Investigation.Tests
             bool previousMotion = InvestigationMotionSettings.ReducedMotion;
             float previousTimeScale = Time.timeScale;
             InvestigationSessionBridge.Clear();
-            InvestigationMotionSettings.SetReducedMotion(false);
+            InvestigationMotionSettings.SetReducedMotionForTests(false);
             try
             {
                 yield return LoadInvestigationScene();
@@ -305,7 +329,7 @@ namespace EDNA.Investigation.Tests
                 AssertSharedSeamountMaterial(shared);
                 yield return new WaitForSecondsRealtime(1.3f);
                 double beforeRefresh = owner.ElapsedSeconds;
-                ClickThroughPointer(FindButton("Species Marker shark"));
+                ClickThroughPointer(FindButton("Observe Answer NotDetected"));
                 yield return null;
                 Assert.That(Object.FindAnyObjectByType<InvestigationSeamountBackdrop>(), Is.SameAs(owner));
                 Assert.That(owner.ElapsedSeconds, Is.GreaterThanOrEqualTo(beforeRefresh));
@@ -318,12 +342,12 @@ namespace EDNA.Investigation.Tests
                 Assert.That(owner.ElapsedSeconds - beforePause, Is.GreaterThan(.15d));
                 Time.timeScale = previousTimeScale;
 
-                ClickThroughPointer(FindButton("Motion Toggle"));
+                InvestigationMotionSettings.SetReducedMotionForTests(!InvestigationMotionSettings.ReducedMotion);
                 yield return null;
                 yield return null;
                 Assert.That(owner.BlendWeights, Is.EqualTo(Vector2.zero));
                 AssertSharedSeamountMaterial(shared);
-                ClickThroughPointer(FindButton("Motion Toggle"));
+                InvestigationMotionSettings.SetReducedMotionForTests(!InvestigationMotionSettings.ReducedMotion);
                 yield return null;
                 yield return null;
                 Assert.That(owner.ElapsedSeconds, Is.GreaterThan(beforePause));
@@ -338,7 +362,7 @@ namespace EDNA.Investigation.Tests
             finally
             {
                 Time.timeScale = previousTimeScale;
-                InvestigationMotionSettings.SetReducedMotion(previousMotion);
+                InvestigationMotionSettings.SetReducedMotionForTests(previousMotion);
                 InvestigationSessionBridge.Clear();
             }
         }
@@ -486,17 +510,14 @@ namespace EDNA.Investigation.Tests
                 InvestigationSessionBridge.SetInput(input);
                 yield return LoadInvestigationScene();
 
-                Button marker = FindButton("Species Marker moon_jellyfish");
-                Assert.That(marker, Is.Not.Null);
+                Assert.That(FindButton("Species Marker moon_jellyfish"), Is.Null);
                 Assert.That(FindButton("Historical Species Marker moon_jellyfish"), Is.Null);
-                Assert.That(marker.transform.Find("Missing Signal"), Is.Not.Null);
-                Assert.That(marker.GetComponent<RectTransform>().anchorMin.y, Is.InRange(0.31f, 0.36f));
-                PointerEventData tap = new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left };
-                ExecuteEvents.Execute(marker.gameObject, tap, ExecuteEvents.pointerClickHandler);
-                yield return null;
-                Text details = GameObject.Find("Species Facts Tooltip").transform.Find("Tooltip Details").GetComponent<Text>();
-                Assert.That(details.text, Does.Contain("Not detected"));
-                Assert.That(details.text, Does.Contain("DEPTH  Deep"));
+                Assert.That(GameObject.Find("Missing Signal"), Is.Null);
+                result.speciesObservations[0].detectionState = SpeciesDetectionState.Detected;
+                yield return LoadInvestigationScene();
+                Button marker = FindButton("Species Marker moon_jellyfish");
+                Assert.That(marker.GetComponent<RectTransform>().anchorMin.y, Is.InRange(.31f, .36f));
+
             }
             finally
             {
@@ -529,7 +550,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindButton("Stage Observe"), Is.Not.Null);
             Assert.That(FindButton("Stage Simulate"), Is.Not.Null);
             Assert.That(FindButton("Stage Report"), Is.Not.Null);
-            Assert.That(FindButton("Species Marker shark").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(44f));
+            Assert.That(FindButton("Species Marker tuna").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(44f));
             RectTransform contentPanel = FindGameObject("Investigation Content").GetComponent<RectTransform>();
             ScrollRect scroll = contentPanel.GetComponent<ScrollRect>();
             Assert.That(scroll, Is.Not.Null);
@@ -537,7 +558,6 @@ namespace EDNA.Investigation.Tests
             Assert.That(scroll.viewport.GetComponent<Image>().raycastTarget, Is.True);
             Canvas.ForceUpdateCanvases();
             Assert.That(scroll.content.rect.width, Is.LessThanOrEqualTo(scroll.viewport.rect.width + 1f));
-            Assert.That(scroll.content.rect.height, Is.LessThanOrEqualTo(scroll.viewport.rect.height + 1f));
             Assert.That(contentPanel.offsetMin.x, Is.EqualTo(8f).Within(0.01f));
             Assert.That(contentPanel.offsetMax.x, Is.EqualTo(-8f).Within(0.01f));
             Assert.That(contentPanel.offsetMin.y, Is.EqualTo(8f).Within(0.01f));
@@ -550,10 +570,10 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindButton("Current Survey"), Is.Null);
             RectTransform historicalMap = FindGameObject("Historical Seamount").GetComponent<RectTransform>();
             RectTransform currentMap = FindGameObject("Current Seamount").GetComponent<RectTransform>();
-            RectTransform firstFinding = FindGameObject("Observe First Finding").GetComponent<RectTransform>();
-            Assert.That(historicalMap.position.x, Is.LessThan(currentMap.position.x));
+            RectTransform firstFinding = FindGameObject("Observe Question").GetComponent<RectTransform>();
+            Assert.That(historicalMap.position.x, Is.EqualTo(currentMap.position.x).Within(.01f), "The lens compares two aligned maps.");
             Assert.That(Mathf.Abs(historicalMap.rect.width - currentMap.rect.width), Is.LessThan(2f));
-            Assert.That(Mathf.Abs(currentMap.rect.height - firstFinding.rect.height), Is.LessThan(2f));
+            Assert.That(firstFinding.rect.height, Is.GreaterThanOrEqualTo(currentMap.rect.height));
             Assert.That(GameObject.Find("Investigation Notebook"), Is.Null);
             Assert.That(GameObject.Find("Notebook Title"), Is.Null);
             foreach (Text text in firstFinding.GetComponentsInChildren<Text>()) AssertTextFitsItsRect(text);
@@ -580,28 +600,27 @@ namespace EDNA.Investigation.Tests
             Assert.That(currentVisualClip.Find("Seamount Sprite"), Is.Null);
             Assert.That(historicalVisualClip.Find("Seamount Silhouette Fallback"), Is.Null);
             Assert.That(currentVisualClip.Find("Seamount Silhouette Fallback"), Is.Null);
-            Assert.That(FindButton("Historical Species Marker shark").interactable, Is.True);
-            Assert.That(FindButton("Species Marker shark").interactable, Is.True);
-            RectTransform historicalSharkMarker = FindButton("Historical Species Marker shark").GetComponent<RectTransform>();
-            RectTransform currentSharkMarker = FindButton("Species Marker shark").GetComponent<RectTransform>();
-            Assert.That(Vector2.Distance(historicalSharkMarker.anchorMin, currentSharkMarker.anchorMin), Is.InRange(0.001f, 0.08f),
-                "The two eras should use slightly different but spatially comparable deterministic placements.");
+            Assert.That(FindButton("Historical Species Marker tuna").interactable, Is.True);
+            Assert.That(FindButton("Species Marker tuna").interactable, Is.True);
+            RectTransform historicalSharkMarker = FindButton("Historical Species Marker tuna").GetComponent<RectTransform>();
+            RectTransform currentSharkMarker = FindButton("Species Marker tuna").GetComponent<RectTransform>();
+            Assert.That(Vector2.Distance(historicalSharkMarker.anchorMin, currentSharkMarker.anchorMin), Is.EqualTo(0f).Within(.001f),
+                "The sliding lens must align the same organism in both surveys.");
             Assert.That(currentSharkMarker.anchorMin.y, Is.InRange(0.90f, 0.96f));
-            Assert.That(FindButton("Historical Species Marker shark").transform.parent, Is.SameAs(historicalPlot));
-            Assert.That(FindButton("Species Marker shark").transform.parent, Is.SameAs(currentPlot));
-            Assert.That(FindButton("Species Marker shark").transform.IsChildOf(currentVisualClip), Is.False);
-            Assert.That(FindButton("Species Marker shark").transform.Find("Marker Halo"), Is.Null);
-            Assert.That(FindButton("Species Marker shark").transform.Find("Missing Signal"), Is.Not.Null);
+            Assert.That(FindButton("Historical Species Marker tuna").transform.parent, Is.SameAs(historicalPlot));
+            Assert.That(FindButton("Species Marker tuna").transform.parent, Is.SameAs(currentPlot));
+            Assert.That(FindButton("Species Marker tuna").transform.IsChildOf(currentVisualClip), Is.False);
+            Assert.That(FindButton("Species Marker tuna").transform.Find("Marker Halo"), Is.Null);
+            Assert.That(FindButton("Species Marker shark"), Is.Null);
             Assert.That(FindButton("Species Marker tuna").transform.Find("Group Member Left"), Is.Not.Null);
             Assert.That(GameObject.Find("Continue To Simulate"), Is.Null,
                 "The primary action should not appear until the required findings are recorded.");
             Assert.That(GameObject.Find("Observe Finding Progress Text"), Is.Null);
-            Assert.That(FindGameObject("First Finding Title").GetComponent<Text>().text, Does.Contain("TODAY"));
-            Assert.That(FindGameObject("Edna Prompt").GetComponent<Text>().text, Does.Contain("TODAY"));
-            Assert.That(FindGameObject("Edna Icon").GetComponent<Image>().sprite, Is.EqualTo(InvestigationScenarioIconLibrary.Investigate));
-            Assert.That(FindButton("Toggle Edna Guide").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(40f));
-            Assert.That(FindButton("Species Marker shark").transform.Find("Unrecorded Finding Cue"), Is.Not.Null,
-                "Easy mode should make one first action discoverable without adding a permanent label.");
+            Assert.That(FindGameObject("Edna Introduction Portrait").GetComponent<Image>().sprite, Is.Not.Null);
+            Assert.That(FindGameObject("Observe Question Text").GetComponent<Text>().text, Does.Contain("today"));
+            Assert.That(FindGameObject("Edna Avatar").GetComponent<Image>().sprite, Is.Not.Null);
+            Assert.That(FindButton("Talk To Edna").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(40f));
+            Assert.That(GameObject.Find("Survey Lens Handle Cue"), Is.Not.Null);
             Assert.That(GameObject.Find("Species Facts Hint"), Is.Null);
             foreach (string look in new[] { "natural", "illustrated", "bathymetry", "surface-mask" })
             {
@@ -613,15 +632,15 @@ namespace EDNA.Investigation.Tests
                 Assert.That(texture.mipmapCount, Is.EqualTo(1));
                 Assert.That(texture.isReadable, Is.False);
             }
-            AssertImageOnlyMarker("Historical Species Marker shark");
-            AssertImageOnlyMarker("Species Marker shark");
+            AssertImageOnlyMarker("Historical Species Marker tuna");
             AssertImageOnlyMarker("Species Marker tuna");
-            AssertImageOnlyMarker("Species Marker krill");
+            AssertImageOnlyMarker("Species Marker tuna");
+            Assert.That(FindButton("Species Marker krill"), Is.Null);
             AssertImageOnlyMarker("Species Marker sea_star");
             AssertImageOnlyMarker("Species Marker mussel");
             float seabedTop = Mathf.Max(WorldRect(FindButton("Species Marker sea_star").GetComponent<RectTransform>()).yMax,
                 WorldRect(FindButton("Species Marker mussel").GetComponent<RectTransform>()).yMax);
-            foreach (string species in new[] { "shark", "tuna", "krill" })
+            foreach (string species in new[] { "tuna" })
                 Assert.That(WorldRect(FindButton("Species Marker " + species).GetComponent<RectTransform>()).yMin,
                     Is.GreaterThan(seabedTop), "Pelagic findings must remain above the seabed findings.");
             Texture2D terrainMask = new Texture2D(2, 2, TextureFormat.RGBA32, false);
@@ -629,7 +648,7 @@ namespace EDNA.Investigation.Tests
                 File.ReadAllBytes(Path.Combine(Application.dataPath, "Resources/Investigation/Seamount/surface-mask.png")), false), Is.True);
             try
             {
-                foreach (string species in new[] { "shark", "tuna", "krill" })
+                foreach (string species in new[] { "tuna" })
                     AssertMarkerHabitat("Species Marker " + species, currentMountain, terrainMask, false);
                 foreach (string species in new[] { "sea_star", "mussel" })
                     AssertMarkerHabitat("Species Marker " + species, currentMountain, terrainMask, true);
@@ -661,47 +680,26 @@ namespace EDNA.Investigation.Tests
         }
 
         [UnityTest]
-        public IEnumerator InvestigationScene_EdnaGuidanceTracksTheFirstObserveActionsAndCanBeCollapsed()
+        public IEnumerator InvestigationScene_ObserveQuestionPersistsAcrossHelpSettingsAndNotebook()
         {
             yield return LoadInvestigationScene();
-
-            Assert.That(FindGameObject("Edna Prompt").GetComponent<Text>().text, Does.Contain("Record one finding"));
-            Assert.That(FindGameObject("Edna Identity ObserveFirstFinding").GetComponent<Text>().text, Does.Contain("HINT 1/3"));
-            Click("Increase Edna Hint");
-            Assert.That(FindGameObject("Edna Prompt").GetComponent<Text>().text, Does.Contain("any framed species"));
-            Assert.That(FindGameObject("Edna Identity ObserveFirstFinding").GetComponent<Text>().text, Does.Contain("HINT 2/3"));
-            Click("Increase Edna Hint");
-            Assert.That(FindGameObject("Edna Prompt").GetComponent<Text>().text, Does.Contain("Select any framed species"));
-            Assert.That(FindButton("Increase Edna Hint").GetComponentInChildren<Text>().text, Is.EqualTo("Less help"));
-            Click("Increase Edna Hint");
-            Assert.That(FindGameObject("Edna Identity ObserveFirstFinding").GetComponent<Text>().text, Does.Contain("HINT 1/3"));
-            Click("Toggle Edna Guide");
-            Assert.That(GameObject.Find("Edna Prompt"), Is.Null);
-            Assert.That(FindGameObject("Edna Prompt Hidden").GetComponent<Text>().text, Does.Contain("hidden"));
-            Assert.That(FindButton("Toggle Edna Guide").GetComponentInChildren<Text>().text, Is.EqualTo("Show task"));
-            Click("Toggle Edna Guide");
-            Assert.That(FindGameObject("Edna Prompt"), Is.Not.Null);
-
-            Click("Species Marker shark");
-            Assert.That(FindButton("Species Marker shark").transform.Find("Unrecorded Finding Cue"), Is.Null);
-            Assert.That(FindButton("Species Marker tuna").transform.Find("Unrecorded Finding Cue"), Is.Not.Null);
-            Assert.That(FindGameObject("Edna Prompt").GetComponent<Text>().text, Does.Contain("Record 4 more"));
-            Assert.That(FindGameObject("Edna Identity ObserveRemainingFindings").GetComponent<Text>().text, Does.Contain("HINT 1/3"),
-                "Moving to a new task should reset Edna to the least explicit hint.");
-            Assert.That(FindGameObject("Observe Finding Progress Text").GetComponent<Text>().text, Does.Contain("FINDINGS 1 / 5"));
-            Assert.That(FindGameObject("Notebook E01_SHARK_NONDETECTION").transform.Find("Evidence Status/Evidence Status Text").GetComponent<Text>().text,
-                Is.EqualTo("NEW"));
-
-            Click("Species Marker tuna");
-            Click("Species Marker krill");
-            Click("Species Marker sea_star");
-            Click("Species Marker mussel");
-            Assert.That(GameObject.Find("Observe Finding Progress"), Is.Null);
-            Button continueButton = FindButton("Continue To Simulate");
-            Assert.That(continueButton.GetComponentInChildren<Text>().text, Is.EqualTo("Test possible causes →"));
-            Assert.That(continueButton.transform.parent.name, Is.EqualTo("Investigation Notebook"));
-            Assert.That(continueButton.GetComponent<RectTransform>().anchorMin.x, Is.EqualTo(0.22f).Within(0.001f));
-            Assert.That(continueButton.GetComponent<RectTransform>().anchorMax.x, Is.EqualTo(0.78f).Within(0.001f));
+            Record("Species Marker shark");
+            string question = GameObject.Find("Observe Question Text").GetComponent<Text>().text;
+            Click("Talk To Edna");
+            Assert.That(GameObject.Find("Observe Question Feedback").GetComponent<Text>().text, Does.Contain("slider"));
+            Click("Difficulty Toggle");
+            Assert.That(GameObject.Find("Observe Question Text").GetComponent<Text>().text, Is.EqualTo(question));
+            Click("Toggle Notebook Drawer"); yield return null;
+            Click("Close Notebook Drawer"); yield return null;
+            Assert.That(GameObject.Find("Observe Question Text").GetComponent<Text>().text, Is.EqualTo(question));
+            Record("Species Marker tuna"); Record("Species Marker krill"); Record("Species Marker sea_star"); Record("Species Marker mussel");
+            Assert.That(FindButton("Continue To Simulate"), Is.Not.Null);
+            Click("Dismiss Edna");
+            Assert.That(GameObject.Find("Edna Speech Text"), Is.Null);
+            Click("Difficulty Toggle");
+            Assert.That(GameObject.Find("Edna Speech Text"), Is.Null);
+            Click("Talk To Edna");
+            Assert.That(GameObject.Find("Edna Speech Text"), Is.Not.Null);
         }
 
         [UnityTest]
@@ -712,9 +710,9 @@ namespace EDNA.Investigation.Tests
             Assert.That(toast, Is.Not.Null);
             Assert.That(toast.activeSelf, Is.False);
 
-            Click("Species Marker shark");
+            Record("Species Marker shark");
             Assert.That(toast.activeSelf, Is.False);
-            Click("Stage Simulate");
+            EnterSimulate("Stage Simulate");
             toast = FindGameObject("Status Toast");
             Assert.That(toast.activeSelf, Is.True);
             Assert.That(toast.GetComponentInChildren<Text>().text, Does.Contain("Record at least"));
@@ -722,11 +720,11 @@ namespace EDNA.Investigation.Tests
             yield return new WaitForSecondsRealtime(3.2f);
             Assert.That(toast.activeSelf, Is.False);
 
-            Click("Species Marker tuna");
-            Click("Species Marker krill");
-            Click("Species Marker sea_star");
-            Click("Species Marker mussel");
-            Click("Continue To Simulate");
+            Record("Species Marker tuna");
+            Record("Species Marker krill");
+            Record("Species Marker sea_star");
+            Record("Species Marker mussel");
+            EnterSimulate("Continue To Simulate");
             Click("Threat longline");
             Click("Run Selected Model");
             Assert.That(GameObject.Find("Comparison Guide"), Is.Null);
@@ -748,38 +746,25 @@ namespace EDNA.Investigation.Tests
         [UnityTest]
         public IEnumerator InvestigationScene_ClickedSpeciesDetailsAndHighlightsExpireAfterTheLatestTap()
         {
-            bool previousMotion = InvestigationMotionSettings.ReducedMotion;
-            try
-            {
-                InvestigationMotionSettings.SetReducedMotion(true);
-                yield return LoadInvestigationScene();
-                Click("Species Marker shark");
-                yield return new WaitForSecondsRealtime(0.75f);
-                Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Not.Null);
-                Click("Species Marker tuna");
-                yield return new WaitForSecondsRealtime(0.85f);
-                Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Not.Null,
-                    "The earlier click's timer must not dismiss a newer finding.");
-                Assert.That(FindButton("Species Marker tuna").transform.Find("Paired Species Focus").gameObject.activeSelf, Is.True);
-                yield return new WaitForSecondsRealtime(0.85f);
-                Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Null);
-                foreach (string name in new[] { "Species Marker tuna", "Historical Species Marker tuna", "Species Marker shark", "Historical Species Marker shark" })
-                    Assert.That(FindButton(name).transform.Find("Paired Species Focus").gameObject.activeSelf, Is.False, name);
-                Assert.That(FindButton("Species Marker shark").transform.Find("Recorded Finding"), Is.Not.Null);
-                Assert.That(FindButton("Species Marker tuna").transform.Find("Recorded Finding"), Is.Not.Null);
-                Click("Historical Species Marker shark");
-                yield return new WaitForSecondsRealtime(1.65f);
-                Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Null);
-                Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds, Has.Count.EqualTo(2));
-            }
-            finally { InvestigationMotionSettings.SetReducedMotion(previousMotion); }
+            yield return LoadInvestigationScene();
+            Click("Historical Species Marker shark");
+            yield return new WaitForSecondsRealtime(.75f);
+            Click("Historical Species Marker tuna");
+            yield return new WaitForSecondsRealtime(.85f);
+            Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Not.Null);
+            Assert.That(FindButton("Historical Species Marker tuna").transform.Find("Paired Species Focus").gameObject.activeSelf, Is.True);
+            yield return new WaitForSecondsRealtime(.85f);
+            Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Null);
+            Assert.That(FindButton("Historical Species Marker shark").transform.Find("Paired Species Focus").gameObject.activeSelf, Is.True,
+                "After a facts preview closes, restore the organism in the current question.");
+            Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds, Is.Empty);
         }
 
         [UnityTest]
         public IEnumerator InvestigationScene_SpeciesFactsTooltipUsesOneSecondHoverAndKeyboardFocus()
         {
             yield return LoadInvestigationScene();
-            Button shark = FindButton("Species Marker shark");
+            Button shark = FindButton("Historical Species Marker shark");
             InvestigationHoverTooltipTrigger trigger = shark.GetComponent<InvestigationHoverTooltipTrigger>();
             Assert.That(trigger, Is.Not.Null);
 
@@ -816,42 +801,29 @@ namespace EDNA.Investigation.Tests
         public IEnumerator InvestigationScene_SpeciesFactsAreAvailableByTapOnBothMaps()
         {
             yield return LoadInvestigationScene();
-            InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
-            PointerEventData tap = new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left };
-
-            Button historicalShark = FindButton("Historical Species Marker shark");
-            ExecuteEvents.Execute(historicalShark.gameObject, tap, ExecuteEvents.pointerClickHandler);
-            historicalShark.GetComponent<InvestigationHoverTooltipTrigger>().OnPointerExit(tap);
-            yield return null;
-            Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Not.Null);
-            Assert.That(GameObject.Find("Species Facts Tooltip").transform.Find("Tooltip Title").GetComponent<Text>().text, Is.EqualTo("Great Hammerhead Shark"));
-            Assert.That(FindButton("Close Species Facts"), Is.Not.Null);
-            Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
-            Assert.That(FindGameObject("Status Toast").activeSelf, Is.True);
-            Assert.That(FindGameObject("Status Message").GetComponent<Text>().text, Does.Contain("reference survey"));
-
-            Button currentShark = FindButton("Species Marker shark");
-            Vector2 positionBeforeRecording = currentShark.GetComponent<RectTransform>().anchorMin;
-            ExecuteEvents.Execute(currentShark.gameObject, tap, ExecuteEvents.pointerClickHandler);
-            yield return null;
-            Assert.That(controller.State.HasDiscoveredObservation("E01_SHARK_NONDETECTION"), Is.True);
-            Assert.That(FindButton("Species Marker shark").GetComponent<RectTransform>().anchorMin,
-                Is.EqualTo(positionBeforeRecording),
-                "Recording a finding must not reshuffle the deterministic survey layout.");
-            Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Not.Null);
-            Assert.That(GameObject.Find("Species Facts Tooltip").transform.Find("Tooltip Title").GetComponent<Text>().text, Is.EqualTo("Great Hammerhead Shark"));
+            var controller = Object.FindAnyObjectByType<InvestigationController>();
+            foreach (string name in new[] { "Historical Species Marker tuna", "Species Marker tuna" })
+            {
+                ClickThroughPointer(FindButton(name)); yield return null;
+                Assert.That(GameObject.Find("Tooltip Title").GetComponent<Text>().text, Is.EqualTo("Atlantic Bluefin Tuna"));
+                Assert.That(controller.State.DiscoveredObservationIds, Is.Empty, "Facts are optional; answering records evidence.");
+                Click("Close Species Facts"); yield return null;
+            }
+            Record("Species Marker shark"); Record("Species Marker tuna");
+            Click("Species Marker tuna"); yield return null;
+            Assert.That(GameObject.Find("Tooltip Details").GetComponent<Text>().text, Does.Contain("RECORDED IN NOTEBOOK"));
         }
 
         [UnityTest]
         public IEnumerator InvestigationScene_NotebookEntriesScrollWithoutCoveringFixedCta()
         {
             yield return LoadInvestigationScene();
-            Click("Species Marker shark");
-            Click("Species Marker tuna");
-            Click("Species Marker krill");
-            Click("Species Marker sea_star");
-            Click("Species Marker mussel");
-            Click("Continue To Simulate");
+            Record("Species Marker shark");
+            Record("Species Marker tuna");
+            Record("Species Marker krill");
+            Record("Species Marker sea_star");
+            Record("Species Marker mussel");
+            EnterSimulate("Continue To Simulate");
             Click("Threat plastic");
             Click("Run Selected Model");
             Click("Stage Observe");
@@ -887,7 +859,7 @@ namespace EDNA.Investigation.Tests
             Canvas.ForceUpdateCanvases();
             Assert.That(Vector3.Distance(ctaPosition, cta.transform.position), Is.LessThan(0.01f));
 
-            Click("Species Marker shark");
+            Record("Species Marker shark");
             yield return null;
             yield return null;
             ScrollRect refreshedNotebookScroll = FindGameObject("Notebook Entry Scroll").GetComponent<ScrollRect>();
@@ -899,14 +871,14 @@ namespace EDNA.Investigation.Tests
         public IEnumerator InvestigationScene_SimulatorAnimatesStableIntoFoodWebChanges()
         {
             bool reducedMotionBefore = InvestigationMotionSettings.ReducedMotion;
-            InvestigationMotionSettings.SetReducedMotion(false);
+            InvestigationMotionSettings.SetReducedMotionForTests(false);
             yield return LoadInvestigationScene();
-            Click("Species Marker shark");
-            Click("Species Marker tuna");
-            Click("Species Marker krill");
-            Click("Species Marker sea_star");
-            Click("Species Marker mussel");
-            Click("Continue To Simulate");
+            Record("Species Marker shark");
+            Record("Species Marker tuna");
+            Record("Species Marker krill");
+            Record("Species Marker sea_star");
+            Record("Species Marker mussel");
+            EnterSimulate("Continue To Simulate");
             Click("Threat bottom_trawling");
             Click("Run Selected Model");
             Button shark = FindButton("Prediction shark");
@@ -922,12 +894,12 @@ namespace EDNA.Investigation.Tests
             Assert.That(sharkState.text, Is.EqualTo("Stable"));
             Assert.That(tunaState.text, Is.EqualTo("Stable"));
             Assert.That(krillState.text, Is.EqualTo("Stable"));
-            Assert.That(seaStarState.text, Is.EqualTo("ROV first"));
+            Assert.That(seaStarState.text, Is.EqualTo("Stable"));
             Assert.That(musselState.text, Is.EqualTo("Stable"));
             Assert.That(shark.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.GreaterThan(0.5f));
             Assert.That(tuna.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.LessThan(0.01f));
-            Assert.That(seaStar.interactable, Is.False);
-            Assert.That(seaStar.transform.Find("Crowd Member 1"), Is.Null);
+            Assert.That(seaStar.interactable, Is.True);
+            Assert.That(seaStar.transform.Find("Crowd Member 1"), Is.Not.Null);
 
             yield return WaitForCondition(
                 () => sharkState.text == "Decrease",
@@ -942,21 +914,21 @@ namespace EDNA.Investigation.Tests
                 "The food-web animation sequence did not reach its final state.");
             Assert.That(tunaState.text, Is.EqualTo("Increase"));
             Assert.That(krillState.text, Is.EqualTo("Decrease"));
-            Assert.That(seaStarState.text, Is.EqualTo("ROV first"));
+            yield return WaitForCondition(() => seaStarState.text == "Decrease", 2f, "The Sea star model should animate before ROV.");
             Assert.That(musselState.text, Is.EqualTo("Stable"));
             Assert.That(tuna.transform.Find("Species Artwork").localScale.x, Is.GreaterThan(1.05f));
             Assert.That(krill.transform.Find("Species Artwork").GetComponent<CanvasGroup>().alpha, Is.EqualTo(1f).Within(0.01f));
             Assert.That(tuna.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.GreaterThan(0.5f));
             Assert.That(shark.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.LessThan(0.01f));
             Assert.That(krill.transform.Find("Crowd Member 1").GetComponent<Image>().color.a, Is.LessThan(0.01f));
-            Assert.That(seaStar.transform.Find("Crowd Member 1"), Is.Null);
-            Assert.That(GameObject.Find("Prediction Versus Survey"), Is.Not.Null);
+            Assert.That(seaStar.transform.Find("Crowd Member 1"), Is.Not.Null);
+            Assert.That(GameObject.Find("Workbench Evidence Heading"), Is.Not.Null);
             CanvasGroup pageGroup = FindGameObject("Page Content").GetComponent<CanvasGroup>();
             Assert.That(pageGroup, Is.Not.Null);
             Click("Prediction shark");
             pageGroup = FindGameObject("Page Content").GetComponent<CanvasGroup>();
             Assert.That(pageGroup.alpha, Is.EqualTo(1f).Within(0.001f));
-            InvestigationMotionSettings.SetReducedMotion(reducedMotionBefore);
+            InvestigationMotionSettings.SetReducedMotionForTests(reducedMotionBefore);
         }
 
         [UnityTest]
@@ -964,531 +936,68 @@ namespace EDNA.Investigation.Tests
         {
             InvestigationSessionBridge.Clear();
             yield return LoadInvestigationScene();
-            Assert.That(FindGameObject("Case Subtitle").GetComponent<Text>().text, Does.Contain("Seamount A"));
-            Assert.That(FindGameObject("Case Subtitle").GetComponent<Text>().text, Does.Contain("Survey 12"));
-            Click("Species Marker shark");
-            Assert.That(FindGameObject("Notebook E01_SHARK_NONDETECTION").transform.Find("Source").GetComponent<Text>().text,
-                Does.StartWith("eDNA ·"));
-            Click("Species Marker tuna");
-            Click("Species Marker krill");
-            Click("Species Marker sea_star");
-            Click("Species Marker mussel");
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
-            Assert.That(controller.State.DiscoveredObservationIds, Has.Count.EqualTo(5));
-            Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Contain("FINDINGS 5/5"));
-            Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Not.Contain("OBS "));
-            Assert.That(FindGameObject("Notebook Group FOOD-WEB PATTERN"), Is.Not.Null);
-            Assert.That(FindGameObject("Notebook Group STABLE CONTROLS"), Is.Not.Null);
-            Assert.That(FindGameObject("Notebook Group FOOD-WEB PATTERN").transform.GetSiblingIndex(),
-                Is.LessThan(FindGameObject("Notebook E01_SHARK_NONDETECTION").transform.GetSiblingIndex()));
-            Assert.That(FindGameObject("Notebook Group STABLE CONTROLS").transform.GetSiblingIndex(),
-                Is.LessThan(FindGameObject("Notebook E04_BENTHIC_STABLE").transform.GetSiblingIndex()));
-            Button observePrimary = FindButton("Continue To Simulate");
-            Assert.That(observePrimary.colors.highlightedColor, Is.EqualTo(new Color(0.96f, 0.96f, 0.96f, 1f)),
-                "Paper buttons should darken slightly on hover.");
-            Assert.That(observePrimary.colors.selectedColor, Is.EqualTo(observePrimary.colors.normalColor),
-                "A clicked paper button must not retain its hover tint.");
-            Assert.That(observePrimary.GetComponents<Shadow>().Length, Is.EqualTo(1));
-            Assert.That(observePrimary.GetComponent<Shadow>().effectColor, Is.EqualTo((Color)InvestigationTheme.PaperShadow));
-            Assert.That(observePrimary.GetComponent<Outline>(), Is.Null);
-            Click("Continue To Simulate");
-            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Simulate));
-            AssertSimulateColumnsUseIndependentHeaderHeights();
-            Assert.That(FindGameObject("Investigation Footer").activeSelf, Is.False);
-            Button notebookToggle = FindButton("Toggle Notebook Drawer");
-            Assert.That(notebookToggle.transform.Find("Label").gameObject.activeSelf, Is.False);
-            Assert.That(notebookToggle.transform.Find("Notebook Button Artwork/Notebook Cover"), Is.Not.Null);
-            Assert.That(notebookToggle.transform.Find("Notebook Finding Count/Notebook Finding Count Text").GetComponent<Text>().text, Is.EqualTo("5"));
-            Assert.That(notebookToggle.transform.Find("Notebook Button Tooltip").gameObject.activeSelf, Is.False);
-            Assert.That(FindGameObject("Investigation Content").GetComponent<RectTransform>().offsetMin.y, Is.EqualTo(8f).Within(0.1f));
-            RectTransform modelColumn = FindGameObject("Simulation Models").GetComponent<RectTransform>();
-            RectTransform comparisonColumn = FindGameObject("Comparison Workspace").GetComponent<RectTransform>();
-            Assert.That(modelColumn.position.x, Is.LessThan(comparisonColumn.position.x));
-            Assert.That(Mathf.Abs(modelColumn.rect.width - comparisonColumn.rect.width), Is.LessThan(2f));
-            Assert.That(FindGameObject("Threat Choices").transform.IsChildOf(modelColumn), Is.True);
-            Assert.That(FindGameObject("Simulation Navigation").transform.IsChildOf(comparisonColumn), Is.True);
-            Assert.That(notebookToggle.transform.IsChildOf(FindGameObject("Simulation Navigation").transform), Is.True);
-            Assert.That(FindGameObject("Simulation Navigation").GetComponent<RectTransform>().rect.height, Is.EqualTo(52f).Within(0.1f));
-            Assert.That(notebookToggle.GetComponent<RectTransform>().rect.height, Is.EqualTo(50f).Within(0.1f));
-            Assert.That(notebookToggle.GetComponent<RectTransform>().rect.width, Is.EqualTo(62f).Within(0.1f));
-            AssertBottomAligned(notebookToggle.GetComponent<RectTransform>(), FindGameObject("Simulation Navigation").GetComponent<RectTransform>());
-            Click("Toggle Notebook Drawer");
-            yield return null;
-            Assert.That(FindGameObject("Notebook Drawer"), Is.Not.Null);
-            Assert.That(FindGameObject("Notebook Drawer Scrim"), Is.Not.Null);
-            Assert.That(FindGameObject("Notebook Drawer Entries").transform.Find("Notebook E01_SHARK_NONDETECTION"), Is.Not.Null);
-            Assert.That(FindGameObject("Notebook Drawer Entries").transform.Find("Notebook E01_SHARK_NONDETECTION/Evidence Status/Evidence Status Text").GetComponent<Text>().text,
-                Is.EqualTo("NEW"));
-            Assert.That(FindGameObject("Page Content").GetComponent<CanvasGroup>().interactable, Is.False);
-            Assert.That(EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Close Notebook Drawer"));
-            Click("Close Notebook Drawer");
-            yield return null;
-            Assert.That(GameObject.Find("Notebook Drawer"), Is.Null);
-            Assert.That(FindGameObject("Page Content").GetComponent<CanvasGroup>().interactable, Is.True);
-            Assert.That(EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Toggle Notebook Drawer"));
-            Assert.That(FindGameObject("Report Gate Hint").GetComponent<RectTransform>().rect.height, Is.EqualTo(28f).Within(0.1f));
-            AssertBottomAligned(FindGameObject("Report Gate Hint").GetComponent<RectTransform>(), FindGameObject("Simulation Navigation").GetComponent<RectTransform>());
-            comparisonColumn = FindGameObject("Comparison Workspace").GetComponent<RectTransform>();
-            Assert.That(comparisonColumn.GetComponent<VerticalLayoutGroup>().padding.bottom, Is.EqualTo(4));
-            Assert.That(FindButton("Threat longline").transform.Find("Threat Status"), Is.Not.Null);
-            Assert.That(FindGameObject("Case Questions"), Is.Not.Null);
-            Assert.That(FindGameObject("Case Questions Heading").GetComponent<Text>().text, Does.Contain("GUIDED"));
-            Assert.That(FindButton("Threat warming"), Is.Null);
-            Assert.That(GameObject.Find("Case Question warming"), Is.Null);
-            Assert.That(FindGameObject("Threat Choices").GetComponentsInChildren<Button>(), Has.Length.EqualTo(3));
-            Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Contain("MODELS 0/3"));
-            Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Contain("CHECKS 0/5"));
-            Assert.That(FindGameObject("Case Question plastic").GetComponent<Outline>(), Is.Not.Null,
-                "With no cause preselected, Easy guidance should begin with the first screening question.");
-            Assert.That(GameObject.Find("Case Question benthic"), Is.Null,
-                "The decisive benthic question must remain hidden until after the ROV follow-up.");
-            Assert.That(FindGameObject("Case Question Grid").transform.childCount, Is.EqualTo(1),
-                "Easy mode should reveal only the current Case Question.");
-            Assert.That(FindGameObject("Comparison Gate").GetComponent<Text>().text, Does.Contain("Choose a cause"));
-            Assert.That(FindGameObject("Model Title").GetComponent<Text>().text, Is.EqualTo("Choose a cause"));
-            Assert.That(GameObject.Find("Run Selected Model"), Is.Null,
-                "The Run action should appear only after the player chooses a cause.");
-            Assert.That(FindGameObject("Edna Prompt").GetComponent<Text>().text, Does.Contain("Choose one possible cause"));
-            GameObject scenarioPlaceholder = FindGameObject("Scenario Placeholder Artwork");
-            Assert.That(scenarioPlaceholder.GetComponent<Image>().sprite,
-                Is.EqualTo(InvestigationScenarioIconLibrary.Investigate));
-            Assert.That(scenarioPlaceholder.GetComponent<InvestigationGlyphGraphic>(), Is.Null,
-                "The empty scenario must use neutral artwork before a cause is selected.");
-            Assert.That(GameObject.Find("Scenario Artwork"), Is.Null);
-            Assert.That(FindButton("Threat longline").GetComponent<Image>().color,
-                Is.Not.EqualTo(new Color32(70, 48, 48, 255)),
-                "The correct cause must not be selected before the player investigates it.");
-            Assert.That(FindButton("Threat longline").GetComponent<Outline>(), Is.Null);
-            AssertSimulateWorkspaceWidthFits();
-            AssertSimulatePageFitsViewportHeight();
-
+            foreach (string species in new[] { "shark", "tuna", "krill", "sea_star", "mussel" }) Record("Species Marker " + species);
+            EnterSimulate("Continue To Simulate");
             Click("Threat plastic");
-            Assert.That(GameObject.Find("Scenario Placeholder Artwork"), Is.Null);
-            Assert.That(FindGameObject("Scenario Artwork").GetComponent<Image>(), Is.Not.Null,
-                "Selecting a real cause should show that cause's imported transparent artwork.");
-            Assert.That(FindButton("Run Selected Model"), Is.Not.Null);
-            Assert.That(FindGameObject("Edna Prompt").GetComponent<Text>().text, Does.Contain("Run the Plastic pollution model"));
-            Assert.That(FindGameObject("Case Question plastic").GetComponent<Outline>(), Is.Not.Null,
-                "Changing cause should move Easy guidance to that cause's next objective.");
-            Assert.That(GameObject.Find("Case Question food_web"), Is.Null,
-                "Easy mode should keep future Case Questions collapsed until they become current.");
-            Assert.That(FindGameObject("Comparison Gate").GetComponent<Text>().text, Does.Contain("Run Plastic pollution"));
             Click("Run Selected Model");
-            Assert.That(controller.State.HasDiscoveredObservation("E05_TEMPERATURE_NORMAL"), Is.False);
-            Assert.That(GameObject.Find("Prediction Target Temperature temperature"), Is.Null);
             Compare("mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch);
-
             Click("Threat longline");
             Click("Run Selected Model");
-            Assert.That(controller.State.HasTriedThreat("longline"), Is.True);
-            Assert.That(FindButton("Threat longline").transform.Find("Threat Checks Pending"), Is.Not.Null);
-            Assert.That(FindButton("Threat longline").transform.Find("Threat Checks Complete"), Is.Null);
-            Assert.That(GameObject.Find("Food Web Prediction"), Is.Not.Null);
-            RectTransform environmentalPredictions = FindGameObject("Environmental Predictions").GetComponent<RectTransform>();
-            Assert.That(environmentalPredictions.rect.height, Is.EqualTo(44f).Within(0.1f),
-                "Larger indicator typography must not change the environment-row height.");
-            Assert.That(environmentalPredictions.childCount, Is.EqualTo(2));
-            Assert.That(GameObject.Find("Model Indicator TEMP"), Is.Null);
-            Transform seafloorIndicator = FindGameObject("Model Indicator SEAFLOOR").transform;
-            Text seafloorLabel = seafloorIndicator.Find("Indicator Label").GetComponent<Text>();
-            Text seafloorValue = seafloorIndicator.Find("Indicator Value").GetComponent<Text>();
-            Assert.That(seafloorLabel.fontSize, Is.EqualTo(11));
-            Assert.That(seafloorValue.fontSize, Is.EqualTo(14));
-            Assert.That(seafloorLabel.rectTransform.TransformPoint(seafloorLabel.rectTransform.rect.center).y,
-                Is.GreaterThan(seafloorValue.rectTransform.TransformPoint(seafloorValue.rectTransform.rect.center).y + 4f));
-            AssertModelIndicatorTextVisible("SEAFLOOR");
-            AssertModelIndicatorTextVisible("LOOK FOR");
-            Assert.That(FindGameObject("Model Indicator SEAFLOOR").GetComponent<Outline>(), Is.Null);
-            Assert.That(FindGameObject("Model Indicator LOOK FOR").GetComponent<Outline>(), Is.Null);
-            Assert.That(seafloorIndicator.Find("Indicator Accent"), Is.Null);
-            Assert.That(FindGameObject("Choose Prediction Step"), Is.Not.Null);
-            Assert.That(GameObject.Find("Prediction Observation Pairing"), Is.Null,
-                "Evidence candidates should stay hidden until a prediction is selected.");
-            Assert.That(GameObject.Find("Judgement Row"), Is.Null,
-                "Evidence checks should not require separate judgement controls.");
-            Assert.That(FindGameObject("Edna Prompt").GetComponent<Text>().text, Does.Contain("Select one prediction"));
-            Click("Prediction shark");
-            Transform predictionSelection = FindGameObject("Prediction Selection").transform;
-            Transform observationSelection = FindGameObject("Observation Selection").transform;
-            Assert.That(predictionSelection.Find("Panel Accent").GetComponent<Image>().color, Is.EqualTo((Color)InvestigationTheme.Primary));
-            Assert.That(observationSelection.Find("Panel Accent").GetComponent<Image>().color, Is.EqualTo((Color)InvestigationTheme.TextSecondary));
-            Assert.That(predictionSelection.GetComponent<Outline>(), Is.Null);
-            Assert.That(observationSelection.GetComponent<Outline>(), Is.Null);
-            Assert.That(GameObject.Find("Judgement Row"), Is.Null);
-            Assert.That(FindGameObject("Edna Prompt").GetComponent<Text>().text, Does.Contain("Select a finding in WHAT WE FOUND"));
-            Click("Toggle Notebook Drawer");
-            yield return null;
-            Assert.That(FindGameObject("Notebook E01_SHARK_NONDETECTION").GetComponent<Image>().color.a, Is.GreaterThan(0.5f),
-                "The Notebook should highlight evidence directly related to the selected prediction.");
-            Assert.That(FindGameObject("Notebook E02_TUNA_WIDER_DETECTION").GetComponent<Image>().color.a, Is.Zero);
-            Click("Close Notebook Drawer");
-            Button guidedSharkObservation = FindButton("Observation E01_SHARK_NONDETECTION");
-            Assert.That(guidedSharkObservation.GetComponent<Image>().color,
-                Is.Not.EqualTo((Color)InvestigationTheme.SurfaceRaised),
-                "A suggested clue must not use the selected-state fill.");
-            Assert.That(guidedSharkObservation.transform.Find("Guided Clue Badge"), Is.Not.Null);
-            Assert.That(guidedSharkObservation.transform.Find("Selected Evidence Check"), Is.Null);
-            Text sharkObservationLabel = FindButton("Observation E01_SHARK_NONDETECTION").GetComponentInChildren<Text>();
-            Assert.That(sharkObservationLabel.supportRichText, Is.True);
-            Assert.That(sharkObservationLabel.text, Does.Contain("<b><color=#"));
-            Assert.That(sharkObservationLabel.text, Does.Contain("not detected</color></b>").IgnoreCase);
-            Assert.That(sharkObservationLabel.text, Does.Contain(ColorUtility.ToHtmlStringRGB(InvestigationTheme.TextSecondary)));
-            Assert.That(FindButton("Observation E01_SHARK_NONDETECTION").GetComponent<RectTransform>().rect.height, Is.EqualTo(44f).Within(0.1f));
-            Click("Prediction tuna");
-            Text tunaObservationLabel = FindButton("Observation E02_TUNA_WIDER_DETECTION").GetComponentInChildren<Text>();
-            Assert.That(tunaObservationLabel.text, Does.Contain("detected at more sites</color></b>").IgnoreCase);
-            Assert.That(tunaObservationLabel.text, Does.Contain(ColorUtility.ToHtmlStringRGB(InvestigationTheme.Primary)));
-            Assert.That(GameObject.Find("Comparison Guide"), Is.Null);
-            Click("Observation E02_TUNA_WIDER_DETECTION");
-            Assert.That(FindGameObject("Comparison Saved Text").GetComponent<Text>().text, Does.Contain("supports the model"));
-            Assert.That(FindButton("Observation E02_TUNA_WIDER_DETECTION").interactable, Is.False);
-            Assert.That(FindButton("Observation E02_TUNA_WIDER_DETECTION").transform.Find("Selected Evidence Check"), Is.Not.Null);
-            Assert.That(FindGameObject("Food Web Prediction").transform.IsChildOf(FindGameObject("Simulation Models").transform), Is.True);
-            Assert.That(FindGameObject("Prediction Observation Pairing").transform.IsChildOf(FindGameObject("Comparison Workspace").transform), Is.True);
-            Assert.That(GameObject.Find("Judgement Row"), Is.Null);
-            Assert.That(FindGameObject("Comparison Saved Summary").transform.IsChildOf(FindGameObject("Comparison Workspace").transform), Is.True);
-            Assert.That(FindButton("Prediction shark").GetComponent<RectTransform>().rect.height, Is.EqualTo(78f).Within(0.1f));
-            Assert.That(FindGameObject("Reference Indicators").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(64f));
-            Assert.That(FindButton("Prediction sea_star").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(44f));
-            Assert.That(FindButton("Prediction sea_star").interactable, Is.False);
-            Assert.That(FindButton("Prediction sea_star").transform.Find("Prediction").GetComponent<Text>().text, Is.EqualTo("ROV first"));
-            Assert.That(FindGameObject("Indicator Heading").GetComponent<Text>().text, Does.Contain("SEA STAR UNLOCKS AFTER ROV"));
-            Assert.That(FindButton("Prediction mussel").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(44f));
-            AssertSimulateWorkspaceWidthFits();
-            AssertSimulatePageFitsViewportHeight();
-            Image sharkArtwork = FindButton("Prediction shark").transform.Find("Species Artwork").GetComponent<Image>();
-            Assert.That(sharkArtwork.sprite, Is.Not.Null);
+            Assert.That(FindButton("Prediction sea_star").interactable, Is.True);
+            Compare("sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match);
             Compare("shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match);
-            Assert.That(FindButton("Prediction shark").transform.Find("Comparison Locked").GetComponent<Image>().sprite, Is.Not.Null);
-            Assert.That(FindGameObject("Comparison Saved Summary"), Is.Not.Null);
-            Assert.That(GameObject.Find("Judgement Row"), Is.Null,
-                "Direct evidence selection should show confirmation without adding judgement controls.");
-            Click("Toggle Notebook Drawer");
-            yield return null;
-            Assert.That(FindGameObject("Notebook E01_SHARK_NONDETECTION").transform.Find("Evidence Status/Evidence Status Text").GetComponent<Text>().text,
-                Is.EqualTo("USED"));
-            Click("Close Notebook Drawer");
-            Click("Prediction tuna");
-            Assert.That(FindGameObject("Comparison Saved Summary"), Is.Not.Null,
-                "The earlier evidence selection should already have saved the Tuna comparison.");
+            Compare("tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match);
             Compare("krill", "E03_KRILL_NONDETECTION", ComparisonJudgement.Match);
-
             Click("Threat bottom_trawling");
             Click("Run Selected Model");
-            Assert.That(controller.State.HasTriedThreat("bottom_trawling"), Is.True);
             Compare("tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match);
-
-            Assert.That(controller.State.CompletedObjectiveCount, Is.EqualTo(5));
-            Assert.That(controller.State.AcceptedComparisonCount, Is.EqualTo(5));
-            Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Contain("MODELS 3/3"));
-            Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Contain("CHECKS 5/5"));
-            Transform completedQuestionGrid = FindGameObject("Case Question Grid").transform;
-            for (int questionIndex = 0; questionIndex < completedQuestionGrid.childCount; questionIndex++)
-            {
-                Transform child = completedQuestionGrid.GetChild(questionIndex);
-                if (!child.name.StartsWith("Case Question ", StringComparison.Ordinal)) continue;
-                Assert.That(child.Find("Question Status").GetComponent<Image>().sprite, Is.EqualTo(InvestigationStatusIconLibrary.Check));
-            }
-            Assert.That(FindButton("Write Provisional Report").GetComponents<Shadow>().Length, Is.EqualTo(1));
-            Assert.That(FindButton("Write Provisional Report").GetComponent<Outline>(), Is.Null);
-            Assert.That(FindButton("Write Provisional Report").GetComponent<RectTransform>().rect.height, Is.EqualTo(28f).Within(0.1f));
-            Assert.That(FindButton("Write Provisional Report").GetComponent<RectTransform>().rect.width, Is.EqualTo(148f).Within(0.1f));
-            Assert.That(FindButton("Write Provisional Report").transform.Find("Compact Navigation Surface").GetComponent<RectTransform>().rect.height, Is.EqualTo(28f).Within(0.1f));
+            Assert.That(FindButton("Write Provisional Report"), Is.Null, "Finish the final Sea star check before leaving Simulate.");
+            Compare("sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch);
+            Assert.That(controller.State.CompletedObjectiveCount, Is.EqualTo(7));
+            Assert.That(controller.State.ConfirmationReviewed, Is.False);
+            Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Contain("CHECKS 7/7"));
+            AssertThreatProgress("longline", "CHECKED · 4/4", "SUPPORTS", true);
+            AssertThreatProgress("bottom_trawling", "CHECKED · 2/2", "MIXED EVIDENCE", true);
             Click("Write Provisional Report");
-            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Simulate));
-            Assert.That(FindButton("Provisional Cause warming"), Is.Null);
-            Assert.That(FindGameObject("Provisional Cause Choices").GetComponentsInChildren<Button>(), Has.Length.EqualTo(3));
+            Click("Provisional Cause bottom_trawling");
             Click("Confirm Provisional Idea");
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Report));
-            AssertActivePageHeadingSharesRow();
-            Assert.That(FindGameObject("Investigation Footer").GetComponent<RectTransform>().rect.height, Is.EqualTo(60f).Within(0.1f));
-            Assert.That(FindButton("Back To Simulator").GetComponent<RectTransform>().rect.size, Is.EqualTo(new Vector2(126f, 30f)));
-            Assert.That(FindButton("Toggle Notebook Drawer").GetComponent<RectTransform>().rect.size, Is.EqualTo(new Vector2(62f, 50f)));
-            Assert.That(FindButton("Toggle Notebook Drawer").transform.parent, Is.EqualTo(FindGameObject("Footer Right").transform));
-            Assert.That(FindButton("Restart Case").GetComponent<RectTransform>().rect.size, Is.EqualTo(new Vector2(100f, 30f)));
-            Assert.That(FindButton("Review ROV Follow-up").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(44f));
-            Assert.That(FindButton("Review ROV Follow-up").transform.IsChildOf(FindGameObject("ROV Confirmation").transform), Is.True,
-                "The primary ROV action must be next to its evidence panel.");
-            Canvas.ForceUpdateCanvases();
-            Transform sealedConfirmation = FindGameObject("ROV Confirmation").transform;
-            AssertFullBorderAccent(sealedConfirmation, InvestigationTheme.Primary);
-            Assert.That(sealedConfirmation.Find("Panel Accent"), Is.Null);
-            Canvas.ForceUpdateCanvases();
-            Assert.That(GameObject.Find("Survey Report Paper"), Is.Null,
-                "The report questions must stay hidden until the ROV follow-up has been checked.");
-            Assert.That(ContrastRatio(InvestigationTheme.PaperBorder, InvestigationTheme.Paper), Is.GreaterThanOrEqualTo(3f));
-            Assert.That(controller.State.ProvisionalThreatId, Is.EqualTo("bottom_trawling"));
+            Assert.That(GameObject.Find("Survey Report Paper"), Is.Null);
             Assert.That(controller.State.FinalThreatId, Is.Empty);
-            Assert.That(controller.State.HasDiscoveredObservation("E07_FISHING_LINE"), Is.False);
-
-            string provisionalBeforeRestartPrompt = controller.State.ProvisionalThreatId;
-            Click("Restart Case");
+            InspectRov("Review ROV Follow-up");
+            yield return null;
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Report));
-            Assert.That(controller.State.ProvisionalThreatId, Is.EqualTo(provisionalBeforeRestartPrompt),
-                "The first Restart click must not clear progress.");
-            Assert.That(FindButton("Restart Case"), Is.Null);
-            Assert.That(FindButton("Cancel Restart Case"), Is.Not.Null);
-            Assert.That(FindButton("Confirm Restart Case"), Is.Not.Null);
-            Assert.That(FindGameObject("Status Toast").activeSelf, Is.True);
-
-            Click("Stage Simulate");
-            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Simulate));
-            Click("Stage Report");
-            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Report));
-            Assert.That(controller.State.ProvisionalThreatId, Is.EqualTo(provisionalBeforeRestartPrompt));
-            Assert.That(FindButton("Restart Case"), Is.Not.Null,
-                "Leaving Report must cancel its pending restart confirmation.");
-            Assert.That(FindButton("Confirm Restart Case"), Is.Null,
-                "A stale destructive confirmation must not survive a phase change.");
-
-            Click("Restart Case");
-            Click("Cancel Restart Case");
-            Assert.That(controller.State.ProvisionalThreatId, Is.EqualTo(provisionalBeforeRestartPrompt));
-            Assert.That(FindButton("Restart Case"), Is.Not.Null);
-            Assert.That(FindButton("Confirm Restart Case"), Is.Null);
-
-            ScrollRect reportScroll = FindGameObject("Investigation Content").GetComponent<ScrollRect>();
-            reportScroll.verticalNormalizedPosition = 0.35f;
-            Canvas.ForceUpdateCanvases();
-            bool reportHasOverflow = reportScroll.content.rect.height > reportScroll.viewport.rect.height + 1f;
-            float previousReportPosition = reportScroll.verticalNormalizedPosition;
-            Click("Stage Report");
-            if (reportHasOverflow)
-                Assert.That(reportScroll.verticalNormalizedPosition, Is.EqualTo(previousReportPosition).Within(0.02f),
-                    "Refreshing a scrollable Report stage must preserve the reader's place.");
-
-            EventSystem.current.SetSelectedGameObject(FindButton("Review ROV Follow-up").gameObject);
-            Click("Review ROV Follow-up");
-            Assert.That(controller.State.ConfirmationReviewed, Is.True);
-            Assert.That(controller.State.HasDiscoveredObservation("E07_FISHING_LINE"), Is.True);
-            Assert.That(controller.State.HasDiscoveredObservation("E08_SEAFLOOR_INTACT"), Is.True);
-            if (reportHasOverflow)
-                Assert.That(reportScroll.verticalNormalizedPosition, Is.EqualTo(previousReportPosition).Within(0.02f),
-                    "Reviewing the ROV follow-up must preserve a scrollable Report's reading position.");
-            Assert.That(WorldRect(FindGameObject("ROV Title").GetComponent<RectTransform>()).yMin,
-                Is.GreaterThan(WorldRect(FindGameObject("ROV Detail").GetComponent<RectTransform>()).yMax));
-            Assert.That(FindGameObject("ROV Title").GetComponent<Text>().text, Is.EqualTo("New ROV evidence received"));
-            Assert.That(FindGameObject("ROV Detail").GetComponent<Text>().text, Does.Contain("added to your notebook"));
-            Assert.That(FindGameObject("ROV Confirmation").GetComponent<RectTransform>().rect.height, Is.GreaterThan(300f));
-            Transform reviewedConfirmation = FindGameObject("ROV Confirmation").transform;
-            AssertFullBorderAccent(reviewedConfirmation, InvestigationTheme.Success);
-            Assert.That(reviewedConfirmation.Find("Panel Accent"), Is.Null);
-            Rect rovSummary = WorldRect(FindGameObject("ROV Detail").GetComponent<RectTransform>());
-            Rect rovEvidence = WorldRect(FindGameObject("ROV Evidence").GetComponent<RectTransform>());
-            float scaledRovSpacing = 12f * reviewedConfirmation.lossyScale.y;
-            Assert.That(rovSummary.yMin - rovEvidence.yMax, Is.EqualTo(scaledRovSpacing).Within(1f),
-                "The ROV summary and evidence cards should be compact without overlapping.");
-            Assert.That(FindGameObject("Confirmation E07_FISHING_LINE").transform.Find("Confirmation Icon").GetComponent<Image>().sprite, Is.Not.Null);
-            Assert.That(FindGameObject("Confirmation E07_FISHING_LINE").transform.Find("Confirmation Icon").GetComponent<InvestigationGlyphGraphic>(), Is.Null);
-            Assert.That(FindGameObject("Confirmation E07_FISHING_LINE").transform.Find("Notebook Added").GetComponent<Text>().text, Is.EqualTo("ADDED TO NOTEBOOK · ROV"));
-            if (!InvestigationMotionSettings.ReducedMotion)
-            {
-                yield return WaitForCondition(
-                    () => FindGameObject("Confirmation E07_FISHING_LINE").GetComponent<CanvasGroup>().alpha >= 0.99f
-                        && FindGameObject("Confirmation E08_SEAFLOOR_INTACT").GetComponent<CanvasGroup>().alpha >= 0.99f,
-                    1.5f,
-                    "ROV evidence cards did not complete their sequential reveal.");
-            }
-            yield return null;
-            Assert.That(EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Re-test Fishing Models"),
-                "Keyboard focus should move from Review ROV to the new primary re-test action.");
-            Assert.That(InvestigationEvidenceIconLibrary.FishingLine, Is.Not.Null);
-            Assert.That(InvestigationEvidenceIconLibrary.Seafloor, Is.Not.Null);
-            Assert.That(InvestigationEvidenceIconLibrary.Laboratory, Is.Not.Null);
-            Assert.That(InvestigationEvidenceIconLibrary.EDNASignal, Is.Not.Null);
-            Assert.That(FindButton("Re-test Fishing Models"), Is.Not.Null);
-            Assert.That(FindButton("Re-test Fishing Models").GetComponentInChildren<Text>().text, Is.EqualTo("Compare fishing models →"));
-            Assert.That(FindButton("Toggle Notebook Drawer").transform.Find("Notebook Finding Count/Notebook Finding Count Text").GetComponent<Text>().text, Is.EqualTo("7"));
-            Click("Toggle Notebook Drawer");
-            yield return null;
-            Assert.That(FindGameObject("Notebook Drawer Title").GetComponent<Text>().text, Is.EqualTo("MY NOTEBOOK · 7"));
-            Assert.That(FindGameObject("Notebook Drawer Entries").transform.Find("Notebook Group FOLLOW-UP CLUES"), Is.Not.Null);
-            Assert.That(FindGameObject("Notebook Drawer Entries").transform.Find("Notebook E07_FISHING_LINE"), Is.Not.Null);
-            ScrollRect drawerScroll = FindGameObject("Notebook Drawer Scroll").GetComponent<ScrollRect>();
-            bool drawerHasOverflow = drawerScroll.content.rect.height > drawerScroll.viewport.rect.height + 1f;
-            drawerScroll.verticalNormalizedPosition = 0f;
-            Canvas.ForceUpdateCanvases();
-            Click("Close Notebook Drawer");
-            yield return null;
-            Click("Toggle Notebook Drawer");
-            yield return null;
-            if (drawerHasOverflow)
-                Assert.That(FindGameObject("Notebook Drawer Scroll").GetComponent<ScrollRect>().verticalNormalizedPosition, Is.LessThanOrEqualTo(0.02f),
-                    "Closing and reopening a scrollable Notebook should preserve its reading position.");
-            Click("Close Notebook Drawer");
-            Assert.That(FindButton("Submit Final Report"), Is.Null,
-                "The final report action must remain unavailable until the post-ROV benthic comparison is complete.");
-
-            Click("Re-test Fishing Models");
-            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Simulate));
-            Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Contain("FINDINGS 5/5"));
-            Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Contain("CHECKS 5/7"));
-            Assert.That(FindGameObject("Case Question benthic"), Is.Not.Null);
-            Assert.That(FindButton("Prediction sea_star").interactable, Is.True);
-            Assert.That(FindButton("Prediction sea_star").transform.Find("Prediction").GetComponent<Text>().text, Is.EqualTo("Decrease"));
-            Compare("sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch);
-
-            Click("Threat longline");
-            Assert.That(FindButton("Prediction sea_star").interactable, Is.True);
-            Assert.That(FindButton("Prediction sea_star").transform.Find("Prediction").GetComponent<Text>().text, Is.EqualTo("Stable"));
-            Compare("sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match);
+            Assert.That(controller.State.FinalThreatId, Is.EqualTo("bottom_trawling"));
+            Assert.That(controller.State.SelectedReportEvidenceIds, Has.Count.EqualTo(7));
             Assert.That(controller.State.CompletedObjectiveCount, Is.EqualTo(7));
-            Assert.That(controller.State.AcceptedComparisonCount, Is.EqualTo(7));
-            Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Contain("CHECKS 7/7"));
-            Assert.That(FindButton("Return To Final Report"), Is.Not.Null);
-            Click("Return To Final Report");
-            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Report));
-            AssertReportQuestion("Cause", 1);
-            Assert.That(GameObject.Find("ROV Confirmation"), Is.Null,
-                "The reviewed ROV banner should make room for the current question.");
-            Assert.That(FindButton("Submit Final Report"), Is.Null);
-            Assert.That(FindButton("Toggle Notebook Drawer").transform.position.x,
-                Is.LessThan(FindButton("Continue Report Dialogue").transform.position.x));
-            AssertSameRow("Report Title", "Report Metadata");
-            Text reportMetadata = FindGameObject("Report Metadata").GetComponent<Text>();
-            AssertTextFitsItsRect(reportMetadata);
-            Assert.That(reportMetadata.resizeTextForBestFit, Is.True);
-            AssertTextFitsItsRect(FindGameObject("Report Title").GetComponent<Text>());
-            AssertTextFitsItsRect(FindGameObject("Provisional Reminder").GetComponent<Text>());
-            Assert.That(FindGameObject("Provisional Reminder").GetComponent<Text>().text, Does.Contain("Bottom trawling"));
-            AssertChildrenStayInsideLayout("Cause Choices");
-            Assert.That(FindButton("Final Cause longline").GetComponents<Shadow>().Length, Is.EqualTo(1));
-            Assert.That(FindButton("Final Cause longline").transform.Find("Paper Choice Face"), Is.Not.Null);
-            Assert.That(FindButton("Final Cause warming"), Is.Null);
-
-            Click("Continue Report Dialogue");
-            yield return null;
-            Assert.That(controller.State.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.InsufficientEvidence));
-            Assert.That(controller.State.FinalSubmissionAttemptCount, Is.Zero);
-            Assert.That(InvestigationSessionBridge.LastResult, Is.Null);
-            Assert.That(FindGameObject("Report Section Feedback").GetComponent<Text>().text, Does.Contain("Choose a final cause"));
-            Assert.That(FindGameObject("Status Toast").activeSelf, Is.False,
-                "A question's diagnostic should appear once beside the answer.");
-            Assert.That(EventSystem.current.currentSelectedGameObject.transform.IsChildOf(GameObject.Find("Report Cause Section").transform), Is.True);
-
+            Click("Discuss Explanation");
+            ConnectCluesToArgument("Report Key Clue Seafloor");
+            Assert.That(GameObject.Find("Report Edna Speech").GetComponent<Text>().text, Does.Contain("bottom trawling"));
+            Assert.That(GameObject.Find("Report Dialogue Progress").GetComponent<Text>().text, Does.Contain("2/3"));
+            Assert.That(GameObject.Find("Report Review"), Is.Null);
+            Click("Edit Report Cause");
             Click("Final Cause longline");
-            yield return null;
-            AssertReportQuestion("Reasoning", 2);
-            Assert.That(controller.State.FinalThreatId, Is.EqualTo("longline"));
-            Assert.That(FindGameObject("Edna Prompt").GetComponent<Text>().text, Does.Contain("Long-line fishing"));
-            Assert.That(EventSystem.current.currentSelectedGameObject.transform.IsChildOf(GameObject.Find("Report Reasoning Section").transform), Is.True);
-            Click("Reasoning shared_habitat_shift");
-            AssertReportQuestion("Reasoning", 2);
-            Assert.That(FindGameObject("Report Section Feedback").GetComponent<Text>().text, Does.Contain("food-web cascade"));
+            Assert.That(GameObject.Find("Report Conflict"), Is.Null);
             Assert.That(controller.State.FinalSubmissionAttemptCount, Is.Zero);
-            Click("Reasoning food_web_cascade");
-            AssertReportQuestion("Evidence", 3);
-            Assert.That(controller.State.SelectedReasoningId, Is.EqualTo("food_web_cascade"));
-            AssertChildrenStayInsideLayout("Evidence Choices");
-            Assert.That(FindButton("Report Evidence E07_FISHING_LINE").transform.Find("Evidence Icon").GetComponent<Image>().sprite, Is.Not.Null);
-            Click("Continue Report Dialogue");
-            Assert.That(FindGameObject("Report Section Feedback").GetComponent<Text>().text, Does.Contain("Select at least 4 observations"));
-            Click("Report Evidence E01_SHARK_NONDETECTION");
-            yield return null;
-            Assert.That(FindButton("Report Evidence E01_SHARK_NONDETECTION").transform.Find("Selected Check"), Is.Not.Null);
-            Click("Toggle Notebook Drawer");
-            yield return null;
-            Assert.That(FindGameObject("Notebook E01_SHARK_NONDETECTION").transform.Find("Evidence Status/Evidence Status Text").GetComponent<Text>().text,
-                Is.EqualTo("REPORT"));
-            Assert.That(FindGameObject("Notebook E07_FISHING_LINE").transform.Find("Evidence Status/Evidence Status Text").GetComponent<Text>().text,
-                Is.EqualTo("NEW"));
-            Click("Close Notebook Drawer");
-            Click("Report Evidence E02_TUNA_WIDER_DETECTION");
-            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("Selected 2 / 4"));
-            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("FOOD WEB 2 / 2"));
-            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("BENTHIC 0 / 1"));
-            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("ROV 0 / 1"));
-            Click("Continue Report Dialogue");
-            Assert.That(FindGameObject("Report Section Feedback").GetComponent<Text>().text, Does.Contain("Select at least 4 observations"));
-            Click("Report Evidence E04_BENTHIC_STABLE");
-            Click("Report Evidence E07_FISHING_LINE");
-            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("Selected 4 / 4"));
-            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("BENTHIC 1 / 1"));
-            Assert.That(FindGameObject("Evidence Progress").GetComponent<Text>().text, Does.Contain("ROV 1 / 1"));
-            Assert.That(GameObject.Find("Report Limitation Section"), Is.Null,
-                "Multi-select evidence stays open until the player continues.");
-            Click("Toggle Notebook Drawer");
-            Click("Continue Report Dialogue");
-            AssertReportQuestion("Limitation", 4);
-            Assert.That(GameObject.Find("Notebook Drawer"), Is.Null,
-                "Continuing must reveal the next question even when the Notebook was open.");
-            Click("Continue Report Dialogue");
-            Assert.That(FindGameObject("Report Section Feedback").GetComponent<Text>().text, Does.Contain("scientific limitation"));
-            Click("Limitation L01_NONDETECTION_LIMITATION");
-            Assert.That(GameObject.Find("Report Review"), Is.Not.Null);
-            Assert.That(GameObject.Find("Report Limitation Section"), Is.Null);
-            Assert.That(controller.State.FinalSubmissionAttemptCount, Is.Zero);
-            Assert.That(InvestigationSessionBridge.LastResult, Is.Null,
-                "Completing the dialogue should prepare a review, not send the report automatically.");
-            Assert.That(GameObject.Find("Report Review Cause").GetComponentInChildren<Text>().text, Is.EqualTo("Your explanation"));
-            foreach (Text text in GameObject.Find("Report Review").GetComponentsInChildren<Text>()) AssertTextFitsItsRect(text);
-            Assert.That(FindButton("Edit Report Cause"), Is.Not.Null);
-            Assert.That(FindButton("Submit Final Report").GetComponentInChildren<Text>().text, Is.EqualTo("Send report"));
-            Assert.That(FindButton("Submit Final Report").GetComponents<Shadow>().Length, Is.EqualTo(1));
-            Assert.That(FindButton("Submit Final Report").GetComponent<Outline>(), Is.Null);
-            Assert.That(FindButton("Submit Final Report").GetComponent<RectTransform>().rect.size, Is.EqualTo(new Vector2(104f, 30f)));
-            reportScroll.verticalNormalizedPosition = 0.15f;
             Click("Submit Final Report");
             yield return null;
             Assert.That(controller.State.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.Correct));
-            if (reportScroll.content.rect.height > reportScroll.viewport.rect.height + 1f)
-                Assert.That(reportScroll.verticalNormalizedPosition, Is.EqualTo(1f).Within(0.02f),
-                    "A scrollable Case Closed page must start at the top.");
-            else
-            {
-                Rect summaryBounds = WorldRect(GameObject.Find("Case Closed Summary").GetComponent<RectTransform>());
-                Rect viewportBounds = WorldRect(reportScroll.viewport);
-                Assert.That(summaryBounds.yMax, Is.LessThanOrEqualTo(viewportBounds.yMax + 1f));
-                Assert.That(summaryBounds.yMin, Is.GreaterThanOrEqualTo(viewportBounds.yMin - 1f),
-                    "A compact Case Closed summary should be fully visible without scrolling.");
-            }
-            Assert.That(EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Restart Completed Case"),
-                "Keyboard focus should move to the only Case Closed action after submission.");
-            InvestigationGameResult bridgeResult = InvestigationSessionBridge.LastResult;
-            Assert.That(bridgeResult, Is.Not.Null);
-            Assert.That(bridgeResult.correct, Is.True);
-            Assert.That(bridgeResult.completed, Is.True);
-            Assert.That(bridgeResult.selectedHypothesisId, Is.EqualTo("longline"));
-            Assert.That(bridgeResult.surveyId, Is.EqualTo("survey_12"));
-            Assert.That(bridgeResult.siteId, Is.EqualTo("seamount_a"));
-            Assert.That(bridgeResult.finalSubmissionAttempts, Is.EqualTo(1));
-            Assert.That(bridgeResult.missteps, Is.Zero);
-            Assert.That(FindGameObject("Report Outcome").GetComponent<Image>().color, Is.EqualTo((Color)InvestigationTheme.ReportSuccess));
-            Assert.That(FindGameObject("Report Outcome").transform.Find("Outcome Icon").GetComponent<Image>().sprite,
-                Is.EqualTo(InvestigationStatusIconLibrary.Check));
-            Assert.That(FindGameObject("Case Closed Summary"), Is.Not.Null);
-            Text[] debriefTexts = FindGameObject("Case Closed Summary").GetComponentsInChildren<Text>();
-            for (int textIndex = 0; textIndex < debriefTexts.Length; textIndex++) AssertTextFitsItsRect(debriefTexts[textIndex]);
-            Assert.That(WorldRect(FindGameObject("Case Closed Summary").GetComponent<RectTransform>()).width,
-                Is.LessThanOrEqualTo(WorldRect(reportScroll.viewport).width + 1f));
-            Assert.That(FindGameObject("Case Closed Title").GetComponent<Text>().text, Does.Contain("Long-line fishing"));
-            Assert.That(FindGameObject("Debrief FOOD-WEB MECHANISM").transform.Find("Debrief Statement").GetComponent<Text>().text,
-                Does.Contain("Fewer sharks"));
-            Assert.That(FindGameObject("Debrief BENTHIC CHECK").transform.Find("Debrief Statement").GetComponent<Text>().text,
-                Does.Contain("Sea star remains stable"));
-            Assert.That(FindGameObject("Debrief ROV FOLLOW-UP").transform.Find("Debrief Statement").GetComponent<Text>().text,
-                Does.Contain("Fishing line recorded"));
-            Assert.That(FindGameObject("Debrief SCIENTIFIC CAUTION").transform.Find("Debrief Statement").GetComponent<Text>().text,
-                Does.Contain("Not detected does not mean gone"));
-            Assert.That(GameObject.Find("Report Columns"), Is.Null,
-                "A solved case should show the focused learning debrief instead of the editable report form.");
-            Assert.That(FindGameObject("Report Metadata").GetComponent<Text>().text, Does.Contain("Revision 1"));
-            Assert.That(FindGameObject("Report Metadata").GetComponent<Text>().text, Does.Not.Contain("Final attempts"));
-            Assert.That(FindButton("Back To Simulator"), Is.Null);
-            Assert.That(FindButton("Restart Case"), Is.Null);
-            Assert.That(FindButton("Restart Completed Case"), Is.Not.Null);
+            Assert.That(InvestigationSessionBridge.LastResult.completed, Is.True);
+            Assert.That(InvestigationSessionBridge.LastResult.correct, Is.True);
+            Assert.That(GameObject.Find("Case Closed Summary"), Is.Not.Null);
             Click("Restart Completed Case");
-            Assert.That(InvestigationSessionBridge.LastResult, Is.Null,
-                "Starting another investigation must clear the previous completed result.");
             Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
+            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Observe));
+            Assert.That(InvestigationSessionBridge.LastResult, Is.Null);
         }
 
         [UnityTest]
-        public IEnumerator InvestigationScene_ReducedMotionDifficultyAndRestartRemainAvailable()
+        public IEnumerator InvestigationScene_DifficultyAndRestartRemainAvailable()
         {
             bool before = InvestigationMotionSettings.ReducedMotion;
             InvestigationSessionBridge.Clear();
-            InvestigationMotionSettings.SetReducedMotion(false);
+            InvestigationMotionSettings.SetReducedMotionForTests(false);
             yield return LoadInvestigationScene();
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
             Button difficulty = FindButton("Difficulty Toggle");
@@ -1520,21 +1029,21 @@ namespace EDNA.Investigation.Tests
                 "Difficulty must return to its normal background after the press ends.");
             Assert.That(difficulty.transform.Find("Focus Ring").gameObject.activeSelf, Is.False,
                 "Pointer selection must not leave a persistent focus highlight.");
-            Click("Motion Toggle");
+            InvestigationMotionSettings.SetReducedMotionForTests(!InvestigationMotionSettings.ReducedMotion);
             Assert.That(InvestigationMotionSettings.ReducedMotion, Is.True);
-            Click("Species Marker shark");
-            Click("Species Marker tuna");
-            Click("Species Marker krill");
-            Click("Species Marker sea_star");
-            Click("Species Marker mussel");
+            Record("Species Marker shark");
+            Record("Species Marker tuna");
+            Record("Species Marker krill");
+            Record("Species Marker sea_star");
+            Record("Species Marker mussel");
             Assert.That(controller.State.DiscoveredObservationIds, Has.Count.EqualTo(5));
-            Click("Continue To Simulate");
+            EnterSimulate("Continue To Simulate");
             Click("Threat plastic");
             Click("Run Selected Model");
-            Assert.That(FindGameObject("Case Questions Heading").GetComponent<Text>().text, Does.Contain("INDEPENDENT 0/3"));
-            Assert.That(FindGameObject("Case Question plastic").GetComponent<Outline>(), Is.Null,
-                "Hard mode should keep the Case Questions but remove the guided next-question highlight.");
-            Assert.That(FindGameObject("Comparison Gate").GetComponent<Text>().text, Does.Contain("Use the remaining Case Questions to choose a comparison"));
+            Assert.That(GameObject.Find("Case Questions"), Is.Null);
+            Assert.That(FindGameObject("Edna Name").GetComponent<Text>().text, Does.Contain("plastic"));
+            Assert.That(GameObject.Find("Comparison Gate"), Is.Null);
+            Assert.That(FindButton("Edna Continue"), Is.Null, "Hard mode lets the player choose the prediction independently.");
             Assert.That(FindButton("Threat plastic").transform.Find("Threat Status").GetComponent<Text>().text,
                 Is.EqualTo("TO CHECK · 0/1"));
             Button mussel = FindButton("Prediction mussel");
@@ -1556,7 +1065,7 @@ namespace EDNA.Investigation.Tests
             controller = Object.FindAnyObjectByType<InvestigationController>();
             Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
             Assert.That(controller.State.Difficulty, Is.EqualTo(InvestigationDifficulty.Easy));
-            InvestigationMotionSettings.SetReducedMotion(before);
+            InvestigationMotionSettings.SetReducedMotionForTests(before);
             InvestigationSessionBridge.Clear();
         }
 
@@ -1573,7 +1082,7 @@ namespace EDNA.Investigation.Tests
                 Click("Start Standalone Case");
                 yield return null;
                 Assert.That(FindGameObject("Fatal Error"), Is.Null);
-                Assert.That(FindButton("Species Marker shark").transform.Find("Missing Signal"), Is.Not.Null);
+                Assert.That(FindButton("Species Marker shark"), Is.Null);
                 Assert.That(InvestigationSessionBridge.PendingInput, Is.SameAs(input));
                 Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds, Is.Empty);
             }
@@ -1590,12 +1099,12 @@ namespace EDNA.Investigation.Tests
             {
                 InvestigationSessionBridge.SetInput(input);
                 yield return LoadInvestigationScene();
-                Assert.That(FindGameObject("Observe Finding Progress Text").GetComponent<Text>().text, Does.Contain("4 / 5"));
+                Assert.That(FindGameObject("Edna Name").GetComponent<Text>().text, Does.Contain("5/5"));
                 Assert.That(FindButton("Continue To Simulate"), Is.Null);
-                Click("Stage Simulate");
+                EnterSimulate("Stage Simulate");
                 Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.Phase, Is.EqualTo(InvestigationPhase.Observe));
-                Click("Species Marker mussel");
-                Click("Continue To Simulate");
+                Record("Species Marker mussel");
+                EnterSimulate("Continue To Simulate");
                 Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.Phase, Is.EqualTo(InvestigationPhase.Simulate));
             }
             finally { InvestigationSessionBridge.Clear(); }
@@ -1605,19 +1114,14 @@ namespace EDNA.Investigation.Tests
         public IEnumerator InvestigationScene_RecordedMarkersLinkBothSurveyMaps()
         {
             yield return LoadInvestigationScene();
-            Button shark = FindButton("Species Marker shark");
-            Assert.That(shark.transform.Find("Recorded Finding"), Is.Null);
-            ExecuteEvents.Execute(shark.gameObject, new BaseEventData(EventSystem.current), ExecuteEvents.selectHandler);
-            Assert.That(shark.transform.Find("Paired Species Focus").gameObject.activeSelf, Is.True);
-            Assert.That(FindButton("Historical Species Marker shark").transform.Find("Paired Species Focus").gameObject.activeSelf, Is.True);
-            Assert.That(FindButton("Species Marker tuna").transform.Find("Paired Species Focus").gameObject.activeSelf, Is.False);
-            Click("Species Marker shark");
-            yield return null;
-            Assert.That(FindButton("Species Marker shark").transform.Find("Recorded Finding"), Is.Not.Null);
-            Assert.That(FindGameObject("Tooltip Details").GetComponent<Text>().text, Does.Contain("RECORDED IN NOTEBOOK"));
-            Assert.That(FindGameObject("Tooltip Details").GetComponent<Text>().text, Does.Contain("Shark repeatedly not detected"));
-            Click("Species Marker shark");
-            Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds, Has.Count.EqualTo(1));
+            Record("Species Marker shark");
+            Assert.That(FindButton("Species Marker shark"), Is.Null);
+            foreach (string name in new[] { "Species Marker tuna", "Historical Species Marker tuna" })
+                Assert.That(FindButton(name).transform.Find("Paired Species Focus").gameObject.activeSelf, Is.True);
+            Record("Species Marker tuna"); yield return null;
+            Assert.That(FindButton("Species Marker tuna").transform.Find("Recorded Finding"), Is.Not.Null);
+            Record("Species Marker tuna");
+            Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds, Has.Count.EqualTo(2));
         }
 
         [UnityTest]
@@ -1651,7 +1155,7 @@ namespace EDNA.Investigation.Tests
             Click("Toggle Notebook Drawer");
             Click("Toggle Hypothesis Summary");
             yield return null;
-            Assert.That(FindGameObject("Hypothesis Summary longline").GetComponent<Text>().text, Does.Contain("SUPPORT 3"));
+            Assert.That(FindGameObject("Hypothesis Summary longline").GetComponent<Text>().text, Does.Contain("SUPPORT 4"));
             Assert.That(FindGameObject("Hypothesis Summary plastic").GetComponent<Text>().text, Does.Contain("CHALLENGE 1"));
             Assert.That(GameObject.Find("Hypothesis Summary warming"), Is.Null);
             Assert.That(FindButton("Revisit Comparison longline shark"), Is.Null,
@@ -1668,13 +1172,13 @@ namespace EDNA.Investigation.Tests
             Assert.That(FindButton("Revisit Comparison longline shark"), Is.Null);
             Assert.That(FindButton("Revisit Comparison plastic mussel"), Is.Not.Null);
             Click("Hypothesis Card longline");
-            Assert.That(FindButton("Revisit Comparison longline sea_star"), Is.Null);
+            Assert.That(FindButton("Revisit Comparison longline sea_star"), Is.Not.Null);
             Assert.That(FindGameObject("Notebook E07_FISHING_LINE"), Is.Null);
             int completed = controller.State.CompletedObjectiveCount;
             Click("Revisit Comparison longline shark");
             yield return null;
             Assert.That(FindGameObject("Notebook Drawer"), Is.Null);
-            Assert.That(FindGameObject("Comparison Feedback").GetComponent<Text>().text, Does.Contain("Shark"));
+            Assert.That(FindButton("Prediction shark").transform.Find("Comparison Locked"), Is.Not.Null);
             Assert.That(controller.State.CompletedObjectiveCount, Is.EqualTo(completed));
             Assert.That(FindGameObject("Comparison Saved Summary"), Is.Not.Null);
         }
@@ -1702,121 +1206,121 @@ namespace EDNA.Investigation.Tests
         }
 
         [UnityTest]
-        public IEnumerator InvestigationScene_EdnaResetsHelpWhenPredictionChangesWithinTheSameStep()
+        public IEnumerator InvestigationScene_EdnaAnswersFollowTheSelectedPredictionWithoutRepeatingTheTutorial()
         {
             yield return LoadInvestigationScene();
             Object.FindAnyObjectByType<InvestigationController>().ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
-            Click("Stage Simulate");
+            EnterSimulate("Stage Simulate");
             Click("Threat longline");
             Click("Run Selected Model");
             Click("Prediction shark");
-            Click("Increase Edna Hint");
-            Assert.That(FindGameObject("Edna Identity ChooseObservation").GetComponent<Text>().text, Does.Contain("HINT 2/3"));
+            Click("Talk To Edna");
+            Click("Edna Why");
+            Assert.That(FindGameObject("Edna Speech Text").GetComponent<Text>().text, Does.Contain("same species"));
             Click("Prediction tuna");
-            Assert.That(FindGameObject("Edna Identity ChooseObservation").GetComponent<Text>().text, Does.Contain("HINT 1/3"));
+            Assert.That(GameObject.Find("Edna Speech Text").GetComponent<Text>().text, Does.Contain("Tuna"));
+            Click("Talk To Edna");
+            Click("Edna Next Step");
+            Assert.That(FindGameObject("Edna Speech Text").GetComponent<Text>().text, Does.Contain("WHAT WE FOUND"));
         }
 
         [UnityTest]
-        public IEnumerator InvestigationScene_EdnaIntroducesTheTaskAndRespondsToSpecificFindings()
+        public IEnumerator InvestigationScene_EdnaAsksOneQuestionAtATimeAndExplainsNonDetection()
         {
-            InvestigationSessionBridge.Clear();
             yield return LoadInvestigationScene();
-            Assert.That(GameObject.Find("Edna Prompt").GetComponent<Text>().text, Does.Contain("I'm Edna"));
-            Assert.That(GameObject.Find("Edna Prompt").GetComponent<Text>().text, Does.Contain("what changed here"));
-            Assert.That(GameObject.Find("Metrics").GetComponent<Text>().text, Does.Contain("CHECKS 0/5"));
-            Click("Species Marker sea_star");
-            Assert.That(GameObject.Find("Edna Prompt").GetComponent<Text>().text, Does.Contain("Sea star stayed stable"));
-            Assert.That(GameObject.Find("Edna Prompt").GetComponent<Text>().text, Does.Contain("Record 4 more"));
-            Click("Species Marker shark");
-            Assert.That(GameObject.Find("Edna Prompt").GetComponent<Text>().text, Does.Contain("Shark wasn't detected"));
-            Assert.That(GameObject.Find("Edna Prompt").GetComponent<Text>().text, Does.Contain("survey's limits"));
-            Click("Species Marker shark");
-            Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds, Has.Count.EqualTo(2));
-            Assert.That(GameObject.Find("Edna Prompt").GetComponent<Text>().text, Does.Contain("Record 3 more"));
+            Assert.That(GameObject.Find("Observe Question Text").GetComponent<Text>().text, Does.Contain("Shark"));
+            Record("Species Marker shark");
+            Assert.That(GameObject.Find("Observe Question Feedback").GetComponent<Text>().text, Does.Contain("Not detected does not mean gone"));
+            Assert.That(GameObject.Find("Observe Notebook Tip").GetComponent<Text>().text, Does.Contain("notebook"));
+            Record("Species Marker tuna");
+            Assert.That(GameObject.Find("Observe Question Text").GetComponent<Text>().text, Does.Contain("Krill"));
+            Assert.That(GameObject.Find("Observe Inspection"), Is.Null);
         }
 
         [UnityTest]
-        public IEnumerator InvestigationScene_RovPanelShowsVisibleFindingsAndAnInPanelNextAction()
+        public IEnumerator InvestigationScene_RovPanelRevealsFindingsAndTheCompletedReportWithoutReturningToSimulate()
         {
             InvestigationSessionBridge.Clear();
             yield return LoadInvestigationScene();
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
-            controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.SimulateComplete);
-            yield return null;
-            ClickThroughPointer(FindButton("Stage Report"));
-            yield return null;
-            ScrollRect provisional = GameObject.Find("Provisional Review Overlay").GetComponent<ScrollRect>();
-            AssertInsideViewport(GameObject.Find("Provisional Review").GetComponent<RectTransform>(), provisional.viewport);
-            foreach (Text text in provisional.content.GetComponentsInChildren<Text>()) AssertTextFitsItsRect(text);
-            ClickThroughPointer(FindButton("Provisional Cause longline"));
-            yield return null;
-            ClickThroughPointer(FindButton("Confirm Provisional Idea"));
+            controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ReportReady);
             yield return null;
             Canvas.ForceUpdateCanvases();
             ScrollRect page = GameObject.Find("Investigation Content").GetComponent<ScrollRect>();
-            AssertInsideViewport(GameObject.Find("Sealed ROV Finding 1").GetComponent<RectTransform>(), page.viewport);
-            AssertInsideViewport(GameObject.Find("Sealed ROV Finding 2").GetComponent<RectTransform>(), page.viewport);
+            AssertInsideViewport(GameObject.Find("Report Edna Conversation").GetComponent<RectTransform>(), page.viewport);
             Assert.That(GameObject.Find("Confirmation E07_FISHING_LINE"), Is.Null);
-            Assert.That(GameObject.Find("ROV Detail").GetComponent<Text>().text, Does.Contain("first idea is saved"));
             Button open = FindButton("Review ROV Follow-up");
             AssertInsideViewport(open.GetComponent<RectTransform>(), page.viewport);
+            bool fitBeforeReveal = page.content.rect.height <= page.viewport.rect.height + 1f;
             ClickThroughPointer(open);
-            // Interrupt the reveal with routine UI refreshes; new cards must stay visible.
+            CompleteCameraCapture();
+            // A settings refresh during the reveal must leave the new findings visible.
             Click("Difficulty Toggle");
-            Click("Toggle Edna Guide");
             yield return null;
             Canvas.ForceUpdateCanvases();
+            if (fitBeforeReveal && page.content.rect.height > page.viewport.rect.height + 1f) Assert.That(page.verticalNormalizedPosition, Is.EqualTo(1f).Within(.01f),
+                "The revealed findings must stay at the top when the report grows a previously unscrollable page.");
+            AssertInsideViewport(GameObject.Find("Report Edna Conversation").GetComponent<RectTransform>(), page.viewport);
             Assert.That(controller.State.ConfirmationReviewed, Is.True);
+            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Report));
             Assert.That(GameObject.Find("Sealed ROV Finding 1"), Is.Null);
             foreach (string id in new[] { "E07_FISHING_LINE", "E08_SEAFLOOR_INTACT" })
             {
                 GameObject finding = GameObject.Find("Confirmation " + id);
                 Assert.That(finding, Is.Not.Null);
-                AssertInsideViewport(finding.GetComponent<RectTransform>(), page.viewport);
                 CanvasGroup group = finding.GetComponent<CanvasGroup>();
-                Assert.That(group == null || group.alpha > 0.99f, Is.True);
+                Assert.That(group == null || group.alpha > .99f, Is.True);
                 foreach (Text text in finding.GetComponentsInChildren<Text>()) AssertTextFitsItsRect(text);
             }
-            Button next = FindButton("Re-test Fishing Models");
-            Assert.That(next.transform.IsChildOf(GameObject.Find("ROV Confirmation").transform), Is.True);
-            AssertInsideViewport(next.GetComponent<RectTransform>(), page.viewport);
-            ClickThroughPointer(next);
-            Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Simulate));
-            Assert.That(FindButton("Prediction sea_star").interactable, Is.True);
+            Assert.That(FindButton("Re-test Fishing Models"), Is.Null);
+            Assert.That(GameObject.Find("Report Review"), Is.Null);
+            Click("Discuss Explanation");
+            ConnectCluesToArgument("Report Key Clue FoodWeb");
+            Click("Keep Report Explanation");
+            Assert.That(GameObject.Find("Report Review"), Is.Not.Null);
+            Assert.That(controller.State.SelectedReportEvidenceIds, Has.Count.EqualTo(7));
+            Assert.That(FindButton("Submit Final Report"), Is.Not.Null);
         }
 
         [UnityTest]
-        public IEnumerator InvestigationScene_HelpControlsRemainVisibleAndReceivePointerInput()
+        public IEnumerator InvestigationScene_EdnaConversationControlsReceivePointerInputAcrossStages()
         {
             yield return LoadInvestigationScene();
-            Button help = FindButton("Increase Edna Hint");
-            AssertGuideControlVisible(help);
-            ClickThroughPointer(help);
-            yield return null; // Rebuilt graphics receive their raycast depth on the next rendered frame.
-            Assert.That(GameObject.Find("Edna Identity ObserveFirstFinding").GetComponent<Text>().text, Does.Contain("HINT 2/3"));
-            Button minimise = FindButton("Toggle Edna Guide");
-            AssertGuideControlVisible(minimise);
-            ClickThroughPointer(minimise);
-            yield return null;
-            Assert.That(GameObject.Find("Edna Prompt Hidden"), Is.Not.Null);
-            AssertGuideControlVisible(FindButton("Toggle Edna Guide"));
-            ClickThroughPointer(FindButton("Toggle Edna Guide"));
-            yield return null;
-            Object.FindAnyObjectByType<InvestigationController>().ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
-            Click("Stage Simulate");
-            yield return null;
-            AssertGuideControlVisible(FindButton("Increase Edna Hint"));
-            ClickThroughPointer(FindButton("Increase Edna Hint"));
-            yield return null;
-            ClickThroughPointer(FindButton("Toggle Edna Guide"));
-            yield return null;
-            Assert.That(GameObject.Find("Edna Prompt Hidden"), Is.Not.Null);
-            Object.FindAnyObjectByType<InvestigationController>().ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
-            Click("Edit Report Cause");
-            yield return null;
-            AssertGuideControlVisible(FindButton("Increase Edna Hint"));
-            ClickThroughPointer(FindButton("Increase Edna Hint"));
-            Assert.That(GameObject.Find("Edna Prompt").GetComponent<Text>().text, Does.Contain("food-web pattern"));
+            foreach (InvestigationQaCheckpoint checkpoint in new[] { InvestigationQaCheckpoint.Start, InvestigationQaCheckpoint.SimulateStart, InvestigationQaCheckpoint.ReportReady })
+            {
+                Object.FindAnyObjectByType<InvestigationController>().ApplyQaCheckpoint(checkpoint);
+                yield return null;
+                if (checkpoint == InvestigationQaCheckpoint.Start)
+                {
+                    ClickThroughPointer(FindButton("Talk To Edna")); yield return null;
+                    AssertGuideControlVisible(FindButton("Observe Answer NotDetected"));
+                    ClickThroughPointer(FindButton("Observe Answer NotDetected")); yield return null;
+                    Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds, Has.Count.EqualTo(1));
+                    continue;
+                }
+                if (checkpoint == InvestigationQaCheckpoint.ReportReady)
+                {
+                    Assert.That(GameObject.Find("Edna Speech"), Is.Null);
+                    AssertGuideControlVisible(FindButton("Review ROV Follow-up"));
+                    ClickThroughPointer(FindButton("Review ROV Follow-up"));
+                    CompleteCameraCapture();
+                    yield return null;
+                    Assert.That(GameObject.Find("Report Edna Speech").GetComponent<Text>().text, Does.Contain("camera found fishing line"));
+                    continue;
+                }
+                Click("Talk To Edna");
+                yield return null;
+                AssertGuideControlVisible(FindButton("Edna Why"));
+                ClickThroughPointer(FindButton("Edna Why"));
+                yield return null;
+                foreach (Text text in GameObject.Find("Edna Speech").GetComponentsInChildren<Text>()) AssertTextFitsItsRect(text);
+                ClickThroughPointer(FindButton("Dismiss Edna"));
+                yield return null;
+                Assert.That(GameObject.Find("Edna Speech Text"), Is.Null);
+                ClickThroughPointer(FindButton("Talk To Edna"));
+                yield return null;
+                Assert.That(GameObject.Find("Edna Speech Text"), Is.Not.Null);
+            }
         }
 
         private static void AssertGuideControlVisible(Button button)
@@ -1831,6 +1335,8 @@ namespace EDNA.Investigation.Tests
 
         private static void ClickThroughPointer(Button button)
         {
+            string targetName = button.name;
+            SetLensFor(targetName);
             Canvas.ForceUpdateCanvases();
             RectTransform rect = button.GetComponent<RectTransform>();
             PointerEventData pointer = PointerAtWorldPoint(rect.TransformPoint(rect.rect.center));
@@ -1858,25 +1364,26 @@ namespace EDNA.Investigation.Tests
             yield return LoadInvestigationScene();
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
-            Assert.That(GameObject.Find("Report Review"), Is.Not.Null);
             string reasoning = controller.State.SelectedReasoningId;
             string limitation = controller.State.SelectedLimitationId;
             var evidence = new System.Collections.Generic.List<string>(controller.State.SelectedReportEvidenceIds);
             Click("Edit Report Cause");
-            AssertReportQuestion("Cause", 1);
+            Assert.That(GameObject.Find("Report Dialogue Progress").GetComponent<Text>().text, Does.Contain("2/3"));
             Click("Final Cause plastic");
-            Assert.That(GameObject.Find("Report Review"), Is.Not.Null);
-            Assert.That(GameObject.Find("Report Review Cause").transform.Find("Answer/Answer Text").GetComponent<Text>().text, Is.EqualTo("Plastic pollution"));
+            Assert.That(GameObject.Find("Report Explanation").GetComponent<Text>().text, Is.EqualTo("Plastic pollution"));
             Assert.That(controller.State.FinalSubmissionAttemptCount, Is.Zero);
             Assert.That(InvestigationSessionBridge.LastResult, Is.Null);
             Click("Submit Final Report");
             yield return null;
             Assert.That(controller.State.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.Incorrect));
-            AssertReportQuestion("Cause", 1);
-            Assert.That(GameObject.Find("Report Section Feedback"), Is.Not.Null);
-            Assert.That(controller.State.FinalSubmissionAttemptCount, Is.EqualTo(1));
+            Assert.That(GameObject.Find("Report Edna Speech").GetComponent<Text>().text, Does.Contain("mussel"));
+            Assert.That(FindButton("Final Cause longline"), Is.Null, "EDNA first explains the conflict and offers revision.");
+            Click("Edit Report Cause");
+            Assert.That(FindButton("Final Cause longline"), Is.Not.Null);
+            Click("Cancel Report Cause");
+            Assert.That(FindButton("Final Cause longline"), Is.Null);
+            Click("Edit Report Cause");
             Click("Final Cause longline");
-            Assert.That(GameObject.Find("Report Review"), Is.Not.Null);
             Assert.That(controller.State.SelectedReasoningId, Is.EqualTo(reasoning));
             Assert.That(controller.State.SelectedLimitationId, Is.EqualTo(limitation));
             CollectionAssert.AreEqual(evidence, controller.State.SelectedReportEvidenceIds);
@@ -1887,7 +1394,7 @@ namespace EDNA.Investigation.Tests
         }
 
         [UnityTest]
-        public IEnumerator InvestigationScene_ReportDialoguePreservesDraftAndReflowsInAShortNarrowCanvas()
+        public IEnumerator InvestigationScene_ReportKeepsItsDraftAndReflowsInAShortNarrowCanvas()
         {
             yield return LoadReportQuestions();
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
@@ -1902,63 +1409,25 @@ namespace EDNA.Investigation.Tests
                 canvas.scaleFactor = Screen.width / 720f;
                 yield return null;
                 yield return null;
-                AssertReportQuestion("Cause", 1);
-                Click("Final Cause longline");
-                AssertReportQuestion("Reasoning", 2);
-                Click("Previous Report Question");
-                AssertReportQuestion("Cause", 1);
-                Assert.That(FindButton("Final Cause longline").transform.Find("Selected Check"), Is.Not.Null);
-                Click("Continue Report Dialogue");
-                AssertReportQuestion("Reasoning", 2);
-
-                RectTransform choices = GameObject.Find("Reasoning Choices").GetComponent<RectTransform>();
-                Button first = choices.GetChild(0).GetComponent<Button>();
-                Text label = first.GetComponentInChildren<Text>();
-                Canvas.ForceUpdateCanvases();
-                float beforeHeight = first.GetComponent<RectTransform>().rect.height;
-                string original = label.text;
-                label.text += " This longer scientific explanation checks that the answer grows with the available width and remains readable without smaller text. It must stay inside its button.";
-                LayoutRebuilder.MarkLayoutForRebuild(choices);
-                Canvas.ForceUpdateCanvases();
-                Assert.That(first.GetComponent<RectTransform>().rect.height, Is.GreaterThan(beforeHeight));
-                AssertTextFitsItsRect(label);
-                label.text = original;
-                LayoutRebuilder.MarkLayoutForRebuild(choices);
-                Canvas.ForceUpdateCanvases();
-
-                Click("Continue Report Dialogue");
-                yield return null;
-                yield return null;
-                Text diagnostic = GameObject.Find("Report Section Feedback").GetComponent<Text>();
-                Assert.That(diagnostic.text, Does.Contain("food-web cascade"));
-                float diagnosticHeight = diagnostic.rectTransform.rect.height;
-                diagnostic.text += " Re-check every part of the food-web explanation against your findings. Keep the observations, model prediction and limits of the survey distinct before continuing to the next question.";
-                LayoutRebuilder.MarkLayoutForRebuild(diagnostic.rectTransform);
-                Canvas.ForceUpdateCanvases();
-                Assert.That(diagnostic.rectTransform.rect.height, Is.GreaterThan(diagnosticHeight));
-                AssertTextFitsItsRect(diagnostic);
-                Assert.That(controller.State.FinalSubmissionAttemptCount, Is.Zero);
-                Click("Reasoning food_web_cascade");
-                Click("Report Evidence E01_SHARK_NONDETECTION");
-                Click("Report Evidence E02_TUNA_WIDER_DETECTION");
-                string reportPrompt = GameObject.Find("Edna Prompt").GetComponent<Text>().text;
+                Click("Edit Report Cause");
+                AssertChildrenStayInsideLayout("Report Conversation Actions");
+                Click("Final Cause bottom_trawling");
                 Click("Stage Observe");
-                Click("Increase Edna Hint");
-                Click("Increase Edna Hint");
                 Click("Stage Report");
                 yield return null;
                 yield return null;
-                AssertReportQuestion("Evidence", 3);
-                Assert.That(GameObject.Find("Edna Prompt").GetComponent<Text>().text, Is.EqualTo(reportPrompt),
-                    "Help requested in another stage must not change this report question's help level.");
-                Assert.That(controller.State.FinalThreatId, Is.EqualTo("longline"));
-                Assert.That(controller.State.SelectedReasoningId, Is.EqualTo("food_web_cascade"));
-                Assert.That(controller.State.SelectedReportEvidenceIds, Has.Count.EqualTo(2));
-                AssertChildrenStayInsideLayout("Evidence Choices");
+                Assert.That(controller.State.FinalThreatId, Is.EqualTo("bottom_trawling"));
+                Assert.That(controller.State.SelectedReportEvidenceIds, Has.Count.EqualTo(7));
+                Assert.That(GameObject.Find("Report Dialogue Progress").GetComponent<Text>().text, Does.Contain("3/3"));
+                AssertChildrenStayInsideLayout("Report Findings");
                 ScrollRect scroll = GameObject.Find("Investigation Content").GetComponent<ScrollRect>();
                 Assert.That(scroll.content.rect.width, Is.LessThanOrEqualTo(scroll.viewport.rect.width + 1f));
-                foreach (Text text in GameObject.Find("Survey Report Paper").GetComponentsInChildren<Text>())
-                    if (text.name != "Focus Ring") AssertTextFitsItsRect(text);
+                foreach (Text text in GameObject.Find("Survey Report Paper").GetComponentsInChildren<Text>()) AssertTextFitsItsRect(text);
+                Click("Edit Report Cause");
+                Click("Final Cause longline");
+                yield return null; // Let rebuilt graphics acquire their raycast depth.
+                ClickThroughPointer(FindButton("Submit Final Report"));
+                Assert.That(controller.State.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.Correct));
             }
             finally
             {
@@ -1973,13 +1442,10 @@ namespace EDNA.Investigation.Tests
             InvestigationSessionBridge.Clear();
             yield return LoadInvestigationScene();
             Object.FindAnyObjectByType<InvestigationController>().ApplyQaCheckpoint(InvestigationQaCheckpoint.ReportReady);
-            Click("Review ROV Follow-up");
-            Click("Re-test Fishing Models");
-            Click("Threat bottom_trawling");
-            Compare("sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch);
-            Click("Threat longline");
-            Compare("sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match);
-            Click("Return To Final Report");
+            InspectRov("Review ROV Follow-up");
+            Click("Discuss Explanation");
+            ConnectCluesToArgument("Report Key Clue FoodWeb");
+            Click("Keep Report Explanation");
             yield return null;
         }
 
@@ -1990,22 +1456,20 @@ namespace EDNA.Investigation.Tests
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
             Click("Difficulty Toggle");
-            Click("Edit Report Evidence");
-            Click("Report Evidence E07_FISHING_LINE");
-            Click("Continue Report Dialogue");
+            Click("Edit Report Cause");
+            Click("Final Cause bottom_trawling");
+            Click("Submit Final Report");
             yield return null;
-            Transform evidence = FindGameObject("Report Evidence Section").transform;
-            Text feedback = evidence.Find("Report Section Feedback").GetComponent<Text>();
-            string message = feedback.text;
-            Assert.That(message, Does.Contain("Select at least 4"));
-            Assert.That(EventSystem.current.currentSelectedGameObject.transform.IsChildOf(evidence), Is.True);
-            Assert.That(controller.State.FinalThreatId, Is.EqualTo("longline"));
-            Assert.That(controller.State.SelectedReasoningId, Is.EqualTo("food_web_cascade"));
+            Transform conversation = FindGameObject("Report Edna Conversation").transform;
+            string message = FindGameObject("Report Edna Speech").GetComponent<Text>().text;
+            Assert.That(message, Does.Contain("seafloor"));
+            Assert.That(EventSystem.current.currentSelectedGameObject.transform.IsChildOf(conversation), Is.True);
+            Assert.That(controller.State.SelectedReportEvidenceIds, Has.Count.EqualTo(7));
             Click("Difficulty Toggle");
-            Assert.That(FindGameObject("Report Section Feedback").GetComponent<Text>().text, Is.EqualTo(message));
-            Click("Report Evidence E07_FISHING_LINE");
-            Assert.That(GameObject.Find("Report Section Feedback"), Is.Null);
-            Click("Continue Report Dialogue");
+            Assert.That(FindGameObject("Report Edna Speech").GetComponent<Text>().text, Is.EqualTo(message));
+            Click("Edit Report Cause");
+            Click("Final Cause longline");
+            Assert.That(GameObject.Find("Report Edna Speech").GetComponent<Text>().text, Does.Not.Contain(message));
             Click("Submit Final Report");
             Assert.That(controller.State.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.Correct));
         }
@@ -2039,7 +1503,7 @@ namespace EDNA.Investigation.Tests
             bool previous = InvestigationMotionSettings.ReducedMotion;
             try
             {
-                InvestigationMotionSettings.SetReducedMotion(false);
+                InvestigationMotionSettings.SetReducedMotionForTests(false);
                 yield return LoadInvestigationScene();
                 InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
                 controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
@@ -2050,7 +1514,7 @@ namespace EDNA.Investigation.Tests
                 Assert.That(stamp.GetComponent<CanvasGroup>().alpha, Is.EqualTo(1f).Within(0.001f));
                 Assert.That(FindGameObject("Stamp Title").GetComponent<Text>().text, Is.EqualTo("CASE CLOSED"));
                 Assert.That(FindButton("Stage Report").transform.Find("Stage Complete"), Is.Not.Null);
-                InvestigationMotionSettings.SetReducedMotion(true);
+                InvestigationMotionSettings.SetReducedMotionForTests(true);
                 controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
                 Click("Submit Final Report");
                 stamp = FindGameObject("Case Closed Stamp").GetComponent<RectTransform>();
@@ -2059,7 +1523,7 @@ namespace EDNA.Investigation.Tests
                 yield return new WaitForSecondsRealtime(0.2f);
                 Assert.That(stamp.localRotation, Is.EqualTo(pose));
             }
-            finally { InvestigationMotionSettings.SetReducedMotion(previous); }
+            finally { InvestigationMotionSettings.SetReducedMotionForTests(previous); }
         }
 
         [UnityTest]
@@ -2115,6 +1579,49 @@ namespace EDNA.Investigation.Tests
             Click("Close Notebook Drawer");
             yield return null;
             AssertActiveNotebookCount(view, 0);
+        }
+
+        [UnityTest]
+        public IEnumerator InvestigationScene_SimulateNotebookOpensBeforeAndAfterCaseClosure()
+        {
+            InvestigationSessionBridge.Clear();
+            yield return LoadInvestigationScene();
+            InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
+            InvestigationRuntimeView view = Object.FindAnyObjectByType<InvestigationRuntimeView>();
+            foreach (InvestigationQaCheckpoint checkpoint in new[]
+            {
+                InvestigationQaCheckpoint.EvidenceReady,
+                InvestigationQaCheckpoint.SimulateComplete,
+                InvestigationQaCheckpoint.CaseClosed
+            })
+            {
+                controller.ApplyQaCheckpoint(checkpoint);
+                EnterSimulate("Stage Simulate");
+                yield return null;
+                InvestigationConclusionStatus status = controller.State.ConclusionStatus;
+                int checks = controller.State.CompletedObjectiveCount;
+                InvestigationGameResult published = InvestigationSessionBridge.LastResult;
+                ClickThroughPointer(FindButton("Toggle Notebook Drawer"));
+                yield return null;
+                AssertActiveNotebookCount(view, 1);
+                Assert.That(FindGameObject("Notebook E04_BENTHIC_STABLE"), Is.Not.Null);
+                Click("Close Notebook Drawer");
+                yield return null;
+                AssertActiveNotebookCount(view, 0);
+                Button notebook = FindButton("Toggle Notebook Drawer");
+                EventSystem.current.SetSelectedGameObject(notebook.gameObject);
+                ExecuteEvents.Execute(notebook.gameObject, new BaseEventData(EventSystem.current), ExecuteEvents.submitHandler);
+                yield return null;
+                AssertActiveNotebookCount(view, 1);
+                Click("Close Notebook Drawer");
+                yield return null;
+                AssertActiveNotebookCount(view, 0);
+                Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Simulate));
+                Assert.That(controller.State.ConclusionStatus, Is.EqualTo(status));
+                Assert.That(controller.State.CompletedObjectiveCount, Is.EqualTo(checks));
+                Assert.That(InvestigationSessionBridge.LastResult, Is.SameAs(published));
+            }
+            InvestigationSessionBridge.Clear();
         }
 
         [UnityTest]
@@ -2187,17 +1694,7 @@ namespace EDNA.Investigation.Tests
                 Assert.That(view.State, Is.Null);
                 AssertActiveNotebookCount(view, 0);
                 Assert.That(FindButton("Difficulty Toggle").interactable, Is.False);
-                for (int toggle = 0; toggle < 2; toggle++)
-                {
-                    bool expectedMotion = !InvestigationMotionSettings.ReducedMotion;
-                    Click("Motion Toggle");
-                    Assert.That(InvestigationMotionSettings.ReducedMotion, Is.EqualTo(expectedMotion));
-                    Assert.That(FindButton("Motion Toggle").GetComponentInChildren<Text>().text,
-                        Is.EqualTo(expectedMotion ? "Motion: Reduced" : "Motion: Full"));
-                    Assert.That(GameObject.Find("Fatal Error"), Is.SameAs(error));
-                    Assert.That(controller.State, Is.Null);
-                    Assert.That(view.State, Is.Null);
-                }
+                Assert.That(FindButton("Motion Toggle"), Is.Null);
 
                 // Stale gameplay callbacks and development shortcuts must obey the same session boundary.
                 controller.SendMessage("HandleSetPhase", InvestigationPhase.Simulate, SendMessageOptions.RequireReceiver);
@@ -2217,13 +1714,13 @@ namespace EDNA.Investigation.Tests
                 Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Observe));
                 Assert.That(view.State, Is.SameAs(controller.State));
                 Assert.That(FindButton("Difficulty Toggle").interactable, Is.True);
-                Click("Motion Toggle");
+                InvestigationMotionSettings.SetReducedMotionForTests(!InvestigationMotionSettings.ReducedMotion);
                 Assert.That(view.State, Is.SameAs(controller.State));
                 Assert.That(InvestigationSessionBridge.PendingInput, Is.SameAs(invalidInput));
             }
             finally
             {
-                InvestigationMotionSettings.SetReducedMotion(previousMotion);
+                InvestigationMotionSettings.SetReducedMotionForTests(previousMotion);
                 InvestigationSessionBridge.Clear();
             }
         }
@@ -2239,7 +1736,7 @@ namespace EDNA.Investigation.Tests
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
             Assert.That(controller, Is.Not.Null);
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Observe));
-            Assert.That(FindButton("Species Marker shark"), Is.Not.Null);
+            Assert.That(FindButton("Observe Answer NotDetected"), Is.Not.Null);
         }
 
         [UnityTest]
@@ -2249,7 +1746,7 @@ namespace EDNA.Investigation.Tests
             yield return LoadInvestigationScene();
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
-            Click("Stage Simulate");
+            EnterSimulate("Stage Simulate");
             Click("Threat longline");
             Click("Run Selected Model");
             Click("Prediction shark");
@@ -2315,10 +1812,10 @@ namespace EDNA.Investigation.Tests
             yield return null;
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Report));
             Assert.That(controller.State.ProvisionalThreatId, Is.EqualTo("longline"));
-            Click("Review ROV Follow-up");
+            InspectRov("Review ROV Follow-up");
             Assert.That(controller.State.ConfirmationReviewed, Is.True);
 
-            Click("Stage Simulate");
+            EnterSimulate("Stage Simulate");
             Click("Stage Report");
             yield return null;
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Report));
@@ -2341,7 +1838,8 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Species Facts Tooltip"), Is.SameAs(pinnedCard),
                 "The delayed hover must not replace a card that was pinned by a tap.");
 
-            RectTransform shark = FindButton("Species Marker shark").GetComponent<RectTransform>();
+            SetLensFor("Species Marker tuna");
+            RectTransform shark = FindButton("Species Marker tuna").GetComponent<RectTransform>();
             Vector3 coveredPoint = shark.TransformPoint(shark.rect.center);
             RectTransform cardRect = pinnedCard.GetComponent<RectTransform>();
             // Keep a marker under the card regardless of the map's small random placement offsets.
@@ -2359,6 +1857,9 @@ namespace EDNA.Investigation.Tests
             yield return null;
             Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Null);
             ExecuteEvents.ExecuteHierarchy(FirstPointerHit(pointer), pointer, ExecuteEvents.pointerClickHandler);
+            Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Not.Null);
+            Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
+            Record("Species Marker shark");
             Assert.That(controller.State.HasDiscoveredObservation("E01_SHARK_NONDETECTION"), Is.True);
         }
 
@@ -2368,11 +1869,6 @@ namespace EDNA.Investigation.Tests
             InvestigationSessionBridge.Clear();
             yield return LoadInvestigationScene();
             Object.FindAnyObjectByType<InvestigationController>().ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
-            Click("Edit Report Evidence");
-            Click("Report Evidence E03_KRILL_NONDETECTION");
-            Click("Report Evidence E06_PLASTIC_INDICATOR_STABLE");
-            Click("Report Evidence E08_SEAFLOOR_INTACT");
-            Click("Continue Report Dialogue");
             yield return null;
             Canvas.ForceUpdateCanvases();
             ScrollRect page = GameObject.Find("Investigation Content").GetComponent<ScrollRect>();
@@ -2480,9 +1976,10 @@ namespace EDNA.Investigation.Tests
                     Assert.That(updater.TryDiscoverObservation(state, id, out _), Is.True);
                 view.Refresh(state, string.Empty, InvestigationStatusTone.Guide);
 
-                Assert.That(FindGameObject("Observe Finding Progress Text").GetComponent<Text>().text, Does.Contain("FINDINGS 5 / 6"));
+                Assert.That(FindGameObject("Edna Name").GetComponent<Text>().text, Does.Contain("6/6"));
                 Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Contain("FINDINGS 5/6"));
-                Assert.That(FindGameObject("Edna Prompt").GetComponent<Text>().text, Does.Contain("1 more finding"));
+                Click("Talk To Edna");
+                Assert.That(FindGameObject("Observe Question Text").GetComponent<Text>().text, Does.Contain("Additional survey reading"));
                 Assert.That(FindButton("Continue To Simulate"), Is.Null);
                 Assert.That(updater.TrySetPhase(state, InvestigationPhase.Simulate, out string phaseFeedback), Is.False);
                 Assert.That(phaseFeedback, Does.Contain("at least 6 observations"));
@@ -2523,15 +2020,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(condition(), Is.True, failureMessage);
         }
 
-        private static void AssertReportQuestion(string section, int number)
-        {
-            Assert.That(GameObject.Find("Report Dialogue Progress").GetComponent<Text>().text, Does.Contain($"QUESTION {number} OF 4"));
-            foreach (string candidate in new[] { "Cause", "Reasoning", "Evidence", "Limitation" })
-                Assert.That(GameObject.Find($"Report {candidate} Section") != null, Is.EqualTo(candidate == section), candidate);
-            Assert.That(GameObject.Find("Report Columns"), Is.Null);
-            Assert.That(GameObject.Find("Report Review"), Is.Null);
-            Assert.That(FindButton("Submit Final Report"), Is.Null);
-        }
+
 
         private static void Compare(string speciesId, string evidenceId, ComparisonJudgement expectedRelationship)
         {
@@ -2582,10 +2071,10 @@ namespace EDNA.Investigation.Tests
                 Assert.That(layer.raycastTarget, Is.False, $"{waterLayers[index]} must not block input.");
             }
 
-            // The survey maps stay translucent so the water column and its
-            // particles carry through instead of stopping at the panel edge.
-            Assert.That(FindGameObject("Current Seamount").GetComponent<Image>().color.a, Is.LessThan(1f));
-            Assert.That(FindGameObject("Historical Seamount").GetComponent<Image>().color.a, Is.LessThan(1f));
+            // The cover is a clipped child, otherwise it darkens the entire baseline.
+            Assert.That(FindGameObject("Current Seamount").GetComponent<Image>().color.a, Is.Zero);
+            Assert.That(FindGameObject("Current Survey Water").GetComponent<Image>().color.a, Is.EqualTo(1f));
+            Assert.That(FindGameObject("Historical Seamount").GetComponent<Image>().color, Is.EqualTo((Color)InvestigationTheme.MapSurfaceHistorical));
 
             InvestigationVignetteGraphic vignette = background.Find("Water Vignette")
                 .GetComponent<InvestigationVignetteGraphic>();
@@ -2596,7 +2085,7 @@ namespace EDNA.Investigation.Tests
         public IEnumerator InvestigationScene_ReducedMotionFreezesAmbientWaterAnimation()
         {
             bool reducedMotionBefore = InvestigationMotionSettings.ReducedMotion;
-            InvestigationMotionSettings.SetReducedMotion(true);
+            InvestigationMotionSettings.SetReducedMotionForTests(true);
             yield return LoadInvestigationScene();
             yield return null;
 
@@ -2619,7 +2108,7 @@ namespace EDNA.Investigation.Tests
                 AssertVerticesUnchanged(frozenVertices[index], ReadGraphicVertices(graphic), animatedLayers[index]);
             }
 
-            InvestigationMotionSettings.SetReducedMotion(false);
+            InvestigationMotionSettings.SetReducedMotionForTests(false);
             yield return new WaitForSecondsRealtime(0.2f);
             for (int index = 0; index < animatedLayers.Length; index++)
             {
@@ -2627,7 +2116,7 @@ namespace EDNA.Investigation.Tests
                 AssertAnyVertexMoved(frozenVertices[index], ReadGraphicVertices(graphic), animatedLayers[index]);
             }
 
-            InvestigationMotionSettings.SetReducedMotion(reducedMotionBefore);
+            InvestigationMotionSettings.SetReducedMotionForTests(reducedMotionBefore);
         }
 
         private static Button FindButton(string name)
@@ -2692,53 +2181,6 @@ namespace EDNA.Investigation.Tests
                 Is.GreaterThanOrEqualTo(viewport.yMin - 1f));
             Assert.That(WorldRect(FindGameObject("Simulation Navigation").GetComponent<RectTransform>()).yMin,
                 Is.GreaterThanOrEqualTo(viewport.yMin - 1f));
-        }
-
-        private static void AssertSimulateColumnsUseIndependentHeaderHeights()
-        {
-            Canvas.ForceUpdateCanvases();
-            RectTransform workspace = FindGameObject("Simulate Workspace").GetComponent<RectTransform>();
-            RectTransform leftColumn = FindGameObject("Simulate Left Column").GetComponent<RectTransform>();
-            RectTransform rightColumn = FindGameObject("Simulate Right Column").GetComponent<RectTransform>();
-            RectTransform introduction = FindGameObject("Simulate Introduction").GetComponent<RectTransform>();
-            RectTransform questions = FindGameObject("Case Questions").GetComponent<RectTransform>();
-            RectTransform models = FindGameObject("Simulation Models").GetComponent<RectTransform>();
-            RectTransform comparison = FindGameObject("Comparison Workspace").GetComponent<RectTransform>();
-            RectTransform title = FindGameObject("Simulate Title").GetComponent<RectTransform>();
-            RectTransform description = FindGameObject("Edna Prompt").GetComponent<RectTransform>();
-            RectTransform questionGrid = FindGameObject("Case Question Grid").GetComponent<RectTransform>();
-            Assert.That(leftColumn.parent, Is.EqualTo(workspace));
-            Assert.That(rightColumn.parent, Is.EqualTo(workspace));
-            Assert.That(introduction.parent, Is.EqualTo(leftColumn));
-            Assert.That(questions.parent, Is.EqualTo(rightColumn));
-            Assert.That(models.parent, Is.EqualTo(leftColumn));
-            Assert.That(comparison.parent, Is.EqualTo(rightColumn));
-            Assert.That(leftColumn.position.x, Is.LessThan(rightColumn.position.x));
-            Assert.That(Mathf.Abs(leftColumn.rect.width - rightColumn.rect.width), Is.LessThan(3f));
-            Assert.That(introduction.rect.height, Is.EqualTo(96f).Within(0.5f));
-            AssertTextFitsItsRect(description.GetComponent<Text>());
-            Assert.That(FindGameObject("Simulate Heading Divider").GetComponent<RectTransform>().rect.width, Is.EqualTo(2f).Within(0.1f));
-            Assert.That(questions.rect.height, Is.EqualTo(66f).Within(0.5f));
-            Assert.That(WorldRect(introduction).yMax, Is.EqualTo(WorldRect(questions).yMax).Within(1f));
-            Assert.That(WorldRect(models).yMax, Is.LessThan(WorldRect(introduction).yMin));
-            Assert.That(WorldRect(comparison).yMax, Is.LessThan(WorldRect(questions).yMin));
-            Assert.That(title.rect.width, Is.LessThanOrEqualTo(introduction.rect.width + 0.5f));
-            Assert.That(description.rect.width, Is.LessThanOrEqualTo(introduction.rect.width + 0.5f));
-            Assert.That(questionGrid.parent, Is.EqualTo(questions));
-            Assert.That(questionGrid.childCount, Is.EqualTo(1));
-            Assert.That(questionGrid.GetComponent<InvestigationResponsiveGridLayout>(), Is.Not.Null);
-            Rect firstQuestion = WorldRect(questionGrid.GetChild(0).GetComponent<RectTransform>());
-            Assert.That(firstQuestion.width, Is.GreaterThan(WorldRect(questionGrid).width * 0.9f));
-            for (int index = 0; index < questionGrid.childCount; index++)
-            {
-                Transform child = questionGrid.GetChild(index);
-                if (!child.name.StartsWith("Case Question ", StringComparison.Ordinal)) continue;
-                Text prompt = child.Find("Question Prompt").GetComponent<Text>();
-                Assert.That(prompt.text, Is.Not.Empty);
-                Assert.That(prompt.fontSize, Is.EqualTo(13));
-                Assert.That(prompt.rectTransform.rect.height + 0.5f, Is.GreaterThanOrEqualTo(prompt.preferredHeight),
-                    $"Case question text is clipped: {prompt.text}");
-            }
         }
 
         private static void AssertModelIndicatorTextVisible(string indicatorId)

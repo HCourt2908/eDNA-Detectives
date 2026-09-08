@@ -69,8 +69,7 @@ namespace EDNA.Investigation
                 HandleSetReasoning,
                 HandleSetLimitation,
                 HandleSubmitFinal,
-                HandleRestart,
-                HandleSetReducedMotion);
+                HandleRestart);
             HandleRestart();
         }
 
@@ -196,7 +195,7 @@ namespace EDNA.Investigation
             if (!HasActiveSession) return;
             bool success = updater.TrySetFinalThreat(state, threatId, out string feedback);
             if (success) InvestigationSessionBridge.ClearResult();
-            view.Refresh(state, success ? "Final cause updated. Complete the remaining report sections." : feedback, success ? InvestigationStatusTone.Guide : InvestigationStatusTone.Warning);
+            view.Refresh(state, success ? "Explanation updated. Review your findings and send the report." : feedback, success ? InvestigationStatusTone.Guide : InvestigationStatusTone.Warning);
         }
 
         private void HandleSetReportEvidence(string evidenceId, bool selected)
@@ -259,24 +258,13 @@ namespace EDNA.Investigation
             });
         }
 
-        private void HandleSetReducedMotion(bool reducedMotion)
-        {
-            InvestigationMotionSettings.SetReducedMotion(reducedMotion);
-            if (!HasActiveSession)
-            {
-                view?.RefreshMotionPreference();
-                return;
-            }
-            view.Refresh(state, reducedMotion ? "Reduced motion enabled." : "Full motion enabled.", InvestigationStatusTone.Guide);
-        }
-
         private static string GetPhaseGuide(InvestigationPhase phase)
         {
             switch (phase)
             {
                 case InvestigationPhase.Observe: return "Compare the baseline and current survey, then record unusual results.";
                 case InvestigationPhase.Simulate: return "Run the overlapping causes and compare model predictions with your observations.";
-                case InvestigationPhase.Report: return "Record a provisional explanation, review ROV confirmation, then complete the final report.";
+                case InvestigationPhase.Report: return "Review the ROV findings, confirm your explanation and send the report.";
                 default: return string.Empty;
             }
         }
@@ -314,6 +302,7 @@ namespace EDNA.Investigation
             updater.SetDifficulty(state, difficulty);
             InvestigationSessionBridge.ClearResult();
             view.ResetPresentationState();
+            view.PrepareWorkbenchQa(checkpoint);
             if (checkpoint == InvestigationQaCheckpoint.EvidenceReady) view.PrepareQaEvidenceChoice();
             if (state.ConclusionStatus == InvestigationConclusionStatus.Correct) PublishInvestigationResult(state.ConclusionStatus);
             SetQaMenuOpen(false);

@@ -158,8 +158,7 @@ MonoBehaviour:
   benthicIndicatorSpeciesIds:
   - sea_star
   - mussel
-  followUpLockedSpeciesIds:
-  - sea_star
+  followUpLockedSpeciesIds: []
   maximumSurveySpecies: 7
   observations:
   - evidenceId: E01_SHARK_NONDETECTION

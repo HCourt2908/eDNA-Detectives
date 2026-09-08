@@ -48,7 +48,6 @@ namespace EDNA.Investigation
         private Action<string> setLimitation;
         private Action submitFinal;
         private Action restart;
-        private Action<bool> setReducedMotion;
 
         private RectTransform stageRoot;
         private Text caseSubtitleText;
@@ -64,13 +63,13 @@ namespace EDNA.Investigation
         private RectTransform footerRight;
         private Button difficultyButton;
         private Text difficultyText;
-        private Button motionButton;
-        private Text motionText;
 
         private string selectedThreatId = string.Empty;
         private PredictionTargetKind selectedPredictionTargetKind = PredictionTargetKind.Species;
         private string selectedPredictionSpeciesId = string.Empty;
         private string selectedObservationId = string.Empty;
+        private string navigationRevealTarget = string.Empty;
+        private bool navigationRevealAtTop;
         private string pendingTappedSpeciesId = string.Empty;
         private bool pendingTappedSpeciesHistorical;
         private RectTransform pendingTappedSpeciesMarker;
@@ -107,8 +106,7 @@ namespace EDNA.Investigation
             Action<string> onSetReasoning,
             Action<string> onSetLimitation,
             Action onSubmitFinal,
-            Action onRestart,
-            Action<bool> onSetReducedMotion)
+            Action onRestart)
         {
             caseDefinition = definition;
             setPhase = onSetPhase;
@@ -124,41 +122,46 @@ namespace EDNA.Investigation
             setLimitation = onSetLimitation;
             submitFinal = onSubmitFinal;
             restart = onRestart;
-            setReducedMotion = onSetReducedMotion;
             EnsureUi();
         }
 
         public void ResetPresentationState()
         {
             seamountBackdrop?.RestartCycle();
+            ResetWorkbench();
             observeLayoutSessionSeed = Guid.NewGuid().ToString("N");
             selectedThreatId = string.Empty;
             selectedPredictionTargetKind = PredictionTargetKind.Species;
             selectedPredictionSpeciesId = string.Empty;
             selectedObservationId = string.Empty;
+            navigationRevealTarget = string.Empty;
+            navigationRevealAtTop = false;
             pendingTappedSpeciesId = string.Empty;
             pendingTappedSpeciesMarker = null;
             pendingTappedSpecies = null;
             HideSpeciesTooltip();
             animatedThreatIds.Clear();
-            guidanceCollapsed = false;
-            ednaHintLevel = 1;
-            activeGuidanceStep = null;
-            activeGuidanceTask = string.Empty;
+            observationChoiceOrders.Clear();
+            observationChoiceRandom = new System.Random(Guid.NewGuid().GetHashCode());
+            ResetEdnaConversation();
             reportFeedbackFocusPending = false;
             reportDiagnosticSection = ReportGuidanceSection.None;
             reportDiagnosticMessage = string.Empty;
-            reportDialogueSection = ReportGuidanceSection.None;
-            reportReturnToReview = false;
-            reportDialogueFocusPending = false;
-            reportHintLevel = 1;
-            reportDialogueReply = string.Empty;
+            reportCauseEditing = false;
+            reportConversationInitialized = false;
+            reportConversationRound = ReportConversationRound.Clues;
+            reportConversationFocusPending = false;
+            reportRovFocus = string.Empty;
+            reportKeyClue = ReportKeyClue.None;
+            reportChoosingKeyClue = false;
+            reportKeyClueResponseActive = false;
             lastRecordedObservationId = string.Empty;
             observeNotebookVisible = false;
             provisionalReviewOpen = false;
-            lastObservedMisstepCount = 0;
             notebookDrawerOpen = false;
             notebookOpeningAnimationPending = false;
+            notebookHasBeenOpened = false;
+            notebookIntroductionVisible = false;
             hypothesisSummaryExpanded = false;
             expandedHypothesisId = string.Empty;
             notebookDrawerScrollPosition = 1f;
@@ -173,13 +176,6 @@ namespace EDNA.Investigation
 
         public void Refresh(InvestigationState currentState, string message, InvestigationStatusTone tone)
         {
-            if (currentState != null
-                && currentState.Difficulty == InvestigationDifficulty.Easy
-                && currentState.MisstepCount > lastObservedMisstepCount)
-            {
-                ednaHintLevel = Mathf.Min(3, ednaHintLevel + 1);
-            }
-            lastObservedMisstepCount = currentState == null ? 0 : currentState.MisstepCount;
             state = currentState;
             if (state == null || state.ConclusionStatus == InvestigationConclusionStatus.NotSubmitted)
                 reportDiagnosticMessage = string.Empty;
@@ -199,6 +195,7 @@ namespace EDNA.Investigation
             ResetPageEntranceVisuals();
             RemoveNotebookDrawer();
             RemoveProvisionalReview();
+            RemoveEdnaPresentation();
             statusMessage = message ?? "Unknown Investigation error.";
             statusTone = InvestigationStatusTone.Warning;
             RenderChrome();
@@ -212,12 +209,6 @@ namespace EDNA.Investigation
                 Button standalone = CreateButton("Start Standalone Case", contentRoot, "Start standalone case", ButtonVisualStyle.Primary, () => startStandalone(), out _);
                 AddLayout(standalone.GetComponent<RectTransform>(), 48f, 1f);
             }
-        }
-
-        public void RefreshMotionPreference()
-        {
-            EnsureUi();
-            motionText.text = InvestigationMotionSettings.ReducedMotion ? "Motion: Reduced" : "Motion: Full";
         }
 
         private void Awake()
@@ -324,20 +315,14 @@ namespace EDNA.Investigation
             Anchor(caseSubtitleText.rectTransform, 0f, 1f, 0.68f, 1f, 16f, -58f, 0f, -41f);
 
             metricsText = CreateText("Metrics", header, "", 11, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.MiddleRight, InvestigationTheme.DataFont);
-            Anchor(metricsText.rectTransform, 0.36f, 1f, 1f, 1f, 8f, -40f, -248f, -6f);
+            Anchor(metricsText.rectTransform, 0.36f, 1f, 1f, 1f, 8f, -40f, -156f, -6f);
 
             difficultyButton = CreateButton("Difficulty Toggle", header, "Easy", ButtonVisualStyle.Secondary, () =>
             {
                 if (state == null) return;
                 setDifficulty?.Invoke(state.Difficulty == InvestigationDifficulty.Easy ? InvestigationDifficulty.Hard : InvestigationDifficulty.Easy);
             }, out difficultyText);
-            Anchor(difficultyButton.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -232f, -38f, -128f, -6f);
-
-            motionButton = CreateButton("Motion Toggle", header, "Motion: Full", ButtonVisualStyle.Secondary, () =>
-            {
-                setReducedMotion?.Invoke(!InvestigationMotionSettings.ReducedMotion);
-            }, out motionText);
-            Anchor(motionButton.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -120f, -38f, -12f, -6f);
+            Anchor(difficultyButton.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -136f, -38f, -12f, -6f);
 
             stageRoot = CreatePanel("Stage Navigation", header, new Color(0f, 0f, 0f, 0f), 0f);
             Anchor(stageRoot, 0.18f, 0f, 0.82f, 0f, 12f, 4f, -12f, 46f);
@@ -425,8 +410,9 @@ namespace EDNA.Investigation
 
         private void RenderAll()
         {
+            PrepareReportConversation();
             UpdateReportDiagnostic();
-            PrepareReportDialogue();
+            PrepareEdnaConversation();
             FocusSnapshot focusSnapshot = CaptureFocus();
             bool enteringCaseClosed = state != null
                 && hasRenderedPhase
@@ -441,9 +427,11 @@ namespace EDNA.Investigation
             bool preservePhaseScroll = state != null
                 && hasRenderedPhase
                 && state.Phase == lastRenderedPhase
-                && !enteringCaseClosed
-                && !reportDialogueFocusPending;
+                && !enteringCaseClosed;
+            // A page that previously fit can report zero as its normalized position.
+            // When new ROV/report content grows the page, start at its top.
             float previousPageScroll = preservePhaseScroll && contentScroll != null
+                && contentScroll.content.rect.height > contentScroll.viewport.rect.height + 1f
                 ? contentScroll.verticalNormalizedPosition
                 : 1f;
             ScrollRect previousNotebookScroll = preservePhaseScroll
@@ -463,6 +451,7 @@ namespace EDNA.Investigation
             ResetPageEntranceVisuals();
             RemoveNotebookDrawer();
             RemoveProvisionalReview();
+            RemoveEdnaPresentation();
             bool animatePhaseChange = state != null && (!hasRenderedPhase || state.Phase != lastRenderedPhase);
             if (animatePhaseChange) restartConfirmationPending = false;
             RenderChrome();
@@ -483,6 +472,7 @@ namespace EDNA.Investigation
             RenderProvisionalReview();
             Canvas.ForceUpdateCanvases();
             LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
+            RenderEdnaPresentation();
             ShowPendingTappedSpeciesTooltip();
             if (contentScroll != null)
             {
@@ -505,10 +495,21 @@ namespace EDNA.Investigation
                 lastRenderedConclusionStatus = state.ConclusionStatus;
                 hasRenderedPhase = true;
             }
-            if (reportFeedbackFocusPending && reportDiagnosticSection != ReportGuidanceSection.None)
+            if (!string.IsNullOrEmpty(navigationRevealTarget))
             {
+                string target = navigationRevealTarget;
+                bool alignTop = navigationRevealAtTop;
+                navigationRevealTarget = string.Empty;
+                navigationRevealAtTop = false;
+                notebookFocusTargetAfterRender = string.Empty;
+                RevealNavigationTarget(target, alignTop);
+            }
+            else if (reportConversationFocusPending && state.Phase == InvestigationPhase.Report)
+            {
+                reportConversationFocusPending = false;
                 reportFeedbackFocusPending = false;
-                StartCoroutine(FocusReportDiagnosticNextFrame());
+                if (contentScroll != null) contentScroll.verticalNormalizedPosition = 1f;
+                StartCoroutine(FocusReportConversationNextFrame());
             }
             else if (enteringCaseClosed)
             {
@@ -521,10 +522,7 @@ namespace EDNA.Investigation
                 notebookFocusTargetAfterRender = string.Empty;
                 StartCoroutine(FocusNotebookControlNextFrame(focusTarget));
             }
-            else if (reportDialogueFocusPending && CanWriteFinalReport())
-                StartCoroutine(FocusReportDialogueNextFrame());
             else ScheduleFocusRestore(focusSnapshot);
-            reportDialogueFocusPending = false;
             if (enteringRovEvidence && !InvestigationMotionSettings.ReducedMotion)
                 StartCoroutine(AnimateRovEvidenceReveal());
             if (animatePhaseChange && !InvestigationMotionSettings.ReducedMotion) StartCoroutine(AnimatePageEntrance());
@@ -558,10 +556,17 @@ namespace EDNA.Investigation
                 Anchor(footerLeft, 0f, 0f, 0.5f, 1f, 10f, 4f, -4f, -4f);
             if (footerRight != null && report)
                 Anchor(footerRight, 0.5f, 0f, 1f, 1f, 4f, 4f, -10f, -4f);
+            if (contentScroll != null)
+            {
+                bool simulate = phase == InvestigationPhase.Simulate;
+                contentScroll.verticalScrollbarVisibility = simulate ? ScrollRect.ScrollbarVisibility.AutoHide
+                    : ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
+                Stretch(contentScroll.viewport, 0f, 0f, simulate ? -20f : 0f, 0f);
+            }
             if (contentPanel != null)
             {
-                float bottom = report ? 74f : OuterMargin;
-                Anchor(contentPanel, 0f, 0f, 1f, 1f, OuterMargin, bottom, -OuterMargin, -ContentTopInset);
+                float bottom = report ? 74f : OuterMargin + EdnaExtraBottomSpace;
+                Anchor(contentPanel, 0f, 0f, 1f, 1f, OuterMargin, bottom, -OuterMargin, -ContentTopInset - EdnaExtraTopSpace);
             }
         }
 
@@ -599,7 +604,6 @@ namespace EDNA.Investigation
                 caseSubtitleText.text = "CASE UNAVAILABLE";
             }
             difficultyButton.interactable = state != null;
-            RefreshMotionPreference();
             bool hasStatusMessage = !string.IsNullOrWhiteSpace(statusMessage);
             bool hasInlineReportFeedback = state != null && state.Phase == InvestigationPhase.Report
                 && state.ConclusionStatus != InvestigationConclusionStatus.NotSubmitted
@@ -655,9 +659,7 @@ namespace EDNA.Investigation
 
         private bool IsObjectiveVisible(InvestigationObjectiveDefinition objective)
         {
-            return objective != null
-                && objective.Required
-                && (objective.ProgressRole != ComparisonProgressRole.BenthicDiscriminator || state.ConfirmationReviewed);
+            return objective != null && objective.Required;
         }
 
         private int VisibleRequiredObjectiveCount()
@@ -1025,6 +1027,37 @@ namespace EDNA.Investigation
             return null;
         }
 
+        private void RevealNavigationTarget(string objectName, bool alignTop)
+        {
+            RectTransform target = FindNamedRect(contentPanel, objectName);
+            if (target == null) return;
+            // Run after rebuilding layout and restoring ordinary reading offsets.
+            // Explicit navigation wins over both the old scroll and old focus.
+            ScrollRect scroll = target.GetComponentInParent<ScrollRect>();
+            if (scroll != null && scroll.content != null && scroll.viewport != null && target.IsChildOf(scroll.content))
+            {
+                float hiddenHeight = scroll.content.rect.height - scroll.viewport.rect.height;
+                if (scroll.vertical && hiddenHeight > 0f)
+                {
+                    Bounds bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(scroll.viewport, target);
+                    Rect viewport = scroll.viewport.rect;
+                    const float margin = 6f;
+                    bool tallerThanViewport = bounds.size.y > viewport.height - margin * 2f;
+                    float shift = alignTop || tallerThanViewport || bounds.max.y > viewport.yMax - margin
+                        ? bounds.max.y - viewport.yMax + margin
+                        : bounds.min.y < viewport.yMin + margin ? bounds.min.y - viewport.yMin - margin : 0f;
+                    scroll.StopMovement();
+                    scroll.verticalNormalizedPosition = Mathf.Clamp01(scroll.verticalNormalizedPosition + shift / hiddenHeight);
+                }
+            }
+            Button focus = target.GetComponent<Button>() ?? FindFirstInteractableButton(target);
+            if (focus != null && focus.interactable && EventSystem.current != null)
+            {
+                EventSystem.current.SetSelectedGameObject(null);
+                EventSystem.current.SetSelectedGameObject(focus.gameObject);
+            }
+        }
+
         private FocusSnapshot CaptureFocus()
         {
             if (EventSystem.current == null || EventSystem.current.currentSelectedGameObject == null)
@@ -1073,9 +1106,10 @@ namespace EDNA.Investigation
                 target = FindInteractableButton(selectedPredictionTargetKind == PredictionTargetKind.Species
                     ? $"Prediction {selectedPredictionSpeciesId}"
                     : $"Prediction Target {selectedPredictionTargetKind} {selectedPredictionSpeciesId}");
+            if (target == null && snapshot.ObjectName == "Dismiss Edna")
+                target = FindInteractableButton("Talk To Edna");
             if (target == null && snapshot.ObjectName == "Review ROV Follow-up")
-                target = FindInteractableButton("Re-test Fishing Models")
-                    ?? FindInteractableButton("Submit Final Report");
+                target = FindInteractableButton("Submit Final Report");
             if (target == null && snapshot.ObjectName == "Restart Case")
                 target = FindInteractableButton("Cancel Restart Case");
             if (target == null && snapshot.ObjectName == "Cancel Restart Case")

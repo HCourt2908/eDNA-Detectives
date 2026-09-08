@@ -51,24 +51,15 @@ namespace EDNA.Investigation
             Compare(updater, state, "longline", PredictionTargetKind.Species, "krill", "E03_KRILL_NONDETECTION", ComparisonJudgement.Match);
             Run(updater, state, "bottom_trawling");
             Compare(updater, state, "bottom_trawling", PredictionTargetKind.Species, "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match);
+            Compare(updater, state, "longline", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match);
+            Compare(updater, state, "bottom_trawling", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch);
             if (checkpoint == InvestigationQaCheckpoint.SimulateComplete) return state;
 
             Require(updater.TrySubmitProvisional(state, "longline", out string provisionalFeedback), provisionalFeedback);
             if (checkpoint == InvestigationQaCheckpoint.ReportReady) return state;
 
             Require(updater.TryReviewConfirmation(state, out string confirmationFeedback), confirmationFeedback);
-            Require(updater.TrySetPhase(state, InvestigationPhase.Simulate, out string simulateFeedback), simulateFeedback);
-            Compare(updater, state, "longline", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match);
-            Compare(updater, state, "bottom_trawling", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch);
-            Require(updater.TrySetPhase(state, InvestigationPhase.Report, out string reportFeedback), reportFeedback);
             if (checkpoint == InvestigationQaCheckpoint.ReportQuestions) return state;
-            Require(updater.TrySetFinalThreat(state, "longline", out string causeFeedback), causeFeedback);
-            SelectEvidence(updater, state, "E01_SHARK_NONDETECTION");
-            SelectEvidence(updater, state, "E02_TUNA_WIDER_DETECTION");
-            SelectEvidence(updater, state, "E04_BENTHIC_STABLE");
-            SelectEvidence(updater, state, "E07_FISHING_LINE");
-            Require(updater.TrySetReasoning(state, "food_web_cascade", out string reasoningFeedback), reasoningFeedback);
-            Require(updater.TrySetLimitation(state, "L01_NONDETECTION_LIMITATION", out string limitationFeedback), limitationFeedback);
             if (checkpoint == InvestigationQaCheckpoint.CaseClosed)
             {
                 InvestigationConclusionResult result = updater.SubmitFinal(state);
@@ -99,11 +90,6 @@ namespace EDNA.Investigation
             PredictionComparisonRecord record = updater.CompareEvidence(state, threatId, targetKind, targetId, evidenceId);
             Require(record.Judgement == judgement, "The selected evidence resolved to an unexpected relationship.");
             Require(record.CompletesObjective, record.Feedback);
-        }
-
-        private static void SelectEvidence(InvestigationStateUpdater updater, InvestigationState state, string evidenceId)
-        {
-            Require(updater.TrySetReportEvidence(state, evidenceId, true, out string feedback), feedback);
         }
 
         private static void Require(bool condition, string message)
