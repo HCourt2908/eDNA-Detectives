@@ -969,25 +969,55 @@ namespace EDNA.Investigation.Tests
         }
 
         [Test]
-        public void QaCheckpoint_FinalReady_MatchesManualRouteSnapshot()
+        public void QaCheckpoint_FinalReady_UsesSurveyAndModelsWithoutRov()
         {
             InvestigationState manual = PrepareProvisionalReadyState();
             Assert.That(updater.TrySubmitProvisional(manual, "longline", out _), Is.True);
-            Assert.That(updater.TryReviewConfirmation(manual, out _), Is.True);
-            CompleteFollowUpObjectives(manual);
-            Assert.That(updater.TrySetFinalThreat(manual, "longline", out _), Is.True);
-            Assert.That(updater.TrySetReportEvidence(manual, "E01_SHARK_NONDETECTION", true, out _), Is.True);
-            Assert.That(updater.TrySetReportEvidence(manual, "E02_TUNA_WIDER_DETECTION", true, out _), Is.True);
-            Assert.That(updater.TrySetReportEvidence(manual, "E04_BENTHIC_STABLE", true, out _), Is.True);
-            Assert.That(updater.TrySetReportEvidence(manual, "E07_FISHING_LINE", true, out _), Is.True);
-            Assert.That(updater.TrySetReasoning(manual, "food_web_cascade", out _), Is.True);
-            Assert.That(updater.TrySetLimitation(manual, "L01_NONDETECTION_LIMITATION", out _), Is.True);
-
-            InvestigationState checkpoint = InvestigationQaStateFactory.Create(
-                caseDefinition,
-                InvestigationQaCheckpoint.FinalReportReady);
+            InvestigationState checkpoint = InvestigationQaStateFactory.Create(caseDefinition, InvestigationQaCheckpoint.FinalReportReady);
             Assert.That(CanonicalSnapshot(checkpoint), Is.EqualTo(CanonicalSnapshot(manual)));
-            Assert.That(updater.EvaluateReadiness(checkpoint).CanSubmitFinal, Is.True);
+            Assert.That(new InvestigationConclusionEvaluator().CanRecordModelConclusion(caseDefinition, checkpoint, "longline"), Is.True);
+            Assert.That(checkpoint.ConfirmationReviewed, Is.False);
+            Assert.That(updater.EvaluateReadiness(checkpoint).CanSubmitFinal, Is.False, "The legacy full-report gate must still require ROV evidence");
+        }
+
+        [Test]
+        public void ModelConclusion_RecordsOnlyObservedEvidenceWithoutWeakeningLegacyReportGate()
+        {
+            var state = PrepareProvisionalReadyState();
+            updater.TrySubmitProvisional(state, "longline", out _);
+            Assert.That(updater.SubmitFinal(state).Status, Is.EqualTo(InvestigationConclusionStatus.InsufficientEvidence));
+            var result = updater.SubmitModelConclusion(state, "longline");
+            Assert.That(result.Status, Is.EqualTo(InvestigationConclusionStatus.Correct));
+            Assert.That(state.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(state.SelectedReportEvidenceIds.Count, Is.EqualTo(5));
+            Assert.That(state.ConfirmationReviewed, Is.False);
+            Assert.That(state.SelectedReportEvidenceIds, Does.Not.Contain("E07_FISHING_LINE"));
+            Assert.That(state.SelectedReportEvidenceIds, Does.Not.Contain("E08_SEAFLOOR_INTACT"));
+            updater.SubmitModelConclusion(state, "longline");
+            Assert.That(state.FinalSubmissionAttemptCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ModelConclusion_RejectsIncompleteOrIncorrectModels()
+        {
+            var initial = updater.CreateInitialState();
+            Assert.That(updater.SubmitModelConclusion(initial, "longline").Status, Is.EqualTo(InvestigationConclusionStatus.InsufficientEvidence));
+            Assert.That(initial.FinalSubmissionAttemptCount, Is.Zero);
+            var state = PrepareProvisionalReadyState(); updater.TrySubmitProvisional(state, "bottom_trawling", out _);
+            Assert.That(updater.SubmitModelConclusion(state, "bottom_trawling").Status, Is.EqualTo(InvestigationConclusionStatus.Incorrect));
+            Assert.That(state.ConfirmationReviewed, Is.False);
+            Assert.That(state.DiscoveredObservationIds.Count, Is.EqualTo(5));
+        }
+
+        [Test]
+        public void ModelConclusion_DoesNotExportLegacyConfirmationEvidence()
+        {
+            var state = PrepareCompleteReport("longline");
+            Assert.That(state.SelectedReportEvidenceIds, Does.Contain("E07_FISHING_LINE"));
+            Assert.That(updater.SubmitModelConclusion(state, "longline").Status, Is.EqualTo(InvestigationConclusionStatus.Correct));
+            Assert.That(state.SelectedReportEvidenceIds.Count, Is.EqualTo(5));
+            Assert.That(state.SelectedReportEvidenceIds, Does.Not.Contain("E07_FISHING_LINE"));
+            Assert.That(state.SelectedReportEvidenceIds, Does.Not.Contain("E08_SEAFLOOR_INTACT"));
         }
 
         [Test]

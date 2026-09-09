@@ -4,6 +4,31 @@ namespace EDNA.Investigation.Domain
 {
     public sealed class InvestigationConclusionEvaluator
     {
+        // The two-act game records a model comparison, not a field-confirmed
+        // report. Keep the legacy ROV report requirements separate and intact.
+        public bool CanRecordModelConclusion(InvestigationCaseDefinition caseDefinition, InvestigationState state, string selectedThreatId)
+        {
+            if (caseDefinition == null || state == null || state.Phase != InvestigationPhase.Report
+                || state.ConclusionStatus == InvestigationConclusionStatus.Correct
+                || string.IsNullOrEmpty(state.ProvisionalThreatId) || caseDefinition.FindThreat(selectedThreatId) == null
+                || !InvestigationObserveEvaluator.IsComplete(caseDefinition, state)
+                || !EvaluateReadiness(caseDefinition, state).RequiredObjectivesComplete) return false;
+            foreach (var threat in caseDefinition.Threats) if (!state.HasTriedThreat(threat.ThreatId)) return false;
+            return true;
+        }
+
+        public InvestigationConclusionResult EvaluateModelConclusion(InvestigationCaseDefinition caseDefinition, InvestigationState state, string selectedThreatId)
+        {
+            if (!CanRecordModelConclusion(caseDefinition, state, selectedThreatId))
+                return new InvestigationConclusionResult(InvestigationConclusionStatus.InsufficientEvidence,
+                    "Record the survey findings and compare all three models before recording a conclusion.");
+            if (!string.Equals(selectedThreatId, caseDefinition.CorrectThreatId, StringComparison.Ordinal))
+                return new InvestigationConclusionResult(InvestigationConclusionStatus.Incorrect,
+                    "This model does not explain the whole pattern. Compare the stable species as well as the changes.");
+            return new InvestigationConclusionResult(InvestigationConclusionStatus.Correct,
+                "Conclusion recorded from your survey and model comparisons. This is the best fit among the tested models, not proof of cause.");
+        }
+
         public InvestigationReadiness EvaluateReadiness(
             InvestigationCaseDefinition caseDefinition,
             InvestigationState state)

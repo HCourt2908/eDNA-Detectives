@@ -69,7 +69,8 @@ namespace EDNA.Investigation
                 HandleSetReasoning,
                 HandleSetLimitation,
                 HandleSubmitFinal,
-                HandleRestart);
+                HandleRestart,
+                HandleRecordModelConclusion);
             HandleRestart();
         }
 
@@ -180,7 +181,7 @@ namespace EDNA.Investigation
         {
             if (!HasActiveSession) return;
             bool success = updater.TrySubmitProvisional(state, threatId, out string feedback);
-            view.Refresh(state, feedback, success ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
+            view.Refresh(state, success ? "Review your survey findings and record your best-fitting explanation." : feedback, success ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
         }
 
         private void HandleReviewConfirmation()
@@ -220,6 +221,16 @@ namespace EDNA.Investigation
             bool success = updater.TrySetLimitation(state, limitationId, out string feedback);
             if (success) InvestigationSessionBridge.ClearResult();
             view.Refresh(state, success ? "Scientific limitation recorded." : feedback, success ? InvestigationStatusTone.Guide : InvestigationStatusTone.Warning);
+        }
+
+        private void HandleRecordModelConclusion()
+        {
+            if (!HasActiveSession || state.ConclusionStatus == InvestigationConclusionStatus.Correct) return;
+            string chosen = string.IsNullOrEmpty(state.FinalThreatId) ? state.ProvisionalThreatId : state.FinalThreatId;
+            InvestigationConclusionResult result = updater.SubmitModelConclusion(state, chosen);
+            if (result.Status != InvestigationConclusionStatus.InsufficientEvidence) PublishInvestigationResult(result.Status);
+            view.Refresh(state, result.Feedback, result.Status == InvestigationConclusionStatus.Correct
+                ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
         }
 
         private void HandleSubmitFinal()
@@ -264,7 +275,7 @@ namespace EDNA.Investigation
             {
                 case InvestigationPhase.Observe: return "Compare the baseline and current survey, then record unusual results.";
                 case InvestigationPhase.Simulate: return "Run the overlapping causes and compare model predictions with your observations.";
-                case InvestigationPhase.Report: return "Review the ROV findings, confirm your explanation and send the report.";
+                case InvestigationPhase.Report: return "Summarise your findings and record the best-fitting model.";
                 default: return string.Empty;
             }
         }
@@ -279,7 +290,7 @@ namespace EDNA.Investigation
         };
         private static readonly string[] QaLabels =
         {
-            "Observe", "Simulate", "Report"
+            "Observe", "Models", "Conclusion"
         };
 
         private void Update()

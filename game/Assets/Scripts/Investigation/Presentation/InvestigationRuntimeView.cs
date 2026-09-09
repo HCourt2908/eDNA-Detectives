@@ -47,6 +47,7 @@ namespace EDNA.Investigation
         private Action<string> setReasoning;
         private Action<string> setLimitation;
         private Action submitFinal;
+        private Action recordModelConclusion;
         private Action restart;
 
         private RectTransform stageRoot;
@@ -106,7 +107,8 @@ namespace EDNA.Investigation
             Action<string> onSetReasoning,
             Action<string> onSetLimitation,
             Action onSubmitFinal,
-            Action onRestart)
+            Action onRestart,
+            Action onRecordModelConclusion = null)
         {
             caseDefinition = definition;
             setPhase = onSetPhase;
@@ -121,6 +123,7 @@ namespace EDNA.Investigation
             setReasoning = onSetReasoning;
             setLimitation = onSetLimitation;
             submitFinal = onSubmitFinal;
+            recordModelConclusion = onRecordModelConclusion;
             restart = onRestart;
             EnsureUi();
         }
@@ -191,11 +194,14 @@ namespace EDNA.Investigation
             state = null;
             ResetPresentationState();
             StopAllCoroutines();
+            CancelTodayRecordingVisuals();
+            RemoveObserveSummaryFlight();
             viewportRefreshScheduled = false;
             ResetPageEntranceVisuals();
             RemoveNotebookDrawer();
             RemoveProvisionalReview();
             RemoveEdnaPresentation();
+            RemoveComparisonBriefingPresentation();
             statusMessage = message ?? "Unknown Investigation error.";
             statusTone = InvestigationStatusTone.Warning;
             RenderChrome();
@@ -444,14 +450,18 @@ namespace EDNA.Investigation
             if (previousNotebookDrawerScroll != null)
                 notebookDrawerScrollPosition = previousNotebookDrawerScroll.verticalNormalizedPosition;
 
+            SaveComparisonNotebookScroll();
             HideSpeciesTooltip();
             StopAllCoroutines();
+            CancelTodayRecordingVisuals();
+            RemoveObserveSummaryFlight();
             viewportRefreshScheduled = false;
             speciesPairHighlights.Clear();
             ResetPageEntranceVisuals();
             RemoveNotebookDrawer();
             RemoveProvisionalReview();
             RemoveEdnaPresentation();
+            RemoveComparisonBriefingPresentation();
             bool animatePhaseChange = state != null && (!hasRenderedPhase || state.Phase != lastRenderedPhase);
             if (animatePhaseChange) restartConfirmationPending = false;
             RenderChrome();
@@ -466,13 +476,15 @@ namespace EDNA.Investigation
             {
                 case InvestigationPhase.Observe: RenderObserve(); break;
                 case InvestigationPhase.Simulate: RenderSimulate(); break;
-                case InvestigationPhase.Report: RenderReport(); break;
+                case InvestigationPhase.Report: RenderScenarioEnding(); break;
             }
             RenderNotebookDrawer();
             RenderProvisionalReview();
             Canvas.ForceUpdateCanvases();
             LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
+            RestoreComparisonNotebookScroll();
             RenderEdnaPresentation();
+            ResumeTodayRecording();
             ShowPendingTappedSpeciesTooltip();
             if (contentScroll != null)
             {
@@ -529,6 +541,9 @@ namespace EDNA.Investigation
             if (notebookOpeningAnimationPending && notebookDrawerOpen) StartCoroutine(AnimateNotebookOpening());
             notebookOpeningAnimationPending = false;
             reportFeedbackFocusPending = false;
+            RenderComparisonBriefingPresentation();
+            RenderArrivalBriefingPresentation();
+            ResumeObserveSummarySaving();
         }
 
         private void ResetPageEntranceVisuals()
@@ -546,7 +561,8 @@ namespace EDNA.Investigation
 
         private void ApplyPhaseLayout(InvestigationPhase phase)
         {
-            bool report = phase == InvestigationPhase.Report;
+            GetComponent<Canvas>().pixelPerfect = !ScenarioWorkspaceActive;
+            bool report = phase == InvestigationPhase.Report && !ScenarioWorkspaceActive;
             if (footerRoot != null) footerRoot.gameObject.SetActive(report);
             if (footerRoot != null && report)
             {
@@ -558,10 +574,11 @@ namespace EDNA.Investigation
                 Anchor(footerRight, 0.5f, 0f, 1f, 1f, 4f, 4f, -10f, -4f);
             if (contentScroll != null)
             {
-                bool simulate = phase == InvestigationPhase.Simulate;
+                bool simulate = ScenarioWorkspaceActive;
+                contentScroll.vertical = !simulate;
                 contentScroll.verticalScrollbarVisibility = simulate ? ScrollRect.ScrollbarVisibility.AutoHide
                     : ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
-                Stretch(contentScroll.viewport, 0f, 0f, simulate ? -20f : 0f, 0f);
+                Stretch(contentScroll.viewport, 0f, 0f, 0f, 0f);
             }
             if (contentPanel != null)
             {
@@ -578,7 +595,9 @@ namespace EDNA.Investigation
 
             bool portrait = Screen.height > Screen.width;
             Vector2 targetReference = portrait ? PortraitReferenceResolution : LandscapeReferenceResolution;
-            canvas.pixelPerfect = true;
+            // The fitted, animated workbench uses fractional transforms. Pixel
+            // snapping can collapse small sprite meshes at those scales.
+            canvas.pixelPerfect = !ScenarioWorkspaceActive;
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             scaler.matchWidthOrHeight = 0f;
@@ -591,8 +610,7 @@ namespace EDNA.Investigation
             if (state != null)
             {
                 CreateStageButton("1 · Observe", InvestigationPhase.Observe);
-                CreateStageButton("2 · Simulate", InvestigationPhase.Simulate);
-                CreateStageButton("3 · Report", InvestigationPhase.Report);
+                CreateStageButton("2 · Investigate", InvestigationPhase.Simulate);
                 string revisions = state.MisstepCount > 0 ? $"    REVISIONS {state.MisstepCount}" : string.Empty;
                 metricsText.text = $"FINDINGS {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)} · MODELS {state.TriedThreatIds.Count}/{caseDefinition.Threats.Count}\nCHECKS {VisibleCompletedObjectiveCount()}/{VisibleRequiredObjectiveCount()}{revisions}";
                 difficultyText.text = state.Difficulty == InvestigationDifficulty.Easy ? "Easy" : "Hard";
@@ -631,9 +649,10 @@ namespace EDNA.Investigation
 
         private void CreateStageButton(string label, InvestigationPhase phase)
         {
-            Button button = CreateButton($"Stage {phase}", stageRoot, label, ButtonVisualStyle.Stage, () => setPhase?.Invoke(phase), out _);
+            Button button = CreateButton($"Stage {phase}", stageRoot, label, ButtonVisualStyle.Stage,
+                () => { if (phase == InvestigationPhase.Simulate && state.ConclusionStatus == InvestigationConclusionStatus.Correct) { setPhase?.Invoke(InvestigationPhase.Report); return; } if (phase == InvestigationPhase.Simulate && state.Phase == InvestigationPhase.Report) return; RequestInvestigationPhase(phase); }, out _);
             Image image = button.GetComponent<Image>();
-            if (state.Phase == phase)
+            if (state.Phase == phase || (phase == InvestigationPhase.Simulate && state.Phase == InvestigationPhase.Report))
             {
                 image.color = InvestigationTheme.SurfaceRaised;
                 button.GetComponentInChildren<Text>().color = InvestigationTheme.TextPrimary;
@@ -643,7 +662,7 @@ namespace EDNA.Investigation
             bool complete = phase == InvestigationPhase.Observe
                 ? InvestigationObserveEvaluator.IsComplete(caseDefinition, state)
                 : phase == InvestigationPhase.Simulate
-                    ? !string.IsNullOrEmpty(state.ProvisionalThreatId) && (!state.ConfirmationReviewed || new InvestigationConclusionEvaluator().EvaluateReadiness(caseDefinition, state).RequiredObjectivesComplete)
+                    ? state.ConclusionStatus == InvestigationConclusionStatus.Correct
                     : state.ConclusionStatus == InvestigationConclusionStatus.Correct;
             if (complete)
             {
@@ -1050,7 +1069,7 @@ namespace EDNA.Investigation
                     scroll.verticalNormalizedPosition = Mathf.Clamp01(scroll.verticalNormalizedPosition + shift / hiddenHeight);
                 }
             }
-            Button focus = target.GetComponent<Button>() ?? FindFirstInteractableButton(target);
+            Selectable focus = target.GetComponent<Selectable>() ?? FindFirstInteractableButton(target);
             if (focus != null && focus.interactable && EventSystem.current != null)
             {
                 EventSystem.current.SetSelectedGameObject(null);
@@ -1108,6 +1127,8 @@ namespace EDNA.Investigation
                     : $"Prediction Target {selectedPredictionTargetKind} {selectedPredictionSpeciesId}");
             if (target == null && snapshot.ObjectName == "Dismiss Edna")
                 target = FindInteractableButton("Talk To Edna");
+            if (target == null && snapshot.ObjectName == "Talk To Edna")
+                target = FindInteractableButton("Edna Continue") ?? FindInteractableButton("Dismiss Edna");
             if (target == null && snapshot.ObjectName == "Review ROV Follow-up")
                 target = FindInteractableButton("Submit Final Report");
             if (target == null && snapshot.ObjectName == "Restart Case")

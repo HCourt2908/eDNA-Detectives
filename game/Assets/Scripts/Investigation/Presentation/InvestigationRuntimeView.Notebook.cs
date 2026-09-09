@@ -8,6 +8,7 @@ namespace EDNA.Investigation
 {
     public sealed partial class InvestigationRuntimeView
     {
+        private int NotebookFindingCount => ScenarioWorkspaceActive ? CountInitialFindings() : CountVisibleNotebookObservations();
         private bool notebookDrawerOpen;
         private float notebookDrawerScrollPosition = 1f;
         private string notebookFocusTargetAfterRender = string.Empty;
@@ -70,12 +71,13 @@ namespace EDNA.Investigation
         private void RenderNotebookDrawer()
         {
             if (!notebookDrawerOpen
+                || (ComparisonWorkspaceVisible && !ObserveComplete)
                 || state == null
-                || (state.Phase == InvestigationPhase.Observe && CountInitialFindings() == 0)
+                || (state.Phase == InvestigationPhase.Observe && CountInitialFindings() == 0 && !HasTodaySurveyNotes)
                 // The completed report has its own summary, but returning to
                 // Simulate must still allow the visible Notebook button to open it.
                 || (state.Phase == InvestigationPhase.Report
-                    && state.ConclusionStatus == InvestigationConclusionStatus.Correct))
+                    && state.ConclusionStatus == InvestigationConclusionStatus.Correct && !ScenarioWorkspaceActive))
             {
                 return;
             }
@@ -124,7 +126,7 @@ namespace EDNA.Investigation
             Text title = CreateText(
                 "Notebook Drawer Title",
                 drawer,
-                $"MY NOTEBOOK · {CountVisibleNotebookObservations()}",
+                $"MY NOTEBOOK · {NotebookFindingCount}",
                 19,
                 FontStyle.Bold,
                 InvestigationTheme.PaperMuted,
@@ -135,7 +137,8 @@ namespace EDNA.Investigation
             Text description = CreateText(
                 "Notebook Drawer Description",
                 drawer,
-                "NEW = untested · USED = compared · REPORT = selected · OPEN = unresolved",
+                state.Phase == InvestigationPhase.Observe || ScenarioWorkspaceActive ? "Our survey records · 20 years ago → Today"
+                    : "NEW = untested · USED = compared · REPORT = selected · OPEN = unresolved",
                 11,
                 FontStyle.Normal,
                 InvestigationTheme.PaperMuted,
@@ -146,9 +149,9 @@ namespace EDNA.Investigation
             Button close = CreateButton(
                 "Close Notebook Drawer",
                 drawer,
-                "Close",
+                state.Phase == InvestigationPhase.Observe && !ObserveComplete ? "Seamount view" : "Close",
                 ButtonVisualStyle.PaperChoice,
-                CloseNotebookDrawer,
+                () => { if (state.Phase == InvestigationPhase.Observe && !ObserveComplete) ReturnToComparisonSeamount(); else CloseNotebookDrawer(); },
                 out Text closeLabel);
             closeLabel.fontSize = 12;
             close.GetComponent<LayoutElement>().ignoreLayout = true;
@@ -188,9 +191,20 @@ namespace EDNA.Investigation
             entriesLayout.childForceExpandHeight = false;
             entries.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             scroll.content = entries;
-            if (notebookIntroductionVisible) RenderNotebookIntroduction(entries);
-            if (state.Phase != InvestigationPhase.Observe || state.TriedThreatIds.Count > 0) RenderHypothesisSummary(entries);
-            RenderNotebookEntries(entries);
+            if (ScenarioWorkspaceActive)
+            {
+                // Carry Act 1's saved picture into Act 2 without appending the
+                // retired text evidence list or per-prediction comparison UI.
+                AddLayout(CreateSurveyStory(entries, "Notebook Survey Story"), 490f, 0f);
+            }
+            else
+            {
+                if (notebookIntroductionVisible) RenderNotebookIntroduction(entries);
+                if (state.Phase != InvestigationPhase.Observe || state.TriedThreatIds.Count > 0) RenderHypothesisSummary(entries);
+                RenderTodaySurveyNotes(entries);
+                if (observeSummarySaved) AddLayout(CreateSurveyStory(entries, "Notebook Survey Story"), 490f, 0f);
+                if (state.Phase != InvestigationPhase.Observe || !observeSummarySaved) RenderNotebookEntries(entries);
+            }
 
             RectTransform scrollbarRect = CreatePanel("Notebook Drawer Scrollbar", scrollRoot, new Color32(179, 204, 218, 110), 5f);
             Anchor(scrollbarRect, 1f, 0f, 1f, 1f, -7f, 3f, 0f, -3f);
@@ -238,7 +252,7 @@ namespace EDNA.Investigation
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
             ConfigureContentDrivenText(name);
             string instruction = state.Phase == InvestigationPhase.Observe
-                ? "Your answers are saved here. Scroll to reread a finding, then close the notebook to return to Edna's question."
+                ? observeSummarySaved ? "Here is our survey picture. You can open it again while testing possible causes." : "Survey records are grouped by date. Your comparisons appear below. Close the notebook to return to the survey."
                 : hypothesisSummaryExpanded
                 ? "Select a cause with recorded checks, then a check to reopen it in the model. Close the notebook to continue investigating."
                 : "Scroll below to revisit your survey findings. Use Compare causes to review the checks you save while testing models.";
@@ -302,7 +316,8 @@ namespace EDNA.Investigation
 
             RectTransform badge = CreatePanel("Notebook Finding Count", button.transform, InvestigationTheme.Primary, 9f);
             Anchor(badge, 1f, 1f, 1f, 1f, -20f, -19f, -1f, 0f);
-            Text count = CreateText("Notebook Finding Count Text", badge, CountVisibleNotebookObservations().ToString(),
+            badge.gameObject.SetActive(NotebookFindingCount > 0);
+            Text count = CreateText("Notebook Finding Count Text", badge, NotebookFindingCount.ToString(),
                 11, FontStyle.Bold, InvestigationTheme.OnPrimary, TextAnchor.MiddleCenter, InvestigationTheme.DataFont);
             Stretch(count.rectTransform, 1f, 1f, -1f, -1f);
 

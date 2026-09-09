@@ -28,12 +28,13 @@ namespace EDNA.Investigation
 
         private void RenderObserve()
         {
+            if (!ObserveArrivalActive) { RenderObserveComparison(); return; }
             string processedSummary = string.IsNullOrWhiteSpace(state.ProcessedSampleSummary)
                 ? "Processed survey results"
                 : state.ProcessedSampleSummary;
             Text observeHeading = CreateHeading(
                 "What changed on this seamount?",
-                $"{processedSummary}. Slide between surveys and answer Edna's questions.");
+                $"{processedSummary}. Begin with today, then look back 20 years.");
 
             RectTransform split = new GameObject("Observe Split", typeof(RectTransform), typeof(InvestigationResponsiveSplitLayout)).GetComponent<RectTransform>();
             split.SetParent(contentRoot, false);
@@ -45,67 +46,18 @@ namespace EDNA.Investigation
 
             RectTransform comparison = CreatePanel("Survey Comparison", split, new Color(0f, 0f, 0f, 0f), 0f);
             RenderSurveyLens(comparison);
-            if (ObserveQuestion != null)
+            if (ObserveArrivalActive)
             {
-                RectTransform question = RenderObserveQuestion(split);
+                RectTransform arrival = observeArrivalStage == ObserveArrivalStage.Welcome
+                    ? RenderObserveWelcome(split) : observeArrivalStage == ObserveArrivalStage.HistoricalPreview
+                        ? RenderHistoryRecordingPrompt(split) : RenderObserveRecording(split);
                 Canvas.ForceUpdateCanvases();
-                splitLayout.Configure(0.68f, 14f, 930f, surveyHeight,
-                    Mathf.Max(surveyHeight, LayoutUtility.GetPreferredHeight(question)));
+                bool compactRecording = observeArrivalStage != ObserveArrivalStage.Welcome && GetComponent<RectTransform>().rect.width < 930f;
+                if (compactRecording) surveyHeight = Mathf.Clamp(availableHeight - 50f, 260f, 430f);
+                splitLayout.Configure(compactRecording ? .58f : .68f, 14f, observeArrivalStage == ObserveArrivalStage.Welcome ? 930f : 300f, surveyHeight,
+                    Mathf.Max(surveyHeight, LayoutUtility.GetPreferredHeight(arrival)));
                 return;
             }
-
-            RectTransform notebook = CreatePanel("Investigation Notebook", split, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
-            EnsureOutline(notebook.gameObject, InvestigationTheme.PaperBorder, new Vector2(1f, -1f));
-            Shadow paperShadow = notebook.gameObject.AddComponent<Shadow>();
-            paperShadow.effectColor = InvestigationTheme.PaperShadow;
-            paperShadow.effectDistance = new Vector2(2f, -2f);
-            paperShadow.useGraphicAlpha = true;
-            CreateNotebookBinding(notebook);
-            Text notebookTitle = CreateText(
-                "Notebook Title",
-                notebook,
-                $"MY NOTEBOOK · {CountVisibleNotebookObservations()}",
-                18,
-                FontStyle.Bold,
-                InvestigationTheme.PaperMuted,
-                TextAnchor.MiddleLeft,
-                InvestigationTheme.DataFont);
-            Anchor(notebookTitle.rectTransform, 0f, 0.86f, 1f, 1f, 42f, 0f, -12f, -8f);
-
-            RectTransform notebookEntries = CreateNotebookEntryScroll(notebook);
-            RenderNotebookEntries(notebookEntries);
-
-            int initialFindings = CountInitialFindings();
-            int requiredFindings = InvestigationObserveEvaluator.RequiredCount(caseDefinition);
-            int remaining = Mathf.Max(0, requiredFindings - initialFindings);
-            if (remaining == 0)
-            {
-                Button next = CreateButton("Continue To Simulate", notebook, "Test possible causes →", ButtonVisualStyle.PaperPrimary, () => setPhase?.Invoke(InvestigationPhase.Simulate), out _);
-                next.GetComponent<LayoutElement>().ignoreLayout = true;
-                Anchor(next.GetComponent<RectTransform>(), 0.22f, 0f, 0.78f, 0f, 0f, 8f, 0f, 58f);
-            }
-            else
-            {
-                RectTransform progress = CreatePanel("Observe Finding Progress", notebook, InvestigationTheme.PaperRaised, InvestigationTheme.SmallRadius);
-                progress.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
-                Anchor(progress, 0.12f, 0f, 0.88f, 0f, 0f, 12f, 0f, 54f);
-                EnsureOutline(progress.gameObject, InvestigationTheme.PaperBorder, new Vector2(1f, -1f));
-                Text progressText = CreateText(
-                    "Observe Finding Progress Text",
-                    progress,
-                    $"FINDINGS {initialFindings} / {requiredFindings}  ·  Answer Edna's next question",
-                    11,
-                    FontStyle.Bold,
-                    InvestigationTheme.PaperSelectedBorder,
-                    TextAnchor.MiddleCenter,
-                    InvestigationTheme.DataFont);
-                Stretch(progressText.rectTransform, 10f, 4f, -10f, -4f);
-            }
-
-            bool firstReveal = !observeNotebookVisible;
-            observeNotebookVisible = true;
-            if (firstReveal && !string.IsNullOrEmpty(lastRecordedObservationId) && !InvestigationMotionSettings.ReducedMotion)
-                StartCoroutine(RevealObserveNotebook(notebook));
         }
 
         private IEnumerator RevealObserveNotebook(RectTransform notebook)
@@ -198,7 +150,7 @@ namespace EDNA.Investigation
                 historical ? InvestigationTheme.TextPrimary : InvestigationTheme.Primary,
                 TextAnchor.UpperLeft,
                 InvestigationTheme.DisplayFont);
-            Anchor(title.rectTransform, 0f, 0.84f, 1f, 1f, 14f, 0f, -12f, -10f);
+            Anchor(title.rectTransform, 0f, 1f, 1f, 1f, 14f, -44f, -12f, -10f);
 
             RectTransform plotArea = CreatePanel("Seamount Plot Area", map, new Color(0f, 0f, 0f, 0f), 0f);
             Anchor(plotArea, 0.08f, 0.08f, 0.92f, 0.86f, 0f, 0f, 0f, 0f);
@@ -433,29 +385,8 @@ namespace EDNA.Investigation
             background.color = new Color(0f, 0f, 0f, 0f);
             Outline hitOutline = marker.GetComponent<Outline>();
             if (hitOutline != null) hitOutline.effectColor = new Color(0f, 0f, 0f, 0f);
-            RectTransform artwork = CreateSpeciesArtwork(
-                "Species Artwork",
-                marker.transform,
-                species,
-                anomaly ? InvestigationTheme.Accent : InvestigationTheme.Primary,
-                notDetected);
-            Image specimen = artwork.GetComponent<Image>();
-            if (historical && specimen != null)
-                specimen.color = Color.white;
-            bool showGroup = !historical
-                && observation != null
-                && observation.ClaimType == ObservationClaimType.ChangedDepthOrDistribution
-                && species.Icon != null;
-            if (showGroup)
-            {
-                Anchor(artwork, 0.30f, 0.12f, 0.70f, 0.96f, 0f, 0f, 0f, -2f);
-                CreateMapGroupMember(marker.transform, species.Icon, "Group Member Left", 0.02f, 0.18f, 0.38f, 0.80f);
-                CreateMapGroupMember(marker.transform, species.Icon, "Group Member Right", 0.62f, 0.20f, 0.98f, 0.82f);
-            }
-            else
-            {
-                Anchor(artwork, 0f, 0f, 1f, 1f, 14f, 8f, -14f, -4f);
-            }
+            RectTransform artwork = CreateSurveyArtwork("Species Artwork", marker.transform, species, era);
+            Anchor(artwork, 0f, 0f, 1f, 1f, 10f, 6f, -10f, -4f);
 
             if (notDetected)
             {
@@ -471,7 +402,7 @@ namespace EDNA.Investigation
             RectTransform pairFocus = focusBorder.rectTransform;
             Stretch(pairFocus, 2f, 2f, -2f, -2f);
             pairFocus.SetAsFirstSibling();
-            pairFocus.gameObject.SetActive(ObserveQuestion?.RelatedSpeciesId == species.SpeciesId);
+            pairFocus.gameObject.SetActive(!ObserveArrivalActive && HighlightedObserveSpecies == species.SpeciesId);
             if (!speciesPairHighlights.TryGetValue(species.SpeciesId, out List<GameObject> highlights))
             {
                 highlights = new List<GameObject>();
@@ -774,7 +705,7 @@ namespace EDNA.Investigation
             if (summary == null) return "No record was supplied for this survey era.";
             string status = era == SurveyEra.Historical ? "Historical reference · read only"
                 : summary.Observation == null ? "Supplementary survey · not a required case finding"
-                : state.HasDiscoveredObservation(summary.Observation.EvidenceId) ? "RECORDED IN NOTEBOOK" : "Answer Edna to record this finding";
+                : state.HasDiscoveredObservation(summary.Observation.EvidenceId) ? "RECORDED IN NOTEBOOK" : "Compare this record on the notebook table";
             string source = string.IsNullOrEmpty(summary.Confidence) ? summary.Source : $"{summary.Source} · {summary.Confidence}";
             return $"{summary.Result}\n{source}\nDEPTH  {summary.Depth}\n{status}";
         }
@@ -795,7 +726,7 @@ namespace EDNA.Investigation
             }
             speciesTooltipOwner = null;
             speciesTooltipPinned = false;
-            SetSpeciesPairHighlight(ObserveQuestion?.RelatedSpeciesId);
+            SetSpeciesPairHighlight(ObserveArrivalActive ? null : HighlightedObserveSpecies);
             if (speciesTooltip == null) return;
             GameObject tooltipObject = speciesTooltip.gameObject;
             speciesTooltip = null;

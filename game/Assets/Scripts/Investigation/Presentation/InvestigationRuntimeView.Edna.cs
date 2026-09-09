@@ -26,17 +26,19 @@ namespace EDNA.Investigation
         private Sprite ednaPortrait;
         private Sprite ednaAvatar;
         private bool EdnaCuesVisible => ednaConversationOpen && !notebookDrawerOpen && !provisionalReviewOpen;
-        private bool EdnaInlineIntroduction => state != null && state.Phase == InvestigationPhase.Observe
-            && ObserveQuestion != null;
+        private bool EdnaInlineIntroduction => state != null && state.Phase == InvestigationPhase.Observe;
         private bool EdnaCompact => GetComponent<RectTransform>().rect.width < 960f;
         private float EdnaPortraitWidth => EdnaCompact ? 106f : 142f;
-        private bool EdnaFloatingConversation => ednaConversationOpen && !EdnaInlineIntroduction
-            && !notebookDrawerOpen && !provisionalReviewOpen && !restartConfirmationPending
-            && (state.Phase != InvestigationPhase.Report || state.ConclusionStatus == InvestigationConclusionStatus.Correct);
+        // Embedded guides already provide their own actions; only floating speech needs a reopen control.
+        private bool EdnaCanCollapse => state != null && (state.Phase == InvestigationPhase.Simulate
+            || (state.Phase == InvestigationPhase.Report && state.ConclusionStatus == InvestigationConclusionStatus.Correct));
+        private bool EdnaControlsAvailable => EdnaCanCollapse && !notebookDrawerOpen
+            && !provisionalReviewOpen && !restartConfirmationPending;
+        private bool EdnaFloatingConversation => EdnaControlsAvailable && ednaConversationOpen && !ScenarioWorkspaceActive;
         private bool EdnaTopConversation => EdnaFloatingConversation && state.Phase != InvestigationPhase.Simulate;
         private bool EdnaBottomConversation => EdnaFloatingConversation && state.Phase == InvestigationPhase.Simulate;
         private float EdnaExtraTopSpace => EdnaTopConversation ? Mathf.Max(0f, ednaDialogueHeight - 42f) : 0f;
-        private float EdnaExtraBottomSpace => EdnaBottomConversation ? ednaDialogueHeight + 12f : 0f;
+        private float EdnaExtraBottomSpace => ScenarioWorkspaceActive ? ScenarioDockHeight + 12f : EdnaBottomConversation ? ednaDialogueHeight + 12f : 0f;
         private bool EdnaHasOpenComparison
         {
             get
@@ -46,16 +48,17 @@ namespace EDNA.Investigation
                 return record == null || !record.LocksComparison;
             }
         }
-        private bool EdnaCanAskNext => string.IsNullOrEmpty(EdnaActionLabel)
+        private bool EdnaCanAskNext => !ScenarioModeActive && string.IsNullOrEmpty(EdnaActionLabel)
             && (ednaManualHelp || EdnaHasOpenComparison || ResolveGuidance().Step == InvestigationGuidanceStep.ChooseObservation) && ednaReply != EdnaReply.NextStep
             && state != null && state.ConclusionStatus != InvestigationConclusionStatus.Correct
             && !string.Equals(state.Difficulty == InvestigationDifficulty.Easy ? ResolveGuidance().ActionHint : ResolveGuidance().Message, EdnaMessage(), StringComparison.Ordinal);
-        private bool EdnaCanAskWhy => (ednaManualHelp || EdnaHasOpenComparison
+        private bool EdnaCanAskWhy => !ScenarioModeActive && (ednaManualHelp || EdnaHasOpenComparison
             || (state != null && state.Phase == InvestigationPhase.Simulate && !string.IsNullOrEmpty(selectedObservationId))) && ednaReply != EdnaReply.Explanation;
         private string EdnaActionLabel
         {
             get
             {
+                if (ScenarioModeActive) return ScenarioEdnaAction;
                 if (state == null || state.Phase != InvestigationPhase.Simulate || !workbenchFoodWebReady) return string.Empty;
                 InvestigationGuidanceStep step = ResolveGuidance().Step;
                 if (!workbenchInspectPrediction && state.FindSimulation(selectedThreatId) != null && !restingExperiments.Contains(selectedThreatId)
@@ -75,7 +78,7 @@ namespace EDNA.Investigation
                 }
             }
         }
-        private bool EdnaCanOpenNotebook => state != null && state.Phase == InvestigationPhase.Simulate
+        private bool EdnaCanOpenNotebook => !ScenarioModeActive && state != null && state.Phase == InvestigationPhase.Simulate
             && !notebookHasBeenOpened && ResolveGuidance().Step == InvestigationGuidanceStep.ContinueInvestigation
             && state.FindComparison(selectedThreatId, selectedPredictionTargetKind, selectedPredictionSpeciesId)?.LocksComparison == true;
         private float EdnaOptionsWidth
@@ -187,23 +190,24 @@ namespace EDNA.Investigation
 
         private string EdnaMessage()
         {
+            if (ScenarioModeActive) return ScenarioEdnaMessage;
             InvestigationGuidance guidance = ResolveGuidance();
             if (state.Phase == InvestigationPhase.Simulate && !workbenchFoodWebReady)
-                return "Build the food web first. Drag a predator onto its prey, or select the two cards. The diet notes explain each connection.";
+                return "Your recorded changes are on these cards. Connect who eats whom using the diet hints, then we can test a cause.";
             if (ednaReply == EdnaReply.Explanation) return EdnaExplanation();
             if (ednaReply == EdnaReply.NextStep)
                 return state.Difficulty == InvestigationDifficulty.Easy ? guidance.ActionHint : guidance.Message;
-            if (EdnaInlineIntroduction) return "Slide between the surveys, then answer my question. Find EDNA at the top right.";
+            if (EdnaInlineIntroduction) return "Match the saved records on the two notebook pages, then choose how each species changed.";
             if (state.Phase == InvestigationPhase.Observe && CountInitialFindings() == 1)
                 return "I've added your first finding to the notebook. Keep looking — the other species can help us understand what changed.";
             if (state.Phase == InvestigationPhase.Report && state.ConfirmationReviewed
                 && state.ConclusionStatus != InvestigationConclusionStatus.Correct)
                 return "The ROV found fishing line and an intact seafloor. I've brought your findings together below. Keep your explanation, or change it before sending.";
             if (state.Phase == InvestigationPhase.Simulate && guidance.Step == InvestigationGuidanceStep.ChooseCause)
-                return "Your food web is ready. Start with any of these three causes: drag its card onto the model, or select it and choose Apply to model.";
+                return "Your food chain is ready. Try any of these three causes on this same table: drag one onto the model, or select it and choose Apply to model.";
             if (state.Phase == InvestigationPhase.Simulate && guidance.Step == InvestigationGuidanceStep.ChoosePrediction)
                 return workbenchInspectPrediction ? "Tap any prediction with a glowing border to test it against the survey."
-                    : "Place one of your recorded patterns on the experiment to check it. You can drag it onto the evidence table or select it and press the test button.";
+                    : "The blue panels show model predictions; the paper cards keep your survey records. Drag a saved pattern onto the model to check this explanation.";
             if (state.Phase == InvestigationPhase.Simulate && guidance.Step == InvestigationGuidanceStep.ChooseObservation)
                 return $"Let's check {caseDefinition.FindSpecies(selectedPredictionSpeciesId)?.GameplayName ?? "this prediction"}. Choose a finding in WHAT WE FOUND; I'll compare it with the model.";
             if (EdnaCanOpenNotebook)
@@ -226,8 +230,10 @@ namespace EDNA.Investigation
 
         private string EdnaHeading()
         {
+            if (ScenarioModeActive) return ScenarioEdnaHeading;
             if (state == null || state.Phase != InvestigationPhase.Simulate) return "EDNA";
             if (!workbenchFoodWebReady) return "EDNA · Build the food web";
+            if (string.IsNullOrEmpty(selectedThreatId)) return "EDNA · Choose a cause to test";
             InvestigationObjectiveDefinition objective = FindNextGuidedObjective();
             return objective == null ? "EDNA · Our comparisons are ready"
                 : $"EDNA · {objective.QuestionPrompt}";
@@ -235,6 +241,7 @@ namespace EDNA.Investigation
 
         private void PerformEdnaAction()
         {
+            if (ScenarioModeActive) { FinishScenarioAnimation(); return; }
             InvestigationGuidanceStep actionStep = ResolveGuidance().Step;
             if ((actionStep == InvestigationGuidanceStep.ChoosePrediction || actionStep == InvestigationGuidanceStep.ContinueInvestigation)
                 && !workbenchInspectPrediction && !string.IsNullOrEmpty(workbenchEvidence) && state.FindSimulation(selectedThreatId) != null
@@ -290,24 +297,12 @@ namespace EDNA.Investigation
 
         private void TalkToEdna()
         {
-            if (EdnaInlineIntroduction)
-            {
-                observeQuestionFeedback = "Compare both ends of the slider. Choose what today's survey shows; I'll save the finding in your notebook.";
-                navigationRevealTarget = "Observe Question";
-                navigationRevealAtTop = true;
-                RefreshPresentationOnly();
-                return;
-            }
-            if (state.Phase == InvestigationPhase.Report && state.ConclusionStatus != InvestigationConclusionStatus.Correct)
-            {
-                if (contentScroll != null) contentScroll.verticalNormalizedPosition = 1f;
-                return;
-            }
-            bool wasOpen = ednaConversationOpen;
-            ednaConversationOpen = !ednaConversationOpen || !ednaManualHelp;
-            ednaManualHelp = ednaConversationOpen;
+            if (ScenarioModeActive) { OpenScenarioBriefing(); return; }
+            if (!EdnaControlsAvailable || ednaConversationOpen) return;
+            ednaConversationOpen = true;
+            ednaManualHelp = true;
             ednaReply = EdnaReply.Introduction;
-            ednaEntrancePending = ednaConversationOpen && !wasOpen;
+            ednaEntrancePending = true;
             RefreshEdnaPresentation();
         }
 
@@ -321,6 +316,7 @@ namespace EDNA.Investigation
 
         private void DismissEdna()
         {
+            if (!EdnaFloatingConversation) return;
             ednaConversationOpen = false;
             ednaManualHelp = false;
             RefreshEdnaPresentation();
@@ -366,18 +362,22 @@ namespace EDNA.Investigation
 
         private void RenderEdnaPresentation()
         {
-            if (state == null || contentPanel == null || notebookDrawerOpen || provisionalReviewOpen || restartConfirmationPending) return;
+            if (ScenarioWorkspaceActive) { RenderScenarioEdnaDock(); return; }
+            if (contentPanel == null || !EdnaControlsAvailable) return;
             EnsureEdnaArtwork();
-            Button dock = CreateButton("Talk To Edna", stageRoot.parent, "EDNA", ButtonVisualStyle.Tertiary, TalkToEdna, out Text label);
-            ednaDock = dock.GetComponent<RectTransform>();
-            Anchor(ednaDock, 1f, 0f, 1f, 0f, -136f, 2f, -12f, 46f);
-            dock.GetComponent<LayoutElement>().ignoreLayout = true;
-            dock.targetGraphic.color = InvestigationTheme.SurfaceRaised;
-            label.fontSize = 13;
-            label.rectTransform.offsetMin = new Vector2(56f, 4f);
-            label.rectTransform.offsetMax = new Vector2(-6f, -4f);
-            Image avatar = CreateStatusIcon("Edna Avatar", dock.transform, ednaAvatar ?? ednaPortrait, Color.white);
-            Anchor(avatar.rectTransform, 0f, 0f, 0f, 1f, 5f, 2f, 53f, -2f);
+            if (!ednaConversationOpen || ScenarioModeActive)
+            {
+                Button dock = CreateButton("Talk To Edna", stageRoot.parent, "EDNA", ButtonVisualStyle.Tertiary, TalkToEdna, out Text label);
+                ednaDock = dock.GetComponent<RectTransform>();
+                Anchor(ednaDock, 1f, 0f, 1f, 0f, -136f, 2f, -12f, 46f);
+                dock.GetComponent<LayoutElement>().ignoreLayout = true;
+                dock.targetGraphic.color = InvestigationTheme.SurfaceRaised;
+                label.fontSize = 13;
+                label.rectTransform.offsetMin = new Vector2(56f, 4f);
+                label.rectTransform.offsetMax = new Vector2(-6f, -4f);
+                Image avatar = CreateStatusIcon("Edna Avatar", dock.transform, ednaAvatar ?? ednaPortrait, Color.white);
+                Anchor(avatar.rectTransform, 0f, 0f, 0f, 1f, 5f, 2f, 53f, -2f);
+            }
             if (EdnaFloatingConversation)
             {
                 ednaConversation = CreatePanel("Edna Conversation", contentPanel.parent, Color.clear, 0f);
@@ -387,7 +387,7 @@ namespace EDNA.Investigation
                 else
                     Anchor(ednaConversation, 0f, 1f, 1f, 1f, OuterMargin + 2f, -ContentTopInset - ednaDialogueHeight,
                         -OuterMargin - 4f, -ContentTopInset);
-                RectTransform bubble = CreateEdnaSpeech(ednaConversation, false);
+                RectTransform bubble = CreateEdnaSpeech(ednaConversation);
                 Stretch(bubble, 0f, 0f, 0f, 0f);
                 if (EdnaTopConversation) HideCoveredHeading();
                 if (ednaEntrancePending && !InvestigationMotionSettings.ReducedMotion)
@@ -403,24 +403,17 @@ namespace EDNA.Investigation
             if (heading != null) EnsureCanvasGroup(heading).alpha = 0f;
         }
 
-        private void RenderEdnaIntroduction(RectTransform parent)
-        {
-            if (parent == null) return;
-            RectTransform bubble = CreateEdnaSpeech(parent, true);
-            Stretch(bubble, 0f, 0f, 0f, 0f);
-        }
-
-        private RectTransform CreateEdnaSpeech(Transform parent, bool inline)
+        private RectTransform CreateEdnaSpeech(Transform parent)
         {
             RectTransform bubble = CreatePanel("Edna Speech", parent, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
             bubble.GetComponent<Image>().raycastTarget = true;
             AddSingleShadow(bubble.gameObject, InvestigationTheme.PaperShadow, new Vector2(0f, -3f));
             Text name = CreateText("Edna Name", bubble, EdnaHeading(), 12, FontStyle.Bold,
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
-            Anchor(name.rectTransform, 0f, 1f, 1f, 1f, 16f, -ednaHeaderHeight + 2f, inline ? -60f : -EdnaPortraitWidth - 66f, -8f);
+            Anchor(name.rectTransform, 0f, 1f, 1f, 1f, 16f, -ednaHeaderHeight + 2f, -EdnaPortraitWidth - 66f, -8f);
             Button close = CreateButton("Dismiss Edna", bubble, "×", ButtonVisualStyle.PaperChoice, DismissEdna, out _);
             close.GetComponent<LayoutElement>().ignoreLayout = true;
-            float closeRight = inline ? 6f : EdnaPortraitWidth + 6f;
+            float closeRight = EdnaPortraitWidth + 6f;
             Anchor(close.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -closeRight - 44f, -48f, -closeRight, -4f);
             Text message = CreateText("Edna Speech Text", bubble, EdnaMessage(), 15, FontStyle.Bold,
                 InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
@@ -456,42 +449,18 @@ namespace EDNA.Investigation
                 Anchor(openNotebook.GetComponent<RectTransform>(), 0f, 0f, 0f, 1f, x, 0f, x + 136f, 0f);
             }
             options.gameObject.SetActive(optionsWidth > 0f);
-            Image portrait = CreateStatusIcon(inline ? "Edna Introduction Portrait" : "Edna Portrait", bubble, ednaPortrait, Color.white);
-            if (inline)
+            Image portrait = CreateStatusIcon("Edna Portrait", bubble, ednaPortrait, Color.white);
+            float rightInset = EdnaPortraitWidth + 66f;
+            Anchor(portrait.rectTransform, 1f, 0f, 1f, 1f, -EdnaPortraitWidth, 0f, -2f, 2f);
+            if (ednaOptionsInLine)
             {
-                RectTransform parentRect = (RectTransform)parent;
-                float textHeight = MeasureEdnaText(EdnaMessage(), parentRect.rect.width - 32f) + 4f;
-                float textBottom = 52f + textHeight;
-                Anchor(message.rectTransform, 0f, 1f, 1f, 1f, 16f, -textBottom, -16f, -52f);
-                Anchor(options, 0f, 1f, 0f, 1f, 16f, -textBottom - 52f, 16f + optionsWidth, -textBottom - 8f);
-                float locatorTop = textBottom + (optionsWidth > 0f ? 60f : 8f);
-                float reserved = locatorTop + 40f;
-                float portraitHeight = Mathf.Max(120f, parentRect.rect.height - reserved);
-                float portraitWidth = Mathf.Min(parentRect.rect.width * .70f, portraitHeight * ednaPortrait.rect.width / ednaPortrait.rect.height);
-                portraitHeight = portraitWidth * ednaPortrait.rect.height / ednaPortrait.rect.width;
-                Anchor(portrait.rectTransform, 1f, 0f, 1f, 0f, -portraitWidth, 0f, -2f, portraitHeight);
-                Text locator = CreateText("Edna Intro Locator", bubble, "Find EDNA at the top right.", 13, FontStyle.Bold,
-                    InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
-                Anchor(locator.rectTransform, 0f, 1f, 1f, 1f, 54f, -locatorTop - 34f, -16f, -locatorTop);
-                InvestigationGuideArrowGraphic arrow = CreateGraphic<InvestigationGuideArrowGraphic>("Find Edna Arrow", bubble);
-                arrow.color = InvestigationTheme.PaperSelectedBorder;
-                Anchor(arrow.rectTransform, 0f, 1f, 0f, 1f, 18f, -locatorTop - 32f, 48f, -locatorTop - 2f);
-                arrow.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 135f);
+                Anchor(message.rectTransform, 0f, 0f, 1f, 1f, 16f, 12f, -rightInset - optionsWidth - 12f, -ednaHeaderHeight);
+                Anchor(options, 1f, .5f, 1f, .5f, -rightInset - optionsWidth, -32f, -rightInset, 12f);
             }
             else
             {
-                float rightInset = EdnaPortraitWidth + 66f;
-                Anchor(portrait.rectTransform, 1f, 0f, 1f, 1f, -EdnaPortraitWidth, 0f, -2f, 2f);
-                if (ednaOptionsInLine)
-                {
-                    Anchor(message.rectTransform, 0f, 0f, 1f, 1f, 16f, 12f, -rightInset - optionsWidth - 12f, -ednaHeaderHeight);
-                    Anchor(options, 1f, .5f, 1f, .5f, -rightInset - optionsWidth, -32f, -rightInset, 12f);
-                }
-                else
-                {
-                    Anchor(message.rectTransform, 0f, 0f, 1f, 1f, 16f, optionsWidth > 0f ? 64f : 12f, -rightInset, -ednaHeaderHeight);
-                    Anchor(options, 0f, 0f, 0f, 0f, 16f, 10f, 16f + optionsWidth, 54f);
-                }
+                Anchor(message.rectTransform, 0f, 0f, 1f, 1f, 16f, optionsWidth > 0f ? 64f : 12f, -rightInset, -ednaHeaderHeight);
+                Anchor(options, 0f, 0f, 0f, 0f, 16f, 10f, 16f + optionsWidth, 54f);
             }
             return bubble;
         }

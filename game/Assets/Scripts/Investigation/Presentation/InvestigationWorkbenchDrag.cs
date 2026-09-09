@@ -12,7 +12,8 @@ namespace EDNA.Investigation
         private RectTransform ghost;
         private RectTransform canvas;
         private string title;
-        public void Configure(string kind, string value, string label) { Kind = kind; Value = value; title = label; }
+        private Action<RectTransform> createPreview;
+        public void Configure(string kind, string value, string label, Action<RectTransform> preview = null) { Kind = kind; Value = value; title = label; createPreview = preview; }
         public void OnBeginDrag(PointerEventData eventData)
         {
             Canvas owner = GetComponentInParent<Canvas>();
@@ -23,6 +24,11 @@ namespace EDNA.Investigation
             ghost.sizeDelta = new Vector2(180f, 56f);
             ghost.GetComponent<Image>().color = InvestigationTheme.SurfaceRaised;
             CanvasGroup group = ghost.GetComponent<CanvasGroup>(); group.blocksRaycasts = false; group.interactable = false; group.alpha = .9f;
+            if (createPreview != null)
+            {
+                ghost.sizeDelta = new Vector2(120f, 72f);
+                createPreview(ghost); OnDrag(eventData); return;
+            }
             Text text = new GameObject("Label", typeof(RectTransform), typeof(Text)).GetComponent<Text>();
             text.transform.SetParent(ghost, false); text.rectTransform.anchorMin = Vector2.zero; text.rectTransform.anchorMax = Vector2.one;
             text.rectTransform.offsetMin = new Vector2(8f, 4f); text.rectTransform.offsetMax = new Vector2(-8f, -4f);

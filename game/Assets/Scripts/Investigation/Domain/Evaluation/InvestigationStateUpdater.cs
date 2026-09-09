@@ -481,6 +481,29 @@ namespace EDNA.Investigation.Domain
             return true;
         }
 
+        public InvestigationConclusionResult SubmitModelConclusion(InvestigationState state, string selectedThreatId)
+        {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            if (state.ConclusionStatus == InvestigationConclusionStatus.Correct)
+                return new InvestigationConclusionResult(InvestigationConclusionStatus.Correct, "Conclusion already recorded.");
+            var result = conclusionEvaluator.EvaluateModelConclusion(caseDefinition, state, selectedThreatId);
+            if (result.Status == InvestigationConclusionStatus.InsufficientEvidence) return result;
+            state.FinalThreatId = selectedThreatId;
+            // Export only findings actually gathered in Observe. Do not discover
+            // ROV evidence or pretend that a confirmation survey was reviewed.
+            var previous = new System.Collections.Generic.List<string>(state.SelectedReportEvidenceIds);
+            foreach (string id in previous) state.SetEvidenceSelected(id, false);
+            foreach (var observation in caseDefinition.Observations)
+                if (InvestigationObserveEvaluator.IsInitialFinding(observation) && state.HasDiscoveredObservation(observation.EvidenceId))
+                    state.SetEvidenceSelected(observation.EvidenceId, true);
+            state.SelectedReasoningId = caseDefinition.RequiredReasoningId;
+            if (string.IsNullOrEmpty(state.SelectedLimitationId) && caseDefinition.Limitations.Count > 0)
+                state.SelectedLimitationId = caseDefinition.Limitations[0].LimitationId;
+            state.RecordFinalSubmission(result.Status);
+            state.ConclusionStatus = result.Status;
+            return result;
+        }
+
         public InvestigationConclusionResult SubmitFinal(InvestigationState state)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));

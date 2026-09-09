@@ -56,15 +56,16 @@ namespace EDNA.Investigation
             if (checkpoint == InvestigationQaCheckpoint.SimulateComplete) return state;
 
             Require(updater.TrySubmitProvisional(state, "longline", out string provisionalFeedback), provisionalFeedback);
-            if (checkpoint == InvestigationQaCheckpoint.ReportReady) return state;
+            if (checkpoint == InvestigationQaCheckpoint.ReportReady || checkpoint == InvestigationQaCheckpoint.FinalReportReady) return state;
+            if (checkpoint == InvestigationQaCheckpoint.CaseClosed)
+            {
+                var modelResult = updater.SubmitModelConclusion(state, "longline");
+                Require(modelResult.Status == InvestigationConclusionStatus.Correct, modelResult.Feedback);
+                return state;
+            }
 
             Require(updater.TryReviewConfirmation(state, out string confirmationFeedback), confirmationFeedback);
             if (checkpoint == InvestigationQaCheckpoint.ReportQuestions) return state;
-            if (checkpoint == InvestigationQaCheckpoint.CaseClosed)
-            {
-                InvestigationConclusionResult result = updater.SubmitFinal(state);
-                Require(result.Status == InvestigationConclusionStatus.Correct, result.Feedback);
-            }
             return state;
         }
 

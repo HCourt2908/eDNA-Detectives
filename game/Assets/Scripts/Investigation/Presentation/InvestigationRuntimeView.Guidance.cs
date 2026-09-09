@@ -88,9 +88,9 @@ namespace EDNA.Investigation
                 return new InvestigationGuidance(
                     InvestigationGuidanceStep.ObserveFirstFinding,
                     "OBSERVE",
-                    "I'm Edna. Help me find what changed here, and why. Answer my first survey question to begin.",
-                    "Slide between the two surveys to compare the highlighted organism.",
-                    "Choose an answer beside the survey. I will record the finding in your notebook.");
+                    "I'm Edna. Help me find what changed here, and why. Compare the records in your notebook to begin.",
+                    "Check each species in both dated notebook sections.",
+                    "Drag a species into More, Fewer, Not detected or Same.");
             }
             if (remaining > 0)
             {
@@ -106,9 +106,9 @@ namespace EDNA.Investigation
                 return new InvestigationGuidance(
                     InvestigationGuidanceStep.ObserveRemainingFindings,
                     "OBSERVE",
-                    $"{response} Answer {remaining} more question{(remaining == 1 ? string.Empty : "s")}.",
+                    $"{response} Compare {remaining} more record{(remaining == 1 ? string.Empty : "s")}.",
                     "Stable species are useful comparisons too. Match each organism with the highlighted one in the baseline.",
-                    $"Answer Edna's next survey question. You still need {remaining} more notebook entr{(remaining == 1 ? "y" : "ies")}.");
+                    $"Sort another species by its change in detection. You still need {remaining} more notebook entr{(remaining == 1 ? "y" : "ies")}.");
             }
             return new InvestigationGuidance(
                     InvestigationGuidanceStep.ObserveComplete,
@@ -256,7 +256,7 @@ namespace EDNA.Investigation
 
         private void ShowReferenceSurveyNotice()
         {
-            statusMessage = "This is the 20-year reference survey. Compare it with today, then answer Edna's question to record a finding.";
+            statusMessage = "This is the 20-year reference survey. Return to the record table to compare it with today.";
             statusTone = InvestigationStatusTone.Notice;
             RenderChrome();
         }

@@ -16,43 +16,64 @@ namespace EDNA.Investigation.Tests
         }
         public static void SetLensFor(string name)
         {
+            if ((name.StartsWith("Species Marker ") || name.StartsWith("Historical Species Marker "))
+                && GameObject.Find("Survey Time Lens") == null && GameObject.Find("Toggle Comparison View") != null) Press("Toggle Comparison View");
             Slider lens = GameObject.Find("Survey Time Lens")?.GetComponent<Slider>();
             if (lens != null && name.StartsWith("Species Marker ")) lens.value = 0f;
             if (lens != null && name.StartsWith("Historical Species Marker ")) lens.value = 1f;
             Canvas.ForceUpdateCanvases();
         }
+        public static void BeginTodayRecording()
+        {
+            for (int step = 0; step < 2 && GameObject.Find("Arrival Briefing Next") != null; step++) Press("Arrival Briefing Next");
+            if (GameObject.Find("Start Recording Today") != null) Press("Start Recording Today");
+        }
+        public static void BeginObserveQuestions(bool finishBriefing = true)
+        {
+            BeginTodayRecording();
+            if (GameObject.Find("Skip Today Recording Animation") != null) Press("Skip Today Recording Animation");
+            if (GameObject.Find("Compare With History") != null) Press("Compare With History");
+            if (GameObject.Find("History Lens Briefing Next") != null) Press("History Lens Briefing Next");
+            if (GameObject.Find("Start Recording History") != null)
+            {
+                GameObject.Find("Survey Time Lens").GetComponent<Slider>().value = 1f;
+                Press("Start Recording History");
+            }
+            if (GameObject.Find("Skip History Recording Animation") != null) Press("Skip History Recording Animation");
+            if (GameObject.Find("Compare Recorded Surveys") != null)
+            {
+                Press("Compare Recorded Surveys");
+            }
+            if (finishBriefing)
+                for (int step = 0; step < 3 && GameObject.Find("Comparison Briefing Next") != null; step++)
+                    Press("Comparison Briefing Next");
+        }
         public static void Record(string name)
         {
+            BeginObserveQuestions();
             string id = name.Replace("Species Marker ", "");
             var controller = Object.FindAnyObjectByType<InvestigationController>();
             string evidence = id == "shark" ? "E01_SHARK_NONDETECTION" : id == "tuna" ? "E02_TUNA_WIDER_DETECTION"
                 : id == "krill" ? "E03_KRILL_NONDETECTION" : id == "sea_star" ? "E04_BENTHIC_STABLE" : "E06_PLASTIC_INDICATOR_STABLE";
             if (controller.State.HasDiscoveredObservation(evidence)) return;
-            Press("Observe Answer " + (id == "shark" || id == "krill" ? "NotDetected" : id == "tuna" ? "MoreSites" : "Stable"));
-            Assert.That(controller.State.HasDiscoveredObservation(evidence), Is.True, "Answer the current Edna question: " + id);
+            if (GameObject.Find("Comparison Seamount") != null) Press("Toggle Comparison View");
+            Press("Compare Species " + id);
+            Press("Compare Change " + (id == "shark" || id == "krill" ? "NotDetected" : id == "tuna" ? "More" : "Same"));
+            Assert.That(controller.State.HasDiscoveredObservation(evidence), Is.True, "Classify the saved survey record: " + id);
+        }
+        public static void ShowSurveySummary()
+        {
+            if (GameObject.Find("Summarize Findings") == null) return;
+            bool previous = InvestigationMotionSettings.ReducedMotion;
+            try { InvestigationMotionSettings.SetReducedMotionForTests(true); Press("Summarize Findings"); }
+            finally { InvestigationMotionSettings.SetReducedMotionForTests(previous); }
         }
         public static void EnterSimulate(string name)
         {
+            ShowSurveySummary();
             Press(name);
-            if (GameObject.Find("Food Web Assembly") == null) return;
-            Press("Connect Species shark"); Press("Connect Species tuna");
-            Press("Connect Species tuna"); Press("Connect Species krill");
-        }
-        public static void CompleteCameraCapture()
-        {
-            Slider sweep = GameObject.Find("ROV Camera Sweep")?.GetComponent<Slider>();
-            if (sweep == null) return;
-            sweep.value = .15f; sweep.value = .5f; sweep.value = .85f;
-            Press("Pin ROV Finding");
-        }
-        public static void InspectRov(string name) { Press(name); CompleteCameraCapture(); }
-        public static void ConnectCluesToArgument(string name)
-        {
-            // Clear existing attachments before reconsidering their roles.
-            Press("Argument Slot main"); Press("Argument Slot cross");
-            Press(name); Press("Argument Slot main");
-            Press(name.EndsWith("Seafloor") ? "Report Key Clue FoodWeb" : "Report Key Clue Seafloor");
-            Press("Argument Slot cross"); Press("Discuss Connected Clues");
+            if (GameObject.Find("Finish Saving Summary") != null) Press("Finish Saving Summary");
+            if (GameObject.Find("Continue To Simulate") != null && GameObject.Find("Observe Survey Story") != null) Press("Continue To Simulate");
         }
     }
 }

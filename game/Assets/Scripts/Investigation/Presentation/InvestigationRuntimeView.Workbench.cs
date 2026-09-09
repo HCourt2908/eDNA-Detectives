@@ -9,9 +9,9 @@ namespace EDNA.Investigation
 {
     public sealed partial class InvestigationRuntimeView
     {
-        private float surveyLensValue = .5f;
+        private float surveyLensValue;
         private bool surveyLensExplored;
-        private string observeQuestionFeedback = string.Empty;
+        private string observeComparisonFeedback = string.Empty;
         private string workbenchFeedback = string.Empty;
         private readonly HashSet<string> workbenchLinks = new HashSet<string>(StringComparer.Ordinal);
         private string workbenchLinkSource = string.Empty;
@@ -22,7 +22,11 @@ namespace EDNA.Investigation
 
         private void ResetWorkbench()
         {
-            surveyLensValue = .5f; surveyLensExplored = false; observeQuestionFeedback = string.Empty; workbenchFeedback = string.Empty;
+            ResetObserveArrival();
+            ResetObserveSummary();
+            ResetComparisonBriefing();
+            selectedComparisonSpecies = string.Empty; observeMapOpen = false; comparisonNotebookScrollOffset = 0f;
+            surveyLensValue = 0f; surveyLensExplored = false; observeComparisonFeedback = string.Empty; workbenchFeedback = string.Empty;
             workbenchLinks.Clear(); workbenchLinkSource = string.Empty; workbenchFoodWebReady = false;
             workbenchInspectPrediction = false; restingExperiments.Clear(); workbenchEvidence = string.Empty;
             rovScanId = string.Empty; rovScanProgress = 0f; rovScanRegions = 0; rovScanFound = false;
@@ -84,7 +88,7 @@ namespace EDNA.Investigation
             divider.GetComponent<Image>().raycastTarget = false;
             RectTransform controls = CreatePanel("Survey Lens Controls", parent, Color.clear, 0f);
             Anchor(controls, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 48f);
-            Slider slider = CreateWorkbenchSlider("Survey Time Lens", controls, surveyLensValue, v => surveyLensValue = v);
+            Slider slider = CreateWorkbenchSlider("Survey Time Lens", controls, surveyLensValue, v => { surveyLensValue = v; UpdateHistoryRecordingPrompt(); });
             Stretch(slider.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f);
             maps.gameObject.AddComponent<InvestigationSurveyLens>().Configure(mask, divider, slider);
             current.gameObject.AddComponent<InvestigationLensRaycastFilter>().Configure(slider);
@@ -92,7 +96,7 @@ namespace EDNA.Investigation
             FindNamedRect(current, "Survey Title").gameObject.SetActive(false);
             Text today = CreateText("Lens Today Label", maps, "Today", 18, FontStyle.Bold, InvestigationTheme.Primary,
                 TextAnchor.UpperRight, InvestigationTheme.DisplayFont);
-            Anchor(today.rectTransform, .7f, .88f, 1f, 1f, 0f, 0f, -14f, -10f);
+            Anchor(today.rectTransform, .7f, 1f, 1f, 1f, 0f, -44f, -14f, -10f);
             today.gameObject.SetActive(surveyLensValue < .99f);
             Text historyTitle = FindNamedRect(historical, "Survey Title").GetComponent<Text>();
             historyTitle.gameObject.SetActive(surveyLensValue > .01f);
@@ -101,7 +105,8 @@ namespace EDNA.Investigation
                 today.gameObject.SetActive(v < .99f);
                 historyTitle.gameObject.SetActive(v > .01f);
             });
-            if (!surveyLensExplored)
+            slider.interactable = CanSlideSurveyLens;
+            if (CanSlideSurveyLens && !surveyLensExplored)
             {
                 AddChoiceBorderCue("Survey Lens Handle Cue", slider.handleRect);
                 RectTransform cue = FindNamedRect(slider.handleRect, "Survey Lens Handle Cue");
@@ -117,13 +122,12 @@ namespace EDNA.Investigation
             RectTransform handleArea = FindNamedRect(slider.transform, "Handle Area");
             Stretch(handleArea, 20f, 18f, -20f, -2f);
             Anchor(FindNamedRect(slider.transform, "Track"), 0f, .66f, 1f, .66f, 16f, -2f, -16f, 2f);
-            Text caption = CreateText("Survey Lens Caption", slider.transform, "Today  ←  slide to compare  →  20 years ago", 12, FontStyle.Bold,
+            Text caption = CreateText("Survey Lens Caption", slider.transform, CanSlideSurveyLens ? "Today  ←  slide to compare  →  20 years ago"
+                : RecordingEra == SurveyEra.Historical ? "20 YEARS AGO · Record this survey" : "TODAY · Record this survey before comparing", 12, FontStyle.Bold,
                 InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
             Anchor(caption.rectTransform, 0f, 0f, 1f, 0f, 42f, 0f, -42f, 18f);
             caption.raycastTarget = false;
         }
-
-        private enum ObserveAnswer { NotDetected, MoreSites, FewerSites, Stable }
 
         private InvestigationObservationDefinition ObserveQuestion
         {
@@ -135,107 +139,6 @@ namespace EDNA.Investigation
                         && !state.HasDiscoveredObservation(finding.EvidenceId)) return finding;
                 return null;
             }
-        }
-
-        private static ObserveAnswer AnswerForFinding(InvestigationObservationDefinition finding)
-        {
-            switch (finding.ClaimType)
-            {
-                case ObservationClaimType.NotDetected: return ObserveAnswer.NotDetected;
-                case ObservationClaimType.ChangedDepthOrDistribution:
-                case ObservationClaimType.NewDetection: return ObserveAnswer.MoreSites;
-                default: return ObserveAnswer.Stable;
-            }
-        }
-
-        private static string ObserveAnswerLabel(ObserveAnswer answer)
-        {
-            switch (answer)
-            {
-                case ObserveAnswer.NotDetected: return "Not detected today";
-                case ObserveAnswer.MoreSites: return "Detected at more sites";
-                case ObserveAnswer.FewerSites: return "Detected at fewer sites";
-                default: return "About the same";
-            }
-        }
-
-        private RectTransform RenderObserveQuestion(Transform parent)
-        {
-            InvestigationObservationDefinition finding = ObserveQuestion;
-            if (finding == null) return null;
-            EnsureEdnaArtwork();
-            RectTransform panel = CreatePanel("Observe Question", parent, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
-            VerticalLayoutGroup layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.padding = new RectOffset(16, 16, 12, 12); layout.spacing = 8f;
-            layout.childControlWidth = layout.childControlHeight = true;
-            layout.childForceExpandWidth = true; layout.childForceExpandHeight = false;
-            RectTransform header = CreatePanel("Observe Edna Header", panel, Color.clear, 0f);
-            AddLayout(header, 74f, 0f);
-            Image portrait = CreateStatusIcon("Edna Introduction Portrait", header, ednaPortrait, Color.white);
-            Anchor(portrait.rectTransform, 1f, 0f, 1f, 1f, -66f, 0f, 0f, 4f);
-            Text name = CreateText("Edna Name", header, $"EDNA · {CountInitialFindings() + 1}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)}", 13,
-                FontStyle.Bold, InvestigationTheme.PaperSelectedBorder, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
-            Anchor(name.rectTransform, 0f, .6f, 1f, 1f, 0f, 0f, -70f, 0f);
-            Text locator = CreateText("Edna Intro Locator", header, "Find EDNA at the top right.", 14,
-                FontStyle.Bold, InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
-            Anchor(locator.rectTransform, 0f, 0f, 1f, .62f, 0f, 0f, -70f, 0f);
-            string species = caseDefinition.FindSpecies(finding.RelatedSpeciesId)?.GameplayName ?? finding.DisplayName;
-            Text question = CreateText("Observe Question Text", panel, $"What changed for {species} in today's survey?", 19,
-                FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
-            ConfigureContentDrivenText(question);
-            Text instruction = CreateText("Observe Question Instruction", panel, "Slide to compare both surveys, then choose.", 14,
-                FontStyle.Bold, InvestigationTheme.PaperMuted, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
-            ConfigureContentDrivenText(instruction);
-            // Shuffle once per question/session, preserving order through retries and notebook visits.
-            var answers = new List<ObserveAnswer>((ObserveAnswer[])Enum.GetValues(typeof(ObserveAnswer)));
-            int seed = unchecked((int)InvestigationSpeciesMapLayout.StableOrder(observeLayoutSessionSeed, finding.EvidenceId, DepthBand.Shallow, false));
-            var random = new System.Random(seed);
-            for (int i = answers.Count - 1; i > 0; i--)
-            {
-                int j = random.Next(i + 1); ObserveAnswer swap = answers[i]; answers[i] = answers[j]; answers[j] = swap;
-            }
-            RectTransform choices = new GameObject("Observe Answer Choices", typeof(RectTransform), typeof(InvestigationResponsiveGridLayout)).GetComponent<RectTransform>();
-            choices.SetParent(panel, false);
-            choices.GetComponent<InvestigationResponsiveGridLayout>().Configure(2, 2, 2, 60f, 8f);
-            foreach (ObserveAnswer answer in answers)
-            {
-                Button choice = CreateButton("Observe Answer " + answer, choices, ObserveAnswerLabel(answer), ButtonVisualStyle.PaperChoice,
-                    () => AnswerObserveQuestion(finding.EvidenceId, answer), out Text label);
-                ConfigureWrappingChoice(choice, label);
-            }
-            Text feedback = CreateText("Observe Question Feedback", panel,
-                string.IsNullOrEmpty(observeQuestionFeedback) ? "Symbols show survey detections, not animal counts." : observeQuestionFeedback,
-                14, FontStyle.Bold, InvestigationTheme.PaperMuted, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
-            ConfigureContentDrivenText(feedback);
-            if (CountInitialFindings() > 0)
-            {
-                RectTransform footer = CreatePanel("Observe Notebook Tools", panel, Color.clear, 0f);
-                AddLayout(footer, 50f, 0f);
-                Button notebook = CreateNotebookDrawerButton(footer);
-                Anchor(notebook.GetComponent<RectTransform>(), 0f, 0f, 0f, 1f, 0f, 0f, 62f, 0f);
-                Text note = CreateText("Observe Notebook Tip", footer,
-                    notebookHasBeenOpened ? "Your findings are saved here." : "Open your notebook to revisit a finding and its evidence.",
-                    14, FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
-                Stretch(note.rectTransform, 70f, 0f, 0f, 0f);
-            }
-            return panel;
-        }
-
-        private void AnswerObserveQuestion(string evidenceId, ObserveAnswer answer)
-        {
-            InvestigationObservationDefinition finding = ObserveQuestion;
-            // A queued click from a previous question must not answer the next one.
-            if (finding == null || finding.EvidenceId != evidenceId) return;
-            if (answer != AnswerForFinding(finding))
-            {
-                observeQuestionFeedback = "Take another look: slide all the way to each end. Compare the highlighted organism's survey symbols.";
-                RefreshPresentationOnly(); return;
-            }
-            observeQuestionFeedback = "Recorded: " + finding.DisplayName.TrimEnd('.') + "."
-                + (finding.ClaimType == ObservationClaimType.NotDetected ? " Not detected does not mean gone." : string.Empty);
-            lastRecordedObservationId = finding.EvidenceId;
-            pendingTappedSpeciesId = string.Empty;
-            discoverObservation?.Invoke(finding.EvidenceId);
         }
 
         private void AddWorkbenchDrag(Button button, string kind, string id, string label)
