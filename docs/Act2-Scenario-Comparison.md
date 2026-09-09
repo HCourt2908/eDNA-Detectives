@@ -121,32 +121,9 @@ playback component owns callbacks, while presenter timestamps survive UI rebuild
 The three-node teaching model and current authored cause predictions are retained;
 this does not introduce the five-node Figma reference chain as a new simulation.
 
-## Validation
+## Development
 
-Use `InvestigationScenarioFlowTests` for the revised player contract: auto-assembly,
-common baseline, interruption/replay, immutable records, wrong-choice feedback,
-aggregate audit, ROV/report handoff, Observe return and restart/reduced-motion paths.
-Superseded manual-linking, per-prediction and ROV UI checks have been retired or
-migrated with explicit replacement coverage. See [validation and migration](Investigation-Validation.md).
-Test snapshots and render previews should use a separate Unity copy.
-
-`InvestigationScenarioBriefingTests` covers introduction order and stale callbacks,
-unchanged progress, contextual results/comparison/conflict prompts, manual-help
-pause/resume, compact layout, pointer input blocking and cleanup when leaving Act 2.
-`InvestigationScenarioDockTests` additionally verifies the notebook flight, constant
-workbench bounds, permanent access to the notebook, and pinned ROV controls.
-`InvestigationScenarioPopulationTests` verifies visible arrivals/departures, the
-final hold, a common baseline on replay, and matching population imagery on cards.
-`InvestigationScenarioEndingTests` verifies the finding-only summary, no new ROV
-discoveries or exported evidence, explicit submission, stale-click protection, re-comparison, QA restart and
-single-screen bounds throughout the ending.
-`InvestigationScenarioCardsTests` checks passive titles/backgrounds, explicit Play
-and Replay controls, fixed card bounds, and unfinished-result/choice gating.
-On 2026-09-09, the dedicated Unity 6000.4.6f1 validation copy passed all 22 tests
-across these six suites. Runtime screenshots also exercise the guide at 1280×720
-and at a 720-unit logical canvas width. This validates the isolated Act 2 change;
-This historical targeted run is not the full-suite release gate; current whole-project
-results and build coverage are recorded in [Investigation-Validation.md](Investigation-Validation.md).
-
-The 59 EditMode domain tests also pass, including the new model-only completion,
-incomplete/wrong-model rejection, export filtering and unchanged legacy report gate.
+The automated EditMode and PlayMode suites are maintained alongside the game.
+See [development and validation](../ECOSYSTEM_DETECTIVE.md#development-and-validation)
+for Unity commands and the full-suite handoff checks. Test reports and render
+previews stay local; use a separate Unity copy for validation captures.

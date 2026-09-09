@@ -2,8 +2,7 @@
 
 Current behaviour as of 2026-09-09. This is the primary gameplay specification for
 our part of the OceanX eDNA Detectives Unity project. Implementation details for
-the second act are in [Act 2](docs/Act2-Scenario-Comparison.md); superseded plans
-are explicitly archived and are not instructions for the current build.
+the second act are in [Act 2](docs/Act2-Scenario-Comparison.md).
 
 Players collect and compare two dated surveys in **Observe**, then use three
 animated prediction cards in **Investigate**. EDNA guides both acts. Choosing a
@@ -246,9 +245,8 @@ Unity menu commands:
 
 Assemblies: `EDNA.Investigation.EditModeTests` and
 `EDNA.Investigation.PlayModeTests`. Run the **full** suites before handoff; do not
-use only the new Scenario fixtures as a substitute. Commands, current validation
-results and the old-to-new test mapping are documented in
-[Validation](docs/Investigation-Validation.md).
+use only the new Scenario fixtures as a substitute. Test results, migration mappings
+and review reports are local development artifacts and are not tracked in Git.
 
 The existing editor build validator provides macOS and WebGL development builds
 for the standalone Investigation scene. A successful macOS build does not claim

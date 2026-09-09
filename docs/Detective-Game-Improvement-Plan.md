@@ -1,31 +1,33 @@
-# Detective Game — 当前状态与后续计划
+# Detective Game — Current Status and Next Steps
 
-更新于 2026-09-09。当前流程以 [ECOSYSTEM_DETECTIVE.md](../ECOSYSTEM_DETECTIVE.md)
-为准；第二幕细节见 [Act2-Scenario-Comparison.md](Act2-Scenario-Comparison.md)。
-原来的逐日讨论已移至 [历史记录](archive/Detective-Game-Improvement-History.md)，
-其中三幕、ROV、逐条证据问答和拖放食物链等方案均不是当前玩法要求。
+Updated 2026-09-09. The current gameplay specification is
+[ECOSYSTEM_DETECTIVE.md](../ECOSYSTEM_DETECTIVE.md); implementation details for
+Act 2 are in [Act2-Scenario-Comparison.md](Act2-Scenario-Comparison.md).
 
-## 已完成
+## Completed
 
-- 第一幕：Today 开场，历史/今天分别收集；分类前用 EDNA 高亮介绍笔记本、物种和变化区。
-- 物种可拖放或点选分类，稳定记录同样需要比较；错误不泄露答案、不额外扣分。
-- 第一幕完成后，玩家明确汇总并保存双年代图示；记录/引导可跳过动画，不能跳过事实判断。
-- 第二幕：三个原因卡片从开始到结束保持同一布局，标题前有图标，独立 Play/Replay。
-- 卡片内用 3→5、3→1、3→3 的相对图示、进度和局部高亮表示模型变化；未完成的首次播放不计完成。
-- EDNA 常驻，笔记本只留图标；主体不需要上下滚动，笔记本可单独阅读。
-- 结尾只总结已有的五条观察和模型比较；记录结论或返回比较，不再加入 ROV、鱼线或海床证据。
-- 结论明确为三个已测试模型中的最佳匹配，不等于证明原因或完全不存在某物种。
-- QA 最终检查点、输出证据和结案逻辑均使用调查/模型路径。
+- Observe starts with Today and records the current and historical surveys separately. EDNA introduces the notebook, species and change categories with highlights before classification.
+- Players drag species or select a category to compare findings, including stable records. Incorrect attempts do not reveal the answer or add a penalty.
+- Players explicitly summarize and save both dated surveys. Recording and guide animations can be skipped without skipping the comparison decisions.
+- Investigate keeps three cause cards in a consistent layout, with title icons and separate Play/Replay controls.
+- Relative imagery changes from 3 to 5, 3 to 1 or 3 to 3, supported by progress and local highlights. An interrupted first playback does not count as completed.
+- EDNA remains available, and the notebook uses an icon button. The main screen stays within the viewport; the notebook scrolls independently.
+- The ending summarizes the five existing findings and model comparisons. Players record their conclusion or return to compare; it adds no ROV, fishing-line or seabed evidence.
+- The conclusion identifies the best match among the three tested models. It does not claim proof of a cause or that a species is completely absent.
+- QA completion checkpoints, exported evidence and conclusion logic use the survey/model path.
 
-## 本次维护收尾
+## Maintenance
 
-迁移仍有价值的启动、导航、输入、模式、笔记本和通关测试；删除已移除交互的重复检查，
-保留旧领域报告规则的兼容性验证。每项迁移及替代覆盖见
-[Investigation-Validation.md](Investigation-Validation.md)。更新文档不替代实际回归测试和构建。
+Startup, navigation, input, mode, notebook and completion tests follow the current
+flow. Superseded interaction checks have been removed or replaced, while legacy
+domain report rules retain compatibility coverage. Test reports, review notes and
+superseded planning history stay local. See the
+[development instructions](../ECOSYSTEM_DETECTIVE.md#development-and-validation)
+for the test suites and Unity validation commands.
 
-## 后续独立工作
+## Follow-up Work
 
-1. 与 identification minigame 的真实生产端共同验证输入/输出；现有独立样例和契约测试不能等同于真实整合完成。
-2. 做玩家试测，观察是否理解“检出变化”与“动物数量”的区别，以及稳定物种为什么重要。
-3. 根据实际部署目标执行 WebGL/触屏设备验证和性能检查；macOS 开发构建仅覆盖一个目标。
-4. 新增生态关系、调查情景或改变科学结论时，先审核内容并补充对应规则与流程测试。
+1. Validate input/output with the actual identification minigame producer. Standalone examples and contract tests do not establish completed integration.
+2. Run player studies to check understanding of detection changes versus animal counts, and why stable species matter.
+3. Validate WebGL, touch input and performance on the intended deployment devices. A macOS development build covers only one target.
+4. Review scientific content and update rule and flow coverage before adding ecological relationships, survey cases or changes to the conclusion.

@@ -34,3 +34,10 @@ docs/meeting-summary.md
 
 # Local design plan for the investigation/deduction prototype
 docs/Investigation-Part-Plan.md
+
+# Local validation and review reports (keep automated test source tracked)
+docs/Investigation-Validation.md
+docs/Investigation-Review-*.md
+
+# Superseded local planning history
+docs/archive/Detective-Game-Improvement-History.md

@@ -11,4 +11,4 @@ conclusion using their existing findings.
 
 - [Current gameplay and integration specification](ECOSYSTEM_DETECTIVE.md)
 - [Current implementation plan](docs/Detective-Game-Improvement-Plan.md)
-- [Test migration and validation](docs/Investigation-Validation.md)
+- [Development and validation commands](ECOSYSTEM_DETECTIVE.md#development-and-validation)
