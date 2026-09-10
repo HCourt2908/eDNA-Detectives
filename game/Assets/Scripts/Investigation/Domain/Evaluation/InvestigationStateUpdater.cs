@@ -348,6 +348,25 @@ namespace EDNA.Investigation.Domain
             return conclusionEvaluator.EvaluateReadiness(caseDefinition, state);
         }
 
+        public bool TryReviewModelExplanation(InvestigationState state, string threatId, out string feedback)
+        {
+            feedback = "Complete the survey and all model trials before reviewing an explanation.";
+            if (state == null || state.ConclusionStatus == InvestigationConclusionStatus.Correct
+                || (state.Phase != InvestigationPhase.Simulate && state.Phase != InvestigationPhase.Report)
+                || !InvestigationObserveEvaluator.IsComplete(caseDefinition, state)) return false;
+            foreach (var threat in caseDefinition.Threats)
+                if (!state.HasTriedThreat(threat.ThreatId)) return false;
+            if (!caseDefinition.SupportsModelConclusion(threatId))
+            {
+                feedback = "This model does not match the whole survey pattern. Compare the other explanations.";
+                return false;
+            }
+            if (!TrySubmitProvisional(state, threatId, out feedback)) return false;
+            state.RecordModelReview(threatId);
+            feedback = "Explanation reviewed. Review both the main explanation and possible alternative before recording your conclusion.";
+            return true;
+        }
+
         public bool TrySubmitProvisional(InvestigationState state, string threatId, out string feedback)
         {
             feedback = string.Empty;

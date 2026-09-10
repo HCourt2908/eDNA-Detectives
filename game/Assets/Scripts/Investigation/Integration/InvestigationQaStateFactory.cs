@@ -48,7 +48,9 @@ namespace EDNA.Investigation
                     objective.TargetId, objective.RequiredEvidenceId, objective.RequiredJudgement);
             if (checkpoint == InvestigationQaCheckpoint.SimulateComplete) return state;
 
-            Require(updater.TrySubmitProvisional(state, caseDefinition.PrimaryModelThreatId, out string provisionalFeedback), provisionalFeedback);
+            foreach (string id in caseDefinition.SupportedModelThreatIds)
+                Require(updater.TryReviewModelExplanation(state, id, out string reviewFeedback), reviewFeedback);
+            Require(updater.TryReviewModelExplanation(state, caseDefinition.PrimaryModelThreatId, out string provisionalFeedback), provisionalFeedback);
             if (checkpoint == InvestigationQaCheckpoint.ConclusionReady) return state;
             if (checkpoint == InvestigationQaCheckpoint.CaseClosed)
             {

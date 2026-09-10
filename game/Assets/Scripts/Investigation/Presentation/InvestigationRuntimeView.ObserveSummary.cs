@@ -103,7 +103,7 @@ namespace EDNA.Investigation
         private void RenderObserveSummary(Transform parent)
         {
             RectTransform picture = CreateSurveyStory(parent, "Observe Survey Story");
-            AddLayout(picture, Mathf.Clamp(contentPanel.rect.height - 170f, 310f, 440f), 0f);
+            AddLayout(picture, Mathf.Clamp(contentPanel.rect.height - 170f, 344f, 440f), 0f);
             RectTransform save = CreatePanel("Observe Summary Save", parent, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
             AddLayout(save, 74f, 0f);
             Button notebook = CreateButton("Summary Notebook Destination", save, string.Empty,
@@ -136,8 +136,18 @@ namespace EDNA.Investigation
             Anchor(title.rectTransform, 0f, 1f, 1f, 1f, 16f, -36f, -16f, -8f);
             bool notebook = objectName == "Notebook Survey Story";
             float cardsTop = notebook ? 242f : 106f;
-            CreateStoryEra(paper, SurveyEra.Historical, 0f, .49f, cardsTop + 10f);
-            CreateStoryEra(paper, SurveyEra.Current, .51f, 1f, cardsTop + 10f);
+            if (notebook)
+            {
+                // The drawer is too narrow for four shallow species in each of
+                // two side-by-side maps. Stack dates without resizing Act 2.
+                CreateStoryEra(paper, SurveyEra.Historical, 0f, 1f, cardsTop + 218f, 196f);
+                CreateStoryEra(paper, SurveyEra.Current, 0f, 1f, cardsTop + 10f, 196f);
+            }
+            else
+            {
+                CreateStoryEra(paper, SurveyEra.Historical, 0f, .49f, cardsTop + 10f);
+                CreateStoryEra(paper, SurveyEra.Current, .51f, 1f, cardsTop + 10f);
+            }
             var findings = ComparisonFindings();
             findings.RemoveAll(f => !state.HasDiscoveredObservation(f.EvidenceId) || caseDefinition.FindSpecies(f.RelatedSpeciesId) == null);
             for (int i = 0; i < findings.Count; i++)
@@ -186,33 +196,43 @@ namespace EDNA.Investigation
             return art;
         }
 
-        private void CreateStoryEra(RectTransform parent, SurveyEra era, float left, float right, float bottom)
+        private void CreateStoryEra(RectTransform parent, SurveyEra era, float left, float right, float bottom, float fixedHeight = 0f)
         {
             string key = era == SurveyEra.Historical ? "Past" : "Today";
             RectTransform sea = CreatePanel("Story " + key, parent, InvestigationTheme.SurfaceRaised, InvestigationTheme.CardRadius);
-            Anchor(sea, left, 0f, right, 1f, 12f, bottom, -12f, -42f);
+            if (fixedHeight > 0f) Anchor(sea, left, 0f, right, 0f, 12f, bottom, -12f, bottom + fixedHeight);
+            else Anchor(sea, left, 0f, right, 1f, 12f, bottom, -12f, -42f);
             RectTransform terrain = CreatePanel("Story Terrain", sea, Color.clear, 0f);
             Stretch(terrain, 0f, 0f, 0f, -28f);
             CreateSeamountVisual(terrain);
             Text date = CreateText("Story Date", sea, era == SurveyEra.Historical ? "20 YEARS AGO" : "TODAY", 14, FontStyle.Bold,
                 InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
             Anchor(date.rectTransform, 0f, 1f, 1f, 1f, 8f, -28f, -8f, -3f);
+            RectTransform plot = CreatePanel("Story Depth Plot", sea, Color.clear, 0f);
+            Stretch(plot, 8f, 24f, -8f, -28f);
             var speciesList = GetVisibleObserveSpecies();
-            for (int i = 0; i < speciesList.Count; i++)
+            foreach (DepthBand band in new[] { DepthBand.Shallow, DepthBand.Mid, DepthBand.Deep })
             {
-                var species = speciesList[i];
-                if (!ShouldDisplaySpeciesInEra(species, era) || ResolveSurveySummary(species, era)?.Detection != SpeciesDetectionState.Detected) continue;
-                Vector2 position = species.SpeciesId == "shark" ? new Vector2(.22f, .70f)
-                    : species.SpeciesId == "tuna" ? new Vector2(.72f, .65f)
-                    : species.SpeciesId == "krill" ? new Vector2(.76f, .40f)
-                    : species.SpeciesId == "atlantic_herring" ? new Vector2(.25f, .42f)
-                    : species.SpeciesId == "phytoplankton" ? new Vector2(.48f, .16f)
-                    : new Vector2(.15f + (i % 3) * .32f, .3f + (i / 3) * .18f);
-                RectTransform art = CreateStorySymbols("Story " + key + " Species " + species.SpeciesId, sea, species, era);
-                Anchor(art, position.x - .15f, position.y - .06f, position.x + .15f, position.y + .18f, 0f, 0f, 0f, 0f);
-                Text name = CreateText("Story Species Name", sea, species.GameplayName, 11,
-                    FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
-                Anchor(name.rectTransform, position.x - .21f, position.y - .15f, position.x + .21f, position.y - .04f, 0f, 0f, 0f, 0f);
+                var group = SurveySpeciesGroup(speciesList, era, band, false);
+                group.AddRange(SurveySpeciesGroup(speciesList, era, band, true));
+                for (int i = 0; i < group.Count; i++)
+                {
+                    var species = group[i];
+                    if (!ShouldDisplaySpeciesInEra(species, era)
+                        || ResolveSurveySummary(species, era)?.Detection != SpeciesDetectionState.Detected) continue;
+                    // The compact map uses three readable depth lanes. The
+                    // depth and stable order come from the same survey as Act 1.
+                    float y = band == DepthBand.Shallow ? .85f : band == DepthBand.Mid ? .45f : .05f;
+                    float cell = 1f / Mathf.Max(1, group.Count);
+                    float x = (i + .5f) * cell;
+                    RectTransform slot = CreatePanel("Story " + key + " Slot " + species.SpeciesId, plot, Color.clear, 0f);
+                    Anchor(slot, x - cell * .48f, y, x + cell * .48f, y, 0f, -31f, 0f, 23f);
+                    RectTransform art = CreateStorySymbols("Story " + key + " Species " + species.SpeciesId, slot, species, era);
+                    Anchor(art, 0f, 0f, 1f, 1f, 2f, 30f, -2f, 0f);
+                    Text name = CreateText("Story Species Name", slot, species.GameplayName, 10,
+                        FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperCenter, InvestigationTheme.BodyFont);
+                    Anchor(name.rectTransform, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 30f);
+                }
             }
         }
 

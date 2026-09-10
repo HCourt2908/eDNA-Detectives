@@ -14,6 +14,8 @@ namespace EDNA.Investigation.Domain
                 || !InvestigationObserveEvaluator.IsComplete(caseDefinition, state)
                 || !EvaluateReadiness(caseDefinition, state).RequiredObjectivesComplete) return false;
             foreach (var threat in caseDefinition.Threats) if (!state.HasTriedThreat(threat.ThreatId)) return false;
+            foreach (string id in caseDefinition.SupportedModelThreatIds)
+                if (!state.HasReviewedModel(id)) return false;
             return true;
         }
 
@@ -21,7 +23,7 @@ namespace EDNA.Investigation.Domain
         {
             if (!CanRecordModelConclusion(caseDefinition, state, selectedThreatId))
                 return new InvestigationConclusionResult(InvestigationConclusionStatus.InsufficientEvidence,
-                    "Record the survey findings and compare all three models before recording a conclusion.");
+                    "Record the survey, play all three models, and review both explanations before recording a conclusion.");
             if (!caseDefinition.SupportsModelConclusion(selectedThreatId))
                 return new InvestigationConclusionResult(InvestigationConclusionStatus.Incorrect,
                     "This model does not explain the whole survey pattern. Compare every link in the food chain.");

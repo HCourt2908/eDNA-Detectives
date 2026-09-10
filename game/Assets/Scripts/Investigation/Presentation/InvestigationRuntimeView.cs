@@ -107,6 +107,7 @@ namespace EDNA.Investigation
 
         public void ResetPresentationState()
         {
+            CloseScenarioDetail(false);
             RemoveRestartDialog();
             notebookFoodWebReferenceOpen = false;
             restartPausedAt = -1d;
@@ -369,6 +370,7 @@ namespace EDNA.Investigation
 
         private void RenderAll()
         {
+            CloseScenarioDetail(false);
             FocusSnapshot focusSnapshot = CaptureFocus();
             bool enteringCaseClosed = state != null
                 && hasRenderedPhase
@@ -1085,7 +1087,8 @@ namespace EDNA.Investigation
             Button[] buttons = root.GetComponentsInChildren<Button>(true);
             for (int index = 0; index < buttons.Length; index++)
             {
-                if (buttons[index].gameObject.activeInHierarchy && buttons[index].interactable)
+                if (buttons[index].gameObject.activeInHierarchy && buttons[index].interactable
+                    && !buttons[index].name.StartsWith("Detail ", StringComparison.Ordinal))
                     return buttons[index];
             }
             return null;

@@ -1059,7 +1059,7 @@ namespace EDNA.Investigation.Tests
         public void QaCheckpoint_ConclusionReady_UsesSurveyAndModelsWithoutRov()
         {
             InvestigationState manual = PrepareProvisionalReadyState();
-            Assert.That(updater.TrySubmitProvisional(manual, "longline", out _), Is.True);
+            ReviewModelPair(manual);
             InvestigationState checkpoint = InvestigationQaStateFactory.Create(caseDefinition, InvestigationQaCheckpoint.ConclusionReady);
             Assert.That(CanonicalSnapshot(checkpoint), Is.EqualTo(CanonicalSnapshot(manual)));
             Assert.That(new InvestigationConclusionEvaluator().CanRecordModelConclusion(caseDefinition, checkpoint, "longline"), Is.True);
@@ -1069,12 +1069,37 @@ namespace EDNA.Investigation.Tests
             Assert.That(updater.EvaluateReadiness(checkpoint).CanSubmitFinal, Is.False, "The legacy full-report gate must still require ROV evidence");
         }
 
+        private void ReviewModelPair(InvestigationState state, string selected = "longline")
+        {
+            foreach (string id in caseDefinition.SupportedModelThreatIds)
+                Assert.That(updater.TryReviewModelExplanation(state, id, out _), Is.True);
+            Assert.That(updater.TryReviewModelExplanation(state, selected, out _), Is.True);
+        }
+
+        [TestCase("longline", "bottom_trawling")]
+        [TestCase("bottom_trawling", "longline")]
+        public void ModelConclusion_RequiresTwoDistinctReviewsInEitherOrder(string first, string second)
+        {
+            var state = PrepareProvisionalReadyState();
+            Assert.That(updater.TryReviewModelExplanation(state, first, out _), Is.True);
+            Assert.That(updater.TryReviewModelExplanation(state, first, out _), Is.True);
+            Assert.That(state.ReviewedModelThreatIds.Count, Is.EqualTo(1));
+            Assert.That(updater.SubmitModelConclusion(state, first).Status, Is.EqualTo(InvestigationConclusionStatus.InsufficientEvidence));
+            Assert.That(state.FinalSubmissionAttemptCount, Is.Zero);
+            Assert.That(updater.TryReviewModelExplanation(state, "plastic", out _), Is.False);
+            Assert.That(updater.TryReviewModelExplanation(state, second, out _), Is.True);
+            Assert.That(state.ReviewedModelThreatIds, Is.EquivalentTo(new[] { first, second }));
+            Assert.That(updater.SubmitModelConclusion(state, second).Status, Is.EqualTo(InvestigationConclusionStatus.Correct));
+            Assert.That(updater.CreateInitialState().ReviewedModelThreatIds, Is.Empty);
+        }
+
         [Test]
         public void ModelConclusion_RecordsOnlyObservedEvidenceWithoutWeakeningLegacyReportGate()
         {
             var state = PrepareProvisionalReadyState();
             updater.TrySubmitProvisional(state, "longline", out _);
             Assert.That(updater.SubmitFinal(state).Status, Is.EqualTo(InvestigationConclusionStatus.InsufficientEvidence));
+            ReviewModelPair(state);
             var result = updater.SubmitModelConclusion(state, "longline");
             Assert.That(result.Status, Is.EqualTo(InvestigationConclusionStatus.Correct));
             Assert.That(state.DiscoveredObservationIds.Count, Is.EqualTo(5));
@@ -1092,7 +1117,7 @@ namespace EDNA.Investigation.Tests
             var initial = updater.CreateInitialState();
             Assert.That(updater.SubmitModelConclusion(initial, "longline").Status, Is.EqualTo(InvestigationConclusionStatus.InsufficientEvidence));
             Assert.That(initial.FinalSubmissionAttemptCount, Is.Zero);
-            var state = PrepareProvisionalReadyState(); updater.TrySubmitProvisional(state, "plastic", out _);
+            var state = PrepareProvisionalReadyState(); ReviewModelPair(state); updater.TrySubmitProvisional(state, "plastic", out _);
             Assert.That(updater.SubmitModelConclusion(state, "plastic").Status, Is.EqualTo(InvestigationConclusionStatus.Incorrect));
             Assert.That(state.ConfirmationReviewed, Is.False);
             Assert.That(state.DiscoveredObservationIds.Count, Is.EqualTo(5));
@@ -1120,6 +1145,7 @@ namespace EDNA.Investigation.Tests
         {
             var state = PrepareProvisionalReadyState();
             Assert.That(updater.TrySubmitProvisional(state, cause, out _), Is.True);
+            ReviewModelPair(state, cause);
             var result = updater.SubmitModelConclusion(state, cause);
             Assert.That(result.Status, Is.EqualTo(InvestigationConclusionStatus.Correct));
             Assert.That(result.Feedback, Does.Contain("main explanation").And.Contain("possible alternative"));
@@ -1134,6 +1160,7 @@ namespace EDNA.Investigation.Tests
         {
             var state = PrepareCompleteReport("longline");
             Assert.That(state.SelectedReportEvidenceIds, Does.Contain("E07_FISHING_LINE"));
+            ReviewModelPair(state);
             Assert.That(updater.SubmitModelConclusion(state, "longline").Status, Is.EqualTo(InvestigationConclusionStatus.Correct));
             Assert.That(state.SelectedReportEvidenceIds.Count, Is.EqualTo(5));
             Assert.That(state.SelectedReportEvidenceIds, Does.Not.Contain("E07_FISHING_LINE"));
@@ -1385,6 +1412,8 @@ namespace EDNA.Investigation.Tests
             observations.Sort(StringComparer.Ordinal);
             List<string> threats = new List<string>(state.TriedThreatIds);
             threats.Sort(StringComparer.Ordinal);
+            List<string> reviews = new List<string>(state.ReviewedModelThreatIds);
+            reviews.Sort(StringComparer.Ordinal);
             List<string> comparisons = new List<string>();
             for (int index = 0; index < state.ComparisonRecords.Count; index++)
             {
@@ -1399,6 +1428,7 @@ namespace EDNA.Investigation.Tests
                 state.Phase.ToString(),
                 string.Join(",", observations),
                 string.Join(",", threats),
+                string.Join(",", reviews),
                 string.Join(",", comparisons),
                 state.ProvisionalThreatId,
                 state.ConfirmationReviewed.ToString(),

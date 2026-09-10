@@ -10,7 +10,7 @@ namespace EDNA.Investigation
         private void RenderScenarioAlternatives(Transform parent)
         {
             Text heading = CreateText("Scenario Comparison Heading", parent,
-                EveryScenarioViewed ? "Which predictions fit our survey?" : "Play each prediction · Compare it with our survey", 18,
+                EveryScenarioViewed ? "Compare the predictions · Hover or tap for details" : "Play each prediction · Hover or tap for details", 18,
                 FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             AddLayout(heading.rectTransform, 26f, 0f);
             RectTransform cards = new GameObject("Scenario Results", typeof(RectTransform), typeof(InvestigationResponsiveGridLayout)).GetComponent<RectTransform>();
@@ -29,6 +29,8 @@ namespace EDNA.Investigation
                 Text title = CreateText("Scenario Card Title " + id, header, cause.DisplayName, 14,
                     FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
                 Anchor(title.rectTransform, 0f, 0f, 1f, 1f, 47f, 2f, -94f, -2f);
+                AttachScenarioDetail(title.rectTransform, ScenarioDetailKind.Cause, id);
+                AttachScenarioDetail(icon, ScenarioDetailKind.Cause, id);
                 Button play = CreateButton((complete ? "Replay Scenario " : "Run Scenario ") + id, header,
                     playing ? "Playing…" : complete ? "Replay" : "Play", ButtonVisualStyle.Primary, () => StartScenario(id), out Text playLabel);
                 play.GetComponent<LayoutElement>().ignoreLayout = true; playLabel.fontSize = 13;
@@ -62,6 +64,8 @@ namespace EDNA.Investigation
                     Text value = CreateText("Result Prediction", row, "Baseline", 13, FontStyle.Bold,
                         InvestigationTheme.TextSecondary, TextAnchor.MiddleRight, InvestigationTheme.BodyFont);
                     Anchor(value.rectTransform, .69f, 0f, 1f, 1f, 0f, 0f, -2f, 0f);
+                    AttachScenarioDetail(name.rectTransform, ScenarioDetailKind.Species, id, ids[i]);
+                    AttachScenarioDetail(value.rectTransform, ScenarioDetailKind.Prediction, id, ids[i]);
                     var border = CreateGraphic<InvestigationBorderGraphic>("Scenario Population Pulse", row);
                     border.Configure(6f, 1.5f); border.color = Color.clear; border.raycastTarget = false; Stretch(border.rectTransform, 0f, 0f, 0f, 0f);
                     actors.Add(new ScenarioActor { Art = population, Result = value, Units = units, Halo = halo.GetComponent<Image>(), Border = border, Prediction = prediction, IsCardRow = true });
@@ -86,7 +90,7 @@ namespace EDNA.Investigation
                         foreach (var actor in actors) foreach (var unit in actor.Units) unit.SetAllDirty();
                     };
                 }
-                Button choose = CreateButton("Choose Scenario " + id, card, "Review this explanation", ButtonVisualStyle.Primary,
+                Button choose = CreateButton("Choose Scenario " + id, card, state.HasReviewedModel(id) ? "Reviewed · Review again" : "Review this explanation", ButtonVisualStyle.Primary,
                     () => ChooseScenarioExplanation(id), out Text label);
                 choose.GetComponent<LayoutElement>().ignoreLayout = true; label.fontSize = 14;
                 Anchor(choose.GetComponent<RectTransform>(), 0f, 0f, 1f, 0f, 8f, 8f, -8f, 48f);

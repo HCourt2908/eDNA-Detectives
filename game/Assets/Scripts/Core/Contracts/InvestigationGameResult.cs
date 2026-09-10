@@ -10,6 +10,8 @@ namespace EDNA.Core
         public string surveyId = string.Empty;
         public string siteId = string.Empty;
         public string selectedHypothesisId = string.Empty;
+        // Explanations explicitly reviewed by the player; fact hovers do not count.
+        public List<string> reviewedHypothesisIds = new List<string>();
         public List<string> compatibleHypothesisIds = new List<string>();
         // Case-authored priorities; these are not computed probabilities.
         public string primaryHypothesisId = string.Empty;

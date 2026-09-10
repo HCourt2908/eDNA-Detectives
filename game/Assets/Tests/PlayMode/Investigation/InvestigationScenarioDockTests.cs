@@ -66,7 +66,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(scroll.content.rect.height, Is.LessThanOrEqualTo(scroll.viewport.rect.height + 1f));
             yield return null;
             Assert.That(Vector2.Distance(rov.center, Bounds("Complete Scenario Investigation").center), Is.LessThan(.1f));
-            Press("Complete Scenario Investigation"); yield return null;
+            InvestigationCurrentFlowTestActions.ReviewRemainingExplanations(); Press("Complete Scenario Investigation"); yield return null;
             Assert.That(GameObject.Find("Scenario EDNA Dock"), Is.Not.Null);
             Assert.That(GameObject.Find("Scenario Case Closed"), Is.Not.Null);
         }

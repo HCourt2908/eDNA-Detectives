@@ -37,11 +37,14 @@ namespace EDNA.Investigation
         private void RequestRestartConfirmation()
         {
             if (state == null || restartConfirmationPending) return;
+            bool detailsPaused = scenarioDetailPausedAt >= 0d;
+            CloseScenarioDetail(false);
             restartConfirmationPending = true;
             if (ScenarioWorkspaceActive && scenarioBriefingPausedAt < 0d)
                 restartPausedAt = Time.unscaledTimeAsDouble;
             restartButton.interactable = false;
-            RenderRestartDialog();
+            if (detailsPaused) RefreshPresentationOnly();
+            else RenderRestartDialog();
         }
 
         private void RemoveRestartDialog()

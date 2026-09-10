@@ -30,9 +30,11 @@ namespace EDNA.Investigation.Tests
                 Assert.That(GameObject.Find("Run Scenario " + id).GetComponentInChildren<Text>().text, Is.EqualTo("Play"));
                 Assert.That(GameObject.Find("Choose Scenario " + id).GetComponent<Button>().interactable, Is.False);
             }
-            var title = GameObject.Find("Scenario Card Title longline");
+            var title = GameObject.Find("Detail Cause longline");
             ExecuteEvents.ExecuteHierarchy(title, new PointerEventData(EventSystem.current), ExecuteEvents.pointerClickHandler);
             Assert.That(controller.State.TriedThreatIds, Is.Empty);
+            Assert.That(GameObject.Find("Scenario Detail Card"), Is.Not.Null);
+            Press("Close Scenario Details");
             RectTransform card = GameObject.Find("Scenario Result longline").GetComponent<RectTransform>();
             Vector3 position = card.position; Vector2 size = card.rect.size;
             var button = GameObject.Find("Run Scenario longline").GetComponent<Button>();

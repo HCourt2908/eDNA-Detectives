@@ -20,6 +20,7 @@ namespace EDNA.Investigation
 
         private void ToggleNotebookDrawer()
         {
+            CloseScenarioDetail(false);
             // The drawer hides EDNA through its visibility rules. Keep the
             // conversation/reply state so closing resumes it only if it was open.
             notebookDrawerOpen = !notebookDrawerOpen;
@@ -104,7 +105,14 @@ namespace EDNA.Investigation
             drawer.GetComponent<Image>().raycastTarget = true;
             bool portrait = Screen.height > Screen.width;
             if (portrait) Anchor(drawer, 0.04f, 0f, 0.96f, 0.72f, 0f, 8f, 0f, 0f);
-            else Anchor(drawer, 0.64f, 0f, 1f, 1f, 4f, 6f, -16f, -6f);
+            else
+            {
+                // A percentage-only drawer compresses the saved species labels
+                // into unreadable columns on short landscape windows.
+                float width = Mathf.Min(contentPanel.rect.width - 24f,
+                    Mathf.Max(360f, contentPanel.rect.width * .36f - 20f));
+                Anchor(drawer, 1f, 0f, 1f, 1f, -width - 16f, 6f, -16f, -6f);
+            }
             EnsureOutline(drawer.gameObject, InvestigationTheme.PaperBorder, new Vector2(2f, -2f));
             Shadow shadow = drawer.gameObject.AddComponent<Shadow>();
             shadow.effectColor = InvestigationTheme.PaperShadow;
@@ -184,7 +192,7 @@ namespace EDNA.Investigation
             {
                 // Carry Act 1's saved picture into Act 2 without appending the
                 // retired text evidence list or per-prediction comparison UI.
-                AddLayout(CreateSurveyStory(entries, "Notebook Survey Story"), 490f, 0f);
+                AddLayout(CreateSurveyStory(entries, "Notebook Survey Story"), 700f, 0f);
                 RenderFoodWebReference(entries);
             }
             else
@@ -192,7 +200,7 @@ namespace EDNA.Investigation
                 if (notebookIntroductionVisible) RenderNotebookIntroduction(entries);
                 if (state.Phase != InvestigationPhase.Observe || state.TriedThreatIds.Count > 0) RenderHypothesisSummary(entries);
                 RenderTodaySurveyNotes(entries);
-                if (observeSummarySaved) AddLayout(CreateSurveyStory(entries, "Notebook Survey Story"), 490f, 0f);
+                if (observeSummarySaved) AddLayout(CreateSurveyStory(entries, "Notebook Survey Story"), 700f, 0f);
                 if (state.Phase != InvestigationPhase.Observe || !observeSummarySaved) RenderNotebookEntries(entries);
             }
 

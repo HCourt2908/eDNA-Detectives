@@ -136,6 +136,63 @@ namespace EDNA.Investigation.Tests
             Assert.That(controller.State.DiscoveredObservationIds.Count, Is.EqualTo(5));
         }
 
+        [UnityTest] public IEnumerator Story_DepthGroupsMatchTheSurveyAndStayReadableInBothViews()
+        {
+            yield return Load();
+            var controller = Object.FindAnyObjectByType<InvestigationController>();
+            var view = Object.FindAnyObjectByType<InvestigationRuntimeView>();
+            controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
+            Press("Toggle Comparison View"); yield return null;
+            Assert.That(GameObject.Find("Historical Species Marker phytoplankton").GetComponent<RectTransform>().anchorMin.y,
+                Is.GreaterThan(GameObject.Find("Historical Species Marker krill").GetComponent<RectTransform>().anchorMin.y));
+            Press("Toggle Comparison View");
+            InvestigationWorkbenchTestActions.ShowSurveySummary(); yield return null;
+            AssertStoryDepthsAndSpacing();
+            controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ConclusionReady); yield return null;
+            Press("Toggle Notebook Drawer"); yield return null;
+            AssertStoryDepthsAndSpacing();
+            var canvas = view.GetComponent<Canvas>(); var scaler = canvas.GetComponent<CanvasScaler>();
+            bool enabled = scaler.enabled; float scale = canvas.scaleFactor;
+            try
+            {
+                scaler.enabled = false; canvas.scaleFactor = Screen.width / 720f;
+                yield return null; yield return null;
+                AssertStoryDepthsAndSpacing();
+            }
+            finally { canvas.scaleFactor = scale; scaler.enabled = enabled; }
+        }
+
+        private static void AssertStoryDepthsAndSpacing()
+        {
+            Canvas.ForceUpdateCanvases();
+            Assert.That(GameObject.Find("Story Today Species shark"), Is.Null);
+            foreach (string era in new[] { "Past", "Today" })
+            {
+                RectTransform krill = GameObject.Find("Story " + era + " Slot krill").GetComponent<RectTransform>();
+                foreach (string id in new[] { "tuna", "atlantic_herring", "phytoplankton" })
+                {
+                    var slot = GameObject.Find("Story " + era + " Slot " + id).GetComponent<RectTransform>();
+                    Assert.That(slot.anchorMin.y, Is.GreaterThan(krill.anchorMin.y), id + " belongs above the mid-water krill.");
+                    var past = GameObject.Find("Story Past Slot " + id).GetComponent<RectTransform>();
+                    var today = GameObject.Find("Story Today Slot " + id).GetComponent<RectTransform>();
+                    Assert.That(today.anchorMin, Is.EqualTo(past.anchorMin), "A non-detection must not shuffle other species.");
+                }
+                var plot = GameObject.Find("Story " + era).transform.Find("Story Depth Plot");
+                foreach (RectTransform slot in plot)
+                {
+                    Text label = slot.Find("Story Species Name").GetComponent<Text>();
+                    Assert.That(label.preferredHeight, Is.LessThanOrEqualTo(label.rectTransform.rect.height + 1f), label.text);
+                    foreach (RectTransform other in plot)
+                    {
+                        if (other == slot) continue;
+                        var a = RectTransformUtility.CalculateRelativeRectTransformBounds(plot, slot);
+                        var b = RectTransformUtility.CalculateRelativeRectTransformBounds(plot, other);
+                        Assert.That(new Rect(a.min, a.size).Overlaps(new Rect(b.min, b.size)), Is.False, slot.name + " / " + other.name);
+                    }
+                }
+            }
+        }
+
         [UnityTest] public IEnumerator Story_RefreshSkipAndRestartLeaveNoDuplicateAnimation()
         {
             yield return Load();

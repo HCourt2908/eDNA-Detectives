@@ -504,6 +504,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(CurrentState.CompletedObjectiveCount, Is.EqualTo(7));
             Assert.That(CurrentState.FinalSubmissionAttemptCount, Is.Zero);
             Assert.That(CurrentState.ConfirmationReviewed, Is.False);
+            ReviewRemainingExplanations(); yield return null; yield return null;
             CurrentPointerClick(CurrentButton("Complete Scenario Investigation")); yield return null;
             Assert.That(CurrentState.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.Correct));
             Assert.That(InvestigationSessionBridge.LastResult.completed, Is.True);

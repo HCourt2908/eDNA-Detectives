@@ -48,6 +48,7 @@ namespace EDNA.Investigation
                     : finding?.ClaimType == ObservationClaimType.ReducedDetection ? "Fewer sites" : "Stable", 12,
                     FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.LowerCenter, InvestigationTheme.BodyFont);
                 Anchor(result.rectTransform, 0f, 0f, 1f, .25f, 0f, 0f, 0f, 0f);
+                AttachScenarioDetail(tile, ScenarioDetailKind.Survey, "", ids[i]);
                 if (scenarioConflictSpecies == ids[i])
                 {
                     var outline = CreateGraphic<InvestigationBorderGraphic>("Scenario Conflicting Record", tile);

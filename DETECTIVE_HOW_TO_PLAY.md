@@ -20,10 +20,11 @@ Open `game` in Unity **6000.4.6f1**, open `Assets/Scenes/InvestigationScene.unit
 1. Click **Play** on each of the three scenario cards.
 2. Watch the groups change and compare the predictions with your notebook. Use **Replay** to watch again.
 3. After trying all three, click **Review this explanation** on the model you want to investigate.
-4. Review your findings, then click **Record conclusion** to finish. Use **Compare again** to revisit the models.
+4. EDNA will point out the other explanation. Review both the **main explanation** and **possible alternative**, then click **Record conclusion** to finish. Use **Compare again** to revisit the models.
 
 ## Helpful controls
 
 - **EDNA:** follow her highlighted guidance; use **Show me where** for help in Investigate.
+- **Details:** hover over scenario titles, species names, results or survey records. Click/tap to keep details open; a playing prediction pauses until you close them.
 - **Notebook icon:** open or close your saved records.
 - **Restart icon** at the top right: start a new investigation after confirming.

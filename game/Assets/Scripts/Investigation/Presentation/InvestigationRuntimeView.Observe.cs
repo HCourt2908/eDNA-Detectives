@@ -164,7 +164,7 @@ namespace EDNA.Investigation
         private void CreateSpeciesMarkers(RectTransform plotArea, SurveyEra era)
         {
             List<InvestigationSpeciesDefinition> visibleSpecies = GetVisibleObserveSpecies();
-            string layoutSeed = $"{caseDefinition.CaseId}|{state.SurveyId}|{state.SiteId}|{observeLayoutSessionSeed}";
+            string layoutSeed = SurveyMapLayoutSeed;
             DepthBand[] depthBands = { DepthBand.Shallow, DepthBand.Mid, DepthBand.Deep };
             for (int depthIndex = 0; depthIndex < depthBands.Length; depthIndex++)
             {
@@ -182,20 +182,7 @@ namespace EDNA.Investigation
             DepthBand depthBand,
             bool benthic)
         {
-            List<InvestigationSpeciesDefinition> group = new List<InvestigationSpeciesDefinition>();
-            for (int index = 0; index < visibleSpecies.Count; index++)
-            {
-                InvestigationSpeciesDefinition species = visibleSpecies[index];
-                if ((caseDefinition.IsCaseSpecies(species.SpeciesId) || FindSurveyRecord(species.SpeciesId, era) != null)
-                    && ResolveSurveyDepthBand(species, era) == depthBand
-                    && InvestigationSpeciesMapLayout.IsBenthic(species) == benthic)
-                {
-                    group.Add(species);
-                }
-            }
-            group.Sort((left, right) => InvestigationSpeciesMapLayout
-                .StableOrder(layoutSeed, left.SpeciesId, depthBand, benthic)
-                .CompareTo(InvestigationSpeciesMapLayout.StableOrder(layoutSeed, right.SpeciesId, depthBand, benthic)));
+            List<InvestigationSpeciesDefinition> group = SurveySpeciesGroup(visibleSpecies, era, depthBand, benthic);
 
             for (int index = 0; index < group.Count; index++)
             {
@@ -210,6 +197,32 @@ namespace EDNA.Investigation
                     group.Count);
                 if (ShouldDisplaySpeciesInEra(species, era)) CreateSpeciesMarker(plotArea, species, era, placement);
             }
+        }
+
+        private string SurveyMapLayoutSeed => $"{caseDefinition.CaseId}|{state.SurveyId}|{state.SiteId}|{observeLayoutSessionSeed}";
+
+        // Keep slots for non-detections, so an absent species cannot shuffle the
+        // remaining organisms between the two dates or the saved notebook.
+        private List<InvestigationSpeciesDefinition> SurveySpeciesGroup(
+            IReadOnlyList<InvestigationSpeciesDefinition> visibleSpecies, SurveyEra era,
+            DepthBand depthBand, bool benthic)
+        {
+            List<InvestigationSpeciesDefinition> group = new List<InvestigationSpeciesDefinition>();
+            for (int index = 0; index < visibleSpecies.Count; index++)
+            {
+                InvestigationSpeciesDefinition species = visibleSpecies[index];
+                if ((caseDefinition.IsCaseSpecies(species.SpeciesId) || FindSurveyRecord(species.SpeciesId, era) != null)
+                    && ResolveSurveyDepthBand(species, era) == depthBand
+                    && InvestigationSpeciesMapLayout.IsBenthic(species) == benthic)
+                {
+                    group.Add(species);
+                }
+            }
+            group.Sort((left, right) => InvestigationSpeciesMapLayout
+                .StableOrder(SurveyMapLayoutSeed, left.SpeciesId, depthBand, benthic)
+                .CompareTo(InvestigationSpeciesMapLayout.StableOrder(SurveyMapLayoutSeed, right.SpeciesId, depthBand, benthic)));
+
+            return group;
         }
 
         private List<InvestigationSpeciesDefinition> GetVisibleObserveSpecies()

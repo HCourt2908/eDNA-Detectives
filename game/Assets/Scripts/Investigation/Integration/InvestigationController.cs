@@ -172,7 +172,7 @@ namespace EDNA.Investigation
         private void HandleSubmitProvisional(string threatId)
         {
             if (!HasActiveSession) return;
-            bool success = updater.TrySubmitProvisional(state, threatId, out string feedback);
+            bool success = updater.TryReviewModelExplanation(state, threatId, out string feedback);
             view.Refresh(state, success ? "Review your survey findings and record your best-fitting explanation." : feedback, success ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
         }
 
@@ -205,6 +205,7 @@ namespace EDNA.Investigation
                 surveyId = state.SurveyId,
                 siteId = state.SiteId,
                 selectedHypothesisId = state.FinalThreatId,
+                reviewedHypothesisIds = new List<string>(state.ReviewedModelThreatIds),
                 compatibleHypothesisIds = caseDefinition.SupportedModelThreatIds.Count > 0
                     ? new List<string>(caseDefinition.SupportedModelThreatIds) : new List<string> { caseDefinition.CorrectThreatId },
                 primaryHypothesisId = caseDefinition.PrimaryModelThreatId,

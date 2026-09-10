@@ -23,7 +23,7 @@ namespace EDNA.Investigation.Tests
             Controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
             InvestigationWorkbenchTestActions.EnterSimulate("Stage Simulate"); Press("Finish Scenario Animation");
             foreach (string id in new[] { "plastic", "longline", "bottom_trawling" }) { Press("Run Scenario " + id); Press("Finish Scenario Animation"); }
-            Press("Choose Scenario longline"); yield return null; yield return null;
+            Press("Choose Scenario longline"); InvestigationCurrentFlowTestActions.ReviewRemainingExplanations(); yield return null; yield return null;
         }
         static Rect Bounds(RectTransform rect)
         {
@@ -88,7 +88,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Scenario Results"), Is.Not.Null);
             Assert.That(Controller.State.ConfirmationReviewed, Is.False);
             Press("Replay Scenario plastic"); Press("Finish Scenario Animation");
-            Press("Choose Scenario longline"); yield return null; yield return null;
+            Press("Choose Scenario longline"); InvestigationCurrentFlowTestActions.ReviewRemainingExplanations(); yield return null; yield return null;
             Assert.That(Controller.State.ComparisonRecords.Count, Is.EqualTo(comparisons));
             Assert.That(Controller.State.DiscoveredObservationIds.Count, Is.EqualTo(5));
             Assert.That(Controller.State.FinalSubmissionAttemptCount, Is.Zero);

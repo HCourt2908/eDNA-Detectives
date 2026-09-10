@@ -74,8 +74,8 @@ namespace EDNA.Investigation
 
         }
 
-        private void OnDisable() { RemoveObserveSummaryFlight(); CancelTodayRecordingVisuals(); RemoveComparisonBriefingPresentation(); }
-        private void OnEnable() { if (contentRoot != null) { if (ComparisonBriefingActive || ArrivalBriefingActive || HistoryLensBriefingActive || observeSummarySaving || ObserveSummaryTransitioning) RefreshPresentationOnly(); else ResumeTodayRecording(); } }
+        private void OnDisable() { CloseScenarioDetail(false); RemoveObserveSummaryFlight(); CancelTodayRecordingVisuals(); RemoveComparisonBriefingPresentation(); }
+        private void OnEnable() { if (contentRoot != null) { if (ScenarioWorkspaceActive || ComparisonBriefingActive || ArrivalBriefingActive || HistoryLensBriefingActive || observeSummarySaving || ObserveSummaryTransitioning) RefreshPresentationOnly(); else ResumeTodayRecording(); } }
 
         private List<InvestigationSpeciesDefinition> RecordedSurveySpecies(SurveyEra era)
         {

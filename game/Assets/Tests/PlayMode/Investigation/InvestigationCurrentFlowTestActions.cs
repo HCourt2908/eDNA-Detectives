@@ -64,9 +64,17 @@ namespace EDNA.Investigation.Tests
                 if (GameObject.Find("Finish Scenario Animation") != null) CurrentPress("Finish Scenario Animation");
             }
         }
+        public static void ReviewRemainingExplanations()
+        {
+            string selected = CurrentState.ProvisionalThreatId;
+            foreach (string id in new[] { "longline", "bottom_trawling" })
+                if (!CurrentState.HasReviewedModel(id)) CurrentPress("Review Conclusion " + id);
+            if (!string.IsNullOrEmpty(selected) && CurrentState.ProvisionalThreatId != selected)
+                CurrentPress("Review Conclusion " + selected);
+        }
         public static void OpenCurrentSummary()
         {
-            PlayAllModels(); CurrentPress("Choose Scenario longline");
+            PlayAllModels(); CurrentPress("Choose Scenario longline"); ReviewRemainingExplanations();
             Assert.That(CurrentState.Phase, Is.EqualTo(InvestigationPhase.Report));
         }
         public static Transform CurrentChild(Transform parent, string name)

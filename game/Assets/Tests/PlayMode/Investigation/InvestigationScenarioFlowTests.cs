@@ -103,7 +103,7 @@ namespace EDNA.Investigation.Tests
         [UnityTest] public IEnumerator Scenario_ChosenExplanationCanFinishTheExistingReport()
         {
             yield return Start(); TryAll(); Press("Choose Scenario longline"); yield return null;
-            Press("Complete Scenario Investigation"); yield return null;
+            InvestigationCurrentFlowTestActions.ReviewRemainingExplanations(); Press("Complete Scenario Investigation"); yield return null;
             var controller = Object.FindAnyObjectByType<InvestigationController>();
             Assert.That(controller.State.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.Correct));
             Assert.That(controller.State.MisstepCount, Is.Zero);

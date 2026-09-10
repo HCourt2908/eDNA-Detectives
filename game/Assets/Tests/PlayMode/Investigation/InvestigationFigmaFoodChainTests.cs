@@ -51,7 +51,7 @@ namespace EDNA.Investigation.Tests
                 Assert.That(GameObject.Find("Scenario Chosen Explanation").GetComponent<Text>().text,
                     Does.Contain(id == "longline" ? "MAIN EXPLANATION" : "POSSIBLE ALTERNATIVE"));
                 Assert.That(words, Does.Not.Contain("sea star").And.Not.Contain("mussel"));
-                CurrentPress("Complete Scenario Investigation"); yield return null;
+                InvestigationCurrentFlowTestActions.ReviewRemainingExplanations(); CurrentPress("Complete Scenario Investigation"); yield return null;
                 var result = InvestigationSessionBridge.LastResult;
                 Assert.That(result.completed, Is.True);
                 Assert.That(result.selectedHypothesisId, Is.EqualTo(id));

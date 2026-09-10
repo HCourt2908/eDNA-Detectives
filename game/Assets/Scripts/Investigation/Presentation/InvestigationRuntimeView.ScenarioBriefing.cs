@@ -12,7 +12,7 @@ namespace EDNA.Investigation
         private string scenarioBriefedConflict = string.Empty;
         private int scenarioBriefingVersion;
         private double scenarioBriefingPausedAt = -1d;
-        private double ScenarioPlaybackTime => scenarioBriefingPausedAt >= 0d ? scenarioBriefingPausedAt : restartPausedAt >= 0d ? restartPausedAt : Time.unscaledTimeAsDouble;
+        private double ScenarioPlaybackTime => scenarioBriefingPausedAt >= 0d ? scenarioBriefingPausedAt : restartPausedAt >= 0d ? restartPausedAt : scenarioDetailPausedAt >= 0d ? scenarioDetailPausedAt : Time.unscaledTimeAsDouble;
         private bool ScenarioBriefingActive => ScenarioWorkspaceActive && scenarioBriefingStep != ScenarioBriefingStep.None;
 
         private void ResetScenarioBriefing()
@@ -27,7 +27,7 @@ namespace EDNA.Investigation
 
         private void PrepareScenarioBriefing()
         {
-            if (ScenarioBriefingActive || notebookDrawerOpen || restartConfirmationPending) return;
+            if (ScenarioBriefingActive || notebookDrawerOpen || restartConfirmationPending || scenarioDetailPinned) return;
             if (!string.IsNullOrEmpty(scenarioConflictSpecies) && scenarioFeedback != scenarioBriefedConflict)
                 BeginScenarioBriefing(ScenarioBriefingStep.Conflict);
             else if (scenarioStage == ScenarioStage.Comparing && !scenarioCompareBriefed)
@@ -47,8 +47,9 @@ namespace EDNA.Investigation
 
         private void OpenScenarioBriefing()
         {
+            CloseScenarioDetail(false);
             EnsureScenarioSession();
-            if (ScenarioBriefingActive || notebookDrawerOpen || restartConfirmationPending) return;
+            if (ScenarioBriefingActive || notebookDrawerOpen || restartConfirmationPending || scenarioDetailPinned) return;
             if (state.Phase == EDNA.Investigation.Domain.InvestigationPhase.Report) { BeginScenarioBriefing(ScenarioBriefingStep.Ending); RefreshPresentationOnly(); return; }
             if (scenarioStage == ScenarioStage.BuildingChain) { FinishScenarioAnimation(); return; }
             BeginScenarioBriefing(!string.IsNullOrEmpty(scenarioConflictSpecies) ? ScenarioBriefingStep.Conflict

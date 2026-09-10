@@ -12,6 +12,7 @@ namespace EDNA.Investigation.Domain
         private readonly List<string> triedThreatIds = new List<string>();
         private readonly List<SimulationResult> simulationResults = new List<SimulationResult>();
         private readonly List<PredictionComparisonRecord> comparisonRecords = new List<PredictionComparisonRecord>();
+        private readonly List<string> reviewedModelThreatIds = new List<string>();
         private readonly List<string> selectedReportEvidenceIds = new List<string>();
 
         public InvestigationPhase Phase { get; internal set; } = InvestigationPhase.Observe;
@@ -37,6 +38,10 @@ namespace EDNA.Investigation.Domain
         public IReadOnlyList<string> TriedThreatIds => triedThreatIds;
         public IReadOnlyList<SimulationResult> SimulationResults => simulationResults;
         public IReadOnlyList<PredictionComparisonRecord> ComparisonRecords => comparisonRecords;
+        public IReadOnlyList<string> ReviewedModelThreatIds => reviewedModelThreatIds;
+        public bool HasReviewedModel(string id) => Contains(reviewedModelThreatIds, id);
+        internal void RecordModelReview(string id) => AddUnique(reviewedModelThreatIds, id);
+
         public IReadOnlyList<string> SelectedReportEvidenceIds => selectedReportEvidenceIds;
 
         public bool HasDiscoveredObservation(string evidenceId) => Contains(discoveredObservationIds, evidenceId);
