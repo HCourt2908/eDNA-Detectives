@@ -62,7 +62,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(visibility == null ? 1f : visibility.alpha, Is.EqualTo(1f));
             Assert.That(controller.State.TriedThreatIds, Is.Empty);
             Assert.That(controller.State.ComparisonRecords.Count, Is.Zero);
-            Press("Difficulty Toggle"); yield return null; yield return null;
+            InvestigationCurrentFlowTestActions.ToggleGuidanceForTests(); yield return null; yield return null;
             Assert.That(GameObject.Find("Scenario Briefing Overlay"), Is.Null);
             Press("Run Scenario longline"); yield return null;
             Assert.That(controller.State.HasTriedThreat("longline"), Is.True);

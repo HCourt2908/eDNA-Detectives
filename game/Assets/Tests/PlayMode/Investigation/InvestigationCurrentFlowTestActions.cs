@@ -16,6 +16,13 @@ namespace EDNA.Investigation.Tests
         public static InvestigationController CurrentController => Object.FindAnyObjectByType<InvestigationController>();
         public static InvestigationRuntimeView CurrentView => Object.FindAnyObjectByType<InvestigationRuntimeView>();
         public static InvestigationState CurrentState => CurrentController.State;
+        // Guidance variants remain an internal regression seam, not a player control.
+        public static void ToggleGuidanceForTests()
+        {
+            CurrentController.SendMessage("HandleSetDifficulty",
+                CurrentState.Difficulty == InvestigationDifficulty.Easy ? InvestigationDifficulty.Hard : InvestigationDifficulty.Easy,
+                SendMessageOptions.RequireReceiver);
+        }
         public static IEnumerator LoadCurrent()
         {
             InvestigationSessionBridge.Clear();

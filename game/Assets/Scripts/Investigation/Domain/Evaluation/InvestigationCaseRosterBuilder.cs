@@ -90,7 +90,7 @@ namespace EDNA.Investigation.Domain
             ref int inputOrder)
         {
             if (observation == null) return;
-            InvestigationSpeciesDefinition species = caseDefinition.FindSpecies(observation.speciesId);
+            InvestigationSpeciesDefinition species = caseDefinition.FindCatalogSpecies(observation.speciesId);
             if (species == null) return;
             string normalizedId = species.SpeciesId;
             SampleQuality quality = observation.sampleQuality == SampleQuality.Unknown ? result.sampleQuality : observation.sampleQuality;
@@ -115,7 +115,7 @@ namespace EDNA.Investigation.Domain
             Dictionary<string, Candidate> candidates,
             ref int inputOrder)
         {
-            InvestigationSpeciesDefinition species = caseDefinition.FindSpecies(identifier);
+            InvestigationSpeciesDefinition species = caseDefinition.FindCatalogSpecies(identifier);
             if (species == null) return;
             string normalizedId = species.SpeciesId;
             if (result.speciesObservations != null)
@@ -123,7 +123,7 @@ namespace EDNA.Investigation.Domain
                 foreach (EDNASpeciesObservationData detailed in result.speciesObservations)
                 {
                     if (detailed != null && detailed.surveyTimepoint != SurveyTimepoint.Historical
-                        && caseDefinition.FindSpecies(detailed.speciesId)?.SpeciesId == normalizedId) return;
+                        && caseDefinition.FindCatalogSpecies(detailed.speciesId)?.SpeciesId == normalizedId) return;
                 }
             }
             records.Add(new InvestigationSurveySpeciesRecord(

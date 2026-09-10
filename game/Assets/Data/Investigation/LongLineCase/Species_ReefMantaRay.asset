@@ -19,7 +19,7 @@ MonoBehaviour:
   scientificName: Mobula alfredi
   description: A large filter-feeding ray that consumes plankton in productive surface
     waters.
-  icon: {fileID: 0}
+  icon: {fileID: 21300000, guid: 73d80f55861c4763a83193aea68160f0, type: 3}
   glyphKind: 5
   trophicRole: 3
   aliases:

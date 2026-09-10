@@ -490,29 +490,6 @@ namespace EDNA.Investigation
             Stretch(label.rectTransform, 6f, 2f, -6f, -2f);
         }
 
-        private void RequestRestartConfirmation()
-        {
-            notebookDrawerOpen = false;
-            restartConfirmationPending = true;
-            statusMessage = "Restarting clears the progress in this case. Confirm restart or cancel.";
-            statusTone = InvestigationStatusTone.Warning;
-            RefreshPresentationOnly();
-        }
-
-        private void CancelRestartConfirmation()
-        {
-            restartConfirmationPending = false;
-            statusMessage = string.Empty;
-            statusTone = InvestigationStatusTone.Guide;
-            RefreshPresentationOnly();
-        }
-
-        private void ConfirmRestart()
-        {
-            restartConfirmationPending = false;
-            restart?.Invoke();
-        }
-
         private static void StylePaperChoice(Button button, bool selected)
         {
             Image border = button.GetComponent<Image>();

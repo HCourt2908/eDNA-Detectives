@@ -1,6 +1,6 @@
 # Detective Game — Current Status and Next Steps
 
-Updated 2026-09-09. The current gameplay specification is
+Updated 2026-09-10. The current gameplay specification is
 [ECOSYSTEM_DETECTIVE.md](../ECOSYSTEM_DETECTIVE.md); implementation details for
 Act 2 are in [Act2-Scenario-Comparison.md](Act2-Scenario-Comparison.md).
 
@@ -15,6 +15,10 @@ Act 2 are in [Act2-Scenario-Comparison.md](Act2-Scenario-Comparison.md).
 - The ending summarizes the five existing findings and model comparisons. Players record their conclusion or return to compare; it adds no ROV, fishing-line or seabed evidence.
 - The conclusion identifies the best match among the three tested models. It does not claim proof of a cause or that a species is completely absent.
 - QA completion checkpoints, exported evidence and conclusion logic use the survey/model path.
+
+- The mode button is replaced by a top-right restart icon with cancel/confirm controls, available throughout both acts and their guides.
+- The shared catalog is checked against the updated team Species List; handoff names accept canonical IDs, scientific names and full display names.
+- Team illustrations replace the hammerhead and supply manta ray and bone-eating worm catalog artwork.
 
 ## Maintenance
 
@@ -31,3 +35,11 @@ for the test suites and Unity validation commands.
 2. Run player studies to check understanding of detection changes versus animal counts, and why stable species matter.
 3. Validate WebGL, touch input and performance on the intended deployment devices. A macOS development build covers only one target.
 4. Review scientific content and update rule and flow coverage before adding ecological relationships, survey cases or changes to the conclusion.
+
+## Content Decisions Pending
+
+The three existing scenarios remain unchanged at the team's request while the
+food-web review and a third replacement scenario are pending. Sea star and mussel
+are legacy case controls outside the approved catalog; their replacements and
+associated model predictions need confirmation together. They are not aliases for
+other catalog animals and are not accepted as new identification imports.

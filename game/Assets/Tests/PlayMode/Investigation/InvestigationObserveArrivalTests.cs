@@ -53,7 +53,7 @@ namespace EDNA.Investigation.Tests
             lens = GameObject.Find("Survey Time Lens").GetComponent<Slider>();
             Assert.That(lens.value, Is.GreaterThan(.98f));
             Assert.That(EventSystem.current.currentSelectedGameObject, Is.EqualTo(lens.gameObject));
-            Press("Difficulty Toggle"); yield return null;
+            InvestigationCurrentFlowTestActions.ToggleGuidanceForTests(); yield return null;
             Assert.That(GameObject.Find("History Lens Briefing Overlay"), Is.Null, "A settings refresh must not replay the guide.");
             Assert.That(GameObject.Find("Start Recording History").GetComponent<Button>().interactable, Is.True);
         }
@@ -76,7 +76,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Historical Notebook Row shark"), Is.Not.Null);
             Assert.That(GameObject.Find("Today Recording Status").GetComponent<Text>().text, Does.Contain("20 years ago"));
             lens.value = .4f;
-            Press("Difficulty Toggle"); yield return null;
+            InvestigationCurrentFlowTestActions.ToggleGuidanceForTests(); yield return null;
             lens = GameObject.Find("Survey Time Lens").GetComponent<Slider>();
             Assert.That(lens.interactable, Is.True);
             Assert.That(lens.value, Is.EqualTo(.4f).Within(.001f));
@@ -160,7 +160,7 @@ namespace EDNA.Investigation.Tests
         {
             yield return Load(); InvestigationWorkbenchTestActions.BeginTodayRecording();
             yield return new WaitForSecondsRealtime(.9f);
-            Press("Difficulty Toggle"); yield return null; yield return null;
+            InvestigationCurrentFlowTestActions.ToggleGuidanceForTests(); yield return null; yield return null;
             int flights = 0;
             foreach (RectTransform rect in Object.FindObjectsByType<RectTransform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
                 if (rect.name == "Today Record In Flight") flights++;

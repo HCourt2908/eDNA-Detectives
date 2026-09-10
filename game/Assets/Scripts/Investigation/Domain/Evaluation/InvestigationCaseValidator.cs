@@ -44,6 +44,7 @@ namespace EDNA.Investigation.Domain
 
             if (caseDefinition.SpeciesCatalog.Count != 20)
                 errors.Add("The shared species catalog must contain exactly 20 species.");
+            var normalizedIdentifiers = new Dictionary<string, string>(StringComparer.Ordinal);
             HashSet<string> catalogSpeciesIds = new HashSet<string>(StringComparer.Ordinal);
             HashSet<string> canonicalSpeciesIds = new HashSet<string>(StringComparer.Ordinal);
             HashSet<string> catalogIdentifiers = new HashSet<string>(StringComparer.Ordinal);
@@ -74,6 +75,20 @@ namespace EDNA.Investigation.Domain
                     string alias = catalogSpecies.Aliases[aliasIndex];
                     if (string.IsNullOrWhiteSpace(alias) || !catalogIdentifiers.Add(alias))
                         errors.Add($"Species catalog alias is missing or ambiguous for {catalogSpecies.SpeciesId}: {alias}.");
+                }
+                var identifiers = new List<string>(catalogSpecies.Aliases)
+                {
+                    catalogSpecies.SpeciesId, catalogSpecies.CanonicalSpeciesId,
+                    catalogSpecies.DisplayName, catalogSpecies.ScientificName
+                };
+                foreach (string identifier in identifiers)
+                {
+                    string normalized = InvestigationSpeciesDefinition.NormalizeIdentifier(identifier);
+                    if (normalized.Length == 0) continue;
+                    if (normalizedIdentifiers.TryGetValue(normalized, out string owner)
+                        && owner != catalogSpecies.SpeciesId)
+                        errors.Add($"Species catalog name is ambiguous: {identifier} ({owner}/{catalogSpecies.SpeciesId}).");
+                    else normalizedIdentifiers[normalized] = catalogSpecies.SpeciesId;
                 }
                 if (string.IsNullOrWhiteSpace(catalogSpecies.DisplayName))
                     errors.Add($"Species catalog entry {catalogSpecies.SpeciesId} is missing a display name.");

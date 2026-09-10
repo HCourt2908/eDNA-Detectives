@@ -41,20 +41,28 @@ namespace EDNA.Investigation.Domain
         public IReadOnlyList<string> SensitivityTags => sensitivityTags;
         public DepthBand MapDepthBand => mapDepthBand;
 
+        public static string NormalizeIdentifier(string identifier)
+        {
+            if (string.IsNullOrWhiteSpace(identifier)) return string.Empty;
+            return string.Join("_", identifier.Trim().ToLowerInvariant()
+                .Split(new[] { ' ', '_', '-', '\t', '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries));
+        }
+
         public bool MatchesIdentifier(string identifier)
         {
-            if (string.IsNullOrWhiteSpace(identifier)) return false;
+            // Runtime rendering normally uses stable IDs; keep that path allocation-free.
             if (string.Equals(speciesId, identifier, System.StringComparison.Ordinal)
                 || string.Equals(CanonicalSpeciesId, identifier, System.StringComparison.Ordinal))
-            {
-                return true;
-            }
-
+                return !string.IsNullOrWhiteSpace(identifier);
+            string normalized = NormalizeIdentifier(identifier);
+            if (normalized.Length == 0) return false;
+            if (NormalizeIdentifier(speciesId) == normalized
+                || NormalizeIdentifier(CanonicalSpeciesId) == normalized
+                || NormalizeIdentifier(scientificName) == normalized
+                || NormalizeIdentifier(displayName) == normalized) return true;
             if (aliases == null) return false;
             for (int index = 0; index < aliases.Count; index++)
-            {
-                if (string.Equals(aliases[index], identifier, System.StringComparison.Ordinal)) return true;
-            }
+                if (NormalizeIdentifier(aliases[index]) == normalized) return true;
             return false;
         }
     }

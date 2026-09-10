@@ -41,10 +41,11 @@ namespace EDNA.Investigation.Tests
                     Assert.That(FindButton("Motion Toggle"), Is.Null);
                     Assert.That(InvestigationMotionSettings.ReducedMotion, Is.False, "The old saved Reduced preference must be ignored.");
                     InvestigationDifficulty before = controller.State.Difficulty;
-                    Click("Difficulty Toggle");
+                    InvestigationCurrentFlowTestActions.ToggleGuidanceForTests();
                     Assert.That(controller.State.Difficulty, Is.Not.EqualTo(before));
                     Assert.That(InvestigationMotionSettings.ReducedMotion, Is.False);
-                    Assert.That(FindButton("Difficulty Toggle").GetComponentInChildren<Text>().text, Is.EqualTo(controller.State.Difficulty.ToString()));
+                    Assert.That(FindButton("Difficulty Toggle"), Is.Null);
+                    Assert.That(FindButton("Restart Case").interactable, Is.True);
                 }
                 controller.SendMessage("HandleRestart", SendMessageOptions.RequireReceiver);
                 Assert.That(InvestigationMotionSettings.ReducedMotion, Is.False);
@@ -394,7 +395,7 @@ namespace EDNA.Investigation.Tests
             Record("Species Marker shark"); Click("Compare Species tuna");
             Assert.That(FindButton("Talk To Edna"), Is.Null);
             Assert.That(GameObject.Find("Observe Comparison Instruction"), Is.Not.Null);
-            Click("Difficulty Toggle");
+            InvestigationCurrentFlowTestActions.ToggleGuidanceForTests();
             Assert.That(GameObject.Find("Comparison Notebook"), Is.Not.Null); yield return null;
             Click("Compare Change More");
             Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.HasDiscoveredObservation("E02_TUNA_WIDER_DETECTION"), Is.True);
@@ -513,9 +514,9 @@ namespace EDNA.Investigation.Tests
         }
 
         [UnityTest]
-        public IEnumerator InvestigationScene_DifficultyAndRestartPreserveTheCurrentContract()
+        public IEnumerator InvestigationScene_InternalGuidanceOverrideAndRestartPreserveTheCurrentContract()
         {
-            yield return LoadCurrent(); CurrentPress("Difficulty Toggle");
+            yield return LoadCurrent(); InvestigationCurrentFlowTestActions.ToggleGuidanceForTests();
             Assert.That(CurrentState.Difficulty, Is.EqualTo(InvestigationDifficulty.Hard));
             EnterCurrentModels(); OpenCurrentSummary(); CurrentPress("Complete Scenario Investigation");
             yield return null; CurrentPress("Restart Completed Case"); yield return null;
@@ -679,8 +680,8 @@ namespace EDNA.Investigation.Tests
             {
                 // Intentionally do not yield between these actions: Destroy has not run yet.
                 Click("Toggle Notebook Drawer");
-                Click("Difficulty Toggle");
-                Click("Difficulty Toggle");
+                InvestigationCurrentFlowTestActions.ToggleGuidanceForTests();
+                InvestigationCurrentFlowTestActions.ToggleGuidanceForTests();
                 AssertActiveNotebookCount(view, 1);
                 Click("Close Notebook Drawer");
                 AssertActiveNotebookCount(view, 0);
@@ -789,7 +790,7 @@ namespace EDNA.Investigation.Tests
                 Assert.That(controller.State, Is.Null);
                 Assert.That(view.State, Is.Null);
                 AssertActiveNotebookCount(view, 0);
-                Assert.That(FindButton("Difficulty Toggle").interactable, Is.False);
+                Assert.That(FindButton("Restart Case").interactable, Is.False);
                 Assert.That(FindButton("Motion Toggle"), Is.Null);
 
                 // Stale gameplay callbacks and development shortcuts must obey the same session boundary.
@@ -809,7 +810,7 @@ namespace EDNA.Investigation.Tests
                 Assert.That(GameObject.Find("Fatal Error"), Is.Null);
                 Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Observe));
                 Assert.That(view.State, Is.SameAs(controller.State));
-                Assert.That(FindButton("Difficulty Toggle").interactable, Is.True);
+                Assert.That(FindButton("Restart Case").interactable, Is.True);
                 InvestigationMotionSettings.SetReducedMotionForTests(!InvestigationMotionSettings.ReducedMotion);
                 Assert.That(view.State, Is.SameAs(controller.State));
                 Assert.That(InvestigationSessionBridge.PendingInput, Is.SameAs(invalidInput));

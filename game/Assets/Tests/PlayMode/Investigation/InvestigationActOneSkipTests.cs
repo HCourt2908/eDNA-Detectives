@@ -41,7 +41,7 @@ namespace EDNA.Investigation.Tests
                 Assert.That(GameObject.Find("Today Notebook Row tuna"), Is.Null);
                 Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
                 Assert.That(EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Start Recording Today"));
-                Press("Difficulty Toggle");
+                InvestigationCurrentFlowTestActions.ToggleGuidanceForTests();
                 Assert.That(GameObject.Find("Arrival Briefing Overlay"), Is.Null);
                 Press("Start Recording Today"); yield return null; yield return null;
                 Assert.That(GameObject.Find("Skip Today Recording Animation"), Is.Not.Null);
@@ -89,7 +89,7 @@ namespace EDNA.Investigation.Tests
                 Assert.That(GameObject.Find("Summarize Findings"), Is.Null);
                 Press("Compare Species shark"); Press("Compare Change NotDetected");
                 Assert.That(controller.State.DiscoveredObservationIds.Count, Is.EqualTo(1));
-                Press("Difficulty Toggle");
+                InvestigationCurrentFlowTestActions.ToggleGuidanceForTests();
                 Assert.That(GameObject.Find("Comparison Briefing Overlay"), Is.Null);
             }
         }

@@ -54,7 +54,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(Alpha("Comparison Species Page"),Is.EqualTo(1f));
             Assert.That(Alpha("Comparison Changes Page"),Is.EqualTo(1f));
             Assert.That(GameObject.Find("Investigation Content").GetComponent<ScrollRect>().enabled,Is.True);
-            Press("Difficulty Toggle");Press("Toggle Comparison View");Press("Toggle Comparison View");
+            InvestigationCurrentFlowTestActions.ToggleGuidanceForTests();Press("Toggle Comparison View");Press("Toggle Comparison View");
             Assert.That(GameObject.Find("Comparison Briefing Overlay"),Is.Null,"Returning to the reference or changing mode must not replay the briefing.");
             Press("Compare Species tuna");Press("Compare Change More");
             Assert.That(controller.State.HasDiscoveredObservation("E02_TUNA_WIDER_DETECTION"),Is.True);

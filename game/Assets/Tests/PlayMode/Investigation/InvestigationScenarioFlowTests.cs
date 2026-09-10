@@ -94,7 +94,7 @@ namespace EDNA.Investigation.Tests
             int count = 0; foreach (var img in record.GetComponentsInChildren<Image>()) if (img.sprite != null) count++;
             Assert.That(count, Is.EqualTo(3));
             Press("Toggle Notebook Drawer"); yield return new WaitForSecondsRealtime(.3f);
-            Press("Close Notebook Drawer"); Press("Difficulty Toggle"); yield return null;
+            Press("Close Notebook Drawer"); InvestigationCurrentFlowTestActions.ToggleGuidanceForTests(); yield return null;
             Press("Finish Scenario Animation");
             Assert.That(Actor("tuna"), Does.Contain("Increase"));
             Assert.That(GameObject.Find("Scenario Observed shark").transform.Find("Observed Today Absence"), Is.Not.Null);

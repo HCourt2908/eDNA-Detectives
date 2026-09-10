@@ -12,7 +12,7 @@ namespace EDNA.Investigation
         private string scenarioBriefedConflict = string.Empty;
         private int scenarioBriefingVersion;
         private double scenarioBriefingPausedAt = -1d;
-        private double ScenarioPlaybackTime => scenarioBriefingPausedAt >= 0d ? scenarioBriefingPausedAt : Time.unscaledTimeAsDouble;
+        private double ScenarioPlaybackTime => scenarioBriefingPausedAt >= 0d ? scenarioBriefingPausedAt : restartPausedAt >= 0d ? restartPausedAt : Time.unscaledTimeAsDouble;
         private bool ScenarioBriefingActive => ScenarioWorkspaceActive && scenarioBriefingStep != ScenarioBriefingStep.None;
 
         private void ResetScenarioBriefing()

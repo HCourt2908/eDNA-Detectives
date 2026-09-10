@@ -102,6 +102,105 @@ namespace EDNA.Investigation.Tests
             Assert.That(caseDefinition.MaximumSurveySpecies, Is.EqualTo(7));
         }
 
+        // Approved Species List FigJam m631tWbfQ8NajWmFN3X93q, checked 2026-09-10.
+        [TestCase("green_sea_urchin", "Strongylocentrotus droebachiensis")]
+        [TestCase("reef_manta_ray", "Mobula alfredi")]
+        [TestCase("kitefin_shark", "Dalatias licha")]
+        [TestCase("great_hammerhead_shark", "Sphyrna mokarran")]
+        [TestCase("orange_roughy", "Hoplostethus atlanticus")]
+        [TestCase("pinecone_fish", "Monocentris japonica")]
+        [TestCase("atlantic_bluefin_tuna", "Thunnus thynnus")]
+        [TestCase("atlantic_herring", "Clupea harengus")]
+        [TestCase("spotted_lanternfish", "Myctophum punctatum")]
+        [TestCase("northern_krill", "Meganyctiphanes norvegica")]
+        [TestCase("king_crab", "Neolithodes agassizii")]
+        [TestCase("warty_squid", "Moroteuthopsis longimana")]
+        [TestCase("flapjack_octopus", "Opisthoteuthis californiana")]
+        [TestCase("giant_pacific_octopus", "Enteroctopus dofleini")]
+        [TestCase("bone_eating_worm", "Osedax frankpressi")]
+        [TestCase("tree_bubblegum_coral", "Paragorgia arborea")]
+        [TestCase("precious_coral", "Corallium rubrum")]
+        [TestCase("zigzag_coral", "Madrepora oculata")]
+        [TestCase("moon_jellyfish", "Aurelia aurita")]
+        [TestCase("phytoplankton", "Prochlorococcus marinus")]
+        public void SharedCatalog_MatchesApprovedFigmaSpecies_AndImportsNames(string canonicalId, string scientificName)
+        {
+            var species = caseDefinition.FindCatalogSpecies(canonicalId);
+            Assert.That(species, Is.Not.Null);
+            Assert.That(species.ScientificName, Is.EqualTo(scientificName));
+            Assert.That(caseDefinition.FindCatalogSpecies("  " + scientificName.ToUpperInvariant() + "  "), Is.SameAs(species));
+            Assert.That(caseDefinition.FindCatalogSpecies(species.DisplayName), Is.SameAs(species));
+            Assert.That(caseDefinition.FindCatalogSpecies(canonicalId.Replace('_', '-')), Is.SameAs(species));
+            var input = new InvestigationGameInput();
+            var result = new EDNAResultData();
+            result.speciesObservations.Add(new EDNASpeciesObservationData
+            {
+                speciesId = scientificName,
+                surveyTimepoint = SurveyTimepoint.Historical,
+                detectionState = SpeciesDetectionState.Detected,
+                depthBand = species.MapDepthBand
+            });
+            input.ednaResults.Add(result);
+            var state = updater.CreateInitialState();
+            Assert.That(updater.TryApplyExternalInput(state, input, out string feedback), Is.True, feedback);
+            Assert.That(state.HasSurveySpecies(species.SpeciesId), Is.True);
+        }
+
+        [Test]
+        public void ImportedSpecies_StayWithinApprovedCatalog_WithoutInventingAliasesForLegacyControls()
+        {
+            var input = new InvestigationGameInput();
+            var result = new EDNAResultData();
+            result.detectedSpeciesIds.AddRange(new[] { "unlisted_species", "sea_star", "mussel", "Mobula alfredi" });
+            input.ednaResults.Add(result);
+            var roster = new InvestigationCaseRosterBuilder().Build(caseDefinition, input);
+            foreach (var record in roster.SurveyRecords)
+                Assert.That(caseDefinition.FindCatalogSpecies(record.SpeciesId), Is.Not.Null);
+            Assert.That(caseDefinition.FindCatalogSpecies("sea_star"), Is.Null);
+            Assert.That(caseDefinition.FindCatalogSpecies("mussel"), Is.Null);
+        }
+
+        [Test]
+        public void SharedCatalog_RejectsNamesThatWouldResolveToDifferentSpecies()
+        {
+            var clone = UnityEngine.Object.Instantiate(caseDefinition);
+            var duplicate = UnityEngine.Object.Instantiate(caseDefinition.FindCatalogSpecies("reef_manta_ray"));
+            try
+            {
+                var entry = new SerializedObject(duplicate);
+                entry.FindProperty("displayName").stringValue = "  SPHYRNA MOKARRAN  ";
+                entry.ApplyModifiedPropertiesWithoutUndo();
+                var data = new SerializedObject(clone);
+                var catalog = data.FindProperty("speciesCatalog");
+                for (int i = 0; i < catalog.arraySize; i++)
+                    if (catalog.GetArrayElementAtIndex(i).objectReferenceValue == caseDefinition.FindCatalogSpecies("reef_manta_ray"))
+                        catalog.GetArrayElementAtIndex(i).objectReferenceValue = duplicate;
+                data.ApplyModifiedPropertiesWithoutUndo();
+                Assert.That(new InvestigationCaseValidator().Validate(clone),
+                    Has.Some.Contains("Species catalog name is ambiguous"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(duplicate);
+                UnityEngine.Object.DestroyImmediate(clone);
+            }
+        }
+
+        [Test]
+        public void TeamArtwork_IsSharedByCaseAndImportedSpecies()
+        {
+            foreach (string id in new[] { "great_hammerhead_shark", "reef_manta_ray", "bone_eating_worm" })
+            {
+                var sprite = caseDefinition.FindCatalogSpecies(id).Icon;
+                Assert.That(sprite, Is.Not.Null, id);
+                string path = AssetDatabase.GetAssetPath(sprite);
+                Assert.That(path, Does.StartWith("Assets/Art/Investigation/TeamSpecies/"));
+                var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+                Assert.That(importer.spriteImportMode, Is.EqualTo(SpriteImportMode.Single));
+                Assert.That(importer.alphaIsTransparency, Is.True);
+            }
+        }
+
         [Test]
         public void ExternalEdnaResults_NormalizeCanonicalAliasesToCaseSpeciesIds()
         {
@@ -299,7 +398,7 @@ namespace EDNA.Investigation.Tests
         }
 
         [Test]
-        public void ExternalEdnaResults_AddOnlyKnownDetectedSpeciesToSurveyRoster()
+        public void ExternalEdnaResults_AddOnlyCatalogSpecies_NotArbitraryCaseDefinitions()
         {
             InvestigationCaseDefinition clone = UnityEngine.Object.Instantiate(caseDefinition);
             InvestigationSpeciesDefinition backgroundSpecies = ScriptableObject.CreateInstance<InvestigationSpeciesDefinition>();
@@ -327,10 +426,12 @@ namespace EDNA.Investigation.Tests
                 InvestigationGameInput input = new InvestigationGameInput();
                 EDNAResultData result = new EDNAResultData();
                 result.detectedSpeciesIds.Add("background_jelly");
+                result.detectedSpeciesIds.Add("moon_jellyfish");
                 result.detectedSpeciesIds.Add("unknown_species");
                 input.ednaResults.Add(result);
                 Assert.That(cloneUpdater.TryApplyExternalInput(state, input, out string feedback), Is.True);
-                Assert.That(state.HasSurveySpecies("background_jelly"), Is.True);
+                Assert.That(state.HasSurveySpecies("background_jelly"), Is.False);
+                Assert.That(state.HasSurveySpecies("moon_jellyfish"), Is.True);
                 Assert.That(state.HasSurveySpecies("unknown_species"), Is.False);
                 Assert.That(feedback, Does.Contain("1 additional survey species"));
             }
@@ -392,15 +493,16 @@ namespace EDNA.Investigation.Tests
         }
 
         [Test]
-        public void CoreSpecies_UseTheFieldGuideSetWithBoundedTransparentTextures()
+        public void CoreSpecies_UseApprovedArtworkWithBoundedTransparentTextures()
         {
             foreach (InvestigationSpeciesDefinition species in caseDefinition.Species)
             {
                 string path = AssetDatabase.GetAssetPath(species.Icon);
-                Assert.That(path, Does.StartWith("Assets/Art/Investigation/FieldGuide/"));
+                Assert.That(path, Does.StartWith(species.SpeciesId == "shark"
+                    ? "Assets/Art/Investigation/TeamSpecies/" : "Assets/Art/Investigation/FieldGuide/"));
                 TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(path);
                 Assert.That(importer.alphaIsTransparency, Is.True);
-                Assert.That(importer.maxTextureSize, Is.EqualTo(512));
+                Assert.That(importer.maxTextureSize, Is.EqualTo(species.SpeciesId == "shark" ? 1024 : 512));
                 Assert.That(importer.mipmapEnabled, Is.False);
                 Assert.That(importer.wrapMode, Is.EqualTo(TextureWrapMode.Clamp));
             }

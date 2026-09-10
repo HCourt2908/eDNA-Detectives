@@ -36,7 +36,6 @@ namespace EDNA.Investigation
         private InvestigationCaseDefinition caseDefinition;
         private InvestigationState state;
         private Action<InvestigationPhase> setPhase;
-        private Action<InvestigationDifficulty> setDifficulty;
         private Action<string> discoverObservation;
         private Action<string> runThreat;
         private Action<string, PredictionTargetKind, string, string> compareEvidence;
@@ -62,8 +61,7 @@ namespace EDNA.Investigation
         private RectTransform footerRoot;
         private RectTransform footerLeft;
         private RectTransform footerRight;
-        private Button difficultyButton;
-        private Text difficultyText;
+        private Button restartButton;
 
         private string selectedThreatId = string.Empty;
         private PredictionTargetKind selectedPredictionTargetKind = PredictionTargetKind.Species;
@@ -112,7 +110,6 @@ namespace EDNA.Investigation
         {
             caseDefinition = definition;
             setPhase = onSetPhase;
-            setDifficulty = onSetDifficulty;
             discoverObservation = onDiscoverObservation;
             runThreat = onRunThreat;
             compareEvidence = onCompareEvidence;
@@ -130,6 +127,8 @@ namespace EDNA.Investigation
 
         public void ResetPresentationState()
         {
+            RemoveRestartDialog();
+            restartPausedAt = -1d;
             seamountBackdrop?.RestartCycle();
             ResetWorkbench();
             observeLayoutSessionSeed = Guid.NewGuid().ToString("N");
@@ -323,12 +322,7 @@ namespace EDNA.Investigation
             metricsText = CreateText("Metrics", header, "", 11, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.MiddleRight, InvestigationTheme.DataFont);
             Anchor(metricsText.rectTransform, 0.36f, 1f, 1f, 1f, 8f, -40f, -156f, -6f);
 
-            difficultyButton = CreateButton("Difficulty Toggle", header, "Easy", ButtonVisualStyle.Secondary, () =>
-            {
-                if (state == null) return;
-                setDifficulty?.Invoke(state.Difficulty == InvestigationDifficulty.Easy ? InvestigationDifficulty.Hard : InvestigationDifficulty.Easy);
-            }, out difficultyText);
-            Anchor(difficultyButton.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -136f, -38f, -12f, -6f);
+            CreateHeaderRestart(header);
 
             stageRoot = CreatePanel("Stage Navigation", header, new Color(0f, 0f, 0f, 0f), 0f);
             Anchor(stageRoot, 0.18f, 0f, 0.82f, 0f, 12f, 4f, -12f, 46f);
@@ -486,6 +480,7 @@ namespace EDNA.Investigation
             RenderEdnaPresentation();
             ResumeTodayRecording();
             ShowPendingTappedSpeciesTooltip();
+            RenderRestartDialog();
             if (contentScroll != null)
             {
                 contentScroll.StopMovement();
@@ -613,7 +608,6 @@ namespace EDNA.Investigation
                 CreateStageButton("2 · Investigate", InvestigationPhase.Simulate);
                 string revisions = state.MisstepCount > 0 ? $"    REVISIONS {state.MisstepCount}" : string.Empty;
                 metricsText.text = $"FINDINGS {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)} · MODELS {state.TriedThreatIds.Count}/{caseDefinition.Threats.Count}\nCHECKS {VisibleCompletedObjectiveCount()}/{VisibleRequiredObjectiveCount()}{revisions}";
-                difficultyText.text = state.Difficulty == InvestigationDifficulty.Easy ? "Easy" : "Hard";
                 caseSubtitleText.text = $"{caseDefinition.DisplayName} · {state.SiteDisplayName} · {state.SurveyDisplayName}";
             }
             else
@@ -621,7 +615,7 @@ namespace EDNA.Investigation
                 metricsText.text = "CASE ERROR";
                 caseSubtitleText.text = "CASE UNAVAILABLE";
             }
-            difficultyButton.interactable = state != null;
+            restartButton.interactable = state != null && !restartConfirmationPending;
             bool hasStatusMessage = !string.IsNullOrWhiteSpace(statusMessage);
             bool hasInlineReportFeedback = state != null && state.Phase == InvestigationPhase.Report
                 && state.ConclusionStatus != InvestigationConclusionStatus.NotSubmitted

@@ -81,7 +81,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Observe Survey Story"), Is.Null);
             Assert.That(GameObject.Find("Comparison Changes Page"), Is.Not.Null);
             Assert.That(GameObject.Find("Sorted Species tuna"), Is.Not.Null);
-            Press("Difficulty Toggle"); yield return new WaitForSecondsRealtime(.2f);
+            InvestigationCurrentFlowTestActions.ToggleGuidanceForTests(); yield return new WaitForSecondsRealtime(.2f);
             Assert.That(GameObject.Find("Observe Survey Story"), Is.Null);
             var stale = GameObject.Find("Summarize Findings").GetComponent<Button>().onClick;
             Press("Summarize Findings"); stale.Invoke();
@@ -142,7 +142,7 @@ namespace EDNA.Investigation.Tests
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
             InvestigationWorkbenchTestActions.ShowSurveySummary();
             Press("Stage Simulate"); yield return null; yield return null;
-            Press("Difficulty Toggle"); yield return null; yield return null;
+            InvestigationCurrentFlowTestActions.ToggleGuidanceForTests(); yield return null; yield return null;
             int count = 0;
             foreach (RectTransform item in Object.FindObjectsByType<RectTransform>(FindObjectsSortMode.None))
                 if (item.name == "Survey Summary In Flight" && item.gameObject.activeInHierarchy) count++;

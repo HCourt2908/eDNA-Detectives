@@ -149,6 +149,12 @@ namespace EDNA.Investigation.Domain
                 InvestigationSpeciesDefinition definition = species[index];
                 if (definition != null && definition.MatchesIdentifier(speciesId)) return definition;
             }
+            return FindCatalogSpecies(speciesId);
+        }
+
+        // Only approved catalog species can arrive from the identification game.
+        public InvestigationSpeciesDefinition FindCatalogSpecies(string speciesId)
+        {
             for (int index = 0; index < speciesCatalog.Count; index++)
             {
                 InvestigationSpeciesDefinition definition = speciesCatalog[index];

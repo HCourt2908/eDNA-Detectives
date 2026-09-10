@@ -19,7 +19,7 @@ MonoBehaviour:
   scientificName: Sphyrna mokarran
   description: A large predator that normally controls tuna abundance around the
     seamount.
-  icon: {fileID: 21300000, guid: effaa17ae83354774888074f65866e1b, type: 3}
+  icon: {fileID: 21300000, guid: f83005fada95474b96872c2aea32f03b, type: 3}
   glyphKind: 0
   trophicRole: 5
   aliases:

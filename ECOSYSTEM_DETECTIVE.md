@@ -1,6 +1,6 @@
 # Ecosystem Detective — current two-act game
 
-Current behaviour as of 2026-09-09. This is the primary gameplay specification for
+Current behaviour as of 2026-09-10. This is the primary gameplay specification for
 our part of the OceanX eDNA Detectives Unity project. Implementation details for
 the second act are in [Act 2](docs/Act2-Scenario-Comparison.md).
 
@@ -64,7 +64,7 @@ preserves the notebook's pixel scroll offset.
 
 EDNA gives a concrete action sequence: click a species, inspect old → new records
 on the right, then click its change. The species column is labelled 1 and the change
-column 2. In Easy mode, unselected species have subtle pulsing borders; after a
+column 2. With the default guidance, unselected species have subtle pulsing borders; after a
 selection, all four available change targets pulse instead. The selected species
 is named in the instructions and its notebook records are outlined. Cues never
 identify the correct answer. Classification remains enabled while the seamount
@@ -166,7 +166,11 @@ EDNA and the summary state the limits: model agreement is not proof of cause,
 and non-detection does not prove absence. The player can **Compare again** or
 **Record conclusion**. Reading or returning does not submit a result. Recording
 submits once and displays **CONCLUSION RECORDED** with the qualified conclusion.
-Restart begins a new case and retains the selected difficulty.
+The top-right restart icon is available throughout the investigation, including
+during EDNA spotlights. It opens a confirmation with **Keep investigating** and
+**Restart**. Cancel preserves the current case; confirmation clears case progress
+and restarts Observe using the existing session input. Model playback pauses while
+the confirmation is open. A completed case also offers **Investigate again**.
 
 `SubmitModelConclusion` requires all initial findings, tested models and required
 comparison objectives. It exports only the five discovered Observe evidence IDs;
@@ -183,8 +187,11 @@ fishing models the same shark/tuna/krill pattern. Stable sea-star records help
 distinguish them; stable mussel records challenge the plastic-pollution model.
 The player does not receive new physical evidence at the end.
 
-The shared catalog contains 20 species with canonical IDs, aliases, scientific
-names, trophic roles, depths and habitat tags. The map roster is capped at seven
+The shared catalog contains the 20 species currently named in the updated team
+[Species List](https://www.figma.com/board/m631tWbfQ8NajWmFN3X93q/Species-List?node-id=0-1),
+with canonical IDs, aliases, scientific names, trophic roles, depths and habitat tags.
+See [catalog and handoff details](docs/Species-Catalog.md) for the checked roster
+and the two legacy case controls awaiting a team-approved replacement. The map roster is capped at seven
 organisms and preserves all five case-critical species. Twelve authored food-web
 edges include the teaching network and reference branches; those reference graphs
 are data, not an additional interaction required to finish the current game.
@@ -192,9 +199,11 @@ Legacy confirmation definitions remain in the asset for compatibility tests only
 
 ## Difficulty, input and accessibility
 
-- Easy/Hard is the only exposed mode control. Motion remains Full; the internal
-  reduced-motion override is available for tests and does not write player preferences.
-- Mode changes preserve progress and do not change the scientific answer.
+- Easy/Hard and motion controls are not shown. The game starts with its existing
+  Easy guidance and Full motion. Internal guidance and reduced-motion overrides
+  remain available for regression tests.
+- The top-right restart icon has a 44-pixel hit area, a hover/focus label and
+  an explicit confirmation. Keyboard cancel returns to the investigation.
 - Species classification supports drag/drop and select-then-choose input. Play,
   Replay, notebook and conclusion controls support pointer and keyboard input.
 - Guidance never chooses a classification or explanation for the player.
@@ -211,7 +220,10 @@ The Investigation remains fully playable as a standalone case while exposing a s
 
 - optional survey and site metadata can replace the authored labels;
 - structured eDNA species observations can specify detected/not detected, depth, historical/current era, confidence, sample quality, source, sample and site;
-- canonical species IDs and aliases are normalised to the case's stable internal IDs;
+- canonical species IDs, aliases, scientific names and full display names are
+  normalised to stable internal IDs, ignoring case and separator differences;
+- imported species must resolve through the approved shared catalog; arbitrary
+  definitions outside that catalog do not become imported survey records;
 - a deterministic roster selects no more than seven organisms while preserving all case-critical species;
 - mapped authored observation IDs are accepted only when their unlock stage permits it; the current conclusion exports initial survey findings only;
 - an input for the wrong case stops with a visible configuration error;
@@ -264,7 +276,10 @@ WebGL or physical-device validation.
 
 ## Artwork and licences
 
-The five core organisms use a coordinated set of transparent field-guide illustrations generated for this project. Source files, import settings and the prompt record are documented in [FieldGuide/README.md](game/Assets/Art/Investigation/FieldGuide/README.md).
+The hammerhead now uses the team-supplied transparent illustration. Reef manta ray
+and bone-eating worm catalog entries also use the team artwork; see
+[TeamSpecies/README.md](game/Assets/Art/Investigation/TeamSpecies/README.md).
+The other core organisms retain the generated field-guide illustrations. Source files, import settings and the prompt record are documented in [FieldGuide/README.md](game/Assets/Art/Investigation/FieldGuide/README.md).
 
 Threat and scenario artwork continues to use [OpenMoji](https://openmoji.org/), licensed under [CC BY-SA 4.0](game/Assets/Art/Investigation/OpenMoji/LICENSE.txt). The original organism icons are retained in the same folder. Per-file source codes and attribution are recorded in [ATTRIBUTION.md](game/Assets/Art/Investigation/OpenMoji/ATTRIBUTION.md).
 

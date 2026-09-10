@@ -15,6 +15,7 @@ namespace EDNA.Investigation.Editor
     {
         private const string DataRoot = "Assets/Data/Investigation/LongLineCase";
         private const string ArtRoot = "Assets/Art/Investigation/OpenMoji";
+        private const string TeamArtRoot = "Assets/Art/Investigation/TeamSpecies";
         private const string FieldGuideArtRoot = "Assets/Art/Investigation/FieldGuide";
         private const string SeamountSpritePath = "Assets/Art/Investigation/Seamount/seamount_hero.png";
         private const string StatusIconRoot = "Assets/Resources/Investigation/Icons/Heroicons";
@@ -491,6 +492,8 @@ namespace EDNA.Investigation.Editor
 
         private static void ConfigureArtworkImporters()
         {
+            foreach (string file in new[] { "great-hammerhead-shark.png", "reef-manta-ray.png", "bone-eating-worm.png" })
+                ConfigureSpriteImporter($"{TeamArtRoot}/{file}");
             foreach (string file in new[] { "hammerhead.png", "tuna.png", "krill.png", "sea-star.png", "mussel.png" })
                 ConfigureSpriteImporter($"{FieldGuideArtRoot}/{file}");
             string[] artworkFiles =
@@ -551,6 +554,8 @@ namespace EDNA.Investigation.Editor
         public static void UpdateVisualArtwork()
         {
             AssetDatabase.Refresh();
+            foreach (string file in new[] { "great-hammerhead-shark.png", "reef-manta-ray.png", "bone-eating-worm.png" })
+                ConfigureSpriteImporter($"{TeamArtRoot}/{file}");
             string[] ids = { "shark", "tuna", "krill", "sea_star", "mussel" };
             string[] names = { "Shark", "Tuna", "Krill", "SeaStar", "Mussel" };
             string[] files = { "hammerhead", "tuna", "krill", "sea-star", "mussel" };
@@ -564,7 +569,16 @@ namespace EDNA.Investigation.Editor
                 serialized.ApplyModifiedPropertiesWithoutUndo();
                 AssetDatabase.SaveAssetIfDirty(species);
             }
-            Debug.Log("INVESTIGATION_VISUAL_ARTWORK_UPDATED species=5");
+            foreach (string name in new[] { "ReefMantaRay", "BoneEatingWorm" })
+            {
+                var species = AssetDatabase.LoadAssetAtPath<InvestigationSpeciesDefinition>($"{DataRoot}/Species_{name}.asset");
+                if (species == null) throw new InvalidOperationException($"Missing catalog species: {name}");
+                var serialized = new SerializedObject(species);
+                serialized.FindProperty("icon").objectReferenceValue = LoadSpeciesIcon(species.SpeciesId);
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                AssetDatabase.SaveAssetIfDirty(species);
+            }
+            Debug.Log("INVESTIGATION_VISUAL_ARTWORK_UPDATED species=7");
         }
 
         private static void ConfigureSeamountImporter(string path)
@@ -595,6 +609,9 @@ namespace EDNA.Investigation.Editor
 
         private static Sprite LoadSpeciesIcon(string speciesId)
         {
+            string teamFile = speciesId == "shark" ? "great-hammerhead-shark" : speciesId.Replace('_', '-');
+            Sprite teamArt = AssetDatabase.LoadAssetAtPath<Sprite>($"{TeamArtRoot}/{teamFile}.png");
+            if (teamArt != null) return teamArt;
             string fieldGuideFile = speciesId == "shark" ? "hammerhead" : speciesId == "sea_star" ? "sea-star" : speciesId;
             Sprite fieldGuide = AssetDatabase.LoadAssetAtPath<Sprite>($"{FieldGuideArtRoot}/{fieldGuideFile}.png");
             if (fieldGuide != null) return fieldGuide;
