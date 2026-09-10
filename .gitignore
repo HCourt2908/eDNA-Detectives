@@ -41,3 +41,9 @@ docs/Investigation-Review-*.md
 
 # Superseded local planning history
 docs/archive/Detective-Game-Improvement-History.md
+
+# Detailed design, implementation and integration notes stay local
+/ECOSYSTEM_DETECTIVE.md
+/docs/Detective-Game-Improvement-Plan.md
+/docs/Act2-Scenario-Comparison.md
+/docs/Species-Catalog.md
