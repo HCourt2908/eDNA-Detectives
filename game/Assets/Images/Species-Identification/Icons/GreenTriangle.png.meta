@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 7f90fa7cc02b0294298ee61d5c2b9604
+guid: bf2d18cc28ab68448a771fceb295873b
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -369078402613471944
-    second: Proper Tree Of Life (1)_0
+      213: 8072529574422069907
+    second: GreenTriangle_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -113,13 +113,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Proper Tree Of Life (1)_0
+      name: GreenTriangle_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 5608
-        height: 3155
+        width: 424
+        height: 360
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 83594f5f525c0eaf0800000000000000
-      internalID: -369078402613471944
+      spriteID: 392434ab0e2670070800000000000000
+      internalID: 8072529574422069907
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Proper Tree Of Life (1)_0: -369078402613471944
+      GreenTriangle_0: 8072529574422069907
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
