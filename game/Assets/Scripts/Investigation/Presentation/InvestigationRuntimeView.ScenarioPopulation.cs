@@ -27,35 +27,6 @@ namespace EDNA.Investigation
             new Vector2(.5f, .5f), new Vector2(.3f, .5f), new Vector2(.7f, .5f), new Vector2(.1f, .5f), new Vector2(.9f, .5f)
         };
 
-        private ScenarioActor CreateScenarioActor(Transform parent, string id, PredictionState prediction, float x0, float y0, float x1, float y1)
-        {
-            var species = caseDefinition.FindSpecies(id);
-            RectTransform node = CreatePanel("Scenario Actor " + id, parent, Color.clear, 0f);
-            Anchor(node, x0, y0, x1, y1, 0f, 0f, 0f, 0f);
-            RectTransform halo = CreatePanel("Scenario Population Glow", node, Color.clear, InvestigationTheme.SmallRadius);
-            Stretch(halo, 2f, 1f, -2f, -1f);
-            Text name = CreateText("Scenario Actor Name", node, id == "mussel" ? "Mussel · control" : id == "sea_star" ? "Sea star · control" : species.GameplayName, 13,
-                FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperCenter, InvestigationTheme.BodyFont);
-            Anchor(name.rectTransform, 0f, .74f, 1f, 1f, 0f, 0f, 0f, 0f);
-            RectTransform art = CreatePanel("Scenario Actor Artwork", node, Color.clear, 0f);
-            Anchor(art, .02f, .23f, .98f, .80f, 0f, 0f, 0f, 0f);
-            art.gameObject.AddComponent<RectMask2D>();
-            var units = new Image[5];
-            for (int i = 0; i < units.Length; i++)
-            {
-                units[i] = CreateStatusIcon("Scenario Specimen " + i, art, species.Icon, i < 3 ? Color.white : Color.clear);
-                Vector2 slot = ScenarioUnitSlots[i];
-                Anchor(units[i].rectTransform, slot.x - .14f, slot.y - .32f, slot.x + .14f, slot.y + .32f, 0f, 0f, 0f, 0f);
-            }
-            Text result = CreateText("Scenario Actor Prediction", node, "— Stable", 14, FontStyle.Bold,
-                InvestigationTheme.TextPrimary, TextAnchor.LowerCenter, InvestigationTheme.BodyFont);
-            Anchor(result.rectTransform, 0f, 0f, 1f, .23f, 0f, 0f, 0f, 0f);
-            var border = CreateGraphic<InvestigationBorderGraphic>("Scenario Population Pulse", node);
-            border.Configure(InvestigationTheme.SmallRadius, 2f); border.color = Color.clear; border.raycastTarget = false;
-            Stretch(border.rectTransform, 1f, 1f, -1f, -1f);
-            return new ScenarioActor { Art = art, Units = units, Halo = halo.GetComponent<Image>(), Border = border, Result = result, Prediction = prediction };
-        }
-
         private void SampleScenarioScene(List<ScenarioActor> actors, List<CanvasGroup> links, bool building, float progress, RectTransform notebook = null)
         {
             for (int i = 0; i < actors.Count; i++)
@@ -63,7 +34,7 @@ namespace EDNA.Investigation
                 ScenarioActor actor = actors[i];
                 // Hold the baseline, then show a readable cascade. The last part
                 // of the playback holds the completed pattern before advancing.
-                float begin = i < 3 ? .12f + i * .17f : .57f + (i - 3) * .04f;
+                float begin = .10f + i * (.54f / Mathf.Max(1, actors.Count - 1));
                 float t = building ? Mathf.InverseLerp(i * .10f, .48f + i * .10f, progress)
                     : Mathf.InverseLerp(begin, begin + .24f, progress);
                 Color tint = actor.Prediction == PredictionState.Decrease ? InvestigationTheme.Accent : InvestigationTheme.Primary;
@@ -116,7 +87,7 @@ namespace EDNA.Investigation
                         image.rectTransform.localScale = Vector3.one * arrival;
                     }
                     image.rectTransform.anchoredPosition = offset;
-                    image.color = new Color(1f, 1f, 1f, alpha);
+                    image.color = new Color(1f, 1f, 1f, alpha * (actor.Prediction == PredictionState.Unknown && !building ? Mathf.Lerp(1f, .25f, t) : 1f));
                 }
             }
             for (int i = 0; i < links.Count; i++) links[i].alpha = building ? Mathf.InverseLerp(.25f + .2f * i, .65f + .2f * i, progress) : 1f;

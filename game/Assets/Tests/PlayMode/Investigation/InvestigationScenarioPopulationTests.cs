@@ -9,7 +9,7 @@ namespace EDNA.Investigation.Tests
 {
     public sealed class InvestigationScenarioPopulationTests
     {
-        static readonly string[] Species = { "shark", "tuna", "krill", "sea_star", "mussel" };
+        static readonly string[] Species = { "shark", "tuna", "krill", "atlantic_herring", "phytoplankton" };
         static void Press(string name) => GameObject.Find(name).GetComponent<Button>().onClick.Invoke();
         static Image Unit(string species, int i) => GameObject.Find("Scenario Result " + Object.FindAnyObjectByType<InvestigationController>().State.ActiveThreatId).transform.Find("Scenario Result Species " + species + "/Result Population " + species + "/Result Specimen " + i).GetComponent<Image>();
         static void AssertPopulation(string species, int expected)
@@ -33,22 +33,23 @@ namespace EDNA.Investigation.Tests
             Assert.That(Unit("shark", 1).color.a, Is.InRange(.01f, .99f));
             Assert.That(Mathf.Abs(Unit("shark", 1).rectTransform.anchoredPosition.x), Is.GreaterThan(10f));
             Assert.That(GameObject.Find("Scenario Result longline").transform.Find("Scenario Result Species shark/Scenario Population Glow").GetComponent<Image>().color.a, Is.GreaterThan(0f));
-            yield return new WaitForSecondsRealtime(4.5f);
-            AssertPopulation("shark", 1); AssertPopulation("tuna", 5); AssertPopulation("krill", 1);
-            AssertPopulation("sea_star", 3); AssertPopulation("mussel", 3);
+            yield return new WaitForSecondsRealtime(4.65f);
+            AssertPopulation("shark", 1); AssertPopulation("tuna", 5); AssertPopulation("krill", 5);
+            AssertPopulation("atlantic_herring", 1); AssertPopulation("phytoplankton", 1);
             Assert.That(GameObject.Find("Metrics").GetComponent<Text>().text, Does.Contain("0/3"), "Final pattern stays visible before the trial completes");
             yield return new WaitForSecondsRealtime(1.2f);
             Assert.That(GameObject.Find("Metrics").GetComponent<Text>().text, Does.Contain("1/3"));
             Press("Scenario Briefing Next"); Press("Run Scenario plastic");
             foreach (string species in Species) AssertPopulation(species, 3);
             Press("Finish Scenario Animation");
-            AssertPopulation("shark", 3); AssertPopulation("tuna", 3); AssertPopulation("krill", 1); AssertPopulation("mussel", 1);
+            AssertPopulation("shark", 0); AssertPopulation("tuna", 3); AssertPopulation("krill", 1); AssertPopulation("phytoplankton", 0);
+            Assert.That(Unit("shark", 0).color.a, Is.EqualTo(.25f).Within(.01f));
         }
         [UnityTest] public IEnumerator Population_ComparisonCardsKeepTheSameVisualCounts()
         {
             yield return Start();
             foreach (string id in new[] { "plastic", "longline", "bottom_trawling" }) { Press("Run Scenario " + id); Press("Finish Scenario Animation"); }
-            int[][] expected = { new[] {3,3,1,3,1}, new[] {1,5,1,3,3}, new[] {1,5,1,1,3} };
+            int[][] expected = { new[] {0,3,1,0,0}, new[] {1,5,5,1,1}, new[] {1,5,5,1,1} };
             string[] causes = { "plastic", "longline", "bottom_trawling" };
             for (int cause = 0; cause < causes.Length; cause++)
             {

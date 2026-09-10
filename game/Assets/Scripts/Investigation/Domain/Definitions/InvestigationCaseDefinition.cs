@@ -100,6 +100,7 @@ namespace EDNA.Investigation.Domain
         [SerializeField, Min(1)] private int requiredComparisonsPerThreat = 2;
         [SerializeField, Min(1)] private int minimumCompletedComparisons = 4;
         [SerializeField] private string correctThreatId = string.Empty;
+        [SerializeField] private List<string> supportedModelThreatIds = new List<string>();
         [SerializeField] private List<string> confirmationEvidenceIds = new List<string>();
         [SerializeField, Min(1)] private int minimumReportEvidence = 2;
         [SerializeField] private List<InvestigationEvidenceCategoryRequirement> evidenceCategoryRequirements = new List<InvestigationEvidenceCategoryRequirement>();
@@ -132,6 +133,13 @@ namespace EDNA.Investigation.Domain
         public int RequiredComparisonsPerThreat => Mathf.Max(1, requiredComparisonsPerThreat);
         public int MinimumCompletedComparisons => Mathf.Max(1, minimumCompletedComparisons);
         public string CorrectThreatId => correctThreatId;
+        // Authored case priority, separate from which models fit the same pattern.
+        public string PrimaryModelThreatId => correctThreatId;
+        public IReadOnlyList<string> SupportedModelThreatIds => supportedModelThreatIds;
+        public bool HasAmbiguousModelConclusion => supportedModelThreatIds.Count > 1;
+        public bool SupportsModelConclusion(string id) => supportedModelThreatIds.Count > 0
+            ? supportedModelThreatIds.Contains(id) : string.Equals(id, correctThreatId, StringComparison.Ordinal);
+
         public IReadOnlyList<string> ConfirmationEvidenceIds => confirmationEvidenceIds;
         public int MinimumReportEvidence => Mathf.Max(1, minimumReportEvidence);
         public IReadOnlyList<InvestigationEvidenceCategoryRequirement> EvidenceCategoryRequirements => evidenceCategoryRequirements;

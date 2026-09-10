@@ -15,10 +15,10 @@ MonoBehaviour:
   speciesId: atlantic_herring
   canonicalSpeciesId: atlantic_herring
   displayName: Atlantic Herring
-  shortDisplayName:
+  shortDisplayName: Herring
   scientificName: Clupea harengus
-  description: A schooling forage fish connecting plankton to larger predators.
-  icon: {fileID: 0}
+  description: "A schooling fish of the North Atlantic. It eats small drifting animals, including copepods and krill, and is food for larger fish, seabirds and marine mammals."
+  icon: {fileID: 21300000, guid: f1e813ff450a441ab935a5681d2edb70, type: 3}
   glyphKind: 5
   trophicRole: 3
   aliases:

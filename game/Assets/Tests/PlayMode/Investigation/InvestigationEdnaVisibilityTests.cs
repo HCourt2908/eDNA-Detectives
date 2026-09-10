@@ -51,7 +51,7 @@ namespace EDNA.Investigation.Tests
             Press("Toggle Comparison View");
             AssertEmbeddedGuide();
             var controller = Object.FindAnyObjectByType<InvestigationController>();
-            foreach (var checkpoint in new[] { InvestigationQaCheckpoint.ReportReady, InvestigationQaCheckpoint.ReportQuestions })
+            foreach (var checkpoint in new[] { InvestigationQaCheckpoint.ConclusionReady })
             {
                 controller.ApplyQaCheckpoint(checkpoint);
                 yield return null;

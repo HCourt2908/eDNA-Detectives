@@ -1,45 +1,40 @@
 # Detective Game — Current Status and Next Steps
 
-Updated 2026-09-10. The current gameplay specification is
-[ECOSYSTEM_DETECTIVE.md](../ECOSYSTEM_DETECTIVE.md); implementation details for
-Act 2 are in [Act2-Scenario-Comparison.md](Act2-Scenario-Comparison.md).
+Updated 2026-09-10. [ECOSYSTEM_DETECTIVE.md](../ECOSYSTEM_DETECTIVE.md) is the current
+specification; [Act 2](Act2-Scenario-Comparison.md) describes the model comparison.
 
-## Completed
+## Implemented
 
-- Observe starts with Today and records the current and historical surveys separately. EDNA introduces the notebook, species and change categories with highlights before classification.
-- Players drag species or select a category to compare findings, including stable records. Incorrect attempts do not reveal the answer or add a penalty.
-- Players explicitly summarize and save both dated surveys. Recording and guide animations can be skipped without skipping the comparison decisions.
-- Investigate keeps three cause cards in a consistent layout, with title icons and separate Play/Replay controls.
-- Relative imagery changes from 3 to 5, 3 to 1 or 3 to 3, supported by progress and local highlights. An interrupted first playback does not count as completed.
-- EDNA remains available, and the notebook uses an icon button. The main screen stays within the viewport; the notebook scrolls independently.
-- The ending summarizes the five existing findings and model comparisons. Players record their conclusion or return to compare; it adds no ROV, fishing-line or seabed evidence.
-- The conclusion identifies the best match among the three tested models. It does not claim proof of a cause or that a species is completely absent.
-- QA completion checkpoints, exported evidence and conclusion logic use the survey/model path.
-
-- The mode button is replaced by a top-right restart icon with cancel/confirm controls, available throughout both acts and their guides.
-- The shared catalog is checked against the updated team Species List; handoff names accept canonical IDs, scientific names and full display names.
-- Team illustrations replace the hammerhead and supply manta ray and bone-eating worm catalog artwork.
-
-## Maintenance
-
-Startup, navigation, input, mode, notebook and completion tests follow the current
-flow. Superseded interaction checks have been removed or replaced, while legacy
-domain report rules retain compatibility coverage. Test reports, review notes and
-superseded planning history stay local. See the
-[development instructions](../ECOSYSTEM_DETECTIVE.md#development-and-validation)
-for the test suites and Unity validation commands.
+- The five-species main chain follows the Figma example and approved catalog.
+- Herring and phytoplankton replace off-catalog case controls with their own
+  definitions and transparent illustrations; they do not inherit old animal aliases.
+- Observe has explicit fewer-site records and consistent grouped pictures across
+  the map, recording flight and notebook. The example survey is labelled illustrative.
+- Fishing predictions follow the complete reference chain from a shared predator
+  seed. Plastic remains a provisional card with unsupplied responses marked Unknown.
+- Both fishing models can be reviewed. The conclusion follows the team's case
+  direction: long-line fishing is the main explanation and bottom trawling is a
+  possible alternative. No additional evidence task is requested; exports preserve
+  both the reviewed model and these authored roles.
+- Other Figma food webs are optional notebook references and cannot create evidence.
+- Restart uses a transparent Heroicons sprite, with confirm/cancel and playback pause.
+- Player QA controls and keyboard shortcuts are removed; automated fixtures remain.
+- Unreachable prototype interfaces and old EDNA/report refresh logic are removed.
+  Test checkpoints now describe the current two-act flow; lower-level report API
+  compatibility tests are labelled separately.
 
 ## Follow-up Work
 
-1. Validate input/output with the actual identification minigame producer. Standalone examples and contract tests do not establish completed integration.
-2. Run player studies to check understanding of detection changes versus animal counts, and why stable species matter.
-3. Validate WebGL, touch input and performance on the intended deployment devices. A macOS development build covers only one target.
-4. Review scientific content and update rule and flow coverage before adding ecological relationships, survey cases or changes to the conclusion.
+1. Obtain Frederick's review of the ecological responses and replacement third
+   scenario. Add distinguishing evidence only when it is actually supplied.
+2. Integrate the real identification producer and agree on case ID, era and result
+   handling. The contract and catalog alone do not establish completed integration.
+3. Confirm the shared project's startup flow before merging into the overall game.
+4. Validate WebGL and touch interaction on the actual exhibit devices, and check
+   whether players distinguish detection pictures from population counts.
+5. Complete artwork for optional catalog species as the team supplies it.
+6. Reuse the main survey's depth placement in the miniature survey-story map.
+   Its hand-authored positions currently put phytoplankton low on the seamount;
+   verify symbol and label spacing when consolidating the layouts.
 
-## Content Decisions Pending
-
-The three existing scenarios remain unchanged at the team's request while the
-food-web review and a third replacement scenario are pending. Sea star and mussel
-are legacy case controls outside the approved catalog; their replacements and
-associated model predictions need confirmation together. They are not aliases for
-other catalog animals and are not accepted as new identification imports.
+Test results, review reports and superseded planning history stay local.

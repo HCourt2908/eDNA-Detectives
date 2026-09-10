@@ -16,7 +16,6 @@ namespace EDNA.Investigation
         private Coroutine speciesTooltipDismiss;
         private string lastRecordedObservationId = string.Empty;
         private InvestigationSeamountBackdrop seamountBackdrop;
-        private bool observeNotebookVisible;
 
         private enum NotebookEvidenceStatus
         {
@@ -58,21 +57,6 @@ namespace EDNA.Investigation
                     Mathf.Max(surveyHeight, LayoutUtility.GetPreferredHeight(arrival)));
                 return;
             }
-        }
-
-        private IEnumerator RevealObserveNotebook(RectTransform notebook)
-        {
-            CanvasGroup group = EnsureCanvasGroup(notebook);
-            float elapsed = 0f;
-            const float duration = .28f;
-            while (elapsed < duration)
-            {
-                if (group == null) yield break;
-                group.alpha = Mathf.SmoothStep(0f, 1f, elapsed / duration);
-                elapsed += Time.unscaledDeltaTime;
-                yield return null;
-            }
-            if (group != null) group.alpha = 1f;
         }
 
         private RectTransform CreateNotebookEntryScroll(RectTransform notebook)
@@ -417,7 +401,7 @@ namespace EDNA.Investigation
 
             InvestigationHoverTooltipTrigger tooltipTrigger = marker.gameObject.AddComponent<InvestigationHoverTooltipTrigger>();
             tooltipTrigger.Configure(
-                1f,
+                .18f,
                 () => ShowSpeciesTooltip(rect, species, era),
                 () => HideSpeciesTooltipFor(rect));
 
@@ -525,17 +509,12 @@ namespace EDNA.Investigation
 
         private void CreateNotebookEntry(Transform parent, InvestigationObservationDefinition observation)
         {
-            bool relatedToSelection = state.Phase == InvestigationPhase.Simulate
-                && !string.IsNullOrEmpty(selectedPredictionSpeciesId)
-                && IsDirectObservationForSelectedTarget(observation);
             RectTransform item = CreatePanel(
                 $"Notebook {observation.EvidenceId}",
                 parent,
-                relatedToSelection ? new Color32(217, 236, 243, 170) : new Color(0f, 0f, 0f, 0f),
-                relatedToSelection ? 8f : 0f);
+                Color.clear,
+                0f);
             AddLayout(item, 58f, 1f);
-            if (relatedToSelection)
-                EnsureOutline(item.gameObject, InvestigationTheme.PaperSelectedBorder, new Vector2(1f, -1f));
             Color evidenceColor = NotebookStateColor(observation.ClaimType);
             RectTransform bullet = CreatePanel("Evidence Bullet", item, evidenceColor, 4f);
             Anchor(bullet, 0f, 0.56f, 0f, 0.56f, 4f, -6f, 16f, 6f);
@@ -652,6 +631,7 @@ namespace EDNA.Investigation
             speciesTooltip.anchorMax = Vector2.one * 0.5f;
             speciesTooltip.pivot = new Vector2(placeRight ? 0f : 1f, 0.5f);
             speciesTooltip.sizeDelta = new Vector2(Mathf.Min(390f, overlay.rect.width - 24f), 258f);
+            BuildSpeciesFactsContent(species, era, pinned);
             Vector2 tooltipPosition = localPoint + new Vector2(placeRight ? 64f : -64f, 0f);
             float width = speciesTooltip.sizeDelta.x;
             float height = speciesTooltip.sizeDelta.y;
@@ -669,32 +649,15 @@ namespace EDNA.Investigation
             outline.effectColor = InvestigationTheme.Primary;
             outline.effectDistance = new Vector2(1f, -1f);
 
-            Text eyebrow = CreateText("Tooltip Eyebrow", speciesTooltip, "SPECIES FACTS", 11, FontStyle.Bold, InvestigationTheme.Primary, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
-            Anchor(eyebrow.rectTransform, 0f, 0.80f, 1f, 1f, 16f, 0f, -12f, -12f);
-            Button close = CreateButton("Close Species Facts", speciesTooltip, "Close", ButtonVisualStyle.Tertiary, HideSpeciesTooltip, out Text closeLabel);
-            close.GetComponent<LayoutElement>().ignoreLayout = true;
-            closeLabel.fontSize = 12;
-            Anchor(close.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -72f, -42f, -8f, -4f);
-            Text title = CreateText("Tooltip Title", speciesTooltip, species.DisplayName, 19, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperLeft, InvestigationTheme.DisplayFont);
-            Anchor(title.rectTransform, 0f, 0.61f, 1f, 0.84f, 16f, 0f, -12f, 0f);
-            Text description = CreateText("Tooltip Description", speciesTooltip, species.Description, 13, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
-            Anchor(description.rectTransform, 0f, 0.39f, 1f, 0.63f, 16f, 0f, -12f, -2f);
-            Text details = CreateText(
-                "Tooltip Details",
-                speciesTooltip,
-                BuildSpeciesTooltipDetails(species, era),
-                11,
-                FontStyle.Normal,
-                InvestigationTheme.TextMuted,
-                TextAnchor.UpperLeft,
-                InvestigationTheme.DataFont);
-            Anchor(details.rectTransform, 0f, 0f, 1f, 0.40f, 16f, 10f, -12f, 0f);
             if (pinned) speciesTooltipDismiss = StartCoroutine(DismissTappedSpeciesTooltip(speciesTooltip));
         }
 
         private IEnumerator DismissTappedSpeciesTooltip(RectTransform shownTooltip)
         {
             yield return new WaitForSecondsRealtime(1.5f);
+            var hover = speciesTooltipOwner == null ? null : speciesTooltipOwner.GetComponent<InvestigationHoverTooltipTrigger>();
+            // Clicking must not make an actively hovered detail card disappear.
+            while (speciesTooltip == shownTooltip && hover != null && hover.IsPointerInside) yield return null;
             speciesTooltipDismiss = null;
             if (speciesTooltip == shownTooltip) HideSpeciesTooltip();
         }
@@ -706,8 +669,10 @@ namespace EDNA.Investigation
             string status = era == SurveyEra.Historical ? "Historical reference · read only"
                 : summary.Observation == null ? "Supplementary survey · not a required case finding"
                 : state.HasDiscoveredObservation(summary.Observation.EvidenceId) ? "RECORDED IN NOTEBOOK" : "Compare this record on the notebook table";
-            string source = string.IsNullOrEmpty(summary.Confidence) ? summary.Source : $"{summary.Source} · {summary.Confidence}";
-            return $"{summary.Result}\n{source}\nDEPTH  {summary.Depth}\n{status}";
+            bool example = FindObserveObservationForSpecies(species.SpeciesId) != null;
+            string source = example ? "Illustrative case record" : summary.Source
+                + (string.IsNullOrEmpty(summary.Confidence) ? string.Empty : " · Supplied " + summary.Confidence);
+            return $"{summary.Result}\n{source}\n{(era == SurveyEra.Historical ? "20 years ago" : "Today")} · Map layer: {summary.Depth}\n{status}";
         }
 
         private void SetSpeciesPairHighlight(string speciesId)
@@ -743,31 +708,6 @@ namespace EDNA.Investigation
         private InvestigationObservationDefinition FindObserveObservationForSpecies(string speciesId)
         {
             return InvestigationSurveyEvaluator.FindCaseObservation(caseDefinition, speciesId);
-        }
-
-        private static string JoinDepths(InvestigationSpeciesDefinition species)
-        {
-            if (species.PreferredDepths.Count == 0) return "unknown";
-            string value = string.Empty;
-            for (int index = 0; index < species.PreferredDepths.Count; index++)
-            {
-                if (index > 0) value += ", ";
-                value += species.PreferredDepths[index].ToString();
-            }
-            return value;
-        }
-
-        private static string ConciseObservationLabel(InvestigationObservationDefinition observation)
-        {
-            switch (observation.ClaimType)
-            {
-                case ObservationClaimType.NotDetected: return "Not detected";
-                case ObservationClaimType.NewDetection: return "New detection";
-                case ObservationClaimType.ChangedDepthOrDistribution: return "More sites";
-                case ObservationClaimType.MatchesBaseline: return "Same as before";
-                case ObservationClaimType.ResultWarning: return "Result warning";
-                default: return observation.DisplayName;
-            }
         }
 
         private static string NotebookStateLabel(ObservationClaimType claimType)

@@ -54,12 +54,12 @@ namespace EDNA.Investigation.Tests
             Drop("Compare Species tuna","Compare Change Fewer");
             Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
             Drop("Compare Species shark","Compare Change NotDetected");
-            Drop("Compare Species mussel","Compare Change Same");
+            Drop("Compare Species phytoplankton","Compare Change Fewer");
             Drop("Compare Species tuna","Compare Change More");
             Assert.That(GameObject.Find("Compare Species tuna"), Is.Null);
             Assert.That(GameObject.Find("Sorted Species tuna").transform.parent.name, Is.EqualTo("Compare Change More"));
-            Drop("Compare Species krill","Compare Change NotDetected");
-            Press("Compare Species sea_star"); Press("Compare Change Same");
+            Drop("Compare Species krill","Compare Change More");
+            Press("Compare Species atlantic_herring"); Press("Compare Change Fewer");
             Assert.That(controller.State.DiscoveredObservationIds.Count, Is.EqualTo(5));
             Assert.That(controller.State.MisstepCount, Is.Zero);
             Assert.That(GameObject.Find("Summarize Findings"), Is.Not.Null);
@@ -101,25 +101,25 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Notebook Drawer"), Is.Null);
             Assert.That(GameObject.Find("Notebook Drawer Scrim"), Is.Null);
             Assert.That(GameObject.Find("Toggle Notebook Drawer"), Is.Null);
-            foreach(string id in new[]{"shark","krill","sea_star","tuna"}) InvestigationWorkbenchTestActions.Record("Species Marker "+id);
+            foreach(string id in new[]{"shark","krill","atlantic_herring","tuna"}) InvestigationWorkbenchTestActions.Record("Species Marker "+id);
             yield return null; Canvas.ForceUpdateCanvases();
             ScrollRect scroll=GameObject.Find("Comparison Notebook Scroll").GetComponent<ScrollRect>();
             // With prose removed the notes may fit without scrolling.
             float offset=Mathf.Min(30f, Mathf.Max(0f,scroll.content.rect.height-scroll.viewport.rect.height));
             scroll.content.anchoredPosition=new Vector2(scroll.content.anchoredPosition.x,offset);
-            Press("Compare Species mussel"); yield return null;
+            Press("Compare Species phytoplankton"); yield return null;
             Assert.That(GameObject.Find("Comparison Notebook Scroll").GetComponent<ScrollRect>().content.anchoredPosition.y, Is.EqualTo(offset).Within(.5f));
             Press("Toggle Comparison View"); yield return null;
             Assert.That(GameObject.Find("Comparison Notebook"), Is.Null);
-            Assert.That(GameObject.Find("Compare Species mussel"), Is.Not.Null);
+            Assert.That(GameObject.Find("Compare Species phytoplankton"), Is.Not.Null);
             GameObject.Find("Survey Time Lens").GetComponent<Slider>().value=.5f;
-            foreach(string marker in new[]{"Species Marker mussel","Historical Species Marker mussel"})
+            foreach(string marker in new[]{"Species Marker phytoplankton","Historical Species Marker phytoplankton"})
                 Assert.That(GameObject.Find(marker).transform.Find("Paired Species Focus").gameObject.activeSelf, Is.True);
             Press("Toggle Comparison View"); yield return null;
             Assert.That(GameObject.Find("Comparison Notebook"), Is.Not.Null);
             Assert.That(GameObject.Find("Comparison Notebook Scroll").GetComponent<ScrollRect>().content.anchoredPosition.y, Is.EqualTo(offset).Within(.5f));
-            Assert.That(GameObject.Find("Compare Species mussel").GetComponent<Button>().targetGraphic.color, Is.EqualTo((Color)InvestigationTheme.PaperSelected));
-            Press("Compare Change Same");
+            Assert.That(GameObject.Find("Compare Species phytoplankton").GetComponent<Button>().targetGraphic.color, Is.EqualTo((Color)InvestigationTheme.PaperSelected));
+            Press("Compare Change Fewer");
             Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds.Count, Is.EqualTo(5));
         }
 
@@ -151,7 +151,7 @@ namespace EDNA.Investigation.Tests
                 Drop("Compare Species tuna","Compare Change More");
                 Assert.That(GameObject.Find("Comparison Notebook"), Is.Not.Null);
                 canvas.scaleFactor=Screen.width/900f; yield return null; yield return null;
-                Drop("Compare Species sea_star","Compare Change Same");Drop("Compare Species mussel","Compare Change Same");
+                Drop("Compare Species atlantic_herring","Compare Change Same");Drop("Compare Species phytoplankton","Compare Change Fewer");
                 yield return null;Canvas.ForceUpdateCanvases();
                 foreach(Text text in GameObject.Find("Observe Comparison Board").GetComponentsInChildren<Text>())
                     Assert.That(text.rectTransform.rect.height+1f,Is.GreaterThanOrEqualTo(text.preferredHeight),text.name+": "+text.text);

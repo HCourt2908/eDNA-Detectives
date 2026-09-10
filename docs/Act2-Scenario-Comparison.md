@@ -1,129 +1,42 @@
-# Act 2: compare possible explanations
+# Act 2 — Five-species Figma comparison
 
-The current second-act flow is: notebook arrival → play three prediction cards
-from the same stable baseline → compare all predictions with the recorded survey
-→ choose the explanation that fits the whole pattern → summarise the existing findings
-→ record a qualified conclusion, all within the same workbench. The player sees only Observe and
-Investigate in the navigation.
+The active game uses `reference_main`: shark → tuna → herring → krill →
+phytoplankton. Arrows represent the predator-to-food relation. The five actors
+remain in this order in the saved survey and in every prediction card.
 
-The observed strip is a notebook sheet: on first entry it unfolds from the notebook
-button before the card walkthrough. Its read-only imagery uses the same
-grouped detection symbols as Act 1's saved survey picture, including the grouped
-current tuna imagery and explicit non-detections. The main trial scene includes
-shark, tuna, krill, sea star and mussel. All three cards remain on screen throughout
-playback and comparison; there is no separate large seamount model view.
-Sea star and mussel remain necessary controls for distinguishing explanations.
+Long-line fishing and bottom trawling retain the same predator-removal seed.
+`FoodWebCascadeEvaluator.FillMissingPredictions` now derives the remaining four
+responses along the actual five-node network. Both resulting patterns match the
+illustrative survey. The authored `supportedModelThreatIds` therefore includes
+both fishing IDs; no unobserved benthic or physical clue selects one over the other.
 
-A cause starts only from its dedicated Play button, which becomes Replay after a
-completed run. Card backgrounds and icon/title headers are passive. Each title
-includes the corresponding bottle, fishing-pole or trawling icon. Unplayed and
-interrupted cards show a common baseline, not an unfinished prediction. Playback
-runs directly in the card while the other cards keep their results. It can be skipped, interrupted or
-replayed; an interrupted trial is not counted as finished. After all three runs,
-the explanation buttons unlock without automatic match scores. An incompatible choice
-highlights a conflicting survey record and gives EDNA feedback without a penalty.
-A compatible choice automatically records the authored aggregate evidence checks
-and carries that chosen explanation into the integrated summary.
-These are system-computed audit records, replacing seven manual UI submissions;
-the case is not marked solved until the player explicitly records the conclusion
-after reviewing the survey and model comparisons. Model-conclusion validation
-requires the completed survey, all tested models and all required comparison
-objectives. The existing result publication is reused, with only observed survey
-evidence in the result.
+Plastic remains a provisional comparison at the user's request. Unknown responses
+are explicit and do not resolve to a directional Match or Mismatch. Its retained
+known directions can still conflict with the example survey.
 
-Model populations begin with three organism symbols. An increase brings two new
-symbols into the group (five total); a decrease sends two away (one remains).
-Stable and unknown predictions retain three symbols; unknown is not presented as
-an observed loss. Symbol counts are relative model illustrations, not animal counts.
-Each symbol retains the same size. A 7.2-second playback holds the baseline, pulses
-the affected groups in sequence, animates arrivals/departures, and holds the final
-pattern before advancing. A progress track shows that the trial is running.
-Result cards use the same one/three/five visual vocabulary. The skip control is
-labelled "Skip animation" so it cannot be mistaken for the control that plays it.
+Play/Replay is explicit. Each 7.2-second animation starts at a common three-symbol
+baseline, sequentially highlights all five links and holds the final result.
+Only completed runs enable the comparison action. Header/card clicks are passive.
+EDNA and the notebook remain available in a fixed-height dock; the workspace fits
+its viewport and does not scroll vertically. Notebook reading scrolls separately.
+The right-facing EDNA portrait sits to the left of her dialogue: neutral during
+ordinary play and conclusions, and raised-hand during spotlight guidance. The
+notebook and continuation control share the lower-right part of the dock.
 
-The Act 2 notebook reuses Act 1's survey picture without the old text evidence
-list below it, the per-prediction "Compare causes" controls, or a duplicate EDNA
-introduction. No ROV pictures or unseen clues are added by the ending. The notebook
-count reflects the five initial survey findings. Observe retains its existing content.
+The notebook offers an optional **Food-chain examples** reference containing the
+other Figma networks. These are explanatory relationships, not collected survey
+evidence. Expanding or closing them never advances progress.
 
-## Single-screen ending
+After either matching model is reviewed, the ending names long-line fishing as
+the main explanation and bottom trawling as a possible alternative. This order is
+the team's authored case direction, not a confidence calculation from the shared
+pattern. EDNA acknowledges a reviewed alternative. Record conclusion completes
+the activity without an independent-evidence request or additional task.
 
-The chosen model stays visible above three short summary rows: what the survey
-found, how the unchanged sea star/mussel findings distinguish the models, and which
-tested model best fits the full pattern. The ending introduces no new evidence.
-Fishing-line and intact-seabed claims, ROV field notes, and camera interactions are
-absent from the active two-act flow.
+Exports retain the reviewed model and compatible models, and explicitly include
+`primaryHypothesisId=longline` and `alternativeHypothesisIds=[bottom_trawling]`.
+The former `needsMoreEvidence` flag is removed. Only the five Observe records are
+exported; legacy ROV fields remain excluded from this route.
 
-The two actions are Record conclusion and Compare again. Recording calls the
-explicit SubmitModelConclusion domain path. It never calls TryReviewConfirmation,
-never discovers confirmation observations and never sets ConfirmationReviewed.
-Only discovered initial findings are selected and exported. The legacy SubmitFinal
-path still enforces its original field-confirmed-report requirements; those rules
-were not weakened to make this model comparison complete.
-
-Returning to compare preserves prior work without submitting anything. QA conclusion
-and case-closed checkpoints use the same survey-only route. Existing legacy evidence
-is not erased, but it is excluded from a newly recorded model conclusion. Completion
-displays CONCLUSION RECORDED and describes the best fit among the tested models,
-not proof of cause or proof that a non-detected species is absent.
-
-The internal Report phase is retained for existing state and controller contracts;
-its separate navigation tab, report form, repeated explanation questions, argument
-slots and footer are no longer part of the player-facing flow. QA ReportReady and
-FinalReportReady checkpoints enter the appropriate point of this integrated ending.
-
-The main workbench is fitted to a fixed viewport and its vertical scrolling is
-disabled. Resizing fits the content inside the available space. The notebook drawer
-can still scroll independently. EDNA uses a smaller portrait and bar, and the
-notebook is an icon with its finding-count badge, without an adjacent caption.
-
-## EDNA spotlight walkthrough
-
-After the notebook arrives, a two-step introduction highlights the recorded
-survey and the prediction cards' Play controls. EDNA appears in a paper dialogue
-with Next and Skip guide. Only the first completed prediction gets a results
-explanation; the full comparison gets its own prompt. A conflicting choice
-highlights the relevant observed species beside EDNA's feedback.
-
-EDNA stays in a fixed bottom bar throughout Act 2. The notebook and current action
-(including the Record conclusion action) sit between her text and her
-portrait. They remain visible throughout the investigation. The bar also remains
-available while the notebook is open. "Show me where" reopens help for the current
-stage. Opening it during a
-trial pauses that trial's presentation clock; closing it resumes the same moment.
-Reading or skipping help never changes investigation progress. The dimmer blocks
-underlying pointer input and explicit keyboard navigation keeps focus in the guide.
-The guide dims the surroundings and reveals the real panel through a clear window.
-A transparent input shield prevents unintended actions while EDNA explains it. For the model and results, EDNA moves to the top; the workbench never moves
-or rescales to accommodate the guide. Bottom space stays reserved during this
-transition, so opening or closing help does not change the page layout. The live
-UI remains in its original hierarchy and never needs to be hidden or copied for a guide.
-
-The walkthrough is owned by `InvestigationRuntimeView.ScenarioBriefing.cs`,
-`InvestigationRuntimeView.ScenarioDock.cs` and `InvestigationScenarioBriefingHost.cs`.
-It does not reuse or modify the first-act
-briefing, which is being developed independently.
-
-## Ownership and integration
-
-Implementation is isolated in `InvestigationRuntimeView.ScenarioFlow.cs`, `InvestigationRuntimeView.ScenarioCards.cs`,
-`InvestigationRuntimeView.ScenarioGraphics.cs`, `InvestigationScenarioPlayback.cs`,
-and the separately owned frozen material in `InvestigationScenarioTerrain.cs`.
-`InvestigationRuntimeView.ScenarioEnding.cs` owns the fitted workspace and ending.
-Shared integration edits cover the phase dispatch, two-stage navigation, layout,
-EDNA routing, and the notebook's Investigate/ending branch. The controller binds an
-explicit model-conclusion action to the new domain evaluator/updater entry point.
-Observe gameplay, case assets and the legacy report evaluator are unchanged.
-The old manual-linking desk is no longer the second-act entry point.
-
-Animation state is scoped to the current InvestigationState instance. A rendered
-playback component owns callbacks, while presenter timestamps survive UI rebuilds.
-The three-node teaching model and current authored cause predictions are retained;
-this does not introduce the five-node Figma reference chain as a new simulation.
-
-## Development
-
-The automated EditMode and PlayMode suites are maintained alongside the game.
-See [development and validation](../ECOSYSTEM_DETECTIVE.md#development-and-validation)
-for Unity commands and the full-suite handoff checks. Test reports and render
-previews stay local; use a separate Unity copy for validation captures.
+See [the current specification](../ECOSYSTEM_DETECTIVE.md) for the authored survey,
+limitations, integration contract and development commands. Test reports stay local.

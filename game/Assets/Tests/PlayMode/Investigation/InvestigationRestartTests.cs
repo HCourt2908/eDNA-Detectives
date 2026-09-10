@@ -40,7 +40,7 @@ namespace EDNA.Investigation.Tests
         {
             yield return LoadCurrent();
             foreach (var checkpoint in new[] { InvestigationQaCheckpoint.ObserveReady,
-                InvestigationQaCheckpoint.SimulateComplete, InvestigationQaCheckpoint.FinalReportReady })
+                InvestigationQaCheckpoint.SimulateComplete, InvestigationQaCheckpoint.ConclusionReady })
             {
                 CurrentController.ApplyQaCheckpoint(checkpoint);
                 yield return null; yield return null;

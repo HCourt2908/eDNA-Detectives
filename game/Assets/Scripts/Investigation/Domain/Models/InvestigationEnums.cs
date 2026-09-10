@@ -51,7 +51,8 @@ namespace EDNA.Investigation.Domain
         MatchesBaseline = 4,
         EnvironmentalReading = 5,
         PhysicalObservation = 6,
-        MethodologicalLimitation = 7
+        MethodologicalLimitation = 7,
+        ReducedDetection = 8
     }
 
     public enum PredictionState

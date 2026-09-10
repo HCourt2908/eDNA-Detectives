@@ -33,7 +33,7 @@ namespace EDNA.Investigation.Tests
         [UnityTest]
         public IEnumerator ConclusionSummary_TextAndControlsFitAcrossCanvasWidths()
         {
-            yield return LoadCurrent(); CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
+            yield return LoadCurrent(); CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.ConclusionReady);
             var canvas = CurrentView.GetComponent<Canvas>(); var scaler = canvas.GetComponent<CanvasScaler>();
             bool enabled = scaler.enabled; float original = canvas.scaleFactor;
             try

@@ -22,11 +22,13 @@ namespace EDNA.Investigation.Domain
             if (!CanRecordModelConclusion(caseDefinition, state, selectedThreatId))
                 return new InvestigationConclusionResult(InvestigationConclusionStatus.InsufficientEvidence,
                     "Record the survey findings and compare all three models before recording a conclusion.");
-            if (!string.Equals(selectedThreatId, caseDefinition.CorrectThreatId, StringComparison.Ordinal))
+            if (!caseDefinition.SupportsModelConclusion(selectedThreatId))
                 return new InvestigationConclusionResult(InvestigationConclusionStatus.Incorrect,
-                    "This model does not explain the whole pattern. Compare the stable species as well as the changes.");
+                    "This model does not explain the whole survey pattern. Compare every link in the food chain.");
             return new InvestigationConclusionResult(InvestigationConclusionStatus.Correct,
-                "Conclusion recorded from your survey and model comparisons. This is the best fit among the tested models, not proof of cause.");
+                caseDefinition.HasAmbiguousModelConclusion
+                    ? "Conclusion recorded. Long-line fishing is the main explanation for this case; bottom trawling remains a possible alternative."
+                    : "Conclusion recorded from your survey and model comparisons. This is the best fit among the tested models, not proof of cause.");
         }
 
         public InvestigationReadiness EvaluateReadiness(
@@ -159,11 +161,11 @@ namespace EDNA.Investigation.Domain
                     "Choose one of the available causes before submitting the final report.");
             }
 
-            if (!string.Equals(selectedThreatId, caseDefinition.CorrectThreatId, StringComparison.Ordinal))
+            if (!caseDefinition.SupportsModelConclusion(selectedThreatId))
             {
                 return new InvestigationConclusionResult(
                     InvestigationConclusionStatus.Incorrect,
-                    "This cause does not explain the complete pattern. Compare the shared shark–tuna–krill prediction, then use the stable benthic evidence and intact seafloor to distinguish bottom trawling from long-line fishing.");
+                    "This cause does not explain the complete survey pattern. Compare every food-chain link and keep matching explanations open.");
             }
 
             string success = string.IsNullOrWhiteSpace(caseDefinition.SuccessFeedback)
@@ -196,7 +198,7 @@ namespace EDNA.Investigation.Domain
             if (!readiness.FinalCauseSelected)
                 return "Choose a final cause after reviewing the ROV evidence.";
             if (!readiness.ReasoningComplete)
-                return "Explain the shark–tuna–krill food-web cascade.";
+                return "Explain how the full food-chain pattern compares with the survey.";
             if (!readiness.EvidenceComplete)
                 return $"Select at least {caseDefinition.MinimumReportEvidence} observations for the evidence section.";
             if (!readiness.ConfirmationEvidenceIncluded)

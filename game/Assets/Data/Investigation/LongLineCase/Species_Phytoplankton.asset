@@ -15,11 +15,10 @@ MonoBehaviour:
   speciesId: phytoplankton
   canonicalSpeciesId: phytoplankton
   displayName: Phytoplankton
-  shortDisplayName:
+  shortDisplayName: Phytoplankton
   scientificName: Prochlorococcus marinus
-  description: A photosynthetic primary producer forming the base of the pelagic
-    food web.
-  icon: {fileID: 0}
+  description: "Here, phytoplankton is represented by Prochlorococcus marinus, a microscopic marine cyanobacterium. It uses sunlight to make organic matter and releases oxygen."
+  icon: {fileID: 21300000, guid: 95d83ee2788a4b97872eb6b45b2f1d2c, type: 3}
   glyphKind: 5
   trophicRole: 1
   aliases:

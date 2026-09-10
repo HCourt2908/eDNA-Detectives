@@ -17,7 +17,7 @@ MonoBehaviour:
   displayName: Pinecone Fish
   shortDisplayName:
   scientificName: Monocentris japonica
-  description: A reef-associated fish that forages for small crustaceans at night.
+  description: "A reef-associated fish also called the Japanese pineapplefish. It is one of the fish species capable of producing light."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 3

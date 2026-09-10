@@ -4,8 +4,8 @@ using NUnit.Framework;
 
 namespace EDNA.Investigation.Tests
 {
-    // Shared player actions used by the existing scenario tests after the
-    // workbench replaces one-click observation and ROV capture.
+    // Shared player actions for recording today/history, comparing the notebook
+    // and saving the current Act 1 summary.
     internal static class InvestigationWorkbenchTestActions
     {
         private static void Press(string name)
@@ -54,11 +54,11 @@ namespace EDNA.Investigation.Tests
             string id = name.Replace("Species Marker ", "");
             var controller = Object.FindAnyObjectByType<InvestigationController>();
             string evidence = id == "shark" ? "E01_SHARK_NONDETECTION" : id == "tuna" ? "E02_TUNA_WIDER_DETECTION"
-                : id == "krill" ? "E03_KRILL_NONDETECTION" : id == "sea_star" ? "E04_BENTHIC_STABLE" : "E06_PLASTIC_INDICATOR_STABLE";
+                : id == "krill" ? "E04_KRILL_WIDER_DETECTION" : id == "atlantic_herring" ? "E03_HERRING_FEWER_SITES" : "E05_PHYTOPLANKTON_FEWER_SITES";
             if (controller.State.HasDiscoveredObservation(evidence)) return;
             if (GameObject.Find("Comparison Seamount") != null) Press("Toggle Comparison View");
             Press("Compare Species " + id);
-            Press("Compare Change " + (id == "shark" || id == "krill" ? "NotDetected" : id == "tuna" ? "More" : "Same"));
+            Press("Compare Change " + (id == "shark" ? "NotDetected" : id == "tuna" || id == "krill" ? "More" : "Fewer"));
             Assert.That(controller.State.HasDiscoveredObservation(evidence), Is.True, "Classify the saved survey record: " + id);
         }
         public static void ShowSurveySummary()

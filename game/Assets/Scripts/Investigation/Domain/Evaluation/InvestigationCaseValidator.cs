@@ -120,7 +120,7 @@ namespace EDNA.Investigation.Domain
                 caseDefinition.BenthicIndicatorSpeciesIds,
                 speciesIds,
                 presentationSpeciesIds,
-                1,
+                0,
                 errors);
             if (caseDefinition.MaximumSurveySpecies < speciesIds.Count)
                 errors.Add("maximumSurveySpecies cannot be lower than the active case-species count.");
@@ -142,6 +142,10 @@ namespace EDNA.Investigation.Domain
                     errors.Add($"Follow-up locked species {speciesId} must be a benthic indicator.");
             }
 
+            foreach (var activeSpecies in caseDefinition.Species)
+                if (activeSpecies != null && caseDefinition.SimulationFoodWebId == "reference_main"
+                    && caseDefinition.FindCatalogSpecies(activeSpecies.CanonicalSpeciesId) != activeSpecies)
+                    errors.Add($"Active species {activeSpecies.SpeciesId} is outside the shared catalog.");
             HashSet<string> threatIds = new HashSet<string>(StringComparer.Ordinal);
             for (int threatIndex = 0; threatIndex < caseDefinition.Threats.Count; threatIndex++)
             {
@@ -152,11 +156,12 @@ namespace EDNA.Investigation.Domain
                     continue;
                 }
                 if (!threatIds.Add(threat.ThreatId)) errors.Add($"Duplicate threat ID: {threat.ThreatId}.");
-                if (threat.SpeciesPredictions.Count != caseDefinition.Species.Count)
-                    errors.Add($"Threat {threat.ThreatId} does not define the complete Threat × Species matrix.");
+                var effective = new EcosystemSimulatorEvaluator().Evaluate(caseDefinition, threat.ThreatId);
+                if (effective.Predictions.Count != caseDefinition.Species.Count)
+                    errors.Add($"Threat {threat.ThreatId} does not resolve the complete prediction matrix.");
                 foreach (string speciesId in speciesIds)
                 {
-                    if (threat.FindPrediction(speciesId) == null)
+                    if (effective.FindPrediction(speciesId) == null)
                         errors.Add($"Threat {threat.ThreatId} is missing a prediction for {speciesId}.");
                     PredictionComparisonRuleDefinition rule = caseDefinition.FindComparisonRule(threat.ThreatId, speciesId);
                     if (rule == null)
@@ -200,9 +205,9 @@ namespace EDNA.Investigation.Domain
                             errors.Add($"Comparison {threat.ThreatId}/{speciesId}/{option.EvidenceId} must resolve all three judgements exactly once.");
                         if (!hasAccepted) errors.Add($"Comparison {threat.ThreatId}/{speciesId}/{option.EvidenceId} has no acceptable judgement.");
                     }
-                    if (!hasDecisiveNotEnoughEvidence)
+                    if (!hasDecisiveNotEnoughEvidence && effective.FindPrediction(speciesId)?.PredictedState != PredictionState.Unknown)
                         errors.Add($"Comparison {threat.ThreatId}/{speciesId} must include at least one option where Not enough evidence is incorrect.");
-                    if (!hasProgressingResolution)
+                    if (!hasProgressingResolution && effective.FindPrediction(speciesId)?.PredictedState != PredictionState.Unknown)
                         errors.Add($"Comparison {threat.ThreatId}/{speciesId} must include a Match or Mismatch resolution that advances progress.");
                 }
             }
@@ -224,6 +229,28 @@ namespace EDNA.Investigation.Domain
                         errors.Add($"Comparison {rule.ThreatId}/{rule.TargetKind}/{rule.TargetId} references an unknown observation.");
                     else if (option.Resolutions.Count != 3)
                         errors.Add($"Comparison {rule.ThreatId}/{rule.TargetKind}/{rule.TargetId}/{option.EvidenceId} must resolve all three judgements.");
+                }
+            }
+
+            var supported = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string id in caseDefinition.SupportedModelThreatIds)
+                if (!threatIds.Contains(id) || !supported.Add(id))
+                    errors.Add($"Supported model is unknown or duplicated: {id}.");
+
+            if (caseDefinition.SupportedModelThreatIds.Count > 0)
+            {
+                foreach (string id in threatIds)
+                {
+                    bool matchesEveryFinding = true;
+                    foreach (var finding in caseDefinition.Observations)
+                    {
+                        if (!InvestigationObserveEvaluator.IsInitialFinding(finding) || string.IsNullOrEmpty(finding.RelatedSpeciesId)) continue;
+                        var match = caseDefinition.FindComparisonRule(id, finding.RelatedSpeciesId)
+                            ?.FindOption(finding.EvidenceId)?.FindResolution(ComparisonJudgement.Match);
+                        if (match == null || match.Outcome == ComparisonEvaluationOutcome.Incorrect) matchesEveryFinding = false;
+                    }
+                    if (supported.Contains(id) != matchesEveryFinding)
+                        errors.Add($"Supported model list does not reflect the complete survey comparison for {id}.");
                 }
             }
 
@@ -325,7 +352,7 @@ namespace EDNA.Investigation.Domain
                 }
                 if (provisionalObjectiveCount == 0)
                     errors.Add("The case requires at least one objective before the provisional explanation.");
-                if (followUpObjectiveCount == 0)
+                if (followUpObjectiveCount == 0 && caseDefinition.BenthicIndicatorSpeciesIds.Count > 0)
                     errors.Add("The case requires at least one benthic discriminator objective to compare the fishing models.");
             }
             else

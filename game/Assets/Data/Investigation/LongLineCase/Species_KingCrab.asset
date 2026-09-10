@@ -17,7 +17,7 @@ MonoBehaviour:
   displayName: King Crab
   shortDisplayName:
   scientificName: Neolithodes agassizii
-  description: A deep benthic crab that scavenges and preys on seafloor organisms.
+  description: "A deep-sea king crab. It has been observed feeding on a mussel or its attachment threads at a deep-sea site."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 6

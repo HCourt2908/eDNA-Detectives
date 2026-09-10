@@ -13,8 +13,13 @@ namespace EDNA.Investigation
         private bool observeMapOpen;
         private string HighlightedObserveSpecies => !string.IsNullOrEmpty(selectedComparisonSpecies) ? selectedComparisonSpecies : ObserveQuestion?.RelatedSpeciesId;
 
-        private bool HasGroupedSurveyArtwork(InvestigationSpeciesDefinition species, SurveyEra era) => era == SurveyEra.Current
-            && species.Icon != null && FindObserveObservationForSpecies(species.SpeciesId)?.ClaimType == ObservationClaimType.ChangedDepthOrDistribution;
+        private bool HasGroupedSurveyArtwork(InvestigationSpeciesDefinition species, SurveyEra era)
+        {
+            var finding = FindObserveObservationForSpecies(species.SpeciesId);
+            return species.Icon != null && finding != null
+                && (era == SurveyEra.Current && FindingChange(finding) == SurveyChange.More
+                    || era == SurveyEra.Historical && FindingChange(finding) == SurveyChange.Fewer);
+        }
 
         // The same composition is used on the map, in the flying record, and on
         // both notebook pages. Repeated symbols represent detection patterns, not a census.
@@ -58,6 +63,7 @@ namespace EDNA.Investigation
             switch (finding.ClaimType)
             {
                 case ObservationClaimType.NotDetected: return SurveyChange.NotDetected;
+                case ObservationClaimType.ReducedDetection: return SurveyChange.Fewer;
                 case ObservationClaimType.ChangedDepthOrDistribution:
                 case ObservationClaimType.NewDetection: return SurveyChange.More;
                 default: return SurveyChange.Same;
@@ -120,18 +126,18 @@ namespace EDNA.Investigation
             AddLayout(edna, 84f, 0f);
             EnsureEdnaArtwork();
             Image portrait = CreateStatusIcon("Edna Introduction Portrait", edna, ednaPortrait, Color.white);
-            Anchor(portrait.rectTransform, 1f, 0f, 1f, 1f, -66f, 0f, -4f, 2f);
+            Anchor(portrait.rectTransform, 0f, 0f, 0f, 1f, 4f, 0f, 78f, 2f);
             string heading = ObserveSummaryVisible ? "OUR FINDINGS" : "FIND WHAT CHANGED";
             Text title = CreateText("Edna Name", edna, $"EDNA · {heading} · {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)}", 13,
                 FontStyle.Bold, InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
-            Anchor(title.rectTransform, 0f, .57f, 1f, 1f, 14f, 0f, -74f, -4f);
+            Anchor(title.rectTransform, 0f, .57f, 1f, 1f, 92f, 0f, -14f, -4f);
             Text message = CreateText("Observe Comparison Instruction", edna,
                 InvestigationObserveEvaluator.IsComplete(caseDefinition, state)
                     ? (ObserveSummaryVisible ? "Here is the change across 20 years. Keep this picture in your notebook as we investigate the cause."
                         : "All species compared! Click 'Summarise our findings' below Species to make our picture.")
                     : ComparisonActionInstruction, 14,
                 FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
-            Anchor(message.rectTransform, 0f, 0f, 1f, .57f, 14f, 4f, -74f, 0f);
+            Anchor(message.rectTransform, 0f, 0f, 1f, .57f, 92f, 4f, -14f, 0f);
             if (ObserveComplete && ObserveSummaryVisible) { RenderObserveSummary(board); return; }
             var findings = ComparisonFindings();
             RectTransform columns = new GameObject("Species Sorting Columns", typeof(RectTransform), typeof(InvestigationComparisonLayout)).GetComponent<RectTransform>();
@@ -198,7 +204,7 @@ namespace EDNA.Investigation
             // remain in the notebook, so the player must make the comparison.
             RectTransform art = CreateSpeciesArtwork("Comparison Species Artwork", card.transform, species, InvestigationTheme.Primary);
             Anchor(art, 0f, 0f, 0f, 1f, 6f, 4f, 62f, -4f);
-            Text name = CreateText("Comparison Species Name", card.transform, species.SpeciesId == "mussel" ? "Mussel" : species.GameplayName, 15,
+            Text name = CreateText("Comparison Species Name", card.transform, species.GameplayName, 15,
                 FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(name.rectTransform, 0f, 0f, 1f, 1f, 70f, 4f, -6f, -4f);
             if (selectedComparisonSpecies == id) card.targetGraphic.color = InvestigationTheme.PaperSelected;
@@ -238,7 +244,7 @@ namespace EDNA.Investigation
                     Anchor(token, i / (float)sorted.Count, 0f, (i + 1f) / sorted.Count, .66f, 4f, 5f, -4f, 0f);
                     RectTransform art = CreateSpeciesArtwork("Sorted Species Artwork", token, species, InvestigationTheme.Primary);
                     Anchor(art, .15f, .27f, .85f, 1f, 0f, 0f, 0f, -2f);
-                    Text name = CreateText("Sorted Species Name", token, species.SpeciesId == "mussel" ? "Mussel" : species.GameplayName, 11,
+                    Text name = CreateText("Sorted Species Name", token, species.GameplayName, 11,
                         FontStyle.Bold, InvestigationTheme.PaperMuted, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
                     Anchor(name.rectTransform, 0f, 0f, 1f, .30f, 0f, 0f, 0f, 0f);
                 }
@@ -247,8 +253,7 @@ namespace EDNA.Investigation
             ColorBlock colors = zone.colors; colors.disabledColor = Color.white; zone.colors = colors;
         }
 
-        private string ComparisonSelectedName => selectedComparisonSpecies == "mussel" ? "Mussel"
-            : caseDefinition.FindSpecies(selectedComparisonSpecies)?.GameplayName ?? "Species";
+        private string ComparisonSelectedName => caseDefinition.FindSpecies(selectedComparisonSpecies)?.GameplayName ?? "Species";
 
         private string ComparisonActionInstruction => string.IsNullOrEmpty(selectedComparisonSpecies)
             ? "Click a species to start. Check its two surveys on the right, then choose a change."

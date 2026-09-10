@@ -17,8 +17,7 @@ MonoBehaviour:
   displayName: Great Hammerhead Shark
   shortDisplayName: Shark
   scientificName: Sphyrna mokarran
-  description: A large predator that normally controls tuna abundance around the
-    seamount.
+  description: "A large shark of warm coastal and offshore waters. It eats rays, other sharks and bony fishes."
   icon: {fileID: 21300000, guid: f83005fada95474b96872c2aea32f03b, type: 3}
   glyphKind: 0
   trophicRole: 5
@@ -35,7 +34,5 @@ MonoBehaviour:
   - atlantic_bluefin_tuna
   predatorSpeciesIds: []
   sensitivityTags:
-  - LargePredator
-  - LongLineSensitive
-  - TrawlBycatch
+  - FoodWeb
   mapDepthBand: 0

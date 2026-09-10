@@ -17,7 +17,7 @@ MonoBehaviour:
   displayName: Warty Squid
   shortDisplayName:
   scientificName: Moroteuthopsis longimana
-  description: A deep-water squid that hunts fish and crustaceans.
+  description: "A large squid of the Southern Ocean. It is eaten by predators such as toothfish, seabirds and marine mammals."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 4

@@ -17,8 +17,7 @@ MonoBehaviour:
   displayName: Atlantic Bluefin Tuna
   shortDisplayName: Tuna
   scientificName: Thunnus thynnus
-  description: A mobile fish that eats krill and is normally preyed on by sharks
-    in this simplified food web.
+  description: "A highly migratory fish of the Atlantic Ocean and Mediterranean Sea. It eats herring, mackerel and other prey, and can dive far below surface waters."
   icon: {fileID: 21300000, guid: da8a035e10dfb4664a77803e255c06f4, type: 3}
   glyphKind: 1
   trophicRole: 4
@@ -35,6 +34,5 @@ MonoBehaviour:
   predatorSpeciesIds:
   - great_hammerhead_shark
   sensitivityTags:
-  - Mobile
   - FoodWeb
   mapDepthBand: 0

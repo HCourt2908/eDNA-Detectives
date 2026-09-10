@@ -1,0 +1,174 @@
+{
+  "reviewedOn": "2026-09-10",
+  "sourceSnapshot": "Species List.jam exported 2026-09-10T20:16:58.514Z",
+  "species": [
+    {
+      "speciesId": "shark",
+      "scientificName": "Sphyrna mokarran",
+      "description": "A large shark of warm coastal and offshore waters. It eats rays, other sharks and bony fishes.",
+      "sources": [
+        "https://www.floridamuseum.ufl.edu/discover-fish/species-profiles/great-hammerhead/"
+      ]
+    },
+    {
+      "speciesId": "tuna",
+      "scientificName": "Thunnus thynnus",
+      "description": "A highly migratory fish of the Atlantic Ocean and Mediterranean Sea. It eats herring, mackerel and other prey, and can dive far below surface waters.",
+      "sources": [
+        "https://www.fisheries.noaa.gov/species/western-atlantic-bluefin-tuna",
+        "https://media.fisheries.noaa.gov/dam-migration/guide-to-tunas-of-the-western-atlantic-ocean.pdf"
+      ]
+    },
+    {
+      "speciesId": "atlantic_herring",
+      "scientificName": "Clupea harengus",
+      "description": "A schooling fish of the North Atlantic. It eats small drifting animals, including copepods and krill, and is food for larger fish, seabirds and marine mammals.",
+      "sources": [
+        "https://www.fisheries.noaa.gov/species/atlantic-herring",
+        "https://academic.oup.com/icesjms/article/57/4/843/647348"
+      ]
+    },
+    {
+      "speciesId": "krill",
+      "scientificName": "Meganyctiphanes norvegica",
+      "description": "A small North Atlantic crustacean that eats animal plankton and some algae. It often moves toward surface waters at night and deeper water by day.",
+      "sources": [
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC3873013/",
+        "https://www.int-res.com/articles/meps/214/m214p177.pdf"
+      ]
+    },
+    {
+      "speciesId": "phytoplankton",
+      "scientificName": "Prochlorococcus marinus",
+      "description": "Here, phytoplankton is represented by Prochlorococcus marinus, a microscopic marine cyanobacterium. It uses sunlight to make organic matter and releases oxygen.",
+      "sources": [
+        "https://www.nature.com/articles/s42003-019-0410-x"
+      ]
+    },
+    {
+      "speciesId": "green_sea_urchin",
+      "scientificName": "Strongylocentrotus droebachiensis",
+      "description": "A spiny sea urchin found on rocky seabeds. It grazes on algae and can strongly affect kelp beds when abundant.",
+      "sources": [
+        "https://www.marlin.ac.uk/species/detail/1547"
+      ]
+    },
+    {
+      "speciesId": "reef_manta_ray",
+      "scientificName": "Mobula alfredi",
+      "description": "A large ray that filters tiny drifting animals from seawater. Research shows its food can originate from surface waters, near the seabed and deeper water.",
+      "sources": [
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC6774984/"
+      ]
+    },
+    {
+      "speciesId": "kitefin_shark",
+      "scientificName": "Dalatias licha",
+      "description": "A shark of deep waters. Scientists have documented its blue light emission, produced by tiny light organs in its skin.",
+      "sources": [
+        "https://www.frontiersin.org/journals/marine-science/articles/10.3389/fmars.2021.633582/full"
+      ]
+    },
+    {
+      "speciesId": "orange_roughy",
+      "scientificName": "Hoplostethus atlanticus",
+      "description": "A slow-growing, long-lived fish of deep waters, including seamounts. It eats prey such as fish, squid and prawns.",
+      "sources": [
+        "https://www.afma.gov.au/sites/default/files/2025-02/stock-assessment-for-eastern-zone-orange-roughy-2021.pdf"
+      ]
+    },
+    {
+      "speciesId": "pinecone_fish",
+      "scientificName": "Monocentris japonica",
+      "description": "A reef-associated fish also called the Japanese pineapplefish. It is one of the fish species capable of producing light.",
+      "sources": [
+        "https://fishesofaustralia.net.au/home/species/3730"
+      ]
+    },
+    {
+      "speciesId": "spotted_lanternfish",
+      "scientificName": "Myctophum punctatum",
+      "description": "A small fish with light-producing organs called photophores. These organs create points of light on its body.",
+      "sources": [
+        "https://www.vliz.be/imisdocs/publications/ocrd/278773.pdf"
+      ]
+    },
+    {
+      "speciesId": "king_crab",
+      "scientificName": "Neolithodes agassizii",
+      "description": "A deep-sea king crab. It has been observed feeding on a mussel or its attachment threads at a deep-sea site.",
+      "sources": [
+        "https://repository.library.noaa.gov/view/noaa/17449/noaa_17449_DS1.pdf"
+      ]
+    },
+    {
+      "speciesId": "warty_squid",
+      "scientificName": "Moroteuthopsis longimana",
+      "description": "A large squid of the Southern Ocean. It is eaten by predators such as toothfish, seabirds and marine mammals.",
+      "sources": [
+        "https://nora.nerc.ac.uk/id/eprint/533806/",
+        "https://www.marionseals.com/blog/2021/2/10/new-paper-using-stable-isotopes-from-squid-beaks-to-reveal-the-ecology-of-a-dominant-prey-species-at-the-prince-edward-islands"
+      ]
+    },
+    {
+      "speciesId": "flapjack_octopus",
+      "scientificName": "Opisthoteuthis californiana",
+      "description": "A finned octopus associated with the deep seafloor. Like other flapjack octopuses, it has a soft body and webbing between its arms.",
+      "sources": [
+        "https://library.oarcloud.noaa.gov/oedv.lib/Okeanos_Explorer_2023_EX2301/EX2301_Dive_Summary_09.pdf",
+        "https://www.mbari.org/animal/flapjack-octopus/"
+      ]
+    },
+    {
+      "speciesId": "giant_pacific_octopus",
+      "scientificName": "Enteroctopus dofleini",
+      "description": "A large octopus of the North Pacific, found in coastal and deeper waters. It uses camouflage and strong suckers to catch prey such as crabs and shellfish.",
+      "sources": [
+        "https://www.montereybayaquarium.org/animals/animals-a-to-z/giant-pacific-octopus"
+      ]
+    },
+    {
+      "speciesId": "bone_eating_worm",
+      "scientificName": "Osedax frankpressi",
+      "description": "A worm first described from whale bones in Monterey Canyon. Females grow root-like tissues containing symbiotic bacteria that help them obtain nutrients from bone.",
+      "sources": [
+        "https://www.mbari.org/news/whale-carcass-yields-bone-devouring-worms/",
+        "https://www.mbari.org/project/osedax-studies/"
+      ]
+    },
+    {
+      "speciesId": "tree_bubblegum_coral",
+      "scientificName": "Paragorgia arborea",
+      "description": "A deep-water coral that forms branching colonies attached to hard surfaces. Large colonies can be very old and provide structure on the seafloor.",
+      "sources": [
+        "https://oceanexplorer.noaa.gov/multimedia/okeanos-explorations-ex1905-logs-aug29-media-coral/",
+        "https://oceanexplorer.noaa.gov/multimedia/okeanos-explorations-ex2104-dives-dive19-media-bubblegum-coral/"
+      ]
+    },
+    {
+      "speciesId": "precious_coral",
+      "scientificName": "Corallium rubrum",
+      "description": "A colonial animal whose small polyps capture suspended food from the water. It builds the skeleton associated with Mediterranean red coral.",
+      "sources": [
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC6625502/",
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC6919573/"
+      ]
+    },
+    {
+      "speciesId": "zigzag_coral",
+      "scientificName": "Madrepora oculata",
+      "description": "A cold-water stony coral that grows into branching colonies. Its skeleton adds structure to deep-sea habitats.",
+      "sources": [
+        "https://www.marlin.ac.uk/habitats/detail/1311/discrete_lophelia_pertusa_colonies_on_atlantic_mid_bathyal_coarse_sediment"
+      ]
+    },
+    {
+      "speciesId": "moon_jellyfish",
+      "scientificName": "Aurelia aurita",
+      "description": "A jellyfish with a translucent bell and four horseshoe-shaped reproductive organs. Its short tentacles help capture planktonic food.",
+      "sources": [
+        "https://www.marlin.ac.uk/species/detail/2089"
+      ]
+    }
+  ]
+}

@@ -17,7 +17,7 @@ MonoBehaviour:
   displayName: Precious Coral
   shortDisplayName:
   scientificName: Corallium rubrum
-  description: A slow-growing habitat-forming coral associated with hard substrate.
+  description: "A colonial animal whose small polyps capture suspended food from the water. It builds the skeleton associated with Mediterranean red coral."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 8

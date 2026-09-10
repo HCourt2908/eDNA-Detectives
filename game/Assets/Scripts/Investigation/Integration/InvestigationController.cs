@@ -2,9 +2,6 @@ using System.Collections.Generic;
 using EDNA.Core;
 using EDNA.Investigation.Domain;
 using UnityEngine;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-using UnityEngine.InputSystem;
-#endif
 
 namespace EDNA.Investigation
 {
@@ -58,17 +55,11 @@ namespace EDNA.Investigation
             view.Bind(
                 caseDefinition,
                 HandleSetPhase,
-                HandleSetDifficulty,
                 HandleDiscoverObservation,
                 HandleRunThreat,
                 HandleCompareEvidence,
                 HandleSubmitProvisional,
-                HandleReviewConfirmation,
                 HandleSetFinalThreat,
-                HandleSetReportEvidence,
-                HandleSetReasoning,
-                HandleSetLimitation,
-                HandleSubmitFinal,
                 HandleRestart,
                 HandleRecordModelConclusion);
             HandleRestart();
@@ -118,7 +109,8 @@ namespace EDNA.Investigation
             if (updater.TrySetPhase(state, nextPhase, out string feedback))
             {
                 view.Refresh(state, string.IsNullOrEmpty(feedback) ? GetPhaseGuide(nextPhase) : feedback, InvestigationStatusTone.Guide);
-                if (chooseFirstIdea) view.OpenProvisionalReview();
+                if (chooseFirstIdea)
+                    view.Refresh(state, "Review a completed model card to choose your explanation.", InvestigationStatusTone.Notice);
             }
             else
             {
@@ -155,7 +147,7 @@ namespace EDNA.Investigation
             view.Refresh(
                 state,
                 success
-                    ? $"Model complete: {threat.DisplayName}. Select one prediction and one related observation."
+                    ? $"Model running: {threat.DisplayName}. Watch its groups change, then compare the completed predictions."
                     : feedback,
                 success ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
         }
@@ -184,43 +176,12 @@ namespace EDNA.Investigation
             view.Refresh(state, success ? "Review your survey findings and record your best-fitting explanation." : feedback, success ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
         }
 
-        private void HandleReviewConfirmation()
-        {
-            if (!HasActiveSession) return;
-            bool success = updater.TryReviewConfirmation(state, out string feedback);
-            view.Refresh(state, feedback, success ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
-        }
-
         private void HandleSetFinalThreat(string threatId)
         {
             if (!HasActiveSession) return;
             bool success = updater.TrySetFinalThreat(state, threatId, out string feedback);
             if (success) InvestigationSessionBridge.ClearResult();
             view.Refresh(state, success ? "Explanation updated. Review your findings and send the report." : feedback, success ? InvestigationStatusTone.Guide : InvestigationStatusTone.Warning);
-        }
-
-        private void HandleSetReportEvidence(string evidenceId, bool selected)
-        {
-            if (!HasActiveSession) return;
-            bool success = updater.TrySetReportEvidence(state, evidenceId, selected, out string feedback);
-            if (success) InvestigationSessionBridge.ClearResult();
-            view.Refresh(state, success ? "Report evidence updated." : feedback, success ? InvestigationStatusTone.Guide : InvestigationStatusTone.Warning);
-        }
-
-        private void HandleSetReasoning(string reasoningId)
-        {
-            if (!HasActiveSession) return;
-            bool success = updater.TrySetReasoning(state, reasoningId, out string feedback);
-            if (success) InvestigationSessionBridge.ClearResult();
-            view.Refresh(state, success ? "Reasoning updated." : feedback, success ? InvestigationStatusTone.Guide : InvestigationStatusTone.Warning);
-        }
-
-        private void HandleSetLimitation(string limitationId)
-        {
-            if (!HasActiveSession) return;
-            bool success = updater.TrySetLimitation(state, limitationId, out string feedback);
-            if (success) InvestigationSessionBridge.ClearResult();
-            view.Refresh(state, success ? "Scientific limitation recorded." : feedback, success ? InvestigationStatusTone.Guide : InvestigationStatusTone.Warning);
         }
 
         private void HandleRecordModelConclusion()
@@ -233,33 +194,21 @@ namespace EDNA.Investigation
                 ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
         }
 
-        private void HandleSubmitFinal()
-        {
-            if (!HasActiveSession) return;
-            InvestigationConclusionResult result = updater.SubmitFinal(state);
-            if (result.Status != InvestigationConclusionStatus.Correct) view.RequestReportFeedbackFocus(result.Feedback);
-            if (result.Status != InvestigationConclusionStatus.InsufficientEvidence)
-            {
-                PublishInvestigationResult(result.Status);
-            }
-            view.Refresh(
-                state,
-                result.Feedback,
-                result.Status == InvestigationConclusionStatus.Correct
-                    ? InvestigationStatusTone.Success
-                    : result.Status == InvestigationConclusionStatus.InsufficientEvidence
-                        ? InvestigationStatusTone.Guide
-                        : InvestigationStatusTone.Warning);
-        }
-
         private void PublishInvestigationResult(InvestigationConclusionStatus status)
         {
+            var alternatives = new List<string>();
+            foreach (string id in caseDefinition.SupportedModelThreatIds)
+                if (id != caseDefinition.PrimaryModelThreatId) alternatives.Add(id);
             InvestigationSessionBridge.PublishResult(new InvestigationGameResult
             {
                 caseId = caseDefinition.CaseId,
                 surveyId = state.SurveyId,
                 siteId = state.SiteId,
                 selectedHypothesisId = state.FinalThreatId,
+                compatibleHypothesisIds = caseDefinition.SupportedModelThreatIds.Count > 0
+                    ? new List<string>(caseDefinition.SupportedModelThreatIds) : new List<string> { caseDefinition.CorrectThreatId },
+                primaryHypothesisId = caseDefinition.PrimaryModelThreatId,
+                alternativeHypothesisIds = alternatives,
                 correct = status == InvestigationConclusionStatus.Correct,
                 evidenceIds = new List<string>(state.SelectedReportEvidenceIds),
                 surveySpeciesIds = new List<string>(state.SurveySpeciesIds),
@@ -281,30 +230,7 @@ namespace EDNA.Investigation
         }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-        private bool qaMenuOpen;
-        private static readonly InvestigationQaCheckpoint[] QaCheckpoints =
-        {
-            InvestigationQaCheckpoint.ObserveReady,
-            InvestigationQaCheckpoint.SimulateComplete,
-            InvestigationQaCheckpoint.FinalReportReady
-        };
-        private static readonly string[] QaLabels =
-        {
-            "Observe", "Models", "Conclusion"
-        };
-
-        private void Update()
-        {
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null) return;
-            bool modifier = (keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed)
-                && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
-            if (!modifier) return;
-            if (keyboard.digit1Key.wasPressedThisFrame) ApplyQaCheckpoint(QaCheckpoints[0]);
-            else if (keyboard.digit2Key.wasPressedThisFrame) ApplyQaCheckpoint(QaCheckpoints[1]);
-            else if (keyboard.digit3Key.wasPressedThisFrame) ApplyQaCheckpoint(QaCheckpoints[2]);
-        }
-
+        // Automated test setup only: no player-facing menu or checkpoint shortcuts.
         public void ApplyQaCheckpoint(InvestigationQaCheckpoint checkpoint)
         {
             if (!HasActiveSession) return;
@@ -313,44 +239,10 @@ namespace EDNA.Investigation
             updater.SetDifficulty(state, difficulty);
             InvestigationSessionBridge.ClearResult();
             view.ResetPresentationState();
-            view.PrepareWorkbenchQa(checkpoint);
-            if (checkpoint == InvestigationQaCheckpoint.EvidenceReady) view.PrepareQaEvidenceChoice();
             if (state.ConclusionStatus == InvestigationConclusionStatus.Correct) PublishInvestigationResult(state.ConclusionStatus);
-            SetQaMenuOpen(false);
             view.Refresh(state, $"QA checkpoint loaded: {checkpoint}.", InvestigationStatusTone.Guide);
         }
 
-        private void OnGUI()
-        {
-            if (!Application.isPlaying || !HasActiveSession) return;
-            const float height = 26f;
-            const float width = 112f;
-            float y = Mathf.Max(4f, Screen.height - height - 4f);
-            if (GUI.Button(new Rect(8f, y, 86f, height), qaMenuOpen ? "QA tools ▾" : "QA tools ▸")) SetQaMenuOpen(!qaMenuOpen);
-            if (!qaMenuOpen) return;
-            int columns = Mathf.Clamp(Mathf.FloorToInt((Screen.width - 16f) / (width + 4f)), 1, 3);
-            int rows = Mathf.CeilToInt(QaCheckpoints.Length / (float)columns);
-            float top = Mathf.Max(4f, y - rows * (height + 4f) - 8f);
-            GUI.Box(new Rect(4f, top - 4f, columns * (width + 4f) + 8f, rows * (height + 4f) + 8f), string.Empty);
-            for (int index = 0; index < QaCheckpoints.Length; index++)
-            {
-                Rect rect = new Rect(8f + (index % columns) * (width + 4f), top + (index / columns) * (height + 4f), width, height);
-                GUIContent label = new GUIContent(QaLabels[index], $"Ctrl+Shift+{index + 1} · Fill this stage");
-                if (GUI.Button(rect, label)) ApplyQaCheckpoint(QaCheckpoints[index]);
-            }
-        }
-
-        private void SetQaMenuOpen(bool open)
-        {
-            qaMenuOpen = open;
-            if (view != null && view.TryGetComponent(out UnityEngine.UI.GraphicRaycaster raycaster))
-                raycaster.enabled = !open;
-        }
-
-        private void OnDisable()
-        {
-            if (qaMenuOpen) SetQaMenuOpen(false);
-        }
 #endif
     }
 }

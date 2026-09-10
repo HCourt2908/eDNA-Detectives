@@ -50,7 +50,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Notebook Drawer"), Is.Null);
             Assert.That(Vector2.Distance(model.center, Bounds("Scenario Results").center), Is.LessThan(.5f));
         }
-        [UnityTest] public IEnumerator Dock_NotebookAndRovStayBesideEdnaWithoutWorkbenchScrolling()
+        [UnityTest] public IEnumerator Dock_NotebookAndConclusionStayBesideEdnaWithoutWorkbenchScrolling()
         {
             yield return Start(); Press("Finish Scenario Animation");
             foreach (string id in new[] { "plastic", "longline", "bottom_trawling" }) { Press("Run Scenario " + id); Press("Finish Scenario Animation"); }
@@ -59,7 +59,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Complete Scenario Investigation").transform.IsChildOf(dock), Is.True);
             Assert.That(GameObject.Find("Toggle Notebook Drawer").transform.IsChildOf(dock), Is.True);
             Rect book = Bounds("Toggle Notebook Drawer"), rov = Bounds("Complete Scenario Investigation"), person = Bounds("Scenario Briefing Portrait");
-            Assert.That(book.xMax, Is.LessThan(rov.xMin)); Assert.That(rov.xMax, Is.LessThan(person.xMin));
+            Assert.That(book.xMax, Is.LessThan(rov.xMin)); Assert.That(person.xMax, Is.LessThan(book.xMin));
             var scroll = Object.FindAnyObjectByType<InvestigationRuntimeView>().ContentRoot.parent.parent.GetComponent<ScrollRect>();
             Canvas.ForceUpdateCanvases();
             Assert.That(scroll.vertical, Is.False);

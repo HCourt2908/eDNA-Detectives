@@ -17,7 +17,7 @@ MonoBehaviour:
   displayName: Moon Jellyfish
   shortDisplayName:
   scientificName: Aurelia aurita
-  description: A gelatinous predator that consumes zooplankton and small crustaceans.
+  description: "A jellyfish with a translucent bell and four horseshoe-shaped reproductive organs. Its short tentacles help capture planktonic food."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 3

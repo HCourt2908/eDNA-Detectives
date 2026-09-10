@@ -31,6 +31,9 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Scenario Briefing Focus " + target).transform.parent.name, Is.EqualTo("Scenario Briefing Overlay"));
             Assert.That(GameObject.Find("Scenario Briefing Dimmer").GetComponent<Image>().raycastTarget, Is.True);
             Assert.That(GameObject.Find("Edna Conversation"), Is.Null);
+            Assert.That(Bounds(GameObject.Find("Scenario Briefing Portrait").GetComponent<RectTransform>())
+                .Overlaps(Bounds(GameObject.Find("Restart Case").GetComponent<RectTransform>())), Is.False,
+                "A top-docked guide must leave the restart icon clear of EDNA's portrait.");
             if (target == "Scenario Result longline")
                 foreach (Image graphic in GameObject.Find(target).GetComponentsInChildren<Image>())
                     if (graphic.name == "Result Specimen 0") Assert.That(graphic.color.a, Is.GreaterThan(.99f), "The spotlight must preserve every species' main symbol");
@@ -76,9 +79,9 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Scenario Briefing Overlay"), Is.Null);
             Press("Run Scenario bottom_trawling"); Press("Finish Scenario Animation"); yield return null; yield return null;
             AssertSpotlight("Scenario Results"); yield return Next();
-            Press("Choose Scenario bottom_trawling"); yield return null; yield return null;
-            AssertSpotlight("Scenario Observed sea_star");
-            Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<Text>().text, Does.Contain("Sea star"));
+            Press("Choose Scenario plastic"); yield return null; yield return null;
+            AssertSpotlight("Scenario Observed tuna");
+            Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<Text>().text, Does.Contain("Tuna"));
             yield return Next(); Press("Choose Scenario longline"); yield return null;
             Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.Phase, Is.EqualTo(InvestigationPhase.Report));
             Assert.That(GameObject.Find("Scenario Briefing Overlay"), Is.Null);

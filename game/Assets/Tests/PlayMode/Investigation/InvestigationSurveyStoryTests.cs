@@ -103,8 +103,9 @@ namespace EDNA.Investigation.Tests
             var shark = GameObject.Find("Story Finding shark").transform;
             Assert.That(shark.Find("Story Before").childCount, Is.EqualTo(1));
             Assert.That(shark.Find("Story After").childCount, Is.Zero);
-            var star = GameObject.Find("Story Finding sea_star").transform;
-            Assert.That(star.Find("Story Before").childCount, Is.EqualTo(star.Find("Story After").childCount));
+            var star = GameObject.Find("Story Finding atlantic_herring").transform;
+            Assert.That(star.Find("Story Before").childCount, Is.EqualTo(3));
+            Assert.That(star.Find("Story After").childCount, Is.EqualTo(1));
         }
 
         [UnityTest] public IEnumerator Story_ShowsTrueSurveyPicturesAndSavesBeforeThePhaseTransition()
@@ -116,7 +117,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Observe Survey Story"), Is.Not.Null);
             Assert.That(GameObject.Find("Story Past Species shark"), Is.Not.Null);
             Assert.That(GameObject.Find("Story Today Species shark"), Is.Null);
-            Assert.That(GameObject.Find("Story Today Species krill"), Is.Null);
+            Assert.That(GameObject.Find("Story Today Species krill"), Is.Not.Null);
             Assert.That(GameObject.Find("Story Today Species tuna").transform.Find("Group Member Left"), Is.Not.Null);
             Assert.That(GameObject.Find("Story Past Species tuna").transform.Find("Group Member Left"), Is.Null);
             Assert.That(GameObject.Find("Comparison Species Page"), Is.Null);
@@ -144,7 +145,7 @@ namespace EDNA.Investigation.Tests
             Press("Stage Simulate"); yield return null; yield return null;
             InvestigationCurrentFlowTestActions.ToggleGuidanceForTests(); yield return null; yield return null;
             int count = 0;
-            foreach (RectTransform item in Object.FindObjectsByType<RectTransform>(FindObjectsSortMode.None))
+            foreach (RectTransform item in Object.FindObjectsByType<RectTransform>())
                 if (item.name == "Survey Summary In Flight" && item.gameObject.activeInHierarchy) count++;
             Assert.That(count, Is.EqualTo(1));
             var view = Object.FindAnyObjectByType<InvestigationRuntimeView>();

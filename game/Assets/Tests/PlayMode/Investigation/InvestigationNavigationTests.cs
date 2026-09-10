@@ -17,6 +17,24 @@ namespace EDNA.Investigation.Tests
         private static Button Find(string name) => GameObject.Find(name)?.GetComponent<Button>();
 
         [UnityTest]
+        public IEnumerator Navigation_UnchosenConclusionUsesTheCurrentModelCards()
+        {
+            yield return LoadCurrent();
+            CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.SimulateComplete);
+            yield return null; yield return null; SkipCurrentGuide();
+            CurrentController.SendMessage("HandleSetPhase", InvestigationPhase.Report, SendMessageOptions.RequireReceiver);
+            yield return null; yield return null; SkipCurrentGuide();
+            Assert.That(CurrentState.Phase, Is.EqualTo(InvestigationPhase.Simulate));
+            Assert.That(CurrentState.ProvisionalThreatId, Is.Empty);
+            Assert.That(GameObject.Find("Provisional Review Overlay"), Is.Null);
+            Assert.That(CurrentButton("Choose Scenario longline").interactable, Is.True);
+            CurrentPress("Choose Scenario longline"); yield return null;
+            Assert.That(CurrentState.Phase, Is.EqualTo(InvestigationPhase.Report));
+            Assert.That(CurrentState.ConfirmationReviewed, Is.False);
+            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
+        }
+
+        [UnityTest]
         public IEnumerator Navigation_NotebookReturnsToTheSameSpotlightStep()
         {
             yield return LoadCurrent(); EnterCurrentModels(); yield return null; yield return null; SkipCurrentGuide();

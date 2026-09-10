@@ -54,7 +54,7 @@ namespace EDNA.Investigation.Tests
         {
             yield return Start(); Press("Run Scenario plastic"); yield return new WaitForSecondsRealtime(.2f);
             Press("Run Scenario longline");
-            Assert.That(GameObject.Find("Scenario Result plastic").transform.Find("Scenario Result Species mussel/Result Prediction").GetComponent<Text>().text, Is.EqualTo("Baseline"));
+            Assert.That(GameObject.Find("Scenario Result plastic").transform.Find("Scenario Result Species phytoplankton/Result Prediction").GetComponent<Text>().text, Is.EqualTo("Baseline"));
             Press("Finish Scenario Animation"); Press("Run Scenario bottom_trawling"); Press("Finish Scenario Animation");
             Assert.That(GameObject.Find("Choose Scenario longline").GetComponent<Button>().interactable, Is.False);
             Press("Run Scenario plastic"); Press("Finish Scenario Animation");

@@ -160,7 +160,7 @@ namespace EDNA.Investigation
                     InvestigationTheme.PaperInk, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
                 Anchor(result.rectTransform, 0f, 0f, 1f, .40f, 2f, 2f, -2f, 0f);
             }
-            Text note = CreateText("Survey Story Key", paper, "Pictures show detection patterns, not animal counts.", 11, FontStyle.Bold,
+            Text note = CreateText("Survey Story Key", paper, "Pictures show detection patterns, not population counts.", 11, FontStyle.Bold,
                 InvestigationTheme.PaperMuted, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
             Anchor(note.rectTransform, 0f, 0f, 1f, 0f, 12f, 3f, -12f, 23f);
             return paper;
@@ -204,13 +204,13 @@ namespace EDNA.Investigation
                 if (!ShouldDisplaySpeciesInEra(species, era) || ResolveSurveySummary(species, era)?.Detection != SpeciesDetectionState.Detected) continue;
                 Vector2 position = species.SpeciesId == "shark" ? new Vector2(.22f, .70f)
                     : species.SpeciesId == "tuna" ? new Vector2(.72f, .65f)
-                    : species.SpeciesId == "krill" ? new Vector2(.46f, .40f)
-                    : species.SpeciesId == "sea_star" ? new Vector2(.25f, .18f)
-                    : species.SpeciesId == "mussel" ? new Vector2(.77f, .18f)
+                    : species.SpeciesId == "krill" ? new Vector2(.76f, .40f)
+                    : species.SpeciesId == "atlantic_herring" ? new Vector2(.25f, .42f)
+                    : species.SpeciesId == "phytoplankton" ? new Vector2(.48f, .16f)
                     : new Vector2(.15f + (i % 3) * .32f, .3f + (i / 3) * .18f);
                 RectTransform art = CreateStorySymbols("Story " + key + " Species " + species.SpeciesId, sea, species, era);
                 Anchor(art, position.x - .15f, position.y - .06f, position.x + .15f, position.y + .18f, 0f, 0f, 0f, 0f);
-                Text name = CreateText("Story Species Name", sea, species.SpeciesId == "mussel" ? "Mussel" : species.GameplayName, 11,
+                Text name = CreateText("Story Species Name", sea, species.GameplayName, 11,
                     FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
                 Anchor(name.rectTransform, position.x - .21f, position.y - .15f, position.x + .21f, position.y - .04f, 0f, 0f, 0f, 0f);
             }

@@ -17,8 +17,7 @@ MonoBehaviour:
   displayName: Spotted Lanternfish
   shortDisplayName:
   scientificName: Myctophum punctatum
-  description: A vertically migrating mesopelagic fish that transfers energy through
-    the water column.
+  description: "A small fish with light-producing organs called photophores. These organs create points of light on its body."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 3

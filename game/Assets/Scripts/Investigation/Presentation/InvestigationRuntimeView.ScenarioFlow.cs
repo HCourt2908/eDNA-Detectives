@@ -33,9 +33,6 @@ namespace EDNA.Investigation
                 return true;
             }
         }
-        private string ScenarioEdnaHeading => scenarioSession != state || scenarioStage == ScenarioStage.BuildingChain
-            ? "EDNA · Our notebook and three predictions"
-            : scenarioStage == ScenarioStage.Comparing ? "EDNA · Which explanation fits the whole pattern?" : "EDNA · Try a possible cause";
         private string ScenarioEdnaMessage
         {
             get
@@ -45,14 +42,12 @@ namespace EDNA.Investigation
                 if (!string.IsNullOrEmpty(scenarioFeedback)) return scenarioFeedback;
                 if (!string.IsNullOrEmpty(state.ProvisionalThreatId)) return "Your explanation is saved. Replay any model, then return to your summary.";
                 if (scenarioStage == ScenarioStage.Comparing)
-                    return "Compare all three predictions with our survey above, including sea star and mussel. Choose the explanation that fits the whole pattern.";
+                    return "Compare all five species with our example survey. More than one model can fit the same pattern.";
                 if (scenarioStage == ScenarioStage.PlayingCause)
-                    return "Watch the highlighted groups: more organisms join, or some leave. Every trial starts with the same groups; these symbols show relative change, not actual animal counts.";
+                    return "Watch the highlighted groups: more organisms join, or some leave. Every trial starts with the same groups; these symbols show relative change, not actual population counts.";
                 return "Use Play on each card. Watch the groups change, then choose the explanation that best fits our survey.";
             }
         }
-        private string ScenarioEdnaAction => scenarioStage == ScenarioStage.BuildingChain ? "Try the causes"
-            : scenarioStage == ScenarioStage.PlayingCause ? "Show prediction" : string.Empty;
 
         private void EnsureScenarioSession()
         {
@@ -70,11 +65,6 @@ namespace EDNA.Investigation
             scenarioSubmitting = false; scenarioRun++;
             ResetScenarioBriefing();
             ResetScenarioEnding();
-            workbenchLinks.Clear();
-            foreach (var edge in caseDefinition.FoodWebEdges)
-                if (edge.NetworkId == caseDefinition.SimulationFoodWebId) workbenchLinks.Add(edge.PredatorSpeciesId + ">" + edge.PreySpeciesId);
-            workbenchFoodWebReady = true;
-            workbenchInspectPrediction = false;
             if (InvestigationMotionSettings.ReducedMotion && scenarioStage == ScenarioStage.BuildingChain) scenarioStage = ScenarioStage.TryingCauses;
         }
 
@@ -86,12 +76,10 @@ namespace EDNA.Investigation
             scenarioRecordsRevealStarted = -100d;
             navigationRevealTarget = "Scenario Result " + id; navigationRevealAtTop = false;
             scenarioActiveId = selectedThreatId = id;
-            selectedPredictionSpeciesId = selectedObservationId = string.Empty;
             scenarioFeedback = scenarioConflictSpecies = string.Empty;
             scenarioStage = ScenarioStage.PlayingCause;
             scenarioStarted = Time.unscaledTimeAsDouble;
             scenarioRun++;
-            ednaConversationOpen = true;
             runThreat?.Invoke(id);
             if (state.FindSimulation(id) == null)
             {
@@ -139,9 +127,8 @@ namespace EDNA.Investigation
                 scenarioFeedback = $"{caseDefinition.FindThreat(id).DisplayName}: look at {species?.GameplayName ?? finding.RelatedSpeciesId}. This model predicts {PredictionLabel(predicted?.PredictedState ?? PredictionState.Unknown).ToLowerInvariant()}, but our finding is '{finding.DisplayName}'. Try another explanation.";
                 RefreshPresentationOnly(); return;
             }
-            // One overall comparison replaces seven manual submissions. Keep an
-            // auditable set of authored model/evidence checks for the existing ROV
-            // handoff; do not invent a new diagnosis or mark the case closed here.
+            // Record all authored comparisons before opening the conclusion.
+            // Matching this example does not identify a unique cause.
             foreach (var objective in caseDefinition.InvestigationObjectives)
                 if (objective.Required && (!state.HasTriedThreat(objective.ThreatId) || !state.HasDiscoveredObservation(objective.RequiredEvidenceId)))
                 {
@@ -186,6 +173,10 @@ namespace EDNA.Investigation
             if (report != null) report.interactable = !string.IsNullOrEmpty(state.ProvisionalThreatId);
             RectTransform root = CreateScenarioWorkspace();
             RenderScenarioObservedPattern(root);
+            Text chain = CreateText("Scenario Food Chain", root,
+                "Food-chain example · Shark → Tuna → Herring → Krill → Phytoplankton   (arrows: eats)",
+                13, FontStyle.Bold, InvestigationTheme.Primary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
+            AddLayout(chain.rectTransform, 24f, 0f);
             RenderScenarioAlternatives(root);
             if (scenarioStage == ScenarioStage.BuildingChain)
             {

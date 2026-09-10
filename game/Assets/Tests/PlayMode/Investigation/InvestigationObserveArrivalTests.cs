@@ -98,7 +98,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Toggle Notebook Drawer"), Is.Null);
             InvestigationWorkbenchTestActions.BeginTodayRecording(); yield return null; yield return null;
             Assert.That(GameObject.Find("Today Notebook Row shark"), Is.Null);
-            Assert.That(GameObject.Find("Today Notebook Row krill"), Is.Null);
+            Assert.That(GameObject.Find("Today Notebook Row krill"), Is.Not.Null);
             Assert.That(GameObject.Find("Today Negative Survey Record"), Is.Null);
             GameObject flight = GameObject.Find("Today Record In Flight");
             Assert.That(flight, Is.Not.Null);
@@ -111,15 +111,15 @@ namespace EDNA.Investigation.Tests
             {
                 Assert.That(GameObject.Find("Observe Answer Choices"), Is.Null);
                 Assert.That(GameObject.Find("Species Marker shark"), Is.Null);
-                Assert.That(GameObject.Find("Species Marker krill"), Is.Null);
+                Assert.That(GameObject.Find("Species Marker krill"), Is.Not.Null);
                 yield return null;
             }
             Assert.That(GameObject.Find("Today Record In Flight"), Is.Null);
             Assert.That(GameObject.Find("Compare With History"), Is.Not.Null);
             Assert.That(controller.State.DiscoveredObservationIds, Is.Empty, "Saving current survey records must not answer the historical comparison questions.");
             Assert.That(GameObject.Find("Today Notebook Row shark"), Is.Null);
-            Assert.That(GameObject.Find("Today Notebook Row krill"), Is.Null);
-            Assert.That(GameObject.Find("Today Recording Status").GetComponent<Text>().text, Does.Contain("3/3"));
+            Assert.That(GameObject.Find("Today Notebook Row krill"), Is.Not.Null);
+            Assert.That(GameObject.Find("Today Recording Status").GetComponent<Text>().text, Does.Contain("4/4"));
             Assert.That(EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Compare With History"));
             Press("Compare With History"); Press("History Lens Briefing Next"); yield return null;
             Assert.That(GameObject.Find("Observe Answer Choices"), Is.Null);
@@ -162,7 +162,7 @@ namespace EDNA.Investigation.Tests
             yield return new WaitForSecondsRealtime(.9f);
             InvestigationCurrentFlowTestActions.ToggleGuidanceForTests(); yield return null; yield return null;
             int flights = 0;
-            foreach (RectTransform rect in Object.FindObjectsByType<RectTransform>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            foreach (RectTransform rect in Object.FindObjectsByType<RectTransform>(FindObjectsInactive.Exclude))
                 if (rect.name == "Today Record In Flight") flights++;
             Assert.That(flights, Is.EqualTo(1));
             Press("Skip Today Recording Animation"); yield return null;

@@ -17,7 +17,7 @@ MonoBehaviour:
   displayName: Giant Pacific Octopus
   shortDisplayName:
   scientificName: Enteroctopus dofleini
-  description: A large benthic predator included in a crab-focused food-chain branch.
+  description: "A large octopus of the North Pacific, found in coastal and deeper waters. It uses camouflage and strong suckers to catch prey such as crabs and shellfish."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 4

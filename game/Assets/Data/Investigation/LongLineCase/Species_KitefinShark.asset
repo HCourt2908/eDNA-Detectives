@@ -17,7 +17,7 @@ MonoBehaviour:
   displayName: Kitefin Shark
   shortDisplayName:
   scientificName: Dalatias licha
-  description: A deep-water shark used in an alternative offshore food-chain branch.
+  description: "A shark of deep waters. Scientists have documented its blue light emission, produced by tiny light organs in its skin."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 5

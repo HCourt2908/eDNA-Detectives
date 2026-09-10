@@ -12,7 +12,7 @@ namespace EDNA.Investigation
 
         private void CreateHeaderRestart(RectTransform header)
         {
-            restartButton = CreateButton("Restart Case", header, string.Empty, ButtonVisualStyle.Secondary,
+            restartButton = CreateButton("Restart Case", header, string.Empty, ButtonVisualStyle.Tertiary,
                 RequestRestartConfirmation, out _);
             Anchor(restartButton.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -56f, -50f, -12f, -6f);
             // Keep restart reachable while EDNA spotlights cover the rest of the screen.
@@ -20,9 +20,10 @@ namespace EDNA.Investigation
             layer.overrideSorting = true;
             layer.sortingOrder = 90;
             restartButton.gameObject.AddComponent<GraphicRaycaster>();
-            var icon = CreateGraphic<InvestigationRestartGraphic>("Restart Icon", restartButton.transform);
-            icon.color = InvestigationTheme.TextPrimary;
-            Stretch(icon.rectTransform, 9f, 9f, -9f, -9f);
+            Image icon = CreateStatusIcon("Restart Icon", restartButton.transform,
+                InvestigationStatusIconLibrary.Restart, InvestigationTheme.TextPrimary);
+            Stretch(icon.rectTransform, 7f, 7f, -7f, -7f);
+            restartButton.targetGraphic = icon;
             Text hint = CreateText("Restart Label", restartButton.transform, "Restart investigation", 13,
                 FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleRight, InvestigationTheme.BodyFont);
             Anchor(hint.rectTransform, 0f, 0f, 0f, 1f, -160f, 0f, -8f, 0f);

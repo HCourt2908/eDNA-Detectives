@@ -34,7 +34,7 @@ namespace EDNA.Investigation.Tests
                 InvestigationSessionBridge.Clear();
                 yield return LoadInvestigationScene();
                 InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
-                foreach (InvestigationQaCheckpoint checkpoint in new[] { InvestigationQaCheckpoint.ObserveReady, InvestigationQaCheckpoint.SimulateStart, InvestigationQaCheckpoint.FinalReportReady })
+                foreach (InvestigationQaCheckpoint checkpoint in new[] { InvestigationQaCheckpoint.ObserveReady, InvestigationQaCheckpoint.SimulateStart, InvestigationQaCheckpoint.ConclusionReady })
                 {
                     controller.ApplyQaCheckpoint(checkpoint);
                     yield return null;
@@ -97,7 +97,7 @@ namespace EDNA.Investigation.Tests
             CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.SimulateComplete); yield return null; yield return null;
             Assert.That(GameObject.Find("Scenario Results"), Is.Not.Null);
             Assert.That(CurrentState.CompletedObjectiveCount, Is.EqualTo(7));
-            CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady); yield return null;
+            CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.ConclusionReady); yield return null;
             Assert.That(CurrentButton("Complete Scenario Investigation").interactable, Is.True);
             Assert.That(CurrentState.ConfirmationReviewed, Is.False);
             Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
@@ -127,14 +127,14 @@ namespace EDNA.Investigation.Tests
 
                 Assert.That(FindButton("Compare Species tuna").interactable, Is.True);
                 InvestigationGameInput input = new InvestigationGameInput();
-                input.discoveredObservationIds.Add("E04_BENTHIC_STABLE");
+                input.discoveredObservationIds.Add("E03_HERRING_FEWER_SITES");
                 InvestigationSessionBridge.SetInput(input); yield return LoadInvestigationScene();
                 Assert.That(FindButton("Compare Species shark").interactable, Is.True);
 
-                Assert.That(GameObject.Find("Historical Notebook Row sea_star"), Is.Not.Null);
+                Assert.That(GameObject.Find("Historical Notebook Row atlantic_herring"), Is.Not.Null);
 
                 Record("Species Marker shark"); Record("Species Marker tuna"); Record("Species Marker krill");
-                Assert.That(FindButton("Compare Species mussel").interactable, Is.True);
+                Assert.That(FindButton("Compare Species phytoplankton").interactable, Is.True);
             }
             finally { InvestigationSessionBridge.Clear(); }
         }
@@ -275,7 +275,7 @@ namespace EDNA.Investigation.Tests
         {
             InvestigationGameInput validInput = new InvestigationGameInput
             {
-                caseId = "investigation_longline_01",
+                caseId = "investigation_foodchain_02",
                 surveyContext = new InvestigationSurveyContextData
                 {
                     surveyId = "survey_from_ctd",
@@ -314,7 +314,7 @@ namespace EDNA.Investigation.Tests
         [UnityTest]
         public IEnumerator InvestigationScene_ImportedSpeciesWithoutArtworkUsesItsNameInsteadOfAWrongGlyph()
         {
-            InvestigationGameInput input = new InvestigationGameInput { caseId = "investigation_longline_01" };
+            InvestigationGameInput input = new InvestigationGameInput { caseId = "investigation_foodchain_02" };
             EDNAResultData result = new EDNAResultData();
             result.detectedSpeciesIds.Add("moon_jellyfish");
             input.ednaResults.Add(result);
@@ -340,7 +340,7 @@ namespace EDNA.Investigation.Tests
         [UnityTest]
         public IEnumerator InvestigationScene_DetailedUpstreamObservationControlsEraDepthAndGhostState()
         {
-            InvestigationGameInput input = new InvestigationGameInput { caseId = "investigation_longline_01" };
+            InvestigationGameInput input = new InvestigationGameInput { caseId = "investigation_foodchain_02" };
             EDNAResultData result = new EDNAResultData { sampleId = "deep-sample", siteId = "ridge" };
             result.speciesObservations.Add(new EDNASpeciesObservationData
             {
@@ -399,7 +399,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Comparison Notebook"), Is.Not.Null); yield return null;
             Click("Compare Change More");
             Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.HasDiscoveredObservation("E02_TUNA_WIDER_DETECTION"), Is.True);
-            Record("Species Marker krill"); Record("Species Marker sea_star"); Record("Species Marker mussel");
+            Record("Species Marker krill"); Record("Species Marker atlantic_herring"); Record("Species Marker phytoplankton");
             Assert.That(FindButton("Summarize Findings"), Is.Not.Null);
             Assert.That(GameObject.Find("Observe Comparison Board"), Is.Not.Null);
         }
@@ -437,7 +437,7 @@ namespace EDNA.Investigation.Tests
         }
 
         [UnityTest]
-        public IEnumerator InvestigationScene_SpeciesFactsTooltipUsesOneSecondHoverAndKeyboardFocus()
+        public IEnumerator InvestigationScene_SpeciesFactsTooltipUsesShortHoverAndKeyboardFocus()
         {
             yield return LoadInvestigationScene();
                 Click("Toggle Survey Map"); yield return null;
@@ -449,12 +449,12 @@ namespace EDNA.Investigation.Tests
             yield return null;
             Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Null);
             trigger.OnPointerEnter(new PointerEventData(EventSystem.current));
-            yield return new WaitForSecondsRealtime(0.55f);
+            yield return new WaitForSecondsRealtime(0.06f);
             Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Null);
             yield return WaitForCondition(
                 () => GameObject.Find("Species Facts Tooltip") != null,
                 1f,
-                "Species facts did not appear after the one-second hover delay.");
+                "Species facts did not appear promptly on hover.");
             Assert.That(GameObject.Find("Species Facts Tooltip").GetComponent<Image>().raycastTarget, Is.False,
                 "An unpinned hover preview must still allow the pointer to move between markers.");
 
@@ -553,7 +553,7 @@ namespace EDNA.Investigation.Tests
         {
             InvestigationGameInput input = new InvestigationGameInput();
             input.discoveredObservationIds.AddRange(new[] { "E01_SHARK_NONDETECTION", "E02_TUNA_WIDER_DETECTION",
-                "E03_KRILL_NONDETECTION", "E04_BENTHIC_STABLE", "L01_NONDETECTION_LIMITATION" });
+                "E04_KRILL_WIDER_DETECTION", "E03_HERRING_FEWER_SITES", "L01_NONDETECTION_LIMITATION" });
             try
             {
                 InvestigationSessionBridge.SetInput(input);
@@ -562,7 +562,7 @@ namespace EDNA.Investigation.Tests
                 Assert.That(FindButton("Continue To Simulate"), Is.Null);
                 EnterSimulate("Stage Simulate");
                 Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.Phase, Is.EqualTo(InvestigationPhase.Observe));
-                Record("Species Marker mussel");
+                Record("Species Marker phytoplankton");
                 EnterSimulate("Continue To Simulate");
                 Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.Phase, Is.EqualTo(InvestigationPhase.Simulate));
             }
@@ -642,7 +642,7 @@ namespace EDNA.Investigation.Tests
                 foreach (bool reduced in new[] { false, true })
                 {
                     InvestigationMotionSettings.SetReducedMotionForTests(reduced);
-                    CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
+                    CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.ConclusionReady);
                     CurrentPress("Complete Scenario Investigation");
                     var mark = GameObject.Find("Scenario Case Stamp").GetComponent<RectTransform>();
                     if (reduced) Assert.That(mark.localScale, Is.EqualTo(Vector3.one));
@@ -657,7 +657,7 @@ namespace EDNA.Investigation.Tests
         [UnityTest]
         public IEnumerator InvestigationScene_RecordConclusionReceivesPointerInputOnce()
         {
-            yield return LoadCurrent(); CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
+            yield return LoadCurrent(); CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.ConclusionReady);
             yield return null; yield return null;
             var button = CurrentButton("Complete Scenario Investigation"); var submit = button.onClick;
             CurrentPointerClick(button); yield return null;
@@ -702,7 +702,7 @@ namespace EDNA.Investigation.Tests
         public IEnumerator InvestigationScene_NotebookOpensWithPointerAndKeyboardBeforeAndAfterConclusion()
         {
             yield return LoadCurrent();
-            foreach (var checkpoint in new[] { InvestigationQaCheckpoint.FinalReportReady, InvestigationQaCheckpoint.CaseClosed })
+            foreach (var checkpoint in new[] { InvestigationQaCheckpoint.ConclusionReady, InvestigationQaCheckpoint.CaseClosed })
             {
                 CurrentController.ApplyQaCheckpoint(checkpoint); yield return null; yield return null;
                 var before = CurrentState.ConclusionStatus;
@@ -796,8 +796,8 @@ namespace EDNA.Investigation.Tests
                 // Stale gameplay callbacks and development shortcuts must obey the same session boundary.
                 controller.SendMessage("HandleSetPhase", InvestigationPhase.Simulate, SendMessageOptions.RequireReceiver);
                 controller.SendMessage("HandleSetDifficulty", InvestigationDifficulty.Hard, SendMessageOptions.RequireReceiver);
-                controller.SendMessage("HandleSubmitFinal", SendMessageOptions.RequireReceiver);
-                controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady);
+                controller.SendMessage("HandleRecordModelConclusion", SendMessageOptions.RequireReceiver);
+                controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ConclusionReady);
                 yield return null;
                 Assert.That(GameObject.Find("Fatal Error"), Is.SameAs(error));
                 Assert.That(controller.State, Is.Null);
@@ -972,8 +972,8 @@ namespace EDNA.Investigation.Tests
                 controller.Initialize(definition, view);
                 InvestigationStateUpdater updater = new InvestigationStateUpdater(definition);
                 InvestigationState state = controller.State;
-                foreach (string id in new[] { "E01_SHARK_NONDETECTION", "E02_TUNA_WIDER_DETECTION", "E03_KRILL_NONDETECTION",
-                    "E04_BENTHIC_STABLE", "E06_PLASTIC_INDICATOR_STABLE" })
+                foreach (string id in new[] { "E01_SHARK_NONDETECTION", "E02_TUNA_WIDER_DETECTION", "E04_KRILL_WIDER_DETECTION",
+                    "E03_HERRING_FEWER_SITES", "E05_PHYTOPLANKTON_FEWER_SITES" })
                     Assert.That(updater.TryDiscoverObservation(state, id, out _), Is.True);
                 view.Refresh(state, string.Empty, InvestigationStatusTone.Guide);
 

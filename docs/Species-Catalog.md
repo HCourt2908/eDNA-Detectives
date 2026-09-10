@@ -23,22 +23,27 @@ unique canonical identity, and matching roster coverage. A spelling change must
 not silently become a second organism. Scientific and display-name collisions
 are checked by the case validator.
 
-## Current Case Exceptions
+## Active Food-chain Case
 
-Sea star and filter-feeding mussel are still legacy controls in the playable case.
-Neither appears in the updated Species List. They are excluded from the shared
-import catalog and must not be relabelled as a different animal while retaining
-unsupported predictions. Their replacements and affected comparisons are pending
-team confirmation.
+The active case is `investigation_foodchain_02`: shark, tuna, Atlantic herring,
+krill and phytoplankton. Every active definition is a member of the approved
+catalog. Sea star and mussel definitions have been removed; neither is treated
+as an alias for another animal.
 
-The three existing causes (plastic pollution, long-line fishing and bottom
-trawling) are intentionally retained for this update. Frederick is reviewing the
-food web and preparing a replacement for the plastic scenario; no new third
-scenario or biological response has been invented here.
+The two fishing scenarios use the same predator-removal premise on the Figma
+network. Both remain compatible with the illustrative survey. The conclusion presents long-line fishing as the authored main explanation and
+bottom trawling as a possible alternative, exporting `primaryHypothesisId` and
+`alternativeHypothesisIds` alongside the reviewed and compatible model IDs. The plastic scenario is retained provisionally while Frederick
+reviews the food-web responses and third scenario.
+
+The example survey is authored for the teaching activity, not imported from
+Figma as real measured data. Incoming producers must supply the correct case ID
+and era; incompatible core detection patterns remain rejected.
 
 ## Team Artwork
 
 The supplied hammerhead, manta ray and bone-eating worm illustrations are wired
 through their species definitions, so maps and notebooks share the same artwork.
 See the [artwork mapping](../game/Assets/Art/Investigation/TeamSpecies/README.md).
-The unlabelled fish illustration needs a confirmed species name before use.
+Generated herring and phytoplankton illustrations complete the active five-species set.
+The unlabelled supplied fish illustration still needs a confirmed species name before assignment.

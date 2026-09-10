@@ -99,17 +99,17 @@ namespace EDNA.Investigation
             RectTransform header = CreatePanel("Observe Edna Header", paper, Color.clear, 0f);
             bool compact = objectName != "Observe Welcome" && GetComponent<RectTransform>().rect.width < 930f;
             AddLayout(header, objectName == "Observe Welcome" ? 56f : compact ? 28f : 44f, 0f);
-            Image portrait = CreateStatusIcon("Edna Introduction Portrait", header, ednaPortrait, Color.white);
-            Anchor(portrait.rectTransform, 1f, 0f, 1f, 1f, -62f, 0f, 0f, 3f);
+            Image portrait = CreateStatusIcon("Edna Introduction Portrait", header, ednaAvatar ?? ednaPortrait, Color.white);
+            Anchor(portrait.rectTransform, 0f, 0f, 0f, 1f, 0f, 0f, 56f, 3f);
             Text name = CreateText("Edna Name", header, objectName == "Observe Welcome" ? "EDNA · TODAY'S SURVEY" : "EDNA · MY NOTEBOOK", 13, FontStyle.Bold,
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
-            Stretch(name.rectTransform, 0f, 0f, -70f, 0f);
+            Stretch(name.rectTransform, 64f, 0f, 0f, 0f);
             name.alignment = TextAnchor.MiddleLeft;
             if (compact)
             {
-                Stretch(name.rectTransform, 0f, 0f, -38f, 0f);
+                Stretch(name.rectTransform, 38f, 0f, 0f, 0f);
                 name.alignment = TextAnchor.MiddleLeft;
-                Anchor(portrait.rectTransform, 1f, 0f, 1f, 1f, -30f, 0f, 0f, 2f);
+                Anchor(portrait.rectTransform, 0f, 0f, 0f, 1f, 0f, 0f, 30f, 2f);
             }
             return paper;
         }
@@ -280,7 +280,7 @@ namespace EDNA.Investigation
             RectTransform art = CreateSurveyArtwork(SurveyRowPrefix(era) + " Notebook Icon " + species.SpeciesId, row, species, era);
             Anchor(art, 0f, 0f, 0f, 1f, 6f, 5f, 78f, -5f);
             EnsureCanvasGroup(art).alpha = arrived ? 1f : .12f;
-            Text name = CreateText("Today Notebook Species", row, species.SpeciesId == "mussel" ? "Mussel" : species.GameplayName, 13, FontStyle.Bold,
+            Text name = CreateText("Today Notebook Species", row, species.GameplayName, 13, FontStyle.Bold,
                 InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(name.rectTransform, 0f, .47f, 1f, 1f, 86f, 0f, -6f, 0f);
             Text result = CreateText("Today Notebook Result", row, arrived ? "Detected " + SurveyName(era) : "Waiting to record", 12,

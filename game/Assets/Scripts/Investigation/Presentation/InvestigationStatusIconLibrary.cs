@@ -4,10 +4,12 @@ namespace EDNA.Investigation
 {
     public static class InvestigationStatusIconLibrary
     {
+        private static Sprite restart;
         private static Sprite check;
         private static Sprite cross;
         private static Sprite question;
 
+        public static Sprite Restart => restart != null ? restart : restart = Load("arrow-path");
         public static Sprite Check => check != null ? check : check = Load("check-circle");
         public static Sprite Cross => cross != null ? cross : cross = Load("x-circle");
         public static Sprite Question => question != null ? question : question = Load("question-mark-circle");

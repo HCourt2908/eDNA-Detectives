@@ -17,7 +17,7 @@ MonoBehaviour:
   displayName: Orange Roughy
   shortDisplayName:
   scientificName: Hoplostethus atlanticus
-  description: A long-lived deep-water fish that feeds on smaller fish and invertebrates.
+  description: "A slow-growing, long-lived fish of deep waters, including seamounts. It eats prey such as fish, squid and prawns."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 4

@@ -17,8 +17,7 @@ MonoBehaviour:
   displayName: Flapjack Octopus
   shortDisplayName:
   scientificName: Opisthoteuthis californiana
-  description: A soft-bodied deep-sea octopus that searches the seafloor for small
-    prey.
+  description: "A finned octopus associated with the deep seafloor. Like other flapjack octopuses, it has a soft body and webbing between its arms."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 4

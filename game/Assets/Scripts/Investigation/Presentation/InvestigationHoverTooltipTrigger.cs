@@ -18,6 +18,7 @@ namespace EDNA.Investigation
         private Coroutine pendingShow;
         private bool pointerInside;
         private bool selected;
+        public bool IsPointerInside => pointerInside;
 
         public void Configure(float delay, Action onShow, Action onHide)
         {

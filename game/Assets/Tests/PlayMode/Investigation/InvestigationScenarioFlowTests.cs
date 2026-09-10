@@ -53,7 +53,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(Actor("tuna"), Does.Contain("Stable"));
             Assert.That(controller.State.CompletedObjectiveCount, Is.Zero);
         }
-        [UnityTest] public IEnumerator Scenario_WholePatternChoiceUsesControlsAndHandsOffToRov()
+        [UnityTest] public IEnumerator Scenario_WholePatternReviewRejectsConflictThenOpensConclusion()
         {
             yield return Start(); var controller = Object.FindAnyObjectByType<InvestigationController>();
             TryAll(); yield return null;
@@ -61,9 +61,9 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Evidence Pattern food-web"), Is.Null);
             Assert.That(GameObject.Find("Prediction shark"), Is.Null);
             Assert.That(controller.State.CompletedObjectiveCount, Is.Zero);
-            Press("Choose Scenario bottom_trawling"); yield return null;
+            Press("Choose Scenario plastic"); yield return null;
             Assert.That(controller.State.ProvisionalThreatId, Is.Empty);
-            Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<Text>().text, Does.Contain("Sea star"));
+            Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<Text>().text, Does.Contain("Tuna"));
             Assert.That(controller.State.ComparisonRecords.Count, Is.Zero);
             Press("Choose Scenario longline"); yield return null;
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Report));

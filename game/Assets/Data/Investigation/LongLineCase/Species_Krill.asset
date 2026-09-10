@@ -17,7 +17,7 @@ MonoBehaviour:
   displayName: Northern Krill
   shortDisplayName: Krill
   scientificName: Meganyctiphanes norvegica
-  description: A small prey species linking plankton production to larger fish.
+  description: "A small North Atlantic crustacean that eats animal plankton and some algae. It often moves toward surface waters at night and deeper water by day."
   icon: {fileID: 21300000, guid: 54054320acac9499fb7212f20cb22b96, type: 3}
   glyphKind: 2
   trophicRole: 2
@@ -34,7 +34,5 @@ MonoBehaviour:
   - atlantic_herring
   - reef_manta_ray
   sensitivityTags:
-  - Prey
   - FoodWeb
-  - PlasticSensitive
   mapDepthBand: 1

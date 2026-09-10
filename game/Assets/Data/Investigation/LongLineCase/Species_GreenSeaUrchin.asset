@@ -17,7 +17,7 @@ MonoBehaviour:
   displayName: Green Sea Urchin
   shortDisplayName:
   scientificName: Strongylocentrotus droebachiensis
-  description: A cold-water grazer associated with rocky benthic habitat.
+  description: "A spiny sea urchin found on rocky seabeds. It grazes on algae and can strongly affect kelp beds when abundant."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 2

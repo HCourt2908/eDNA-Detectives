@@ -14,25 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.ThreatSimulationDefinition
   threatId: bottom_trawling
   displayName: Bottom trawling
-  summary: This overlapping cause can create the same predator cascade, but it also
-    predicts damage to benthic species and the seafloor.
+  summary: Possible alternative. Its model can also produce a similar five-species food-chain pattern.
   icon: {fileID: 21300000, guid: 96abde5153d644294879228d46d96b2a, type: 3}
   glyphKind: 3
   speciesPredictions:
   - speciesId: shark
     predictedState: 1
-    rationale: Bycatch reduces the same large predator.
-  - speciesId: tuna
-    predictedState: 0
-    rationale: Tuna increase after losing a predator.
-  - speciesId: krill
-    predictedState: 1
-    rationale: More tuna consume more krill.
-  - speciesId: sea_star
-    predictedState: 1
-    rationale: Dragging gear damages the benthic indicator.
-  - speciesId: mussel
-    predictedState: 2
-    rationale: The plastic-sensitive reference remains stable.
-  seafloorPrediction: Seafloor should be disturbed or damaged.
-  physicalConfirmation: Trawl marks or damaged habitat should be visible.
+    rationale: Use the same predator-removal premise to compare the two fishing models.
+  seafloorPrediction: No seabed observation supplied by this example.
+  physicalConfirmation: No physical observation is used in this activity.

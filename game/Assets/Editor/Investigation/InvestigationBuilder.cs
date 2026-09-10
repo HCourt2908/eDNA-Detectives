@@ -11,7 +11,7 @@ using UnityEngine.UI;
 
 namespace EDNA.Investigation.Editor
 {
-    public static class InvestigationBuilder
+    public static partial class InvestigationBuilder
     {
         private const string DataRoot = "Assets/Data/Investigation/LongLineCase";
         private const string ArtRoot = "Assets/Art/Investigation/OpenMoji";
@@ -44,133 +44,7 @@ namespace EDNA.Investigation.Editor
             AssetDatabase.Refresh();
             ConfigureArtworkImporters();
 
-            InvestigationSpeciesDefinition shark = CreateSpecies(
-                "Species_Shark.asset", "shark", "Shark",
-                "A large predator that normally controls tuna abundance around the seamount.",
-                SpeciesGlyphKind.Shark,
-                new[] { DepthBand.Shallow, DepthBand.Mid, DepthBand.Deep },
-                new[] { "tuna" }, Array.Empty<string>(),
-                new[] { "LargePredator", "LongLineSensitive", "TrawlBycatch" },
-                DepthBand.Shallow);
-            InvestigationSpeciesDefinition tuna = CreateSpecies(
-                "Species_Tuna.asset", "tuna", "Tuna",
-                "A mobile fish that eats krill and is normally preyed on by sharks in this simplified food web.",
-                SpeciesGlyphKind.Tuna,
-                new[] { DepthBand.Shallow, DepthBand.Mid },
-                new[] { "krill" }, new[] { "shark" },
-                new[] { "Mobile", "FoodWeb" },
-                DepthBand.Shallow);
-            InvestigationSpeciesDefinition krill = CreateSpecies(
-                "Species_Krill.asset", "krill", "Krill",
-                "A small prey species linking plankton production to larger fish.",
-                SpeciesGlyphKind.Krill,
-                new[] { DepthBand.Mid, DepthBand.Deep },
-                Array.Empty<string>(), new[] { "tuna" },
-                new[] { "Prey", "FoodWeb", "PlasticSensitive" },
-                DepthBand.Mid);
-            InvestigationSpeciesDefinition seaStar = CreateSpecies(
-                "Species_SeaStar.asset", "sea_star", "Sea star",
-                "A benthic indicator used to test whether the seafloor community was disturbed.",
-                SpeciesGlyphKind.SeaStar,
-                new[] { DepthBand.Deep },
-                Array.Empty<string>(), Array.Empty<string>(),
-                new[] { "BenthicIndicator", "TrawlSensitive", "StableIndicator" },
-                DepthBand.Deep);
-            InvestigationSpeciesDefinition mussel = CreateSpecies(
-                "Species_Mussel.asset", "mussel", "Filter-feeding mussel",
-                "A filter feeder used as a plastic-sensitive comparison species.",
-                SpeciesGlyphKind.Mussel,
-                new[] { DepthBand.Mid, DepthBand.Deep },
-                Array.Empty<string>(), Array.Empty<string>(),
-                new[] { "FilterFeeder", "PlasticSensitive", "StableIndicator" },
-                DepthBand.Deep);
-
-            InvestigationSpeciesDefinition[] species = { shark, tuna, krill, seaStar, mussel };
-            InvestigationSpeciesDefinition[] speciesCatalog = CreateCanonicalSpeciesCatalog(shark, tuna, krill);
-            ThreatSimulationDefinition plastic = CreateThreat(
-                "Threat_Plastic.asset", "plastic", "Plastic pollution",
-                "Plastic pollution should affect sensitive filter feeders as well as prey signals; it does not predict a selective shark–tuna cascade.",
-                ThreatGlyphKind.Plastic,
-                new[]
-                {
-                    P("shark", PredictionState.Unknown, "The model cannot predict a direct shark response from this evidence."),
-                    P("tuna", PredictionState.Stable, "Tuna are not expected to expand solely because of this plastic scenario."),
-                    P("krill", PredictionState.Decrease, "Krill may decline under plastic exposure."),
-                    P("sea_star", PredictionState.Stable, "The benthic indicator remains stable in this simplified scenario."),
-                    P("mussel", PredictionState.Decrease, "A plastic-sensitive filter feeder should decline.")
-                },
-                "Seafloor structure remains intact.",
-                "Plastic or contamination patterns may be present.");
-            ThreatSimulationDefinition longLine = CreateThreat(
-                "Threat_LongLine.asset", "longline", "Long-line fishing",
-                "Selective predator removal can trigger the shark–tuna–krill cascade without damaging the benthic community.",
-                ThreatGlyphKind.LongLine,
-                new[]
-                {
-                    P("shark", PredictionState.Decrease, "Long-line gear directly reduces the large predator."),
-                    P("tuna", PredictionState.Increase, "Tuna increase after losing a predator."),
-                    P("krill", PredictionState.Decrease, "More tuna consume more krill."),
-                    P("sea_star", PredictionState.Stable, "Selective fishing does not directly damage the seafloor indicator."),
-                    P("mussel", PredictionState.Stable, "The plastic-sensitive reference remains stable.")
-                },
-                "Seafloor remains intact.",
-                "Fishing gear may be recorded near predator habitat.");
-            ThreatSimulationDefinition trawling = CreateThreat(
-                "Threat_BottomTrawling.asset", "bottom_trawling", "Bottom trawling",
-                "This overlapping cause can create the same predator cascade, but it also predicts damage to benthic species and the seafloor.",
-                ThreatGlyphKind.BottomTrawling,
-                new[]
-                {
-                    P("shark", PredictionState.Decrease, "Bycatch reduces the same large predator."),
-                    P("tuna", PredictionState.Increase, "Tuna increase after losing a predator."),
-                    P("krill", PredictionState.Decrease, "More tuna consume more krill."),
-                    P("sea_star", PredictionState.Decrease, "Dragging gear damages the benthic indicator."),
-                    P("mussel", PredictionState.Stable, "The plastic-sensitive reference remains stable.")
-                },
-                "Seafloor should be disturbed or damaged.",
-                "Trawl marks or damaged habitat should be visible.");
-            ThreatSimulationDefinition[] threats = { plastic, longLine, trawling };
-
-            InvestigationCaseDefinition caseDefinition = LoadOrCreate<InvestigationCaseDefinition>($"{DataRoot}/InvestigationCase_LongLine.asset");
-            SerializedObject caseObject = new SerializedObject(caseDefinition);
-            SetString(caseObject, "caseId", "investigation_longline_01");
-            SetString(caseObject, "displayName", "The Missing Predator");
-            SetString(caseObject, "briefing", "A modern eDNA survey shows a repeated shark non-detection, tuna at more sites, and repeated krill non-detection. Compare overlapping ecosystem models before writing a report.");
-            SetSurveyContext(
-                caseObject,
-                "survey_12",
-                "Survey 12",
-                "seamount_a",
-                "Seamount A",
-                "Processed eDNA results from shallow, mid and deep samples");
-            SetObjectArray(caseObject, "species", species);
-            SetObjectArray(caseObject, "speciesCatalog", speciesCatalog);
-            SetStringArray(caseObject, "foodWebChainSpeciesIds", new[] { "shark", "tuna", "krill" });
-            SetString(caseObject, "simulationFoodWebId", "case_simplified");
-            SetFoodWebEdges(caseObject);
-            SetStringArray(caseObject, "benthicIndicatorSpeciesIds", new[] { "sea_star", "mussel" });
-            SetStringArray(caseObject, "followUpLockedSpeciesIds", Array.Empty<string>());
-            SetInteger(caseObject, "maximumSurveySpecies", 7);
-            SetObservations(caseObject);
-            SetObjectArray(caseObject, "threats", threats);
-            SetComparisonRules(caseObject, threats, species);
-            SetInvestigationObjectives(caseObject);
-            SetInteger(caseObject, "minimumObserveDiscoveries", 5);
-            SetStringArray(caseObject, "requiredComparedThreatIds", new[] { "longline", "bottom_trawling" });
-            SetRequiredComparisonSpecies(caseObject);
-            SetInteger(caseObject, "requiredComparisonsPerThreat", 2);
-            SetString(caseObject, "correctThreatId", "longline");
-            SetStringArray(caseObject, "confirmationEvidenceIds", new[] { "E07_FISHING_LINE", "E08_SEAFLOOR_INTACT" });
-            SetInteger(caseObject, "minimumReportEvidence", 4);
-            SetEvidenceCategoryRequirements(caseObject);
-            SetInteger(caseObject, "minimumConfirmationEvidenceInReport", 1);
-            SetInteger(caseObject, "minimumReportLimitations", 1);
-            SetString(caseObject, "requiredReasoningId", "food_web_cascade");
-            SetReasoningOptions(caseObject);
-            SetLimitations(caseObject);
-            SetString(caseObject, "successFeedback", "Case solved. Long-line fishing best explains the shared shark–tuna–krill cascade, while stable benthic eDNA and an intact seafloor challenge bottom trawling. The fishing line confirms the best-supported explanation without turning eDNA non-detection into proof of absence.");
-            caseObject.ApplyModifiedPropertiesWithoutUndo();
-            EditorUtility.SetDirty(caseDefinition);
+            InvestigationCaseDefinition caseDefinition = UpdateFigmaFoodChainCase();
 
             GameObject prefab = CreateRuntimePrefab();
             CreateScene(caseDefinition, prefab);
@@ -185,31 +59,7 @@ namespace EDNA.Investigation.Editor
         [MenuItem("eDNA Detectives/Update Species Catalog")]
         public static void UpdateSpeciesCatalog()
         {
-            EnsureFolder(DataRoot);
-            InvestigationSpeciesDefinition shark = AssetDatabase.LoadAssetAtPath<InvestigationSpeciesDefinition>($"{DataRoot}/Species_Shark.asset");
-            InvestigationSpeciesDefinition tuna = AssetDatabase.LoadAssetAtPath<InvestigationSpeciesDefinition>($"{DataRoot}/Species_Tuna.asset");
-            InvestigationSpeciesDefinition krill = AssetDatabase.LoadAssetAtPath<InvestigationSpeciesDefinition>($"{DataRoot}/Species_Krill.asset");
-            InvestigationCaseDefinition caseDefinition = AssetDatabase.LoadAssetAtPath<InvestigationCaseDefinition>($"{DataRoot}/InvestigationCase_LongLine.asset");
-            if (shark == null || tuna == null || krill == null || caseDefinition == null)
-            {
-                Debug.LogError("Build the investigation case before updating its shared species catalog.");
-                return;
-            }
-
-            InvestigationSpeciesDefinition[] catalog = CreateCanonicalSpeciesCatalog(shark, tuna, krill);
-            SerializedObject caseObject = new SerializedObject(caseDefinition);
-            SetObjectArray(caseObject, "speciesCatalog", catalog);
-            SetStringArray(caseObject, "foodWebChainSpeciesIds", new[] { "shark", "tuna", "krill" });
-            SetString(caseObject, "simulationFoodWebId", "case_simplified");
-            SetFoodWebEdges(caseObject);
-            SetStringArray(caseObject, "benthicIndicatorSpeciesIds", new[] { "sea_star", "mussel" });
-            SetStringArray(caseObject, "followUpLockedSpeciesIds", Array.Empty<string>());
-            SetInteger(caseObject, "maximumSurveySpecies", 7);
-            caseObject.ApplyModifiedPropertiesWithoutUndo();
-            EditorUtility.SetDirty(caseDefinition);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            Debug.Log("Investigation species catalog updated with 20 canonical entries.");
+            UpdateFigmaFoodChainCase();
         }
 
         [MenuItem("eDNA Detectives/Remove Warming Scenario")]
@@ -274,24 +124,7 @@ namespace EDNA.Investigation.Editor
         }
 
         [MenuItem("eDNA Detectives/Update Case Evidence")]
-        public static void UpdateCaseEvidence()
-        {
-            InvestigationCaseDefinition caseDefinition = AssetDatabase.LoadAssetAtPath<InvestigationCaseDefinition>($"{DataRoot}/InvestigationCase_LongLine.asset");
-            if (caseDefinition == null)
-            {
-                Debug.LogError("Build the investigation case before updating its evidence.");
-                return;
-            }
-            SerializedObject caseObject = new SerializedObject(caseDefinition);
-            SetObservations(caseObject);
-            SetComparisonRules(caseObject, caseDefinition.Threats, caseDefinition.Species);
-            SetInvestigationObjectives(caseObject);
-            caseObject.ApplyModifiedPropertiesWithoutUndo();
-            EditorUtility.SetDirty(caseDefinition);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            Debug.Log("Investigation evidence updated for the three-cause case.");
-        }
+        public static void UpdateCaseEvidence() => UpdateFigmaFoodChainCase();
 
         private static PredictionSpec P(string speciesId, PredictionState state, string rationale) => new PredictionSpec(speciesId, state, rationale);
 
@@ -320,7 +153,7 @@ namespace EDNA.Investigation.Editor
             SetString(serialized, "displayName", displayName);
             SetString(serialized, "shortDisplayName", shortDisplayName);
             SetString(serialized, "scientificName", scientificName);
-            SetString(serialized, "description", description);
+            SetString(serialized, "description", ReviewedSpeciesDescription(speciesId, description));
             serialized.FindProperty("icon").objectReferenceValue = LoadSpeciesIcon(speciesId);
             serialized.FindProperty("glyphKind").intValue = (int)glyphKind;
             serialized.FindProperty("trophicRole").enumValueIndex = (int)trophicRole;
@@ -494,15 +327,13 @@ namespace EDNA.Investigation.Editor
         {
             foreach (string file in new[] { "great-hammerhead-shark.png", "reef-manta-ray.png", "bone-eating-worm.png" })
                 ConfigureSpriteImporter($"{TeamArtRoot}/{file}");
-            foreach (string file in new[] { "hammerhead.png", "tuna.png", "krill.png", "sea-star.png", "mussel.png" })
+            foreach (string file in new[] { "hammerhead.png", "tuna.png", "atlantic-herring.png", "krill.png", "phytoplankton.png" })
                 ConfigureSpriteImporter($"{FieldGuideArtRoot}/{file}");
             string[] artworkFiles =
             {
                 "shark.png",
                 "tuna.png",
                 "krill.png",
-                "sea-star.png",
-                "mussel.png",
                 "plastic.png",
                 "long-line.png",
                 "bottom-trawling.png"
@@ -515,7 +346,7 @@ namespace EDNA.Investigation.Editor
 
             string[] statusIcons =
             {
-                "check-circle.png",
+                "arrow-path.png", "check-circle.png",
                 "x-circle.png",
                 "question-mark-circle.png",
                 "link.png",
@@ -556,9 +387,9 @@ namespace EDNA.Investigation.Editor
             AssetDatabase.Refresh();
             foreach (string file in new[] { "great-hammerhead-shark.png", "reef-manta-ray.png", "bone-eating-worm.png" })
                 ConfigureSpriteImporter($"{TeamArtRoot}/{file}");
-            string[] ids = { "shark", "tuna", "krill", "sea_star", "mussel" };
-            string[] names = { "Shark", "Tuna", "Krill", "SeaStar", "Mussel" };
-            string[] files = { "hammerhead", "tuna", "krill", "sea-star", "mussel" };
+            string[] ids = { "shark", "tuna", "atlantic_herring", "krill", "phytoplankton" };
+            string[] names = { "Shark", "Tuna", "AtlanticHerring", "Krill", "Phytoplankton" };
+            string[] files = { "hammerhead", "tuna", "atlantic-herring", "krill", "phytoplankton" };
             for (int index = 0; index < ids.Length; index++)
             {
                 ConfigureSpriteImporter($"{FieldGuideArtRoot}/{files[index]}.png");
@@ -612,7 +443,7 @@ namespace EDNA.Investigation.Editor
             string teamFile = speciesId == "shark" ? "great-hammerhead-shark" : speciesId.Replace('_', '-');
             Sprite teamArt = AssetDatabase.LoadAssetAtPath<Sprite>($"{TeamArtRoot}/{teamFile}.png");
             if (teamArt != null) return teamArt;
-            string fieldGuideFile = speciesId == "shark" ? "hammerhead" : speciesId == "sea_star" ? "sea-star" : speciesId;
+            string fieldGuideFile = speciesId == "shark" ? "hammerhead" : speciesId.Replace('_', '-');
             Sprite fieldGuide = AssetDatabase.LoadAssetAtPath<Sprite>($"{FieldGuideArtRoot}/{fieldGuideFile}.png");
             if (fieldGuide != null) return fieldGuide;
             switch (speciesId)
@@ -620,8 +451,6 @@ namespace EDNA.Investigation.Editor
                 case "shark": return LoadIcon("shark.png");
                 case "tuna": return LoadIcon("tuna.png");
                 case "krill": return LoadIcon("krill.png");
-                case "sea_star": return LoadIcon("sea-star.png");
-                case "mussel": return LoadIcon("mussel.png");
                 default: return null;
             }
         }
@@ -646,14 +475,10 @@ namespace EDNA.Investigation.Editor
         {
             SerializedProperty array = caseObject.FindProperty("observations");
             array.arraySize = 8;
-            SetObservation(array.GetArrayElementAtIndex(0), "E01_SHARK_NONDETECTION", "Shark repeatedly not detected", "Shark DNA was not detected in several high-quality samples across the surveyed depths.", "shark", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, EvidenceConfidence.High, ObservationClaimType.NotDetected, EvidenceCategory.FoodWeb, "Repeated high-quality non-detection is stronger than one sample, but it still does not prove absence.");
-            SetObservation(array.GetArrayElementAtIndex(1), "E02_TUNA_WIDER_DETECTION", "Tuna detected at more sites", "Tuna DNA was detected across more survey locations than in the historical baseline.", "tuna", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, EvidenceConfidence.Medium, ObservationClaimType.ChangedDepthOrDistribution, EvidenceCategory.FoodWeb, "Wider detection is consistent with expansion but does not directly measure abundance.");
-            SetObservation(array.GetArrayElementAtIndex(2), "E03_KRILL_NONDETECTION", "Krill repeatedly not detected", "Krill DNA was not detected in several high-quality samples where it was historically expected.", "krill", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, EvidenceConfidence.High, ObservationClaimType.NotDetected, EvidenceCategory.FoodWeb, "The pattern supports a decline hypothesis but does not prove a population count.");
-            SetObservation(array.GetArrayElementAtIndex(3), "E04_BENTHIC_STABLE", "Sea star remains stable", "The benthic indicator was repeatedly detected at its historical deep sites.", "sea_star", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, EvidenceConfidence.Medium, ObservationClaimType.MatchesBaseline, EvidenceCategory.Benthic, "Repeated detection across the same sites supports stability, pending ROV confirmation of habitat condition.");
-            SetObservation(array.GetArrayElementAtIndex(4), "E06_PLASTIC_INDICATOR_STABLE", "Filter-feeding mussel remains stable", "The plastic-sensitive reference species remains detected at its historical sites.", "mussel", ObservationSource.EDNA, EvidenceUnlockStage.Observe, string.Empty, EvidenceConfidence.Medium, ObservationClaimType.MatchesBaseline, EvidenceCategory.Alternative, "This challenges a broad plastic-impact pattern but cannot rule it out alone.");
-            SetObservation(array.GetArrayElementAtIndex(5), "E07_FISHING_LINE", "Fishing line recorded near shark habitat", "ROV footage shows fishing line near the area where sharks were historically recorded.", "shark", ObservationSource.ROV, EvidenceUnlockStage.AfterProvisional, string.Empty, EvidenceConfidence.High, ObservationClaimType.PhysicalObservation, EvidenceCategory.Confirmation, "A physical gear observation confirms an already-developed long-line hypothesis.");
-            SetObservation(array.GetArrayElementAtIndex(6), "E08_SEAFLOOR_INTACT", "Seafloor remains intact", "ROV footage shows no obvious trawl marks or broad habitat damage.", "sea_star", ObservationSource.ROV, EvidenceUnlockStage.AfterProvisional, string.Empty, EvidenceConfidence.High, ObservationClaimType.PhysicalObservation, EvidenceCategory.Confirmation, "The intact habitat strongly challenges bottom trawling alongside the stable benthic eDNA pattern.");
-            SetObservation(array.GetArrayElementAtIndex(7), "L01_NONDETECTION_LIMITATION", "Not detected does not mean gone", "eDNA non-detection does not prove complete absence; sampling and detection limits remain.", string.Empty, ObservationSource.Methodology, EvidenceUnlockStage.Always, string.Empty, EvidenceConfidence.High, ObservationClaimType.MethodologicalLimitation, EvidenceCategory.General, "This scientific limitation is always available in the final report.");
+            // The first five records are authored by the active Figma case.
+            SetObservation(array.GetArrayElementAtIndex(5), "E07_FISHING_LINE", "Legacy fishing-line note", "Legacy API fixture, not a finding in this activity.", "shark", ObservationSource.ROV, EvidenceUnlockStage.AfterProvisional, string.Empty, EvidenceConfidence.High, ObservationClaimType.PhysicalObservation, EvidenceCategory.Confirmation, "Fishing activity alone does not identify the fishing method.");
+            SetObservation(array.GetArrayElementAtIndex(6), "E08_SEAFLOOR_INTACT", "Legacy seafloor note", "Legacy API fixture, not a finding in this activity.", string.Empty, ObservationSource.ROV, EvidenceUnlockStage.AfterProvisional, string.Empty, EvidenceConfidence.High, ObservationClaimType.PhysicalObservation, EvidenceCategory.Confirmation, "No habitat measurement is supplied in the active example survey.");
+            SetObservation(array.GetArrayElementAtIndex(7), "L01_NONDETECTION_LIMITATION", "Not detected does not mean gone", "eDNA non-detection does not prove complete absence; sampling and detection limits remain.", string.Empty, ObservationSource.Methodology, EvidenceUnlockStage.Always, string.Empty, EvidenceConfidence.High, ObservationClaimType.MethodologicalLimitation, EvidenceCategory.General, "A model match does not prove the cause.");
         }
 
         private static void SetObservation(
@@ -683,200 +508,6 @@ namespace EDNA.Investigation.Editor
             property.FindPropertyRelative("confidenceReason").stringValue = confidenceReason;
         }
 
-        private static void SetComparisonRules(
-            SerializedObject caseObject,
-            IReadOnlyList<ThreatSimulationDefinition> threats,
-            IReadOnlyList<InvestigationSpeciesDefinition> species)
-        {
-            SerializedProperty rules = caseObject.FindProperty("comparisonRules");
-            rules.arraySize = threats.Count * species.Count;
-            int ruleIndex = 0;
-            for (int threatIndex = 0; threatIndex < threats.Count; threatIndex++)
-            {
-                ThreatSimulationDefinition threat = threats[threatIndex];
-                for (int speciesIndex = 0; speciesIndex < species.Count; speciesIndex++)
-                {
-                    InvestigationSpeciesDefinition speciesDefinition = species[speciesIndex];
-                    PredictionState predictedState = threat.FindPrediction(speciesDefinition.SpeciesId).PredictedState;
-                    SerializedProperty rule = rules.GetArrayElementAtIndex(ruleIndex++);
-                    rule.FindPropertyRelative("threatId").stringValue = threat.ThreatId;
-                    rule.FindPropertyRelative("speciesId").stringValue = speciesDefinition.SpeciesId;
-                    rule.FindPropertyRelative("targetKind").intValue = (int)PredictionTargetKind.Species;
-                    rule.FindPropertyRelative("targetId").stringValue = speciesDefinition.SpeciesId;
-                    rule.FindPropertyRelative("progressRole").enumValueIndex = (int)ProgressRoleFor(threat.ThreatId, speciesDefinition.SpeciesId);
-                    string[] candidates = CandidateEvidence(speciesDefinition.SpeciesId);
-                    SerializedProperty options = rule.FindPropertyRelative("observationOptions");
-                    options.arraySize = candidates.Length;
-                    for (int optionIndex = 0; optionIndex < candidates.Length; optionIndex++)
-                    {
-                        SerializedProperty option = options.GetArrayElementAtIndex(optionIndex);
-                        option.FindPropertyRelative("evidenceId").stringValue = candidates[optionIndex];
-                        SetJudgementResolutions(
-                            option.FindPropertyRelative("resolutions"),
-                            speciesDefinition.SpeciesId,
-                            predictedState,
-                            candidates[optionIndex]);
-                    }
-                }
-            }
-
-        }
-
-        private static ComparisonProgressRole ProgressRoleFor(string threatId, string speciesId)
-        {
-            if (threatId == "plastic" && speciesId == "mussel") return ComparisonProgressRole.AlternativeCauseCheck;
-            if (threatId == "longline" && (speciesId == "shark" || speciesId == "tuna" || speciesId == "krill"))
-                return ComparisonProgressRole.FoodWebCascade;
-            if (threatId == "bottom_trawling" && speciesId == "tuna") return ComparisonProgressRole.SharedPrediction;
-            if ((threatId == "longline" || threatId == "bottom_trawling") && speciesId == "sea_star")
-                return ComparisonProgressRole.BenthicDiscriminator;
-            return ComparisonProgressRole.ContextOnly;
-        }
-
-        private static string[] CandidateEvidence(string speciesId)
-        {
-            switch (speciesId)
-            {
-                case "shark": return new[] { "E01_SHARK_NONDETECTION", "E04_BENTHIC_STABLE", "E02_TUNA_WIDER_DETECTION" };
-                case "tuna": return new[] { "E02_TUNA_WIDER_DETECTION", "E01_SHARK_NONDETECTION", "E04_BENTHIC_STABLE" };
-                case "krill": return new[] { "E03_KRILL_NONDETECTION", "E02_TUNA_WIDER_DETECTION", "E06_PLASTIC_INDICATOR_STABLE" };
-                case "sea_star": return new[] { "E04_BENTHIC_STABLE", "E03_KRILL_NONDETECTION", "E01_SHARK_NONDETECTION" };
-                case "mussel": return new[] { "E06_PLASTIC_INDICATOR_STABLE", "E03_KRILL_NONDETECTION", "E04_BENTHIC_STABLE" };
-                default: return new[] { "E01_SHARK_NONDETECTION", "E02_TUNA_WIDER_DETECTION" };
-            }
-        }
-
-        private static void SetJudgementResolutions(
-            SerializedProperty resolutions,
-            string predictionSpeciesId,
-            PredictionState predictedState,
-            string evidenceId)
-        {
-            resolutions.arraySize = 3;
-            string observationSpeciesId = EvidenceSpecies(evidenceId);
-            bool sameSpecies = string.Equals(predictionSpeciesId, observationSpeciesId, StringComparison.Ordinal);
-            for (int index = 0; index < 3; index++)
-            {
-                ComparisonJudgement judgement = (ComparisonJudgement)index;
-                ComparisonEvaluationOutcome outcome;
-                string feedback;
-                ResolveJudgement(sameSpecies, predictedState, evidenceId, judgement, out outcome, out feedback);
-                SerializedProperty resolution = resolutions.GetArrayElementAtIndex(index);
-                resolution.FindPropertyRelative("judgement").enumValueIndex = (int)judgement;
-                resolution.FindPropertyRelative("outcome").enumValueIndex = (int)outcome;
-                resolution.FindPropertyRelative("feedback").stringValue = feedback;
-            }
-        }
-
-        private static void ResolveJudgement(
-            bool sameSpecies,
-            PredictionState predictedState,
-            string evidenceId,
-            ComparisonJudgement judgement,
-            out ComparisonEvaluationOutcome outcome,
-            out string feedback)
-        {
-            if (!sameSpecies)
-            {
-                outcome = judgement == ComparisonJudgement.NotEnoughEvidence
-                    ? ComparisonEvaluationOutcome.Accepted
-                    : ComparisonEvaluationOutcome.Incorrect;
-                feedback = judgement == ComparisonJudgement.NotEnoughEvidence
-                    ? "Reasonable, but this unrelated observation does not complete the comparison. Choose evidence that directly tests the predicted species to make progress."
-                    : "This observation may be part of the wider food web, but it does not directly match or contradict this species prediction.";
-                return;
-            }
-
-            bool nonDetection = evidenceId == "E01_SHARK_NONDETECTION" || evidenceId == "E03_KRILL_NONDETECTION";
-            bool widerDetection = evidenceId == "E02_TUNA_WIDER_DETECTION";
-            bool stableDetection = evidenceId == "E04_BENTHIC_STABLE" || evidenceId == "E06_PLASTIC_INDICATOR_STABLE";
-
-            if (predictedState == PredictionState.Unknown)
-            {
-                outcome = judgement == ComparisonJudgement.Mismatch
-                    ? ComparisonEvaluationOutcome.AcceptedWithCaveat
-                    : ComparisonEvaluationOutcome.Incorrect;
-                feedback = judgement == ComparisonJudgement.Mismatch
-                    ? "Accepted with a caveat: the observation is clear, but this model offers no directional explanation for it."
-                    : judgement == ComparisonJudgement.NotEnoughEvidence
-                        ? "The observation directly concerns this species. Judge whether an Unknown prediction explains that observed pattern."
-                        : "An Unknown prediction does not directly match a clear directional observation.";
-                return;
-            }
-
-            if (predictedState == PredictionState.DepthShift)
-            {
-                outcome = judgement == ComparisonJudgement.Mismatch && nonDetection
-                        ? ComparisonEvaluationOutcome.AcceptedWithCaveat
-                        : ComparisonEvaluationOutcome.Incorrect;
-                feedback = outcome == ComparisonEvaluationOutcome.AcceptedWithCaveat
-                        ? "Accepted with a caveat: repeated all-depth non-detection challenges a simple depth-shift prediction."
-                        : judgement == ComparisonJudgement.NotEnoughEvidence
-                            ? "This repeated, high-quality observation directly tests the predicted shark pattern. Decide whether it matches or challenges a depth shift."
-                            : "A depth shift needs evidence from different depths; this observation does not directly match it.";
-                return;
-            }
-
-            bool observedDirectionMatches = predictedState == PredictionState.Decrease && nonDetection
-                || predictedState == PredictionState.Increase && widerDetection
-                || predictedState == PredictionState.Stable && stableDetection;
-            bool observedDirectionConflicts = predictedState == PredictionState.Decrease && stableDetection
-                || predictedState == PredictionState.Increase && (stableDetection || nonDetection)
-                || predictedState == PredictionState.Stable && (nonDetection || widerDetection);
-
-            if (observedDirectionMatches)
-            {
-                if (judgement == ComparisonJudgement.Match)
-                {
-                    outcome = nonDetection || widerDetection ? ComparisonEvaluationOutcome.AcceptedWithCaveat : ComparisonEvaluationOutcome.Accepted;
-                    feedback = nonDetection
-                        ? "Accepted with a caveat: repeated non-detection is consistent with decrease but does not prove abundance or complete absence."
-                        : widerDetection
-                            ? "Accepted with a caveat: wider detection is consistent with increase but is not a direct population count."
-                            : "Accepted: the repeated stable observation matches the Stable model prediction.";
-                    return;
-                }
-            }
-            else if (observedDirectionConflicts && judgement == ComparisonJudgement.Mismatch)
-            {
-                outcome = ComparisonEvaluationOutcome.Accepted;
-                feedback = "Accepted: the observation conflicts with the model's predicted direction.";
-                return;
-            }
-
-            outcome = ComparisonEvaluationOutcome.Incorrect;
-            feedback = judgement == ComparisonJudgement.NotEnoughEvidence
-                ? "This observation directly concerns the predicted species. Use Match or Mismatch to compare its direction, while keeping the stated scientific caveat."
-                : "Try again. Compare the model direction with what the observation can actually support.";
-        }
-
-        private static string EvidenceSpecies(string evidenceId)
-        {
-            switch (evidenceId)
-            {
-                case "E01_SHARK_NONDETECTION": return "shark";
-                case "E02_TUNA_WIDER_DETECTION": return "tuna";
-                case "E03_KRILL_NONDETECTION": return "krill";
-                case "E04_BENTHIC_STABLE": return "sea_star";
-                case "E06_PLASTIC_INDICATOR_STABLE": return "mussel";
-                default: return string.Empty;
-            }
-        }
-
-        private static void SetInvestigationObjectives(SerializedObject caseObject)
-        {
-            SerializedProperty objectives = caseObject.FindProperty("investigationObjectives");
-            objectives.arraySize = 7;
-            SetInteger(caseObject, "minimumCompletedComparisons", objectives.arraySize);
-            SetObjective(objectives.GetArrayElementAtIndex(0), "plastic_mussel", "plastic", "Does plastic fit the indicator species?", "plastic", PredictionTargetKind.Species, "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch, ComparisonProgressRole.AlternativeCauseCheck);
-            SetObjective(objectives.GetArrayElementAtIndex(1), "longline_shark", "food_web", "Can fishing trigger the food-web changes?", "longline", PredictionTargetKind.Species, "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match, ComparisonProgressRole.FoodWebCascade);
-            SetObjective(objectives.GetArrayElementAtIndex(2), "longline_tuna", "food_web", "Can fishing trigger the food-web changes?", "longline", PredictionTargetKind.Species, "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match, ComparisonProgressRole.FoodWebCascade);
-            SetObjective(objectives.GetArrayElementAtIndex(3), "longline_krill", "food_web", "Can fishing trigger the food-web changes?", "longline", PredictionTargetKind.Species, "krill", "E03_KRILL_NONDETECTION", ComparisonJudgement.Match, ComparisonProgressRole.FoodWebCascade);
-            SetObjective(objectives.GetArrayElementAtIndex(4), "bottom_tuna", "overlap", "Why do two fishing models partly match?", "bottom_trawling", PredictionTargetKind.Species, "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match, ComparisonProgressRole.SharedPrediction);
-            SetObjective(objectives.GetArrayElementAtIndex(5), "longline_seastar", "benthic", "Which clue separates the fishing models?", "longline", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match, ComparisonProgressRole.BenthicDiscriminator);
-            SetObjective(objectives.GetArrayElementAtIndex(6), "bottom_seastar", "benthic", "Which clue separates the fishing models?", "bottom_trawling", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch, ComparisonProgressRole.BenthicDiscriminator);
-        }
-
         private static void SetObjective(
             SerializedProperty property,
             string objectiveId,
@@ -899,15 +530,6 @@ namespace EDNA.Investigation.Editor
             property.FindPropertyRelative("requiredJudgement").enumValueIndex = (int)judgement;
             property.FindPropertyRelative("progressRole").enumValueIndex = (int)role;
             property.FindPropertyRelative("required").boolValue = true;
-        }
-
-        private static void SetEvidenceCategoryRequirements(SerializedObject caseObject)
-        {
-            SerializedProperty requirements = caseObject.FindProperty("evidenceCategoryRequirements");
-            requirements.arraySize = 3;
-            SetEvidenceCategoryRequirement(requirements.GetArrayElementAtIndex(0), EvidenceCategory.FoodWeb, 2);
-            SetEvidenceCategoryRequirement(requirements.GetArrayElementAtIndex(1), EvidenceCategory.Benthic, 1);
-            SetEvidenceCategoryRequirement(requirements.GetArrayElementAtIndex(2), EvidenceCategory.Confirmation, 1);
         }
 
         private static void SetFoodWebEdges(SerializedObject caseObject)
@@ -966,14 +588,6 @@ namespace EDNA.Investigation.Editor
             SetLimitation(limitations.GetArrayElementAtIndex(1), "L02_SURVEY_COVERAGE", "Only three sites were surveyed", "The survey did not cover every place or time.");
         }
 
-        private static void SetRequiredComparisonSpecies(SerializedObject caseObject)
-        {
-            SerializedProperty requirements = caseObject.FindProperty("requiredComparisonSpecies");
-            requirements.arraySize = 2;
-            SetRequiredComparisonSpecies(requirements.GetArrayElementAtIndex(0), "longline", new[] { "sea_star" });
-            SetRequiredComparisonSpecies(requirements.GetArrayElementAtIndex(1), "bottom_trawling", new[] { "sea_star" });
-        }
-
         private static void SetRequiredComparisonSpecies(SerializedProperty property, string threatId, IReadOnlyList<string> speciesIds)
         {
             property.FindPropertyRelative("threatId").stringValue = threatId;
@@ -986,9 +600,9 @@ namespace EDNA.Investigation.Editor
         {
             SerializedProperty options = caseObject.FindProperty("reasoningOptions");
             options.arraySize = 3;
-            SetReasoning(options.GetArrayElementAtIndex(0), "food_web_cascade", "Fewer sharks → more tuna → fewer krill", "Removing the predator lets tuna expand, increasing predation on krill.");
-            SetReasoning(options.GetArrayElementAtIndex(1), "shared_habitat_shift", "All three species moved when their habitat shifted", "A shared habitat shift would need a coherent environmental or depth pattern.");
-            SetReasoning(options.GetArrayElementAtIndex(2), "direct_fishing_loss", "Fishing directly removed sharks, tuna, and krill", "Selective long-line fishing does not directly remove every level of this food web.");
+            SetReasoning(options.GetArrayElementAtIndex(0), "food_web_cascade", "Shark ↓ → Tuna ↑ → Herring ↓ → Krill ↑ → Phytoplankton ↓", "The illustrative response follows each link; the matching pattern does not distinguish the two fishing causes.");
+            SetReasoning(options.GetArrayElementAtIndex(1), "shared_habitat_shift", "The species moved when their habitat shifted", "A shared habitat shift would need a coherent environmental or depth pattern.");
+            SetReasoning(options.GetArrayElementAtIndex(2), "direct_fishing_loss", "Fishing directly removed every species", "The food-chain model distinguishes a direct premise from the subsequent inferred responses.");
         }
 
         private static void SetReasoning(SerializedProperty property, string id, string name, string explanation)

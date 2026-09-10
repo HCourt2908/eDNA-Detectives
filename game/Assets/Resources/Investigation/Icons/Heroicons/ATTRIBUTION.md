@@ -1,7 +1,8 @@
 # Heroicons attribution
 
-The status and report-evidence icons in this folder are derived from Heroicons by Tailwind Labs:
+The restart, status and report-evidence icons in this folder are derived from Heroicons by Tailwind Labs:
 
+- `arrow-path.png` from `optimized/24/outline/arrow-path.svg` (white stroke for runtime tinting)
 - `check-circle.png` from `optimized/24/solid/check-circle.svg`
 - `x-circle.png` from `optimized/24/solid/x-circle.svg`
 - `question-mark-circle.png` from `optimized/24/solid/question-mark-circle.svg`

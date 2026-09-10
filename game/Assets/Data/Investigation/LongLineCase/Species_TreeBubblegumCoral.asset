@@ -17,8 +17,7 @@ MonoBehaviour:
   displayName: Tree Bubblegum Coral
   shortDisplayName:
   scientificName: Paragorgia arborea
-  description: A habitat-forming cold-water coral vulnerable to physical seafloor
-    disturbance.
+  description: "A deep-water coral that forms branching colonies attached to hard surfaces. Large colonies can be very old and provide structure on the seafloor."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 8

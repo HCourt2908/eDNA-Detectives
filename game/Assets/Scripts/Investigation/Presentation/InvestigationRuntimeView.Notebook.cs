@@ -41,17 +41,6 @@ namespace EDNA.Investigation
             RefreshPresentationOnly();
         }
 
-        private void OpenNotebookComparisons(string threatId)
-        {
-            hypothesisSummaryExpanded = true;
-            expandedHypothesisId = threatId;
-            notebookDrawerScrollPosition = 1f;
-            navigationRevealTarget = $"Hypothesis Card {threatId}";
-            navigationRevealAtTop = true;
-            if (notebookDrawerOpen) RefreshPresentationOnly();
-            else ToggleNotebookDrawer();
-        }
-
         private void RemoveNotebookDrawer()
         {
             if (contentScroll != null) contentScroll.enabled = true;
@@ -196,6 +185,7 @@ namespace EDNA.Investigation
                 // Carry Act 1's saved picture into Act 2 without appending the
                 // retired text evidence list or per-prediction comparison UI.
                 AddLayout(CreateSurveyStory(entries, "Notebook Survey Story"), 490f, 0f);
+                RenderFoodWebReference(entries);
             }
             else
             {
@@ -261,6 +251,7 @@ namespace EDNA.Investigation
             ConfigureContentDrivenText(message);
             EnsureEdnaArtwork();
             Image avatar = CreateStatusIcon("Notebook Edna Avatar", note, ednaAvatar ?? ednaPortrait, Color.white);
+            avatar.transform.SetAsFirstSibling();
             LayoutElement avatarSize = avatar.gameObject.AddComponent<LayoutElement>();
             avatarSize.minWidth = avatarSize.preferredWidth = 44f;
             avatarSize.minHeight = avatarSize.preferredHeight = 44f;
@@ -331,7 +322,7 @@ namespace EDNA.Investigation
             trigger.Configure(0.3f,
                 () => { if (tooltip != null) tooltip.gameObject.SetActive(true); },
                 () => { if (tooltip != null) tooltip.gameObject.SetActive(false); });
-            if (!notebookHasBeenOpened && ednaIntroductions.Contains("notebook-introduction"))
+            if (!notebookHasBeenOpened && ScenarioBriefingActive && scenarioBriefingStep == ScenarioBriefingStep.Survey)
                 AddChoiceBorderCue("Open Notebook Cue", button.transform);
             return button;
         }
@@ -474,15 +465,10 @@ namespace EDNA.Investigation
 
         private void RevisitComparison(PredictionComparisonRecord record)
         {
-            workbenchInspectPrediction = true;
-            workbenchFoodWebReady = true;
-            restingExperiments.Remove(record.ThreatId);
-            selectedThreatId = record.ThreatId;
-            selectedPredictionTargetKind = record.TargetKind;
-            selectedPredictionSpeciesId = record.TargetId;
-            selectedObservationId = record.EvidenceId;
             notebookDrawerOpen = false;
-            notebookFocusTargetAfterRender = $"Prediction {record.TargetId}";
+            navigationRevealTarget = "Scenario Result " + record.ThreatId;
+            notebookFocusTargetAfterRender = viewedScenarios.Contains(record.ThreatId)
+                ? "Replay Scenario " + record.ThreatId : "Run Scenario " + record.ThreatId;
             if (state.Phase != InvestigationPhase.Simulate) setPhase?.Invoke(InvestigationPhase.Simulate);
             else RefreshPresentationOnly();
         }

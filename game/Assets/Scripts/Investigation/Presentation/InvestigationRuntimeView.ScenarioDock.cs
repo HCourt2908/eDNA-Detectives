@@ -21,16 +21,17 @@ namespace EDNA.Investigation
             ednaConversation = CreatePanel("Scenario EDNA Dock", parent, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
             ednaConversation.GetComponent<Image>().raycastTarget = true;
             float height = ScenarioDockHeight;
-            if (above) Anchor(ednaConversation, 0f, 1f, 1f, 1f, 12f, -height - 8f, -12f, -8f);
+            // Reserve the top-right restart control when the guide moves above the workbench.
+            if (above) Anchor(ednaConversation, 0f, 1f, 1f, 1f, 12f, -height - 8f, -72f, -8f);
             else Anchor(ednaConversation, 0f, 0f, 1f, 0f, 12f, 8f, -12f, height + 8f);
             bool narrow = parent.rect.width < 900f;
-            float portrait = narrow ? 60f : 72f;
+            float portrait = guide ? 148f : 104f;
             float tools = narrow ? 188f : 218f;
-            float textRight = portrait + tools + 32f;
+            float textLeft = portrait + 22f;
             string step = guide && scenarioBriefingSequence ? $" · {(scenarioBriefingStep == ScenarioBriefingStep.Survey ? 1 : 2)}/2" : string.Empty;
             Text speaker = CreateText("Scenario Briefing Speaker", ednaConversation, "EDNA" + step, 12,
                 FontStyle.Bold, InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
-            Anchor(speaker.rectTransform, 0f, 1f, 1f, 1f, 16f, -26f, -textRight, -4f);
+            Anchor(speaker.rectTransform, 0f, 1f, 1f, 1f, textLeft, -26f, -16f, -4f);
             string message = guide ? ScenarioBriefingWords : notebookDrawerOpen
                 ? "Your full survey picture is in the notebook. Close it when you're ready to carry on."
                 : ScenarioRecordsRevealing ? "Let's take our findings out of the notebook and put them on the workbench."
@@ -38,15 +39,18 @@ namespace EDNA.Investigation
             Text words = CreateText("Scenario Briefing Message", ednaConversation, message, 13,
                 FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(words);
-            Anchor(words.rectTransform, 0f, 0f, 1f, 1f, 16f, 50f, -textRight, -28f);
-            Image person = CreateStatusIcon("Scenario Briefing Portrait", ednaConversation, ednaPortrait, Color.white);
-            Anchor(person.rectTransform, 1f, 0f, 1f, 1f, -portrait, 0f, -3f, 2f);
+            Anchor(words.rectTransform, 0f, 0f, 1f, 1f, textLeft, 50f, -16f, -28f);
+            Image person = CreateStatusIcon("Scenario Briefing Portrait", ednaConversation,
+                guide ? EdnaSpeakingArtwork : ednaPortrait, Color.white);
+            float aspect = person.sprite != null ? person.sprite.rect.width / person.sprite.rect.height : .9f;
+            float imageHeight = Mathf.Min(height, portrait / aspect);
+            Anchor(person.rectTransform, 0f, 0f, 0f, 0f, 6f, 0f, 6f + imageHeight * aspect, imageHeight);
 
             RectTransform actions = CreatePanel("Scenario EDNA Tools", ednaConversation, Color.clear, 0f);
-            Anchor(actions, 1f, .5f, 1f, .5f, -portrait - tools - 12f, -29f, -portrait - 12f, 29f);
+            Anchor(actions, 1f, 0f, 1f, 0f, -tools - 16f, 6f, -16f, 50f);
             Button notebook = CreateNotebookDrawerButton(actions);
             notebook.GetComponent<LayoutElement>().ignoreLayout = true;
-            Anchor(notebook.GetComponent<RectTransform>(), 0f, 0f, 0f, 1f, 0f, 0f, 58f, 0f);
+            Anchor(notebook.GetComponent<RectTransform>(), 0f, 0f, 0f, 1f, 0f, 0f, 44f, 0f);
             Button action = null;
             if (state.Phase == InvestigationPhase.Report) action = CreateScenarioEndingDockAction(actions);
             else if (!guide && (scenarioStage == ScenarioStage.BuildingChain || scenarioStage == ScenarioStage.PlayingCause))
@@ -58,7 +62,7 @@ namespace EDNA.Investigation
             if (action != null)
             {
                 action.GetComponent<LayoutElement>().ignoreLayout = true;
-                Anchor(action.GetComponent<RectTransform>(), 0f, 0f, 1f, 1f, 66f, 5f, 0f, -5f);
+                Anchor(action.GetComponent<RectTransform>(), 0f, 0f, 1f, 1f, 52f, 0f, 0f, 0f);
                 action.GetComponentInChildren<Text>().fontSize = narrow ? 12 : 14;
             }
 
@@ -69,11 +73,11 @@ namespace EDNA.Investigation
                 Button next = CreateButton("Scenario Briefing Next", ednaConversation, label, ButtonVisualStyle.PaperPrimary,
                     () => AdvanceScenarioBriefing(version, false), out Text nextLabel);
                 nextLabel.fontSize = 14; next.GetComponent<LayoutElement>().ignoreLayout = true;
-                Anchor(next.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f, 16f, 6f, 146f, 44f);
+                Anchor(next.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f, textLeft, 6f, textLeft + 130f, 44f);
                 Button skip = CreateButton("Scenario Briefing Skip", ednaConversation, "Skip guide", ButtonVisualStyle.PaperChoice,
                     () => AdvanceScenarioBriefing(version, true), out Text skipLabel);
                 skipLabel.fontSize = 13; skip.GetComponent<LayoutElement>().ignoreLayout = true;
-                Anchor(skip.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f, 154f, 6f, 252f, 44f);
+                Anchor(skip.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f, textLeft + 138f, 6f, textLeft + 236f, 44f);
                 // All live guide controls, including the notebook, are reachable by keyboard.
                 next.navigation = new Navigation { mode = Navigation.Mode.Explicit, selectOnLeft = notebook, selectOnRight = skip, selectOnDown = skip, selectOnUp = notebook };
                 skip.navigation = new Navigation { mode = Navigation.Mode.Explicit, selectOnLeft = next, selectOnRight = notebook, selectOnUp = next, selectOnDown = notebook };
@@ -89,7 +93,7 @@ namespace EDNA.Investigation
                     () => { if (ending) ReturnToScenarioModels(); else OpenScenarioBriefing(); }, out Text label);
                 help.interactable = !notebookDrawerOpen && state.ConclusionStatus != InvestigationConclusionStatus.Correct;
                 label.fontSize = 13; help.GetComponent<LayoutElement>().ignoreLayout = true;
-                Anchor(help.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f, 16f, 6f, 190f, 44f);
+                Anchor(help.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f, textLeft, 6f, textLeft + 174f, 44f);
             }
         }
 

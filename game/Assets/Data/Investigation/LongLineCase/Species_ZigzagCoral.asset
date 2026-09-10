@@ -17,7 +17,7 @@ MonoBehaviour:
   displayName: Zigzag Coral
   shortDisplayName:
   scientificName: Madrepora oculata
-  description: A branching cold-water coral that provides three-dimensional habitat.
+  description: "A cold-water stony coral that grows into branching colonies. Its skeleton adds structure to deep-sea habitats."
   icon: {fileID: 0}
   glyphKind: 5
   trophicRole: 8

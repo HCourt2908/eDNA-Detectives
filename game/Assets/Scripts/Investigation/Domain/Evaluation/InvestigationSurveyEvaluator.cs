@@ -116,6 +116,7 @@ namespace EDNA.Investigation.Domain
             switch (observation.ClaimType)
             {
                 case ObservationClaimType.NotDetected: return SpeciesDetectionState.NotDetected;
+                case ObservationClaimType.ReducedDetection:
                 case ObservationClaimType.NewDetection:
                 case ObservationClaimType.ChangedDepthOrDistribution:
                 case ObservationClaimType.MatchesBaseline: return SpeciesDetectionState.Detected;

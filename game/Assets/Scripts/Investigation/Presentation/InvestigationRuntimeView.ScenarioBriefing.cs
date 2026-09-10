@@ -27,7 +27,7 @@ namespace EDNA.Investigation
 
         private void PrepareScenarioBriefing()
         {
-            if (ScenarioBriefingActive || notebookDrawerOpen || provisionalReviewOpen || restartConfirmationPending) return;
+            if (ScenarioBriefingActive || notebookDrawerOpen || restartConfirmationPending) return;
             if (!string.IsNullOrEmpty(scenarioConflictSpecies) && scenarioFeedback != scenarioBriefedConflict)
                 BeginScenarioBriefing(ScenarioBriefingStep.Conflict);
             else if (scenarioStage == ScenarioStage.Comparing && !scenarioCompareBriefed)
@@ -48,7 +48,7 @@ namespace EDNA.Investigation
         private void OpenScenarioBriefing()
         {
             EnsureScenarioSession();
-            if (ScenarioBriefingActive || notebookDrawerOpen || provisionalReviewOpen || restartConfirmationPending) return;
+            if (ScenarioBriefingActive || notebookDrawerOpen || restartConfirmationPending) return;
             if (state.Phase == EDNA.Investigation.Domain.InvestigationPhase.Report) { BeginScenarioBriefing(ScenarioBriefingStep.Ending); RefreshPresentationOnly(); return; }
             if (scenarioStage == ScenarioStage.BuildingChain) { FinishScenarioAnimation(); return; }
             BeginScenarioBriefing(!string.IsNullOrEmpty(scenarioConflictSpecies) ? ScenarioBriefingStep.Conflict
@@ -94,10 +94,10 @@ namespace EDNA.Investigation
                 switch (scenarioBriefingStep)
                 {
                     case ScenarioBriefingStep.Survey: return "I took our findings out of the notebook. Each pair compares 20 years ago with Today. Open the notebook beside me to revisit the full picture.";
-                    case ScenarioBriefingStep.Model: return "Each group starts with three symbols. More symbols mean an increase; fewer mean a decrease. They are not animal counts. Sea star and mussel help us check the cause.";
+                    case ScenarioBriefingStep.Model: return "Each group starts with three symbols. More symbols mean an increase; fewer mean a decrease. They are not population counts. Follow all five links in the food-chain example.";
                     case ScenarioBriefingStep.Causes: return "Use the Play button on any card. Its groups change right here. Play all three, then choose the best fit. Replay lets you watch a result again.";
-                    case ScenarioBriefingStep.Result: return "This is what that cause predicts. Compare the changes with our recorded survey, including the control species. Try the other causes to see how they differ.";
-                    case ScenarioBriefingStep.Compare: return "Now compare the three predictions with our records. Sea star and mussel help separate similar explanations. Replay any cause, then choose the best fit.";
+                    case ScenarioBriefingStep.Result: return "This is what that cause predicts. Compare the changes with our recorded survey, including herring and phytoplankton. Try the other causes to see how they differ.";
+                    case ScenarioBriefingStep.Compare: return "Compare the three predictions with the five survey records. Review how each explanation fits, then record the case conclusion.";
                     case ScenarioBriefingStep.Conflict: return scenarioFeedback;
                     case ScenarioBriefingStep.Ending: return ScenarioEndingMessage;
                     default: return string.Empty;
@@ -119,7 +119,7 @@ namespace EDNA.Investigation
 
         private void RenderScenarioBriefing(RectTransform root, InvestigationScenarioBriefingHost host)
         {
-            if (!ScenarioBriefingActive || notebookDrawerOpen || provisionalReviewOpen || restartConfirmationPending || !root.gameObject.activeInHierarchy) return;
+            if (!ScenarioBriefingActive || notebookDrawerOpen || restartConfirmationPending || !root.gameObject.activeInHierarchy) return;
             RectTransform target = FindNamedRect(root, ScenarioBriefingTarget);
             if (target == null) return;
             Canvas.ForceUpdateCanvases();

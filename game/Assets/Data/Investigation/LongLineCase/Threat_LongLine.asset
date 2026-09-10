@@ -14,25 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.ThreatSimulationDefinition
   threatId: longline
   displayName: Long-line fishing
-  summary: "Selective predator removal can trigger the shark\u2013tuna\u2013krill
-    cascade without damaging the benthic community."
+  summary: Main explanation for this case. Its predator-removal model follows the five-species food chain.
   icon: {fileID: 21300000, guid: e87ddd70309fd4872b88f255da948cd6, type: 3}
   glyphKind: 2
   speciesPredictions:
   - speciesId: shark
     predictedState: 1
-    rationale: Long-line gear directly reduces the large predator.
-  - speciesId: tuna
-    predictedState: 0
-    rationale: Tuna increase after losing a predator.
-  - speciesId: krill
-    predictedState: 1
-    rationale: More tuna consume more krill.
-  - speciesId: sea_star
-    predictedState: 2
-    rationale: Selective fishing does not directly damage the seafloor indicator.
-  - speciesId: mussel
-    predictedState: 2
-    rationale: The plastic-sensitive reference remains stable.
-  seafloorPrediction: Seafloor remains intact.
-  physicalConfirmation: Fishing gear may be recorded near predator habitat.
+    rationale: Assume fewer predators in this teaching trial.
+  seafloorPrediction: No seabed observation supplied by this example.
+  physicalConfirmation: No physical observation is used in this activity.

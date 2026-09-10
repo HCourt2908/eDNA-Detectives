@@ -9,13 +9,10 @@ namespace EDNA.Investigation
         Start = 0,
         ObserveReady = 1,
         SimulateComplete = 2,
-        ReportReady = 3,
-        FinalReportReady = 4,
+        ConclusionReady = 3,
         FirstFinding = 5,
         SimulateStart = 6,
-        ReportQuestions = 7,
-        CaseClosed = 8,
-        EvidenceReady = 9
+        CaseClosed = 8
     }
 
     public static class InvestigationQaStateFactory
@@ -29,12 +26,12 @@ namespace EDNA.Investigation
             InvestigationStateUpdater updater = new InvestigationStateUpdater(caseDefinition);
             InvestigationState state = updater.CreateInitialState();
             if (checkpoint == InvestigationQaCheckpoint.Start) return state;
-            Discover(updater, state, "E01_SHARK_NONDETECTION");
-            if (checkpoint == InvestigationQaCheckpoint.FirstFinding) return state;
-            Discover(updater, state, "E02_TUNA_WIDER_DETECTION");
-            Discover(updater, state, "E03_KRILL_NONDETECTION");
-            Discover(updater, state, "E04_BENTHIC_STABLE");
-            Discover(updater, state, "E06_PLASTIC_INDICATOR_STABLE");
+            foreach (var finding in caseDefinition.Observations)
+            {
+                if (!InvestigationObserveEvaluator.IsInitialFinding(finding)) continue;
+                Discover(updater, state, finding.EvidenceId);
+                if (checkpoint == InvestigationQaCheckpoint.FirstFinding) return state;
+            }
             if (checkpoint == InvestigationQaCheckpoint.ObserveReady) return state;
             if (checkpoint == InvestigationQaCheckpoint.SimulateStart)
             {
@@ -42,30 +39,24 @@ namespace EDNA.Investigation
                 return state;
             }
 
-            Run(updater, state, "plastic");
-            if (checkpoint == InvestigationQaCheckpoint.EvidenceReady) return state;
-            Compare(updater, state, "plastic", PredictionTargetKind.Species, "mussel", "E06_PLASTIC_INDICATOR_STABLE", ComparisonJudgement.Mismatch);
-            Run(updater, state, "longline");
-            Compare(updater, state, "longline", PredictionTargetKind.Species, "shark", "E01_SHARK_NONDETECTION", ComparisonJudgement.Match);
-            Compare(updater, state, "longline", PredictionTargetKind.Species, "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match);
-            Compare(updater, state, "longline", PredictionTargetKind.Species, "krill", "E03_KRILL_NONDETECTION", ComparisonJudgement.Match);
-            Run(updater, state, "bottom_trawling");
-            Compare(updater, state, "bottom_trawling", PredictionTargetKind.Species, "tuna", "E02_TUNA_WIDER_DETECTION", ComparisonJudgement.Match);
-            Compare(updater, state, "longline", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Match);
-            Compare(updater, state, "bottom_trawling", PredictionTargetKind.Species, "sea_star", "E04_BENTHIC_STABLE", ComparisonJudgement.Mismatch);
+            foreach (var threat in caseDefinition.Threats)
+            {
+                Run(updater, state, threat.ThreatId);
+            }
+            foreach (var objective in caseDefinition.InvestigationObjectives)
+                if (objective.Required) Compare(updater, state, objective.ThreatId, objective.TargetKind,
+                    objective.TargetId, objective.RequiredEvidenceId, objective.RequiredJudgement);
             if (checkpoint == InvestigationQaCheckpoint.SimulateComplete) return state;
 
-            Require(updater.TrySubmitProvisional(state, "longline", out string provisionalFeedback), provisionalFeedback);
-            if (checkpoint == InvestigationQaCheckpoint.ReportReady || checkpoint == InvestigationQaCheckpoint.FinalReportReady) return state;
+            Require(updater.TrySubmitProvisional(state, caseDefinition.PrimaryModelThreatId, out string provisionalFeedback), provisionalFeedback);
+            if (checkpoint == InvestigationQaCheckpoint.ConclusionReady) return state;
             if (checkpoint == InvestigationQaCheckpoint.CaseClosed)
             {
-                var modelResult = updater.SubmitModelConclusion(state, "longline");
+                var modelResult = updater.SubmitModelConclusion(state, caseDefinition.PrimaryModelThreatId);
                 Require(modelResult.Status == InvestigationConclusionStatus.Correct, modelResult.Feedback);
                 return state;
             }
 
-            Require(updater.TryReviewConfirmation(state, out string confirmationFeedback), confirmationFeedback);
-            if (checkpoint == InvestigationQaCheckpoint.ReportQuestions) return state;
             return state;
         }
 

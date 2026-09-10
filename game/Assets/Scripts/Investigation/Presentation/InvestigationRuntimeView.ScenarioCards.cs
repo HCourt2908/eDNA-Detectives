@@ -10,7 +10,7 @@ namespace EDNA.Investigation
         private void RenderScenarioAlternatives(Transform parent)
         {
             Text heading = CreateText("Scenario Comparison Heading", parent,
-                EveryScenarioViewed ? "Which prediction best explains our survey?" : "Play each prediction · Compare it with our survey", 18,
+                EveryScenarioViewed ? "Which predictions fit our survey?" : "Play each prediction · Compare it with our survey", 18,
                 FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             AddLayout(heading.rectTransform, 26f, 0f);
             RectTransform cards = new GameObject("Scenario Results", typeof(RectTransform), typeof(InvestigationResponsiveGridLayout)).GetComponent<RectTransform>();
@@ -47,7 +47,7 @@ namespace EDNA.Investigation
                     RectTransform row = CreatePanel("Scenario Result Species " + ids[i], card, Color.clear, 0f);
                     Anchor(row, 0f, 1f, 1f, 1f, 12f, -100f - i * 36f, -12f, -64f - i * 36f);
                     RectTransform halo = CreatePanel("Scenario Population Glow", row, Color.clear, 6f); Stretch(halo, 0f, 0f, 0f, 0f);
-                    Text name = CreateText("Result Species Name", row, ids[i] == "mussel" ? "Mussel" : species.GameplayName, 13,
+                    Text name = CreateText("Result Species Name", row, species.GameplayName, 13,
                         FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
                     Anchor(name.rectTransform, 0f, 0f, .28f, 1f, 2f, 0f, -2f, 0f);
                     RectTransform population = CreatePanel("Result Population " + ids[i], row, Color.clear, 0f);
@@ -86,7 +86,7 @@ namespace EDNA.Investigation
                         foreach (var actor in actors) foreach (var unit in actor.Units) unit.SetAllDirty();
                     };
                 }
-                Button choose = CreateButton("Choose Scenario " + id, card, "Choose this explanation", ButtonVisualStyle.Primary,
+                Button choose = CreateButton("Choose Scenario " + id, card, "Review this explanation", ButtonVisualStyle.Primary,
                     () => ChooseScenarioExplanation(id), out Text label);
                 choose.GetComponent<LayoutElement>().ignoreLayout = true; label.fontSize = 14;
                 Anchor(choose.GetComponent<RectTransform>(), 0f, 0f, 1f, 0f, 8f, 8f, -8f, 48f);

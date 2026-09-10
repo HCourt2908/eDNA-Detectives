@@ -147,7 +147,7 @@ namespace EDNA.Investigation
             bool compact = screen.width < 860f || Mathf.Max(leftSpace, rightSpace) < 340f;
             bool onLeft = leftSpace >= rightSpace;
             float width = compact ? screen.width - margin * 2f : Mathf.Min(580f, Mathf.Max(leftSpace, rightSpace));
-            float portraitWidth = compact ? 74f : 110f;
+            float portraitWidth = compact ? 112f : 148f;
             RectTransform speech = CreatePanel(prefix + " Speech", comparisonBriefingOverlay, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
             Text name = CreateText(prefix + " Speaker", speech, heading, 13,
                 FontStyle.Bold, InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
@@ -160,11 +160,11 @@ namespace EDNA.Investigation
             float height = Mathf.Max(compact ? 150f : 196f, textHeight + 116f);
             float x = compact || onLeft ? screen.xMin + margin : screen.xMax - margin - width;
             PositionBriefingElement(speech, new Rect(x, screen.yMin + margin, width, height));
-            Anchor(name.rectTransform, 0f, 1f, 1f, 1f, 16f, -36f, -portraitWidth - 24f, -10f);
-            Anchor(message.rectTransform, 0f, 0f, 1f, 1f, 16f, 68f, -portraitWidth - 24f, -42f);
+            Anchor(name.rectTransform, 0f, 1f, 1f, 1f, portraitWidth + 24f, -36f, -16f, -10f);
+            Anchor(message.rectTransform, 0f, 0f, 1f, 1f, portraitWidth + 24f, 68f, -16f, -42f);
             EnsureEdnaArtwork();
-            Image portrait = CreateStatusIcon(prefix + " Portrait", speech, ednaPortrait, Color.white);
-            Anchor(portrait.rectTransform, 1f, 0f, 1f, 1f, -portraitWidth, skipAction == null ? 0f : 64f, -3f, 2f);
+            Image portrait = CreateStatusIcon(prefix + " Portrait", speech, EdnaSpeakingArtwork, Color.white);
+            Anchor(portrait.rectTransform, 0f, 0f, 0f, 1f, 3f, skipAction == null ? 0f : 64f, portraitWidth + 3f, 2f);
             Button next = CreateButton(prefix + " Next", speech, actionLabel,
                 ButtonVisualStyle.PaperPrimary, () => action(), out Text nextLabel);
             nextLabel.fontSize = 14;

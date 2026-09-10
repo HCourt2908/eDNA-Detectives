@@ -115,7 +115,7 @@ namespace EDNA.Investigation.Tests
         }
         [UnityTest] public IEnumerator Ending_QaCheckpointCanFinishAndRestartWithoutTheOldReportPage()
         {
-            yield return Start(); Controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.FinalReportReady); yield return null; yield return null;
+            yield return Start(); Controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ConclusionReady); yield return null; yield return null;
             Assert.That(GameObject.Find("Complete Scenario Investigation").GetComponent<Button>().interactable, Is.True);
             Press("Complete Scenario Investigation"); yield return null;
             Press("Restart Completed Case"); yield return null;
