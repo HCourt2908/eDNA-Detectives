@@ -30,9 +30,9 @@ Material:
     m_Ints: []
     m_Floats:
     - _Opacity: 0.34
-    - _SurfaceFactor: 0
+    - _SurfaceFactor: 0.9993671
     - _WaveStrength: 0.18
-    - _WaveTime: 1.8205208
+    - _WaveTime: 42.203854
     m_Colors:
     - _Tint: {r: 0.65, g: 0.94, b: 1, a: 1}
   m_BuildTextureStacks: []
