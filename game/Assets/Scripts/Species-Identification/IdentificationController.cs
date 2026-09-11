@@ -28,26 +28,55 @@ public class sampleController : MonoBehaviour
 
     Coroutine symbolTransition;
 
+    List<Species> speciesList;
+    Dictionary<Species, SpeciesFrequency> frequencyMap;
+
 
 
     public void Start()
     {
+        speciesList = GameManager.Instance.speciesList;
+        frequencyMap = GameManager.Instance.frequencyMap;
         StartCoroutine(LoadPuzzles());
     }
 
     public IEnumerator LoadPuzzles()
     {
-        for (int i = 0; i < 5; i++)
+
+        List<Species> samplesFound = new List<Species>();
+        for (int i = 0; i < speciesList.Count; i++)
+        {
+            if (frequencyMap[speciesList[i]] == SpeciesFrequency.MoreFrequent)
+            {
+                samplesFound.Add(speciesList[i]);
+                samplesFound.Add(speciesList[i]);
+            }
+            else if (frequencyMap[speciesList[i]] == SpeciesFrequency.SameFrequent)
+            {
+                samplesFound.Add(speciesList[i]);
+            }
+            else if (frequencyMap[speciesList[i]] == SpeciesFrequency.LessFrequent && samplesFound.Count < 5)
+            {
+                samplesFound.Add(speciesList[i]);
+            }
+        }
+
+        samplesFound = samplesFound.OrderBy(x => Random.value).ToList();
+
+        for (int i = 0; i < samplesFound.Count; i++)
         {
             if (i == 0 || i == 1) puzzleGenerator.difficulty = SpeciesPuzzleDifficulty.Easy;
             else if (i == 2) puzzleGenerator.difficulty = SpeciesPuzzleDifficulty.Medium;
             else if (i == 3) puzzleGenerator.difficulty = SpeciesPuzzleDifficulty.Hard;
             else puzzleGenerator.difficulty = SpeciesPuzzleDifficulty.VeryHard;
 
-            CreateRandomPuzzle();
+            CreateSpecificPuzzle(samplesFound[i].name);
             yield return new WaitUntil(() => puzzleCorrect);
             puzzleCorrect = false;
         }
+
+        SceneLoader.Instance.LoadScene("InvestigationScene");
+        //SceneLoader.Instance.UnloadScene("Species-Identification");
     }
 
     public void CreateRandomPuzzle()

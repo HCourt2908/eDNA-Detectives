@@ -264,4 +264,9 @@ public static class SpeciesDatabase
             }
         }
     };
+
+    public static Species GetSpeciesByName(string name)
+    {
+        return AllSpecies.Find(species => species.name == name);
+    }
 }

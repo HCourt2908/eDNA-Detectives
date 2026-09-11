@@ -52,7 +52,7 @@ public class CTDGameManager : MonoBehaviour
     public TMP_Text completionSummaryText;
     public Button replayButton;
     public Button continueButton;
-    public string dnaSceneName = "Petri-Dish-Game";
+    public string dnaSceneName = "Species-Identification";
 
     public CTDGameState CurrentState { get; private set; }
 
@@ -168,14 +168,16 @@ public class CTDGameManager : MonoBehaviour
 
     private void Replay()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        SceneLoader.Instance.UnloadScene("CTD-Minigame");
+        SceneLoader.Instance.LoadSceneAdditive("CTD-Minigame");
     }
 
     private void ContinueToDNA()
     {
         if (Application.CanStreamedLevelBeLoaded(dnaSceneName))
         {
-            SceneManager.LoadScene(dnaSceneName);
+            SceneLoader.Instance.LoadSceneAdditive(dnaSceneName);
+            SceneLoader.Instance.UnloadScene("CTD-Minigame");
         }
         else
         {
