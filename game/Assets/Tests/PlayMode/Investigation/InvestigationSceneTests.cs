@@ -824,13 +824,17 @@ namespace EDNA.Investigation.Tests
         }
 
         [UnityTest]
-        public IEnumerator InvestigationScene_DefaultBuildEntryStartsPlayableInvestigation()
+        public IEnumerator InvestigationScene_SharedStartupIsPreservedAndInvestigationLoadsByName()
         {
             InvestigationSessionBridge.Clear();
-            Assert.That(SceneUtility.GetScenePathByBuildIndex(0), Is.EqualTo("Assets/Scenes/InvestigationScene.unity"));
+            Assert.That(SceneUtility.GetScenePathByBuildIndex(0), Is.EqualTo("Assets/Scenes/SampleScene.unity"));
             yield return SceneManager.LoadSceneAsync(0, LoadSceneMode.Single);
             yield return null;
             yield return null;
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("SampleScene"));
+            Assert.That(Object.FindAnyObjectByType<InvestigationController>(), Is.Null);
+            yield return SceneManager.LoadSceneAsync("InvestigationScene", LoadSceneMode.Single);
+            yield return null; yield return null;
             InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
             Assert.That(controller, Is.Not.Null);
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Observe));

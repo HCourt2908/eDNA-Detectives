@@ -664,12 +664,14 @@ namespace EDNA.Investigation.Editor
             EditorSceneManager.SaveScene(scene, ScenePath);
         }
 
-        [MenuItem("eDNA Detectives/Use Investigation Startup Scene")]
+        [MenuItem("eDNA Detectives/Add Investigation to Build Settings")]
         public static void AddSceneToBuildSettings()
         {
             List<EditorBuildSettingsScene> scenes = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
-            scenes.RemoveAll(scene => string.Equals(scene.path, ScenePath, StringComparison.Ordinal));
-            scenes.Insert(0, new EditorBuildSettingsScene(ScenePath, true));
+            int index = scenes.FindIndex(scene => string.Equals(scene.path, ScenePath, StringComparison.Ordinal));
+            // Register this part without replacing the shared game's startup scene.
+            if (index < 0) scenes.Add(new EditorBuildSettingsScene(ScenePath, true));
+            else scenes[index] = new EditorBuildSettingsScene(ScenePath, true);
             EditorBuildSettings.scenes = scenes.ToArray();
         }
 
