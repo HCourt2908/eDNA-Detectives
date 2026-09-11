@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c821e5d1dc86e4dc58708131c0c48e53, type: 3}
+  m_Name: Threat_BottomTrawling
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.ThreatSimulationDefinition
+  threatId: bottom_trawling
+  displayName: Bottom trawling
+  summary: Possible alternative. Its model can also produce a similar five-species food-chain pattern.
+  icon: {fileID: 21300000, guid: 96abde5153d644294879228d46d96b2a, type: 3}
+  glyphKind: 3
+  speciesPredictions:
+  - speciesId: shark
+    predictedState: 1
+    rationale: Use the same predator-removal premise to compare the two fishing models.
+  seafloorPrediction: No seabed observation supplied by this example.
+  physicalConfirmation: No physical observation is used in this activity.

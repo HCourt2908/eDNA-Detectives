@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db735edd82b540bca2a33e8561c0f27, type: 3}
+  m_Name: Species_KitefinShark
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
+  speciesId: kitefin_shark
+  canonicalSpeciesId: kitefin_shark
+  displayName: Kitefin Shark
+  shortDisplayName:
+  scientificName: Dalatias licha
+  description: "A shark of deep waters. Scientists have documented its blue light emission, produced by tiny light organs in its skin."
+  icon: {fileID: 0}
+  glyphKind: 5
+  trophicRole: 5
+  aliases:
+  - dalatias_licha
+  preferredDepths: 02000000
+  habitatTags:
+  - deep
+  - pelagic
+  dietSpeciesIds:
+  - orange_roughy
+  predatorSpeciesIds: []
+  sensitivityTags: []
+  mapDepthBand: 2

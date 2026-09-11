@@ -1,0 +1,15 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-09-10",
+  "purpose": "Transparent illustrations for the five-species Figma food-chain activity; symbolic game art, not taxonomic photographs.",
+  "prompts": [
+    {
+      "file": "atlantic-herring.png",
+      "prompt": "Use case: scientific-educational. Asset type: a single transparent PNG organism sprite for an ocean ecology Unity game. Create one full-body Atlantic herring (Clupea harengus) in clean side profile facing right, elongated slender silver fish, blue-gray back, large eye, single dorsal fin and forked tail; clearly a herring, not a tuna, not a shark. Detailed painted natural-history field-guide illustration with soft realistic shading, crisp silhouette readable at 60 pixels. Center the complete fish with small even margins. Transparent alpha background, no water, no shadow outside the body, no floor, no labels, no letters, no frame, no extra fish. This will be placed on dark navy notebook/model UI backgrounds. Do not render a checkerboard as the background."
+    },
+    {
+      "file": "phytoplankton.png",
+      "prompt": "Use case: scientific-educational. Asset type: a single transparent PNG organism icon for an ocean ecology Unity game. Draw one illustrative enlarged Prochlorococcus marinus cell, the tiny photosynthetic marine cyanobacterium listed in this game's catalog as phytoplankton. A simple small rounded green cell with a subtle blue-green edge and soft natural-history painted shading, a crisp readable silhouette for 40-pixel use. Represent an illustrative cell, not an exact microscopy photograph. Single centered cell with small margins; no leaves, no stems, no roots, no eyes, no cartoon face, no flagella, no diagram arrows, no cutaway organelles or labels. True transparent alpha background, no water, no floor, no frame, no drop shadow, no lettering, no checkerboard painted into background."
+    }
+  ]
+}

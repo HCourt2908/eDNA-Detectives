@@ -23,12 +23,31 @@ public class sampleController : MonoBehaviour
 
     public float padding = 25f;
     public float symbolSize = 150f;
+    [SerializeField] float symbolFadeDuration = 0.5f;
+    public bool puzzleCorrect = false;
+
+    Coroutine symbolTransition;
 
 
 
     public void Start()
     {
-        CreateRandomPuzzle();
+        StartCoroutine(LoadPuzzles());
+    }
+
+    public IEnumerator LoadPuzzles()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            if (i == 0 || i == 1) puzzleGenerator.difficulty = SpeciesPuzzleDifficulty.Easy;
+            else if (i == 2) puzzleGenerator.difficulty = SpeciesPuzzleDifficulty.Medium;
+            else if (i == 3) puzzleGenerator.difficulty = SpeciesPuzzleDifficulty.Hard;
+            else puzzleGenerator.difficulty = SpeciesPuzzleDifficulty.VeryHard;
+
+            CreateRandomPuzzle();
+            yield return new WaitUntil(() => puzzleCorrect);
+            puzzleCorrect = false;
+        }
     }
 
     public void CreateRandomPuzzle()
@@ -59,6 +78,30 @@ public class sampleController : MonoBehaviour
 
     public void DisplaySymbols()
     {
+        if (symbolTransition != null) StopCoroutine(symbolTransition);
+        symbolTransition = StartCoroutine(DisplaySymbolsWithFade());
+    }
+
+    IEnumerator DisplaySymbolsWithFade()
+    {
+        List<CanvasGroup> oldSymbolGroups = new();
+        foreach (Transform child in symbolSpace)
+        {
+            CanvasGroup group = child.GetComponent<CanvasGroup>();
+            if (group == null) group = child.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = 1f;
+            oldSymbolGroups.Add(group);
+        }
+
+        float elapsed = 0f;
+        while (elapsed < symbolFadeDuration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = 1f - Mathf.Clamp01(elapsed / symbolFadeDuration);
+            foreach (CanvasGroup group in oldSymbolGroups) group.alpha = alpha;
+            yield return null;
+        }
+
         foreach (Transform child in symbolSpace) Destroy(child.gameObject);
 
         int count = currentSequence.Count;
@@ -82,7 +125,30 @@ public class sampleController : MonoBehaviour
             else xValue = Mathf.Lerp(firstX, lastX, (float)i / (count - 1));
 
             rect.anchoredPosition = new Vector2(xValue - width / 2f, 0f);
+
+            CanvasGroup group = symbol.GetComponent<CanvasGroup>();
+            if (group == null) group = symbol.AddComponent<CanvasGroup>();
+            group.alpha = 0f;
         }
+
+        elapsed = 0f;
+        while (elapsed < symbolFadeDuration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = Mathf.Clamp01(elapsed / symbolFadeDuration);
+            foreach (Transform child in symbolSpace)
+            {
+                CanvasGroup group = child.GetComponent<CanvasGroup>();
+                group.alpha = alpha;
+            }
+            yield return null;
+        }
+
+        foreach (Transform child in symbolSpace)
+        {
+            child.GetComponent<CanvasGroup>().alpha = 1f;
+        }
+        symbolTransition = null;
     }
 
     public void DisplayButtons()
@@ -113,21 +179,45 @@ public class sampleController : MonoBehaviour
     {
         if (guess == correctOption) 
         {
-            Debug.Log("Correct");
             StartCoroutine(flashCorrect(guessButton));
         }
-        else Debug.Log("Incorrect");
+        else
+        {
+            StartCoroutine(flashIncorrect(guessButton));
+        }
     }
 
     public IEnumerator flashCorrect(Button button)
     {
         float duration = 0.5f;
-        Image image = button.GetComponent<Image>();
-        image.color = Color.green;
+        ColorBlock originalColors = button.colors;
+        ColorBlock flashColors = button.colors;
+        flashColors.normalColor = Color.green;
+        flashColors.highlightedColor = Color.green;
+        flashColors.pressedColor = Color.green;
+        flashColors.selectedColor = Color.green;
+        button.colors = flashColors;
         
         yield return new WaitForSeconds(duration);
 
-        image.color = Color.white;
+        button.colors = originalColors;
+        puzzleCorrect = true;
+    }
+
+    public IEnumerator flashIncorrect(Button button)
+    {
+        float duration = 0.5f;
+        ColorBlock originalColors = button.colors;
+        ColorBlock flashColors = button.colors;
+        flashColors.normalColor = Color.red;
+        flashColors.highlightedColor = Color.red;
+        flashColors.pressedColor = Color.red;
+        flashColors.selectedColor = Color.red;
+        button.colors = flashColors;
+
+        yield return new WaitForSeconds(duration);
+
+        button.colors = originalColors;
     }
 
 

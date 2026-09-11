@@ -1,0 +1,19 @@
+{
+  "date": "2026-09-10",
+  "tool": "Built-in image_gen image editing",
+  "sources": [
+    "edna clean.png",
+    "edna hand up.png"
+  ],
+  "outputs": [
+    "edna.png",
+    "edna-speaking.png"
+  ],
+  "source_directory": "drive-download-20260910T195809Z-1-001",
+  "cleanup_instructions": "Preserve the supplied identity, face, glasses, hair, clothing, painted style, right-facing direction and respective hand-down or raised-index-finger pose. Remove stray rectangular skin-color swatches and detached marks around the head, neck and hand; remove empty margins. Keep the existing half-body bottom crop, shoulders and entire raised finger. Use genuine transparent alpha with a small margin. Do not mirror, add body parts, add text or frames, or paint a checkerboard into the background.",
+  "derivative_note": "AI-cleaned copies; not guaranteed pixel-identical to the team source artwork. Originals are unchanged.",
+  "prompts": {
+    "edna.png": "Use case: precise-object-edit / background-extraction. This is the team's final EDNA character art; preserve its identity, face, expression, glasses, hair, skin, purple shirt, lab coat, hand-down pose, right-facing direction, black contours and painted shading exactly. Only prepare the supplied image for a Unity sprite: remove the stray rectangular skin-color swatch fragments behind the head/neck and any detached stray marks, remove empty canvas margins, and output the existing half-body character as a clean cutout on a genuinely transparent alpha background with a small even margin. Keep the original bottom crop and full existing shoulders. Do not redesign or redraw the character, do not mirror, do not add body parts, do not change the face or clothing, no text, no frame, no checkerboard painted into the background. The result will be placed at the left of a dialogue box facing its text.",
+    "edna-speaking.png": "Use case: precise-object-edit / background-extraction. This is the team's final EDNA character art; preserve its identity, face, expression, glasses, hair, skin, purple shirt, lab coat, black contours and painted shading exactly. Preserve the right-facing raised-index-finger speaking pose, including the entire hand and raised finger. Only prepare the supplied image for a Unity sprite: remove the stray vertical rectangular skin-color swatches behind the head/neck and beside the raised hand/finger, remove any detached stray marks and empty canvas margins, and output the existing half-body character as a clean cutout on a genuinely transparent alpha background with a small even margin. Keep the original bottom crop. Do not redesign or redraw the character, do not mirror, do not add body parts, do not change the face or clothing, no text, no frame, no checkerboard painted into the background. The result will be placed at the left of a dialogue box, with the raised finger pointing inward toward text on the right."
+  }
+}

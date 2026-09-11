@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db735edd82b540bca2a33e8561c0f27, type: 3}
+  m_Name: Species_FlapjackOctopus
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
+  speciesId: flapjack_octopus
+  canonicalSpeciesId: flapjack_octopus
+  displayName: Flapjack Octopus
+  shortDisplayName:
+  scientificName: Opisthoteuthis californiana
+  description: "A finned octopus associated with the deep seafloor. Like other flapjack octopuses, it has a soft body and webbing between its arms."
+  icon: {fileID: 0}
+  glyphKind: 5
+  trophicRole: 4
+  aliases:
+  - opisthoteuthis_californiana
+  preferredDepths: 02000000
+  habitatTags:
+  - benthic
+  - deep
+  dietSpeciesIds: []
+  predatorSpeciesIds: []
+  sensitivityTags: []
+  mapDepthBand: 2

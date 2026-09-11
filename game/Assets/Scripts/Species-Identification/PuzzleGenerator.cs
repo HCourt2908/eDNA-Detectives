@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class PuzzleGenerator : MonoBehaviour
 {
-    [SerializeField] private SpeciesPuzzleDifficulty difficulty;
+    public SpeciesPuzzleDifficulty difficulty { get; set; }
 
     public List<SymbolType> CurrentSequence { get; private set; }
     public Species CorrectSpecies { get; private set; }
@@ -29,41 +29,90 @@ public class PuzzleGenerator : MonoBehaviour
         }
     }
 
+    // public void GenerateRandomPuzzle()
+    // {
+    //     List<Species> species = SpeciesDatabase.AllSpecies;
+
+    //     List<Species> possibleTargets = new List<Species>(species);
+
+    //     possibleTargets = possibleTargets.OrderBy(x => Random.value).ToList();
+
+    //     foreach (Species target in possibleTargets)
+    //     {
+    //         List<List<int>> combinations = new List<List<int>>();
+
+    //         GeneratePositionCombinations(0, MissingCount, new List<int>(), combinations);
+
+    //         combinations = combinations.OrderBy(x => Random.value).ToList();
+
+    //         foreach (List<int> missingPositions in combinations)
+    //         {
+    //             List<SymbolType> partialSequence = CreatePartialSequence(target, missingPositions);
+
+    //             List<Species> matches = FindMatchingSpecies(partialSequence);
+
+    //             if (matches.Count == 1)
+    //             {
+    //                 CorrectSpecies = target;
+    //                 CurrentSequence = partialSequence;
+
+    //                 return;
+    //             }
+    //         }
+    //     }
+
+    //     Debug.LogError("Couldn't generate a " + difficulty + " puzzle with the current database");
+
+    // }
+
     public void GenerateRandomPuzzle()
+{
+    List<Species> species = SpeciesDatabase.AllSpecies;
+
+    List<(Species species, List<SymbolType> sequence)> validPuzzles =
+        new List<(Species, List<SymbolType>)>();
+
+    foreach (Species target in species)
     {
-        List<Species> species = SpeciesDatabase.AllSpecies;
+        List<List<int>> combinations = new List<List<int>>();
 
-        List<Species> possibleTargets = new List<Species>(species);
+        GeneratePositionCombinations(
+            0,
+            MissingCount,
+            new List<int>(),
+            combinations
+        );
 
-        possibleTargets = possibleTargets.OrderBy(x => Random.value).ToList();
-
-        foreach (Species target in possibleTargets)
+        foreach (List<int> missingPositions in combinations)
         {
-            List<List<int>> combinations = new List<List<int>>();
+            List<SymbolType> partialSequence =
+                CreatePartialSequence(target, missingPositions);
 
-            GeneratePositionCombinations(0, MissingCount, new List<int>(), combinations);
+            List<Species> matches =
+                FindMatchingSpecies(partialSequence);
 
-            combinations = combinations.OrderBy(x => Random.value).ToList();
-
-            foreach (List<int> missingPositions in combinations)
+            if (matches.Count == 1)
             {
-                List<SymbolType> partialSequence = CreatePartialSequence(target, missingPositions);
-
-                List<Species> matches = FindMatchingSpecies(partialSequence);
-
-                if (matches.Count == 1)
-                {
-                    CorrectSpecies = target;
-                    CurrentSequence = partialSequence;
-
-                    return;
-                }
+                validPuzzles.Add((target, partialSequence));
             }
         }
-
-        Debug.LogError("Couldn't generate a " + difficulty + " puzzle with the current database");
-
     }
+
+    if (validPuzzles.Count == 0)
+    {
+        Debug.LogError(
+            "Couldn't generate a " + difficulty +
+            " puzzle with the current database"
+        );
+        return;
+    }
+
+    var chosenPuzzle =
+        validPuzzles[Random.Range(0, validPuzzles.Count)];
+
+    CorrectSpecies = chosenPuzzle.species;
+    CurrentSequence = chosenPuzzle.sequence;
+}
 
     public void GenerateSpecificPuzzle(string targetName)
     {

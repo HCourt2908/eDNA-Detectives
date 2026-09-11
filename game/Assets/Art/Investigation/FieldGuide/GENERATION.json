@@ -1,0 +1,18 @@
+{
+  "generator": "Built-in image_gen",
+  "created": "2026-09-05",
+  "assets": [
+    {
+      "id": "hammerhead",
+      "prompt": "Use case: scientific-educational. Asset type: one transparent PNG sprite for a marine ecology detective game. Style: a cohesive modern natural-history field-guide illustration, softly painted gouache shapes, restrained fine dark-navy contour, subtle texture, clear readable silhouette at small UI sizes, gentle upper-left light, muted ocean colors. Center a SINGLE complete specimen on a genuinely TRANSPARENT alpha background, with 12% clear margin on every side, square canvas. No water, no ground, no environment, no paper, no border, no lettering, no labels, no multiple views, no cast shadow, no emoji styling, no thick black outline, no anthropomorphic face. Full animal and all appendages visible. Subject: one great hammerhead shark, three-quarter side view swimming to the right, the wide hammer-shaped head clearly visible, natural shark proportions and fins, slate blue-grey dorsal body and pale underside."
+    },
+    {
+      "id": "tuna",
+      "prompt": "Use case: scientific-educational. Asset type: one transparent PNG sprite for a marine ecology detective game. Style: a cohesive modern natural-history field-guide illustration, softly painted gouache shapes, restrained fine dark-navy contour, subtle texture, clear readable silhouette at small UI sizes, gentle upper-left light, muted ocean colors. Center a SINGLE complete specimen on a genuinely TRANSPARENT alpha background, with 12% clear margin on every side, square canvas. No water, no ground, no environment, no paper, no border, no lettering, no labels, no multiple views, no cast shadow, no emoji styling, no thick black outline, no anthropomorphic face. Full animal and all appendages visible. Subject: one Atlantic bluefin tuna, side view swimming to the right, recognizable streamlined powerful tuna body, forked crescent tail, small finlets, blue-grey back and softly silver belly, subtle muted ochre fin accents."
+    },
+    {
+      "id": "krill",
+      "prompt": "Use case: scientific-educational. Asset type: one transparent PNG sprite for a marine ecology detective game. Style: a cohesive modern natural-history field-guide illustration, softly painted gouache shapes, restrained fine dark-navy contour, subtle texture, clear readable silhouette at small UI sizes, gentle upper-left light, muted ocean colors. Center a SINGLE complete specimen on a genuinely TRANSPARENT alpha background, with 12% clear margin on every side, square canvas. No water, no ground, no environment, no paper, no border, no lettering, no labels, no multiple views, no cast shadow, no emoji styling, no thick black outline, no anthropomorphic face. Full animal and all appendages visible. Subject: one northern krill, side view facing right, elongated translucent coral-pink segmented body, large dark eye, long thin antennae, delicate many swimming legs and small tail fan. Recognizable as an actual small marine crustacean, gracefully extended rather than curled."
+    }
+  ]
+}
