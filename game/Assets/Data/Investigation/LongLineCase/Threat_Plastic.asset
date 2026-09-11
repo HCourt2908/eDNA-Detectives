@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c821e5d1dc86e4dc58708131c0c48e53, type: 3}
+  m_Name: Threat_Plastic
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.ThreatSimulationDefinition
+  threatId: plastic
+  displayName: Plastic pollution
+  summary: Provisional comparison retained while the team reviews this scenario.
+    New species responses are unknown, not invented.
+  icon: {fileID: 21300000, guid: 43b7467e39362425283582cbd03c8751, type: 3}
+  glyphKind: 1
+  speciesPredictions:
+  - speciesId: shark
+    predictedState: 4
+    rationale: This provisional scenario does not specify a shark response.
+  - speciesId: tuna
+    predictedState: 2
+    rationale: Retained prototype assumption; not a measured effect of plastic.
+  - speciesId: atlantic_herring
+    predictedState: 4
+    rationale: A response has not been supplied for this species.
+  - speciesId: krill
+    predictedState: 1
+    rationale: Retained prototype assumption pending the team's scenario review.
+  - speciesId: phytoplankton
+    predictedState: 4
+    rationale: A response has not been supplied for this species.
+  seafloorPrediction: No seabed observation supplied by this example.
+  physicalConfirmation: The team is reviewing the third scenario.

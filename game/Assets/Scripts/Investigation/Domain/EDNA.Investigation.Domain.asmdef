@@ -1,0 +1,16 @@
+{
+    "name": "EDNA.Investigation.Domain",
+    "rootNamespace": "EDNA.Investigation.Domain",
+    "references": [
+        "EDNA.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

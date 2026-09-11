@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db735edd82b540bca2a33e8561c0f27, type: 3}
+  m_Name: Species_PineconeFish
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
+  speciesId: pinecone_fish
+  canonicalSpeciesId: pinecone_fish
+  displayName: Pinecone Fish
+  shortDisplayName:
+  scientificName: Monocentris japonica
+  description: "A reef-associated fish also called the Japanese pineapplefish. It is one of the fish species capable of producing light."
+  icon: {fileID: 0}
+  glyphKind: 5
+  trophicRole: 3
+  aliases:
+  - monocentris_japonica
+  preferredDepths: 0100000002000000
+  habitatTags:
+  - reef-associated
+  - mid-water
+  dietSpeciesIds:
+  - northern_krill
+  predatorSpeciesIds: []
+  sensitivityTags: []
+  mapDepthBand: 1

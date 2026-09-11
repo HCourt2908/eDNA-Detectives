@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db735edd82b540bca2a33e8561c0f27, type: 3}
+  m_Name: Species_Tuna
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
+  speciesId: tuna
+  canonicalSpeciesId: atlantic_bluefin_tuna
+  displayName: Atlantic Bluefin Tuna
+  shortDisplayName: Tuna
+  scientificName: Thunnus thynnus
+  description: "A highly migratory fish of the Atlantic Ocean and Mediterranean Sea. It eats herring, mackerel and other prey, and can dive far below surface waters."
+  icon: {fileID: 21300000, guid: da8a035e10dfb4664a77803e255c06f4, type: 3}
+  glyphKind: 1
+  trophicRole: 4
+  aliases:
+  - bluefin_tuna
+  - thunnus_thynnus
+  preferredDepths: 0000000001000000
+  habitatTags:
+  - pelagic
+  - shallow
+  - mid-water
+  dietSpeciesIds:
+  - atlantic_herring
+  predatorSpeciesIds:
+  - great_hammerhead_shark
+  sensitivityTags:
+  - FoodWeb
+  mapDepthBand: 0

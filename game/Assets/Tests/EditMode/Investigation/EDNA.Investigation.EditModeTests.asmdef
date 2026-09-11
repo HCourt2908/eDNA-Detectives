@@ -1,0 +1,26 @@
+{
+    "name": "EDNA.Investigation.EditModeTests",
+    "rootNamespace": "EDNA.Investigation.Tests",
+    "references": [
+        "EDNA.Core",
+        "EDNA.Investigation.Domain",
+        "EDNA.Investigation.Runtime",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

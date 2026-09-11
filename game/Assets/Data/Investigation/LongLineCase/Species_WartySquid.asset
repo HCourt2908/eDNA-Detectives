@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7db735edd82b540bca2a33e8561c0f27, type: 3}
+  m_Name: Species_WartySquid
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationSpeciesDefinition
+  speciesId: warty_squid
+  canonicalSpeciesId: warty_squid
+  displayName: Warty Squid
+  shortDisplayName:
+  scientificName: Moroteuthopsis longimana
+  description: "A large squid of the Southern Ocean. It is eaten by predators such as toothfish, seabirds and marine mammals."
+  icon: {fileID: 0}
+  glyphKind: 5
+  trophicRole: 4
+  aliases:
+  - moroteuthopsis_longimana
+  preferredDepths: 02000000
+  habitatTags:
+  - deep
+  - pelagic
+  dietSpeciesIds:
+  - spotted_lanternfish
+  predatorSpeciesIds: []
+  sensitivityTags: []
+  mapDepthBand: 2

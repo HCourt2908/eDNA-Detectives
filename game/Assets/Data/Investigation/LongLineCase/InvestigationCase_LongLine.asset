@@ -1,0 +1,1300 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 25dec598121ca4c87b650810d23b07be, type: 3}
+  m_Name: InvestigationCase_LongLine
+  m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.InvestigationCaseDefinition
+  caseId: investigation_foodchain_02
+  displayName: A Food-chain Mystery
+  briefing: Compare an example survey with the five-species food chain. More than
+    one cause may fit the same pattern.
+  surveyContext:
+    surveyId: example_survey_02
+    surveyDisplayName: Example survey
+    siteId: seamount_a
+    siteDisplayName: Seamount A
+    processedSampleSummary: Illustrative eDNA survey for the food-chain activity
+  species:
+  - {fileID: 11400000, guid: 42c221d64c5d6458dba439c97f2be05d, type: 2}
+  - {fileID: 11400000, guid: 03f540c5eefc349cb8b6060d611964bb, type: 2}
+  - {fileID: 11400000, guid: 941a0c4d1771146889b209bebc63c68c, type: 2}
+  - {fileID: 11400000, guid: c69ff8bc758a0499eaf111ef0c36f3cf, type: 2}
+  - {fileID: 11400000, guid: c1fd3d85b48c8489391006ba90f9dcfa, type: 2}
+  speciesCatalog:
+  - {fileID: 11400000, guid: 0c8662f6268ec497daae6490a7f95eee, type: 2}
+  - {fileID: 11400000, guid: 56d7d80ee12bd4c0e9a5860e5dbf1eb1, type: 2}
+  - {fileID: 11400000, guid: 1558bebbef2164ab9ac3cd0b13603e0a, type: 2}
+  - {fileID: 11400000, guid: 42c221d64c5d6458dba439c97f2be05d, type: 2}
+  - {fileID: 11400000, guid: b44479bdc04cf4c5980a50e635ae33ee, type: 2}
+  - {fileID: 11400000, guid: dc9c06d87d2034d97a9d3e3c66f25f78, type: 2}
+  - {fileID: 11400000, guid: 03f540c5eefc349cb8b6060d611964bb, type: 2}
+  - {fileID: 11400000, guid: 941a0c4d1771146889b209bebc63c68c, type: 2}
+  - {fileID: 11400000, guid: 55259e78510024d13819249528df6aac, type: 2}
+  - {fileID: 11400000, guid: c69ff8bc758a0499eaf111ef0c36f3cf, type: 2}
+  - {fileID: 11400000, guid: a054f269fc11e4e4789f26cc4c2dde24, type: 2}
+  - {fileID: 11400000, guid: cf7d280212ba34582800586898aff4b8, type: 2}
+  - {fileID: 11400000, guid: 2840ed6e9dc7e4eeb8376514133fa597, type: 2}
+  - {fileID: 11400000, guid: 9c23707e49811473393e962fe6a9ade9, type: 2}
+  - {fileID: 11400000, guid: 1755964969fe64512af8ee4cdacaa7be, type: 2}
+  - {fileID: 11400000, guid: f1cdd04d5accb4cb392e099cebd90710, type: 2}
+  - {fileID: 11400000, guid: 5fa39ef9e73194b29a99b4284fd88e66, type: 2}
+  - {fileID: 11400000, guid: d4cb8f820b2da4925867b62965a95809, type: 2}
+  - {fileID: 11400000, guid: c75eee2cc45e74ae78847bc1014490a0, type: 2}
+  - {fileID: 11400000, guid: c1fd3d85b48c8489391006ba90f9dcfa, type: 2}
+  foodWebChainSpeciesIds:
+  - shark
+  - tuna
+  - atlantic_herring
+  - krill
+  - phytoplankton
+  simulationFoodWebId: reference_main
+  foodWebEdges:
+  - edgeId: reference_hammerhead_bluefin
+    networkId: reference_main
+    predatorSpeciesId: great_hammerhead_shark
+    preySpeciesId: atlantic_bluefin_tuna
+    strength: 0
+    confidence: 0
+    caseRelevant: 1
+    explanation: Figma teaching example; a qualitative relationship, not a validated
+      population forecast.
+  - edgeId: reference_bluefin_herring
+    networkId: reference_main
+    predatorSpeciesId: atlantic_bluefin_tuna
+    preySpeciesId: atlantic_herring
+    strength: 2
+    confidence: 0
+    caseRelevant: 1
+    explanation: Figma teaching example; a qualitative relationship, not a validated
+      population forecast.
+  - edgeId: reference_herring_krill
+    networkId: reference_main
+    predatorSpeciesId: atlantic_herring
+    preySpeciesId: northern_krill
+    strength: 2
+    confidence: 0
+    caseRelevant: 1
+    explanation: Figma teaching example; a qualitative relationship, not a validated
+      population forecast.
+  - edgeId: reference_krill_phytoplankton
+    networkId: reference_main
+    predatorSpeciesId: northern_krill
+    preySpeciesId: phytoplankton
+    strength: 2
+    confidence: 0
+    caseRelevant: 1
+    explanation: Figma teaching example; a qualitative relationship, not a validated
+      population forecast.
+  - edgeId: manta_krill
+    networkId: manta_branch
+    predatorSpeciesId: reef_manta_ray
+    preySpeciesId: northern_krill
+    strength: 1
+    confidence: 0
+    caseRelevant: 0
+    explanation: Filter-feeding branch derived from the storyboard and awaiting location-specific
+      review.
+  - edgeId: manta_krill_phytoplankton
+    networkId: manta_branch
+    predatorSpeciesId: northern_krill
+    preySpeciesId: phytoplankton
+    strength: 2
+    confidence: 1
+    caseRelevant: 0
+    explanation: Krill connect the manta branch to primary production.
+  - edgeId: kitefin_orange_roughy
+    networkId: deep_branch
+    predatorSpeciesId: kitefin_shark
+    preySpeciesId: orange_roughy
+    strength: 1
+    confidence: 0
+    caseRelevant: 0
+    explanation: Deep-water storyboard branch; final ecological review is pending.
+  - edgeId: orange_roughy_lanternfish
+    networkId: deep_branch
+    predatorSpeciesId: orange_roughy
+    preySpeciesId: spotted_lanternfish
+    strength: 1
+    confidence: 0
+    caseRelevant: 0
+    explanation: Deep-water storyboard branch; final ecological review is pending.
+  - edgeId: lanternfish_krill
+    networkId: deep_branch
+    predatorSpeciesId: spotted_lanternfish
+    preySpeciesId: northern_krill
+    strength: 1
+    confidence: 0
+    caseRelevant: 0
+    explanation: Mesopelagic fish link the deep branch to zooplankton.
+  - edgeId: octopus_king_crab
+    networkId: benthic_branch
+    predatorSpeciesId: giant_pacific_octopus
+    preySpeciesId: king_crab
+    strength: 1
+    confidence: 0
+    caseRelevant: 0
+    explanation: Benthic predator branch from the shared storyboard.
+  benthicIndicatorSpeciesIds: []
+  followUpLockedSpeciesIds: []
+  maximumSurveySpecies: 7
+  observations:
+  - evidenceId: E01_SHARK_NONDETECTION
+    displayName: Shark repeatedly not detected
+    detail: 'Illustrative survey record: Shark repeatedly not detected compared with
+      the historical example. This is an authored learning scenario, not a field
+      measurement.'
+    relatedSpeciesId: shark
+    source: 0
+    unlockStage: 0
+    unlockThreatId:
+    confidence: 2
+    claimType: 1
+    category: 1
+    confidenceReason: The pictures compare detection patterns, not exact animal counts.
+      Non-detection does not prove absence.
+  - evidenceId: E02_TUNA_WIDER_DETECTION
+    displayName: Tuna detected at more sites
+    detail: 'Illustrative survey record: Tuna detected at more sites compared with
+      the historical example. This is an authored learning scenario, not a field
+      measurement.'
+    relatedSpeciesId: tuna
+    source: 0
+    unlockStage: 0
+    unlockThreatId:
+    confidence: 1
+    claimType: 2
+    category: 1
+    confidenceReason: The pictures compare detection patterns, not exact animal counts.
+      Non-detection does not prove absence.
+  - evidenceId: E03_HERRING_FEWER_SITES
+    displayName: Herring detected at fewer sites
+    detail: 'Illustrative survey record: Herring detected at fewer sites compared
+      with the historical example. This is an authored learning scenario, not a field
+      measurement.'
+    relatedSpeciesId: atlantic_herring
+    source: 0
+    unlockStage: 0
+    unlockThreatId:
+    confidence: 1
+    claimType: 8
+    category: 1
+    confidenceReason: The pictures compare detection patterns, not exact animal counts.
+      Non-detection does not prove absence.
+  - evidenceId: E04_KRILL_WIDER_DETECTION
+    displayName: Krill detected at more sites
+    detail: 'Illustrative survey record: Krill detected at more sites compared with
+      the historical example. This is an authored learning scenario, not a field
+      measurement.'
+    relatedSpeciesId: krill
+    source: 0
+    unlockStage: 0
+    unlockThreatId:
+    confidence: 1
+    claimType: 2
+    category: 1
+    confidenceReason: The pictures compare detection patterns, not exact animal counts.
+      Non-detection does not prove absence.
+  - evidenceId: E05_PHYTOPLANKTON_FEWER_SITES
+    displayName: Phytoplankton detected at fewer sites
+    detail: 'Illustrative survey record: Phytoplankton detected at fewer sites compared
+      with the historical example. This is an authored learning scenario, not a field
+      measurement.'
+    relatedSpeciesId: phytoplankton
+    source: 0
+    unlockStage: 0
+    unlockThreatId:
+    confidence: 1
+    claimType: 8
+    category: 1
+    confidenceReason: The pictures compare detection patterns, not exact animal counts.
+      Non-detection does not prove absence.
+  - evidenceId: E07_FISHING_LINE
+    displayName: Legacy fishing-line note
+    detail: Legacy API fixture, not a finding in this activity.
+    relatedSpeciesId: shark
+    source: 2
+    unlockStage: 2
+    unlockThreatId:
+    confidence: 2
+    claimType: 6
+    category: 3
+    confidenceReason: Fishing activity alone does not identify the fishing method.
+  - evidenceId: E08_SEAFLOOR_INTACT
+    displayName: Legacy seafloor note
+    detail: Legacy API fixture, not a finding in this activity.
+    relatedSpeciesId:
+    source: 2
+    unlockStage: 2
+    unlockThreatId:
+    confidence: 2
+    claimType: 6
+    category: 3
+    confidenceReason: No habitat measurement is supplied in the active example survey.
+  - evidenceId: L01_NONDETECTION_LIMITATION
+    displayName: Not detected does not mean gone
+    detail: eDNA non-detection does not prove complete absence; sampling and detection
+      limits remain.
+    relatedSpeciesId:
+    source: 3
+    unlockStage: 3
+    unlockThreatId:
+    confidence: 2
+    claimType: 7
+    category: 0
+    confidenceReason: A model match does not prove the cause.
+  threats:
+  - {fileID: 11400000, guid: 80aa7be5a4c484ac882970c6ad52eff2, type: 2}
+  - {fileID: 11400000, guid: 35060a9f8105a48bcb7ade3c028742d4, type: 2}
+  - {fileID: 11400000, guid: e6d6333c1fee04f73963a75860df619b, type: 2}
+  comparisonRules:
+  - threatId: plastic
+    speciesId: shark
+    targetKind: 0
+    targetId: shark
+    progressRole: 1
+    observationOptions:
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E04_KRILL_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: plastic
+    speciesId: tuna
+    targetKind: 0
+    targetId: tuna
+    progressRole: 1
+    observationOptions:
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This model direction conflicts with the recorded example survey.
+      - judgement: 1
+        outcome: 0
+        feedback: This model direction conflicts with the recorded example survey.
+      - judgement: 2
+        outcome: 2
+        feedback: This model direction conflicts with the recorded example survey.
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E04_KRILL_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: plastic
+    speciesId: atlantic_herring
+    targetKind: 0
+    targetId: atlantic_herring
+    progressRole: 1
+    observationOptions:
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E04_KRILL_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: plastic
+    speciesId: krill
+    targetKind: 0
+    targetId: krill
+    progressRole: 1
+    observationOptions:
+    - evidenceId: E04_KRILL_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This model direction conflicts with the recorded example survey.
+      - judgement: 1
+        outcome: 0
+        feedback: This model direction conflicts with the recorded example survey.
+      - judgement: 2
+        outcome: 2
+        feedback: This model direction conflicts with the recorded example survey.
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: plastic
+    speciesId: phytoplankton
+    targetKind: 0
+    targetId: phytoplankton
+    progressRole: 1
+    observationOptions:
+    - evidenceId: E05_PHYTOPLANKTON_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: longline
+    speciesId: shark
+    targetKind: 0
+    targetId: shark
+    progressRole: 2
+    observationOptions:
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 1
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 1
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 2
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E04_KRILL_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: longline
+    speciesId: tuna
+    targetKind: 0
+    targetId: tuna
+    progressRole: 2
+    observationOptions:
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 1
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 1
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 2
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E04_KRILL_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: longline
+    speciesId: atlantic_herring
+    targetKind: 0
+    targetId: atlantic_herring
+    progressRole: 2
+    observationOptions:
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 1
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 1
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 2
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E04_KRILL_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: longline
+    speciesId: krill
+    targetKind: 0
+    targetId: krill
+    progressRole: 2
+    observationOptions:
+    - evidenceId: E04_KRILL_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 1
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 1
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 2
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: longline
+    speciesId: phytoplankton
+    targetKind: 0
+    targetId: phytoplankton
+    progressRole: 2
+    observationOptions:
+    - evidenceId: E05_PHYTOPLANKTON_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 1
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 1
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 2
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: bottom_trawling
+    speciesId: shark
+    targetKind: 0
+    targetId: shark
+    progressRole: 0
+    observationOptions:
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 1
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 1
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 2
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E04_KRILL_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: bottom_trawling
+    speciesId: tuna
+    targetKind: 0
+    targetId: tuna
+    progressRole: 3
+    observationOptions:
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 1
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 1
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 2
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E04_KRILL_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: bottom_trawling
+    speciesId: atlantic_herring
+    targetKind: 0
+    targetId: atlantic_herring
+    progressRole: 0
+    observationOptions:
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 1
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 1
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 2
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E04_KRILL_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: bottom_trawling
+    speciesId: krill
+    targetKind: 0
+    targetId: krill
+    progressRole: 0
+    observationOptions:
+    - evidenceId: E04_KRILL_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 1
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 1
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 2
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  - threatId: bottom_trawling
+    speciesId: phytoplankton
+    targetKind: 0
+    targetId: phytoplankton
+    progressRole: 0
+    observationOptions:
+    - evidenceId: E05_PHYTOPLANKTON_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 1
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 1
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+      - judgement: 2
+        outcome: 2
+        feedback: The direction is consistent with this example survey, but a model
+          match does not prove a cause.
+    - evidenceId: E03_HERRING_FEWER_SITES
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E01_SHARK_NONDETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+    - evidenceId: E02_TUNA_WIDER_DETECTION
+      resolutions:
+      - judgement: 0
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 1
+        outcome: 2
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+      - judgement: 2
+        outcome: 0
+        feedback: This observation and prediction do not establish a directional
+          comparison. Unknown does not mean stable.
+  investigationObjectives:
+  - objectiveId: plastic_tuna
+    questionId: alternative
+    questionPrompt: Does this provisional model match the example survey?
+    threatId: plastic
+    targetKind: 0
+    targetId: tuna
+    requiredEvidenceId: E02_TUNA_WIDER_DETECTION
+    requiredJudgement: 1
+    progressRole: 1
+    required: 1
+  - objectiveId: longline_shark
+    questionId: food_web
+    questionPrompt: Does this model match the full five-species pattern?
+    threatId: longline
+    targetKind: 0
+    targetId: shark
+    requiredEvidenceId: E01_SHARK_NONDETECTION
+    requiredJudgement: 0
+    progressRole: 2
+    required: 1
+  - objectiveId: longline_tuna
+    questionId: food_web
+    questionPrompt: Does this model match the full five-species pattern?
+    threatId: longline
+    targetKind: 0
+    targetId: tuna
+    requiredEvidenceId: E02_TUNA_WIDER_DETECTION
+    requiredJudgement: 0
+    progressRole: 2
+    required: 1
+  - objectiveId: longline_atlantic_herring
+    questionId: food_web
+    questionPrompt: Does this model match the full five-species pattern?
+    threatId: longline
+    targetKind: 0
+    targetId: atlantic_herring
+    requiredEvidenceId: E03_HERRING_FEWER_SITES
+    requiredJudgement: 0
+    progressRole: 2
+    required: 1
+  - objectiveId: longline_krill
+    questionId: food_web
+    questionPrompt: Does this model match the full five-species pattern?
+    threatId: longline
+    targetKind: 0
+    targetId: krill
+    requiredEvidenceId: E04_KRILL_WIDER_DETECTION
+    requiredJudgement: 0
+    progressRole: 2
+    required: 1
+  - objectiveId: longline_phytoplankton
+    questionId: food_web
+    questionPrompt: Does this model match the full five-species pattern?
+    threatId: longline
+    targetKind: 0
+    targetId: phytoplankton
+    requiredEvidenceId: E05_PHYTOPLANKTON_FEWER_SITES
+    requiredJudgement: 0
+    progressRole: 2
+    required: 1
+  - objectiveId: bottom_tuna
+    questionId: overlap
+    questionPrompt: Can this food chain distinguish the two fishing models?
+    threatId: bottom_trawling
+    targetKind: 0
+    targetId: tuna
+    requiredEvidenceId: E02_TUNA_WIDER_DETECTION
+    requiredJudgement: 0
+    progressRole: 3
+    required: 1
+  minimumObserveDiscoveries: 5
+  requiredComparedThreatIds:
+  - longline
+  - bottom_trawling
+  requiredComparisonSpecies:
+  - threatId: longline
+    requiredComparisonSpeciesIds:
+    - tuna
+  - threatId: bottom_trawling
+    requiredComparisonSpeciesIds:
+    - tuna
+  requiredComparisonsPerThreat: 2
+  minimumCompletedComparisons: 7
+  correctThreatId: longline
+  supportedModelThreatIds:
+  - longline
+  - bottom_trawling
+  confirmationEvidenceIds:
+  - E07_FISHING_LINE
+  - E08_SEAFLOOR_INTACT
+  minimumReportEvidence: 4
+  evidenceCategoryRequirements:
+  - category: 1
+    minimumCount: 2
+  - category: 3
+    minimumCount: 1
+  minimumConfirmationEvidenceInReport: 1
+  minimumReportLimitations: 1
+  requiredReasoningId: food_web_cascade
+  reasoningOptions:
+  - reasoningId: food_web_cascade
+    displayName: "Shark \u2193 \u2192 Tuna \u2191 \u2192 Herring \u2193 \u2192 Krill \u2191 \u2192 Phytoplankton \u2193"
+    explanation: The illustrative response follows each link; matching a model does not distinguish the two fishing causes.
+  - reasoningId: shared_habitat_shift
+    displayName: The species moved when their habitat shifted
+    explanation: A shared habitat shift would need a coherent environmental or depth
+      pattern.
+  - reasoningId: direct_fishing_loss
+    displayName: Fishing directly removed every species
+    explanation: The food-chain model distinguishes a direct premise from subsequent inferred responses.
+  limitations:
+  - limitationId: L01_NONDETECTION_LIMITATION
+    displayName: Not detected does not mean gone
+    explanation: eDNA non-detection does not prove complete absence.
+  - limitationId: L02_SURVEY_COVERAGE
+    displayName: Only three sites were surveyed
+    explanation: The survey did not cover every place or time.
+  successFeedback: Long-line fishing is our main explanation for this case. Bottom trawling remains a possible alternative. A model match is not proof of cause.

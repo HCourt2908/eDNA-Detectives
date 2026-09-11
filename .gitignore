@@ -17,7 +17,33 @@
 *.pidb
 *.booproj
 *.svd
+game/mono_crash.*.json
+game/mono_crash.*.blob
+game/ProjectSettings/SceneTemplateSettings.json
 
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local IDE settings
+.idea/
+
+# Local meeting summary generated during planning
+docs/eDNA-Meeting-Summary-and-Game-Overview.md
+docs/meeting-summary.md
+
+# Local design plan for the investigation/deduction prototype
+docs/Investigation-Part-Plan.md
+
+# Local validation and review reports (keep automated test source tracked)
+docs/Investigation-Validation.md
+docs/Investigation-Review-*.md
+
+# Superseded local planning history
+docs/archive/Detective-Game-Improvement-History.md
+
+# Detailed design, implementation and integration notes stay local
+/ECOSYSTEM_DETECTIVE.md
+/docs/Detective-Game-Improvement-Plan.md
+/docs/Act2-Scenario-Comparison.md
+/docs/Species-Catalog.md
