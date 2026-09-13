@@ -4,7 +4,7 @@ using UnityEngine.UI;
 /// <summary>
 /// Drives the authored 3.1 ocean layers from the current CTD depth.
 /// All layer geometry stays in the scene; this component only changes colour,
-/// opacity, noise time and the small suspended-particle drift.
+/// opacity, noise time and depth-driven environment offsets.
 /// </summary>
 public class SamplingOceanBackground : MonoBehaviour
 {
@@ -39,6 +39,19 @@ public class SamplingOceanBackground : MonoBehaviour
     [Min(0f)] public float noiseSpeed = 0.35f;
     [Range(0f, 1f)] public float noiseStrength = 0.18f;
 
+    [Header("Ascent parallax (pixels per metre)")]
+    [Min(0f)] public float farParticleScroll = 0.65f;
+    [Min(0f)] public float nearParticleScroll = 2.6f;
+    public RectTransform seabed;
+    [Min(0f)] public float seabedScroll = 2.4f;
+    [Min(1f)] public float seabedVisibleAscent = 150f;
+    [Header("Beam motion")]
+    [Min(0f)] public float beamSwayDegrees = 2f;
+    [Min(0f)] public float beamSwaySpeed = 0.35f;
+    [Range(0f, 1f)] public float beamPulse = 0.18f;
+    private Quaternion[] beamRotations;
+    private Vector2 seabedOrigin;
+    private float ascentDistance;
     private Vector2[] particleOrigins;
     private float[] particlePhases;
     private Color[] particleBaseColours;
@@ -62,7 +75,12 @@ public class SamplingOceanBackground : MonoBehaviour
 
     private void Update()
     {
-        float time = Time.unscaledTime;
+        float time = Time.time;
+        if (lightBeams != null && beamRotations != null)
+            for (int i = 0; i < lightBeams.Length; i++)
+                if (lightBeams[i] != null)
+                    lightBeams[i].rectTransform.localRotation = beamRotations[i] *
+                        Quaternion.Euler(0f, 0f, Mathf.Sin(time * beamSwaySpeed + i * 2.1f) * beamSwayDegrees);
         if (gradientMaterial != null)
         {
             gradientMaterial.SetFloat("_NoiseTime", time * noiseSpeed);
@@ -88,8 +106,7 @@ public class SamplingOceanBackground : MonoBehaviour
                 continue;
             }
 
-            // Density is an authored Inspector control. The particles keep
-            // their Scene positions; this only toggles how many are visible.
+            // Density controls visibility; authored positions seed depth scrolling.
             bool visible = particleDots.Length == 0 ||
                            (index + 1f) / particleDots.Length <= particleDensity;
             if (dot.gameObject.activeSelf != visible)
@@ -100,7 +117,15 @@ public class SamplingOceanBackground : MonoBehaviour
             float phase = particlePhases[index];
             Vector2 position = particleOrigins[index];
             position.x += Mathf.Sin(time * particleDriftSpeed + phase) * particleDriftDistance;
-            position.y += Mathf.Cos(time * particleDriftSpeed * 0.73f + phase * 1.7f) * particleDriftDistance * 0.65f;
+            // The same depth change drives all layers. Wrapping happens outside
+            // the viewport, so particles continuously pass the rising device.
+            float parallax = Mathf.Lerp(farParticleScroll, nearParticleScroll, (index % 3) / 2f);
+            RectTransform parent = dot.parent as RectTransform;
+            float height = parent != null ? parent.rect.height : 900f;
+            float bottom = parent != null ? parent.rect.yMin : -450f;
+            float anchorY = parent != null ? Mathf.Lerp(parent.rect.yMin, parent.rect.yMax, dot.anchorMin.y) : 0f;
+            float low = bottom - anchorY - 30f;
+            position.y = low + Mathf.Repeat(position.y - ascentDistance * parallax - low, Mathf.Max(1f, height + 60f));
             dot.anchoredPosition = position;
         }
     }
@@ -112,6 +137,13 @@ public class SamplingOceanBackground : MonoBehaviour
             CaptureAuthoredLayers();
         }
 
+        ascentDistance = Mathf.Max(0f, maximumDepth - depth);
+        if (seabed != null)
+        {
+            seabed.anchoredPosition = seabedOrigin + Vector2.down * ascentDistance * seabedScroll;
+            CanvasGroup group = seabed.GetComponent<CanvasGroup>();
+            if (group != null) group.alpha = 1f - Mathf.SmoothStep(0f, 1f, ascentDistance / Mathf.Max(1f, seabedVisibleAscent));
+        }
         float normalizedDepth = Mathf.Clamp01(depth / Mathf.Max(1f, maximumDepth));
         float surfaceFactor = 1f - Mathf.InverseLerp(surfaceDepth, deepDepth, depth);
         surfaceFactor = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(surfaceFactor));
@@ -135,7 +167,7 @@ public class SamplingOceanBackground : MonoBehaviour
                 Image beam = lightBeams[index];
                 if (beam == null) continue;
                 Color baseColour = index < beamBaseColours.Length ? beamBaseColours[index] : beamTint;
-                beam.color = new Color(beamTint.r, beamTint.g, beamTint.b, baseColour.a * beamOpacity);
+                beam.color = new Color(beamTint.r, beamTint.g, beamTint.b, baseColour.a * beamOpacity * (1f - beamPulse * (0.5f + 0.5f * Mathf.Sin(Time.time * beamSwaySpeed * 1.7f + index * 2.1f))));
             }
         }
 
@@ -166,6 +198,12 @@ public class SamplingOceanBackground : MonoBehaviour
         }
     }
 
+    private void OnDestroy()
+    {
+        if (gradientMaterial != null) Destroy(gradientMaterial);
+        if (refractionMaterial != null) Destroy(refractionMaterial);
+    }
+
     private void CaptureAuthoredLayers()
     {
         if (baseLayer == null)
@@ -173,8 +211,11 @@ public class SamplingOceanBackground : MonoBehaviour
             baseLayer = GetComponent<Image>();
         }
 
-        gradientMaterial = depthGradientLayer != null ? depthGradientLayer.material : null;
-        refractionMaterial = surfaceRefractionLayer != null ? surfaceRefractionLayer.material : null;
+        if (seabed != null) seabedOrigin = seabed.anchoredPosition;
+        gradientMaterial = depthGradientLayer != null ? new Material(depthGradientLayer.material) : null;
+        if (depthGradientLayer != null) depthGradientLayer.material = gradientMaterial;
+        refractionMaterial = surfaceRefractionLayer != null ? new Material(surfaceRefractionLayer.material) : null;
+        if (surfaceRefractionLayer != null) surfaceRefractionLayer.material = refractionMaterial;
 
         if (particleDots != null)
         {
@@ -195,8 +236,10 @@ public class SamplingOceanBackground : MonoBehaviour
         if (lightBeams != null)
         {
             beamBaseColours = new Color[lightBeams.Length];
+            beamRotations = new Quaternion[lightBeams.Length];
             for (int index = 0; index < lightBeams.Length; index++)
             {
+                beamRotations[index] = lightBeams[index] != null ? lightBeams[index].rectTransform.localRotation : Quaternion.identity;
                 beamBaseColours[index] = lightBeams[index] != null ? lightBeams[index].color : beamTint;
             }
         }
