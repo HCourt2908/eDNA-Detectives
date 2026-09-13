@@ -7,7 +7,7 @@ using UnityEngine.UI;
 public class CTDSamplingController : MonoBehaviour
 {
     [Header("Depth")]
-    public float maximumDepth = 1000f;
+    public float maximumDepth = 1010f;
     public float ascentSpeed = 65f;
     [Min(1f)] public float targetTolerance = 45f;
     public int[] targetDepths = { 820, 500, 180 };
@@ -29,6 +29,7 @@ public class CTDSamplingController : MonoBehaviour
     public Image[] bottleImages;
     public TMP_Text[] bottleStatusTexts;
     public SamplingOceanBackground oceanVisuals;
+    public SamplingBiologyLayer biologyLayer;
 
     public event Action<CTDSampleRecord[]> SamplingCompleted;
 
@@ -78,6 +79,11 @@ public class CTDSamplingController : MonoBehaviour
         feedbackText.text = "Bottle 01 is open. Watch for the deep-water target.";
         tutorialHintText.transform.parent.gameObject.SetActive(false);
         closeBottleButton.interactable = true;
+
+        if (biologyLayer != null)
+        {
+            biologyLayer.Begin(currentDepth, maximumDepth);
+        }
 
         for (int index = 0; index < samples.Length; index++)
         {
@@ -280,6 +286,11 @@ public class CTDSamplingController : MonoBehaviour
         else if (oceanBackground != null)
         {
             oceanBackground.color = Color.white;
+        }
+
+        if (biologyLayer != null)
+        {
+            biologyLayer.SetDepth(currentDepth, maximumDepth);
         }
 
         if (currentTargetIndex < targetDepths.Length)

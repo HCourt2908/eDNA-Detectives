@@ -49,7 +49,7 @@ public class SamplingOceanBackground : MonoBehaviour
     private void Awake()
     {
         CaptureAuthoredLayers();
-        SetDepth(0f, 1000f);
+        SetDepth(0f, 1010f);
     }
 
     private void OnEnable()
