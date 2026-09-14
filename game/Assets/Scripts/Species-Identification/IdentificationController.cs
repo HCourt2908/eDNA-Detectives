@@ -31,12 +31,20 @@ public class sampleController : MonoBehaviour
     List<Species> speciesList;
     Dictionary<Species, SpeciesFrequency> frequencyMap;
 
+    [SerializeField] Image speciesIdentifiedImage;
+    [SerializeField] TMPro.TMP_Text speciesIdentifiedText;
+    [SerializeField] Button identifiedContinueButton;
+    [SerializeField] GameObject speciesIdentifiedPanel;
+    bool identifiedContinuePressed;
+
 
 
     public void Start()
     {
         speciesList = GameManager.Instance.speciesList;
         frequencyMap = GameManager.Instance.frequencyMap;
+        identifiedContinueButton.onClick.AddListener(() => identifiedContinuePressed = true);
+        speciesIdentifiedPanel.SetActive(false);
         StartCoroutine(LoadPuzzles());
     }
 
@@ -209,6 +217,7 @@ public class sampleController : MonoBehaviour
         if (guess == correctOption) 
         {
             StartCoroutine(flashCorrect(guessButton));
+            StartCoroutine(SpeciesIdentified(correctOption));
         }
         else
         {
@@ -247,6 +256,40 @@ public class sampleController : MonoBehaviour
         yield return new WaitForSeconds(duration);
 
         button.colors = originalColors;
+    }
+
+    public IEnumerator SpeciesIdentified(string name)
+    {
+        identifiedContinuePressed = false;
+        speciesIdentifiedPanel.SetActive(true);
+
+        CanvasGroup canvasGroup = speciesIdentifiedPanel.GetComponent<CanvasGroup>();
+        canvasGroup.alpha = 0f;
+        float elapsed = 0f;
+        float duration = 0.3f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = Mathf.Clamp01(elapsed / duration);
+            canvasGroup.alpha = alpha;
+            yield return null;
+        }
+        canvasGroup.alpha = 1f;
+        // speciesIdentifiedImage
+        speciesIdentifiedText.text = name;
+        yield return new WaitUntil(() => identifiedContinuePressed);
+        identifiedContinuePressed = false;
+
+        elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = 1f - Mathf.Clamp01(elapsed / duration);
+            canvasGroup.alpha = alpha;
+            yield return null;
+        }
+        canvasGroup.alpha = 0f;
+        speciesIdentifiedPanel.SetActive(false);
     }
 
 
