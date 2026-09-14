@@ -110,6 +110,7 @@ public static class CTDSceneBuilder
         manager.samplingController = samplingController;
         manager.rosetteEntrySequence = rosetteEntrySequence;
         manager.recoveryRosette = recoveryRosette;
+        manager.recoveryCable = recoveryPanel.GetComponentInChildren<RecoveryCableController>(true);
         manager.transitionStatusText = transitionStatusText;
         manager.completionSummaryText = completionSummary;
         manager.replayButton = replayButton;
@@ -146,6 +147,7 @@ public static class CTDSceneBuilder
         Require(manager.samplingPanel, "SamplingPanel");
         Require(manager.recoveryPanel, "RecoveryPanel");
         Require(manager.completePanel, "CompletePanel");
+        Require(manager.recoveryCable, "RecoveryCableController");
         Require(manager.cleaningMinigame, "CleaningMinigame");
         Require(manager.samplingController, "CTDSamplingController");
         Require(manager.preparationSequence, "EquipmentPreparationSequence");
@@ -153,9 +155,39 @@ public static class CTDSceneBuilder
         Require(manager.replayButton, "Replay button");
         Require(manager.continueButton, "Continue button");
 
+        if (manager.recoveryCable.cableRect == null || manager.recoveryCable.cableImage == null || manager.recoveryCable.recoveredRosette != manager.recoveryRosette)
+        {
+            throw new InvalidOperationException("The recovery cable must reference its cable image and moving Rosette.");
+        }
+
         if (manager.mapHub.waypointButtons == null || manager.mapHub.waypointButtons.Length != 6)
         {
             throw new InvalidOperationException("The scene must contain six map waypoints.");
+        }
+
+        if (manager.mapHub.locations == null || manager.mapHub.locations.Length != manager.mapHub.waypointButtons.Length)
+        {
+            throw new InvalidOperationException("Every map waypoint must have one location depth profile.");
+        }
+
+        for (int index = 0; index < manager.mapHub.locations.Length; index++)
+        {
+            RosetteMapHub.LocationProfile profile = manager.mapHub.locations[index];
+            if (profile == null)
+            {
+                throw new InvalidOperationException($"Map waypoint {index + 1:00} is missing its depth profile.");
+            }
+
+            if (profile.depthMeters < 0 || profile.depthMeters > 1010)
+            {
+                throw new InvalidOperationException($"Map waypoint {profile.locationId} depth must be between 0 and 1010 m.");
+            }
+
+            RosetteMapHub.MapDepthBand expectedBand = RosetteMapHub.LocationProfile.ClassifyDepth(profile.depthMeters);
+            if (profile.depthBand != expectedBand)
+            {
+                throw new InvalidOperationException($"Map waypoint {profile.locationId} depth tag {profile.depthBand} does not match {expectedBand}.");
+            }
         }
 
         if (manager.cleaningMinigame.targets == null || manager.cleaningMinigame.targets.Length != 1)
@@ -163,9 +195,12 @@ public static class CTDSceneBuilder
             throw new InvalidOperationException("The cleaning activity must contain one Niskin-bottle target.");
         }
 
-        if (manager.samplingController.bottleImages == null || manager.samplingController.bottleImages.Length != 3)
+        int expectedBottleCount = manager.samplingController.targetDepths == null
+            ? 0
+            : manager.samplingController.targetDepths.Length;
+        if (expectedBottleCount == 0 || manager.samplingController.bottleImages == null || manager.samplingController.bottleImages.Length != expectedBottleCount)
         {
-            throw new InvalidOperationException("The sampling activity must contain exactly three bottle visuals.");
+            throw new InvalidOperationException($"The sampling activity must contain one bottle visual per target depth ({expectedBottleCount} expected).");
         }
 
         int missingScriptCount = scene.GetRootGameObjects()
@@ -336,24 +371,32 @@ public static class CTDSceneBuilder
         mapHub.habitatsText = habitats;
         mapHub.locations = new[]
         {
-            Profile("WAYPOINT-01 [A]", "84.250 mS/cm", "25.60 °C", "221 m", "Deep coral colonies\nEndemic fauna hotspots\nGeothermal vents"),
-            Profile("WAYPOINT-02 [C]", "81.900 mS/cm", "17.40 °C", "465 m", "Sponge gardens\nMigrating lanternfish\nCold-water coral"),
-            Profile("WAYPOINT-03 [B]", "79.520 mS/cm", "8.25 °C", "690 m", "Hydrothermal vent plume\nCrustacean aggregation\nMicrobial mats"),
-            Profile("WAYPOINT-04 [D]", "78.100 mS/cm", "6.10 °C", "835 m", "Slope fauna corridor\nDeep coral colonies"),
-            Profile("WAYPOINT-05 [E]", "76.800 mS/cm", "4.80 °C", "940 m", "Abyssal sponge field\nDetrital feeding grounds"),
-            Profile("WAYPOINT-06 [F]", "80.300 mS/cm", "11.75 °C", "520 m", "Midwater fauna hotspot\nLarval fish nursery")
+            Profile("WAYPOINT-01 [A]", "84.250 mS/cm", "25.60 °C", 25, RosetteMapHub.MapDepthBand.Surface, "Surface plankton zone\nNear-surface light field\nCoastal current boundary"),
+            Profile("WAYPOINT-02 [C]", "81.900 mS/cm", "17.40 °C", 250, RosetteMapHub.MapDepthBand.Middle, "Sponge gardens\nMigrating lanternfish\nCold-water coral"),
+            Profile("WAYPOINT-03 [B]", "79.520 mS/cm", "8.25 °C", 500, RosetteMapHub.MapDepthBand.Middle, "Hydrothermal vent plume\nCrustacean aggregation\nMicrobial mats"),
+            Profile("WAYPOINT-04 [D]", "78.100 mS/cm", "6.10 °C", 800, RosetteMapHub.MapDepthBand.Middle, "Slope fauna corridor\nDeep coral colonies"),
+            Profile("WAYPOINT-05 [E]", "76.800 mS/cm", "4.80 °C", 900, RosetteMapHub.MapDepthBand.DeepOcean, "Abyssal sponge field\nDetrital feeding grounds"),
+            Profile("WAYPOINT-06 [F]", "80.300 mS/cm", "2.90 °C", 1005, RosetteMapHub.MapDepthBand.Seabed, "Seabed detritus field\nBenthic invertebrate grounds")
         };
         return panel;
     }
 
-    private static RosetteMapHub.LocationProfile Profile(string id, string conductivity, string temperature, string depth, string habitats)
+    private static RosetteMapHub.LocationProfile Profile(
+        string id,
+        string conductivity,
+        string temperature,
+        int depthMeters,
+        RosetteMapHub.MapDepthBand depthBand,
+        string habitats)
     {
         return new RosetteMapHub.LocationProfile
         {
             locationId = id,
             conductivity = conductivity,
             temperature = temperature,
-            depth = depth,
+            depthMeters = depthMeters,
+            depthBand = depthBand,
+            depth = $"{depthMeters} m",
             habitats = habitats
         };
     }
@@ -612,6 +655,10 @@ public static class CTDSceneBuilder
         GameObject cable = CreateImage("Cable", panel.transform, new Color(0.75f, 0.82f, 0.85f), new Vector2(0f, 80f), new Vector2(10f, 720f));
         cable.GetComponent<Image>().raycastTarget = false;
         rosette = CreateRosetteGraphic(panel.transform, "RecoveredRosette", new Vector2(0f, -220f), null);
+        RecoveryCableController cableController = cable.AddComponent<RecoveryCableController>();
+        cableController.cableRect = cable.GetComponent<RectTransform>();
+        cableController.recoveredRosette = rosette;
+        cableController.cableImage = cable.GetComponent<Image>();
         status = CreateText(
             "Status",
             panel.transform,
