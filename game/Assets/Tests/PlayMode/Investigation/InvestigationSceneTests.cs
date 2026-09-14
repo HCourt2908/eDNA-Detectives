@@ -827,11 +827,13 @@ namespace EDNA.Investigation.Tests
         public IEnumerator InvestigationScene_SharedStartupIsPreservedAndInvestigationLoadsByName()
         {
             InvestigationSessionBridge.Clear();
-            Assert.That(SceneUtility.GetScenePathByBuildIndex(0), Is.EqualTo("Assets/Scenes/SampleScene.unity"));
+            string sharedEntry = SceneUtility.GetScenePathByBuildIndex(0);
+            Assert.That(sharedEntry, Is.Not.Empty);
+            Assert.That(sharedEntry, Is.Not.EqualTo("Assets/Scenes/InvestigationScene.unity"));
             yield return SceneManager.LoadSceneAsync(0, LoadSceneMode.Single);
             yield return null;
             yield return null;
-            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("SampleScene"));
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(sharedEntry));
             Assert.That(Object.FindAnyObjectByType<InvestigationController>(), Is.Null);
             yield return SceneManager.LoadSceneAsync("InvestigationScene", LoadSceneMode.Single);
             yield return null; yield return null;

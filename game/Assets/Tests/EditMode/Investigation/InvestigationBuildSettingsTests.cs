@@ -12,7 +12,7 @@ namespace EDNA.Investigation.Tests
         public void RegisterInvestigation_PreservesSharedStartupAndDoesNotDuplicateScenes(bool alreadyPresent)
         {
             var original = EditorBuildSettings.scenes;
-            const string shared = "Assets/Scenes/SampleScene.unity";
+            const string shared = "Assets/Scenes/CTD-Minigame.unity";
             const string detective = "Assets/Scenes/InvestigationScene.unity";
             try
             {
