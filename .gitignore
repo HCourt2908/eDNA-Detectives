@@ -47,3 +47,8 @@ docs/archive/Detective-Game-Improvement-History.md
 /docs/Detective-Game-Improvement-Plan.md
 /docs/Act2-Scenario-Comparison.md
 /docs/Species-Catalog.md
+
+# Reproducible local render diagnostics
+/docs/art-experiments/seamount-v2/motion/blend-commands.txt
+/docs/art-experiments/seamount-v2/motion/encode-progress.txt
+/docs/art-experiments/seamount-v2/motion/seam-psnr.txt

@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -24,7 +25,7 @@ namespace EDNA.Investigation
                 InvestigationStatusIconLibrary.Restart, InvestigationTheme.TextPrimary);
             Stretch(icon.rectTransform, 7f, 7f, -7f, -7f);
             restartButton.targetGraphic = icon;
-            Text hint = CreateText("Restart Label", restartButton.transform, "Restart investigation", 13,
+            TextMeshProUGUI hint = CreateText("Restart Label", restartButton.transform, "Restart investigation", 13,
                 FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleRight, InvestigationTheme.BodyFont);
             Anchor(hint.rectTransform, 0f, 0f, 0f, 1f, -160f, 0f, -8f, 0f);
             hint.raycastTarget = false;
@@ -71,10 +72,10 @@ namespace EDNA.Investigation
             RectTransform panel = CreatePanel("Restart Dialog", restartDialog, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
             panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(.5f, .5f);
             panel.sizeDelta = new Vector2(440f, 208f);
-            Text heading = CreateText("Restart Heading", panel, "Start this investigation again?", 22,
+            TextMeshProUGUI heading = CreateText("Restart Heading", panel, "Start this investigation again?", 22,
                 FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(heading.rectTransform, 0f, 1f, 1f, 1f, 22f, -60f, -22f, -16f);
-            Text detail = CreateText("Restart Detail", panel, "Your notebook and model progress will be cleared.", 16,
+            TextMeshProUGUI detail = CreateText("Restart Detail", panel, "Your notebook and model progress will be cleared.", 16,
                 FontStyle.Normal, InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             Anchor(detail.rectTransform, 0f, 1f, 1f, 1f, 22f, -130f, -22f, -74f);
             Button cancel = CreateButton("Cancel Restart Case", panel, "Keep investigating", ButtonVisualStyle.PaperChoice,

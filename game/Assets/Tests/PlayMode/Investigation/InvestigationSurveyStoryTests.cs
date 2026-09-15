@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using EDNA.Investigation.Domain;
 using NUnit.Framework;
@@ -21,14 +22,14 @@ namespace EDNA.Investigation.Tests
         [UnityTest] public IEnumerator Opening_IntroducesOnlyTheCurrentStepAndStartsRecordingExplicitly()
         {
             yield return Load();
-            Assert.That(GameObject.Find("Arrival Briefing Speaker").GetComponent<Text>().text, Does.Contain("1/2"));
+            Assert.That(GameObject.Find("Arrival Briefing Speaker").GetComponent<TextMeshProUGUI>().text, Does.Contain("1/2"));
             Assert.That(GameObject.Find("Survey Comparison").transform.parent.name, Is.EqualTo("Arrival Briefing Overlay"));
             Assert.That(GameObject.Find("Observe Welcome").GetComponent<CanvasGroup>().alpha, Is.Zero);
             Assert.That(GameObject.Find("Start Recording Today"), Is.Null, "The next action lives in EDNA, not in a duplicate prompt.");
             Assert.That(GameObject.Find("Today Record In Flight"), Is.Null, "Covered controls cannot advance the tutorial.");
             var stale = GameObject.Find("Arrival Briefing Next").GetComponent<Button>().onClick;
             Press("Arrival Briefing Next"); stale.Invoke();
-            Assert.That(GameObject.Find("Arrival Briefing Speaker").GetComponent<Text>().text, Does.Contain("2/2"));
+            Assert.That(GameObject.Find("Arrival Briefing Speaker").GetComponent<TextMeshProUGUI>().text, Does.Contain("2/2"));
             Assert.That(GameObject.Find("Observe Welcome").transform.parent.name, Is.EqualTo("Arrival Briefing Overlay"));
             Press("Arrival Briefing Next"); yield return null; yield return null;
             Assert.That(GameObject.Find("Arrival Briefing Overlay"), Is.Null);
@@ -52,14 +53,14 @@ namespace EDNA.Investigation.Tests
                     yield return null; yield return null; Canvas.ForceUpdateCanvases();
                     var button = GameObject.Find("Summarize Findings").GetComponent<Button>();
                     Assert.That(button.transform.parent.name, Is.EqualTo("Comparison Species Page"));
-                    Assert.That(GameObject.Find("Observe Comparison Instruction").GetComponent<Text>().text,
+                    Assert.That(GameObject.Find("Observe Comparison Instruction").GetComponent<TextMeshProUGUI>().text,
                         Does.Contain("below Species"));
                     Assert.That(GameObject.Find("Summarise Findings Cue"), Is.Not.Null);
                     var panel = button.transform.parent.GetComponent<RectTransform>();
                     var bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(panel, button.transform);
                     Assert.That(bounds.min.y, Is.GreaterThanOrEqualTo(panel.rect.yMin - 1f));
                     Assert.That(bounds.max.x, Is.LessThanOrEqualTo(panel.rect.xMax + 1f));
-                    foreach (Text text in panel.GetComponentsInChildren<Text>())
+                    foreach (TextMeshProUGUI text in panel.GetComponentsInChildren<TextMeshProUGUI>())
                         Assert.That(text.rectTransform.rect.height + 1f, Is.GreaterThanOrEqualTo(text.preferredHeight), text.name);
                     var pointer = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current)
                         { position = RectTransformUtility.WorldToScreenPoint(null, button.transform.position) };
@@ -96,16 +97,16 @@ namespace EDNA.Investigation.Tests
             Assert.That(UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Continue To Simulate"));
             Assert.That(GameObject.Find("Survey Summary In Flight"), Is.Null);
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Observe));
-            Assert.That(controller.State.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(controller.State.DiscoveredObservationIds.Count, Is.EqualTo(6));
             var tuna = GameObject.Find("Story Finding tuna").transform;
-            Assert.That(tuna.Find("Story Before").childCount, Is.EqualTo(1));
-            Assert.That(tuna.Find("Story After").childCount, Is.EqualTo(3));
-            var shark = GameObject.Find("Story Finding shark").transform;
+            Assert.That(tuna.Find("Story Before").childCount, Is.EqualTo(3));
+            Assert.That(tuna.Find("Story After").childCount, Is.EqualTo(1));
+            var shark = GameObject.Find("Story Finding tree_bubblegum_coral").transform;
             Assert.That(shark.Find("Story Before").childCount, Is.EqualTo(1));
             Assert.That(shark.Find("Story After").childCount, Is.Zero);
             var star = GameObject.Find("Story Finding atlantic_herring").transform;
-            Assert.That(star.Find("Story Before").childCount, Is.EqualTo(3));
-            Assert.That(star.Find("Story After").childCount, Is.EqualTo(1));
+            Assert.That(star.Find("Story Before").childCount, Is.EqualTo(1));
+            Assert.That(star.Find("Story After").childCount, Is.EqualTo(3));
         }
 
         [UnityTest] public IEnumerator Story_ShowsTrueSurveyPicturesAndSavesBeforeThePhaseTransition()
@@ -115,25 +116,25 @@ namespace EDNA.Investigation.Tests
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
             InvestigationWorkbenchTestActions.ShowSurveySummary();
             Assert.That(GameObject.Find("Observe Survey Story"), Is.Not.Null);
-            Assert.That(GameObject.Find("Story Past Species shark"), Is.Not.Null);
-            Assert.That(GameObject.Find("Story Today Species shark"), Is.Null);
-            Assert.That(GameObject.Find("Story Today Species krill"), Is.Not.Null);
-            Assert.That(GameObject.Find("Story Today Species tuna").transform.Find("Group Member Left"), Is.Not.Null);
-            Assert.That(GameObject.Find("Story Past Species tuna").transform.Find("Group Member Left"), Is.Null);
+            Assert.That(GameObject.Find("Story Past Species tree_bubblegum_coral"), Is.Not.Null);
+            Assert.That(GameObject.Find("Story Today Species tree_bubblegum_coral"), Is.Null);
+            Assert.That(GameObject.Find("Story Today Species shark"), Is.Not.Null);
+            Assert.That(GameObject.Find("Story Today Species tuna").transform.Find("Group Member Left"), Is.Null);
+            Assert.That(GameObject.Find("Story Past Species tuna").transform.Find("Group Member Left"), Is.Not.Null);
             Assert.That(GameObject.Find("Comparison Species Page"), Is.Null);
             Press("Continue To Simulate"); yield return null; yield return null;
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Observe));
             Assert.That(GameObject.Find("Survey Summary In Flight"), Is.Not.Null);
             yield return new WaitForSecondsRealtime(1.1f);
             Assert.That(GameObject.Find("Survey Summary In Flight"), Is.Null);
-            Assert.That(GameObject.Find("Observe Summary Status").GetComponent<Text>().text, Does.StartWith("Saved"));
+            Assert.That(GameObject.Find("Observe Summary Status").GetComponent<TextMeshProUGUI>().text, Does.StartWith("Saved"));
             Press("Summary Notebook Destination");
             Assert.That(GameObject.Find("Notebook Survey Story"), Is.Not.Null);
             Press("Close Notebook Drawer"); Press("Continue To Simulate");
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Simulate));
             Press("Toggle Notebook Drawer");
             Assert.That(GameObject.Find("Notebook Survey Story"), Is.Not.Null);
-            Assert.That(controller.State.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(controller.State.DiscoveredObservationIds.Count, Is.EqualTo(6));
         }
 
         [UnityTest] public IEnumerator Story_DepthGroupsMatchTheSurveyAndStayReadableInBothViews()
@@ -144,7 +145,7 @@ namespace EDNA.Investigation.Tests
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
             Press("Toggle Comparison View"); yield return null;
             Assert.That(GameObject.Find("Historical Species Marker phytoplankton").GetComponent<RectTransform>().anchorMin.y,
-                Is.GreaterThan(GameObject.Find("Historical Species Marker krill").GetComponent<RectTransform>().anchorMin.y));
+                Is.GreaterThan(GameObject.Find("Historical Species Marker tree_bubblegum_coral").GetComponent<RectTransform>().anchorMin.y));
             Press("Toggle Comparison View");
             InvestigationWorkbenchTestActions.ShowSurveySummary(); yield return null;
             AssertStoryDepthsAndSpacing();
@@ -165,14 +166,14 @@ namespace EDNA.Investigation.Tests
         private static void AssertStoryDepthsAndSpacing()
         {
             Canvas.ForceUpdateCanvases();
-            Assert.That(GameObject.Find("Story Today Species shark"), Is.Null);
+            Assert.That(GameObject.Find("Story Today Species tree_bubblegum_coral"), Is.Null);
             foreach (string era in new[] { "Past", "Today" })
             {
-                RectTransform krill = GameObject.Find("Story " + era + " Slot krill").GetComponent<RectTransform>();
+                RectTransform coral = GameObject.Find("Story Past Slot tree_bubblegum_coral").GetComponent<RectTransform>();
                 foreach (string id in new[] { "tuna", "atlantic_herring", "phytoplankton" })
                 {
                     var slot = GameObject.Find("Story " + era + " Slot " + id).GetComponent<RectTransform>();
-                    Assert.That(slot.anchorMin.y, Is.GreaterThan(krill.anchorMin.y), id + " belongs above the mid-water krill.");
+                    Assert.That(slot.anchorMin.y, Is.GreaterThan(coral.anchorMin.y), id + " belongs above the seabed coral.");
                     var past = GameObject.Find("Story Past Slot " + id).GetComponent<RectTransform>();
                     var today = GameObject.Find("Story Today Slot " + id).GetComponent<RectTransform>();
                     Assert.That(today.anchorMin, Is.EqualTo(past.anchorMin), "A non-detection must not shuffle other species.");
@@ -180,7 +181,7 @@ namespace EDNA.Investigation.Tests
                 var plot = GameObject.Find("Story " + era).transform.Find("Story Depth Plot");
                 foreach (RectTransform slot in plot)
                 {
-                    Text label = slot.Find("Story Species Name").GetComponent<Text>();
+                    TextMeshProUGUI label = slot.Find("Story Species Name").GetComponent<TextMeshProUGUI>();
                     Assert.That(label.preferredHeight, Is.LessThanOrEqualTo(label.rectTransform.rect.height + 1f), label.text);
                     foreach (RectTransform other in plot)
                     {

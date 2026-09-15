@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using EDNA.Investigation.Domain;
 using UnityEngine;
@@ -52,13 +53,13 @@ namespace EDNA.Investigation
             RefreshPresentationOnly();
         }
 
-        private void ApplyComparisonBriefingVisibility(RectTransform edna, RectTransform species, RectTransform changes, Text feedback)
+        private void ApplyComparisonBriefingVisibility(RectTransform edna, RectTransform species, RectTransform changes, TextMeshProUGUI feedback)
         {
             if (!ComparisonBriefingActive) return;
             EnsureCanvasGroup(edna).alpha = 0f;
             EnsureCanvasGroup(feedback.rectTransform).alpha = 0f;
-            FindNamedRect(species, "Select Species Instruction").GetComponent<Text>().text = "Species from our records";
-            FindNamedRect(changes, "Choose Change Instruction").GetComponent<Text>().text = "Possible changes";
+            FindNamedRect(species, "Select Species Instruction").GetComponent<TextMeshProUGUI>().text = "Species from our records";
+            FindNamedRect(changes, "Choose Change Instruction").GetComponent<TextMeshProUGUI>().text = "Possible changes";
             EnsureCanvasGroup(species).alpha = comparisonBriefingStep >= ComparisonBriefingStep.Species ? 1f : 0f;
             EnsureCanvasGroup(changes).alpha = comparisonBriefingStep >= ComparisonBriefingStep.Compare ? 1f : 0f;
         }
@@ -149,14 +150,13 @@ namespace EDNA.Investigation
             float width = compact ? screen.width - margin * 2f : Mathf.Min(580f, Mathf.Max(leftSpace, rightSpace));
             float portraitWidth = compact ? 112f : 148f;
             RectTransform speech = CreatePanel(prefix + " Speech", comparisonBriefingOverlay, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
-            Text name = CreateText(prefix + " Speaker", speech, heading, 13,
+            TextMeshProUGUI name = CreateText(prefix + " Speaker", speech, heading, 13,
                 FontStyle.Bold, InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
-            Text message = CreateText(prefix + " Message", speech, explanation, 16,
+            TextMeshProUGUI message = CreateText(prefix + " Message", speech, explanation, 16,
                 FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(message);
             float textWidth = width - portraitWidth - 40f;
-            float textHeight = message.cachedTextGeneratorForLayout.GetPreferredHeight(message.text,
-                message.GetGenerationSettings(new Vector2(textWidth, 0f))) / message.pixelsPerUnit;
+            float textHeight = message.GetPreferredValues(message.text, textWidth, Mathf.Infinity).y;
             float height = Mathf.Max(compact ? 150f : 196f, textHeight + 116f);
             float x = compact || onLeft ? screen.xMin + margin : screen.xMax - margin - width;
             PositionBriefingElement(speech, new Rect(x, screen.yMin + margin, width, height));
@@ -166,7 +166,7 @@ namespace EDNA.Investigation
             Image portrait = CreateStatusIcon(prefix + " Portrait", speech, EdnaSpeakingArtwork, Color.white);
             Anchor(portrait.rectTransform, 0f, 0f, 0f, 1f, 3f, skipAction == null ? 0f : 64f, portraitWidth + 3f, 2f);
             Button next = CreateButton(prefix + " Next", speech, actionLabel,
-                ButtonVisualStyle.PaperPrimary, () => action(), out Text nextLabel);
+                ButtonVisualStyle.PaperPrimary, () => action(), out TextMeshProUGUI nextLabel);
             nextLabel.fontSize = 14;
             next.GetComponent<LayoutElement>().ignoreLayout = true;
             float nextWidth = Mathf.Min(180f, skipAction == null ? width - portraitWidth - 32f : width - 150f);
@@ -175,7 +175,7 @@ namespace EDNA.Investigation
             if (skipAction != null)
             {
                 skip = CreateButton(prefix + " Skip", speech, "Skip guide", ButtonVisualStyle.PaperChoice,
-                    () => skipAction(), out Text skipLabel);
+                    () => skipAction(), out TextMeshProUGUI skipLabel);
                 skipLabel.fontSize = 13;
                 skip.GetComponent<LayoutElement>().ignoreLayout = true;
                 Anchor(skip.GetComponent<RectTransform>(), 0f, 0f, 0f, 0f, 24f + nextWidth, 12f, 126f + nextWidth, 56f);

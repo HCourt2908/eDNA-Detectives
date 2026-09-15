@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using System.Collections.Generic;
 using EDNA.Core;
@@ -15,7 +16,7 @@ namespace EDNA.Investigation
         private RectTransform todayRecordFlight;
         private int historicalRecordsArrived;
         private Button historyRecordButton;
-        private Text historyRecordGuide;
+        private TextMeshProUGUI historyRecordGuide;
         private GameObject historyRecordCue;
         private Coroutine todayRecordingAnimation;
         private bool ObserveArrivalActive => state != null && state.Phase == InvestigationPhase.Observe
@@ -101,14 +102,14 @@ namespace EDNA.Investigation
             AddLayout(header, objectName == "Observe Welcome" ? 56f : compact ? 28f : 44f, 0f);
             Image portrait = CreateStatusIcon("Edna Introduction Portrait", header, ednaAvatar ?? ednaPortrait, Color.white);
             Anchor(portrait.rectTransform, 0f, 0f, 0f, 1f, 0f, 0f, 56f, 3f);
-            Text name = CreateText("Edna Name", header, objectName == "Observe Welcome" ? "EDNA · TODAY'S SURVEY" : "EDNA · MY NOTEBOOK", 13, FontStyle.Bold,
+            TextMeshProUGUI name = CreateText("Edna Name", header, objectName == "Observe Welcome" ? "EDNA · TODAY'S SURVEY" : "EDNA · MY NOTEBOOK", 13, FontStyle.Bold,
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             Stretch(name.rectTransform, 64f, 0f, 0f, 0f);
-            name.alignment = TextAnchor.MiddleLeft;
+            name.alignment = TextAlignmentOptions.MidlineLeft;
             if (compact)
             {
                 Stretch(name.rectTransform, 38f, 0f, 0f, 0f);
-                name.alignment = TextAnchor.MiddleLeft;
+                name.alignment = TextAlignmentOptions.MidlineLeft;
                 Anchor(portrait.rectTransform, 0f, 0f, 0f, 1f, 0f, 0f, 30f, 2f);
             }
             return paper;
@@ -125,27 +126,27 @@ namespace EDNA.Investigation
             layout.padding = new RectOffset(42, 18, 20, 20); layout.spacing = 14f;
             layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandWidth = true; layout.childForceExpandHeight = false;
-            Text title = CreateText("Observe Welcome Title", paper, "MY NOTEBOOK", 21, FontStyle.Bold,
+            TextMeshProUGUI title = CreateText("Observe Welcome Title", paper, "MY NOTEBOOK", 21, FontStyle.Bold,
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             AddLayout(title.rectTransform, 38f, 0f);
-            Text date = CreateText("Observe Welcome Date", paper, "TODAY'S SURVEY", 14, FontStyle.Bold,
+            TextMeshProUGUI date = CreateText("Observe Welcome Date", paper, "TODAY'S SURVEY", 14, FontStyle.Bold,
                 InvestigationTheme.PaperMuted, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             AddLayout(date.rectTransform, 28f, 0f);
             for (int i = 0; i < 3; i++)
             {
                 RectTransform slot = CreatePanel("Empty Survey Record " + i, paper, InvestigationTheme.PaperSelected, 8f);
                 AddLayout(slot, 56f, 0f);
-                Text pending = CreateText("Awaiting Record", slot, "– – –", 16, FontStyle.Normal,
+                TextMeshProUGUI pending = CreateText("Awaiting Record", slot, "– – –", 16, FontStyle.Normal,
                     InvestigationTheme.PaperMuted, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
                 Stretch(pending.rectTransform, 8f, 4f, -8f, -4f);
             }
-            Text note = CreateText("Observe Welcome Note", paper, "Ready for today's pictures", 14, FontStyle.Bold,
+            TextMeshProUGUI note = CreateText("Observe Welcome Note", paper, "Ready for today's pictures", 14, FontStyle.Bold,
                 InvestigationTheme.PaperMuted, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(note);
             if (!ArrivalBriefingActive)
             {
                 Button start = CreateButton("Start Recording Today", paper, "Start recording →", ButtonVisualStyle.PaperPrimary,
-                    StartRecordingToday, out Text label);
+                    StartRecordingToday, out TextMeshProUGUI label);
                 label.fontSize = 14;
                 ConfigureWrappingChoice(start, label);
                 AddChoiceBorderCue("Start Recording Cue", start.transform);
@@ -213,18 +214,18 @@ namespace EDNA.Investigation
         private RectTransform RenderHistoryRecordingPrompt(Transform parent)
         {
             RectTransform paper = CreateObserveArrivalPaper(parent, "Observe History Welcome");
-            Text title = CreateText("History Recording Title", paper, "Let's look back 20 years", 23, FontStyle.Bold,
+            TextMeshProUGUI title = CreateText("History Recording Title", paper, "Let's look back 20 years", 23, FontStyle.Bold,
                 InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(title);
-            Text message = CreateText("History Recording Message", paper,
+            TextMeshProUGUI message = CreateText("History Recording Message", paper,
                 "Today's detections are saved. Move the slider all the way right to reveal the older survey.\n\nThen record the organisms you find there.", 17,
                 FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(message);
             Button record = CreateButton("Start Recording History", paper, "Record 20 years ago →", ButtonVisualStyle.PaperPrimary,
-                StartRecordingHistory, out Text label);
+                StartRecordingHistory, out TextMeshProUGUI label);
             ConfigureWrappingChoice(record, label);
             AddChoiceBorderCue("Record History Cue", record.transform);
-            Text guidance = CreateText("History Recording Guide", paper, string.Empty, 14, FontStyle.Bold,
+            TextMeshProUGUI guidance = CreateText("History Recording Guide", paper, string.Empty, 14, FontStyle.Bold,
                 InvestigationTheme.PaperMuted, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(guidance);
             historyRecordButton = record;
@@ -251,12 +252,12 @@ namespace EDNA.Investigation
             SurveyEra era = RecordingEra;
             List<InvestigationSpeciesDefinition> species = RecordedSurveySpecies(era);
             bool ready = IsSurveyReady;
-            Text heading = CreateText("Today Recording Status", paper,
+            TextMeshProUGUI heading = CreateText("Today Recording Status", paper,
                 ready ? $"Recorded {SurveyName(era)} · {species.Count}/{species.Count}" : $"Recording {SurveyName(era)} · {RecordingCount}/{species.Count}", 17,
                 FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(heading);
             for (int i = 0; i < species.Count; i++) CreateSurveyRecordRow(paper, species[i], era, ready || i < RecordingCount);
-            Text next = CreateText("Today Recording Next", paper, ready
+            TextMeshProUGUI next = CreateText("Today Recording Next", paper, ready
                 ? (era == SurveyEra.Historical ? "Both surveys are saved. Slide either way to look again, then compare the two surveys when you're ready." : "Today's detections are saved. Now let's look at 20 years ago.") : "Watch each survey result move into your notebook.", 14,
                 FontStyle.Bold, InvestigationTheme.PaperMuted, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(next);
@@ -264,7 +265,7 @@ namespace EDNA.Investigation
             {
                 Button compare = CreateButton(era == SurveyEra.Historical ? "Compare Recorded Surveys" : "Compare With History", paper,
                     era == SurveyEra.Historical ? "Compare the two surveys →" : "Compare with the past →", ButtonVisualStyle.PaperPrimary,
-                    () => { if (era == SurveyEra.Historical) BeginSurveyQuestions(); else BeginHistoricalComparison(); }, out Text label);
+                    () => { if (era == SurveyEra.Historical) BeginSurveyQuestions(); else BeginHistoricalComparison(); }, out TextMeshProUGUI label);
                 label.fontSize = 14;
             }
             else CreateButton(era == SurveyEra.Historical ? "Skip History Recording Animation" : "Skip Today Recording Animation", paper, "Finish recording", ButtonVisualStyle.PaperChoice, FinishTodayRecording, out _);
@@ -280,10 +281,10 @@ namespace EDNA.Investigation
             RectTransform art = CreateSurveyArtwork(SurveyRowPrefix(era) + " Notebook Icon " + species.SpeciesId, row, species, era);
             Anchor(art, 0f, 0f, 0f, 1f, 6f, 5f, 78f, -5f);
             EnsureCanvasGroup(art).alpha = arrived ? 1f : .12f;
-            Text name = CreateText("Today Notebook Species", row, species.GameplayName, 13, FontStyle.Bold,
+            TextMeshProUGUI name = CreateText("Today Notebook Species", row, species.GameplayName, 13, FontStyle.Bold,
                 InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(name.rectTransform, 0f, .47f, 1f, 1f, 86f, 0f, -6f, 0f);
-            Text result = CreateText("Today Notebook Result", row, arrived ? "Detected " + SurveyName(era) : "Waiting to record", 12,
+            TextMeshProUGUI result = CreateText("Today Notebook Result", row, arrived ? "Detected " + SurveyName(era) : "Waiting to record", 12,
                 FontStyle.Bold, InvestigationTheme.PaperMuted, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(result.rectTransform, 0f, 0f, 1f, .48f, 86f, 2f, -6f, 0f);
             return row;
@@ -292,13 +293,13 @@ namespace EDNA.Investigation
         private void RenderTodaySurveyNotes(Transform parent)
         {
             if (!HasTodaySurveyNotes || state.Phase != InvestigationPhase.Observe) return;
-            Text title = CreateText("Today Survey Notes Title", parent, "TODAY · SURVEY RECORDS", 13, FontStyle.Bold,
+            TextMeshProUGUI title = CreateText("Today Survey Notes Title", parent, "TODAY · SURVEY RECORDS", 13, FontStyle.Bold,
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(title);
             foreach (var species in RecordedSurveySpecies(SurveyEra.Current)) CreateSurveyRecordRow(parent, species, SurveyEra.Current, true);
             if (HasHistoricalSurveyNotes)
             {
-                Text historical = CreateText("Historical Survey Notes Title", parent, "20 YEARS AGO · SURVEY RECORDS", 13, FontStyle.Bold,
+                TextMeshProUGUI historical = CreateText("Historical Survey Notes Title", parent, "20 YEARS AGO · SURVEY RECORDS", 13, FontStyle.Bold,
                     InvestigationTheme.PaperSelectedBorder, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
                 ConfigureContentDrivenText(historical);
                 foreach (var species in RecordedSurveySpecies(SurveyEra.Historical)) CreateSurveyRecordRow(parent, species, SurveyEra.Historical, true);
@@ -346,8 +347,8 @@ namespace EDNA.Investigation
                 SetRecordingCount(i + 1);
                 EnsureCanvasGroup(target).alpha = 1f;
                 row.GetComponent<Image>().color = InvestigationTheme.PaperSelected;
-                FindNamedRect(row, "Today Notebook Result").GetComponent<Text>().text = "Detected " + SurveyName(era);
-                FindNamedRect(contentRoot, "Today Recording Status").GetComponent<Text>().text = $"Recording {SurveyName(era)} · {RecordingCount}/{speciesList.Count}";
+                FindNamedRect(row, "Today Notebook Result").GetComponent<TextMeshProUGUI>().text = "Detected " + SurveyName(era);
+                FindNamedRect(contentRoot, "Today Recording Status").GetComponent<TextMeshProUGUI>().text = $"Recording {SurveyName(era)} · {RecordingCount}/{speciesList.Count}";
                 yield return new WaitForSecondsRealtime(.08f);
             }
             MarkSurveyReady();

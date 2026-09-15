@@ -1,3 +1,4 @@
+using TMPro;
 using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -29,10 +30,10 @@ namespace EDNA.Investigation
                 ghost.sizeDelta = new Vector2(120f, 72f);
                 createPreview(ghost); OnDrag(eventData); return;
             }
-            Text text = new GameObject("Label", typeof(RectTransform), typeof(Text)).GetComponent<Text>();
+            TextMeshProUGUI text = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI)).GetComponent<TextMeshProUGUI>();
             text.transform.SetParent(ghost, false); text.rectTransform.anchorMin = Vector2.zero; text.rectTransform.anchorMax = Vector2.one;
             text.rectTransform.offsetMin = new Vector2(8f, 4f); text.rectTransform.offsetMax = new Vector2(-8f, -4f);
-            text.font = InvestigationTheme.BodyFont; text.fontSize = 14; text.color = InvestigationTheme.TextPrimary; text.alignment = TextAnchor.MiddleCenter; text.text = title; text.raycastTarget = false;
+            text.font = InvestigationTheme.BodyFont; text.fontSize = 14; text.color = InvestigationTheme.TextPrimary; text.alignment = TextAlignmentOptions.Midline; text.text = title; text.raycastTarget = false;
             OnDrag(eventData);
         }
         public void OnDrag(PointerEventData eventData)

@@ -1,3 +1,4 @@
+using TMPro;
 using EDNA.Investigation.Domain;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,30 +8,30 @@ namespace EDNA.Investigation
     public sealed partial class InvestigationRuntimeView
     {
         private bool scenarioEndingSubmitting;
+        private float ScenarioMinimumWidth => ScenarioModeActive ? (ScenarioUsesTwoColumns ? 720f : 1200f) : 1000f;
         private double scenarioClosedAt = -100d;
         private void ResetScenarioEnding() { scenarioEndingSubmitting = false; scenarioClosedAt = -100d; }
         private bool ScenarioCaseClosed => state.ConclusionStatus == InvestigationConclusionStatus.Correct;
         private string ScenarioChosenCause => caseDefinition.FindThreat(string.IsNullOrEmpty(state.FinalThreatId) ? state.ProvisionalThreatId : state.FinalThreatId)?.DisplayName ?? "Your explanation";
-        private string ScenarioPrimaryCause => caseDefinition.FindThreat(caseDefinition.PrimaryModelThreatId)?.DisplayName ?? "Long-line fishing";
         private string MissingScenarioReview
         {
             get
             {
-                foreach (string id in caseDefinition.SupportedModelThreatIds)
+                foreach (string id in caseDefinition.RequiredModelReviewIds)
                     if (!state.HasReviewedModel(id)) return id;
                 return string.Empty;
             }
         }
         private string ScenarioEndingMessage => ScenarioCaseClosed
-            ? "Conclusion recorded: long-line fishing is our main explanation, with bottom trawling as a possible alternative."
+            ? "Conclusion recorded: bottom trawling best fits our records. Long-line fishing was checked and did not match the tuna and herring changes."
             : !string.IsNullOrEmpty(MissingScenarioReview)
-                ? $"You reviewed {ScenarioChosenCause}. {caseDefinition.FindThreat(MissingScenarioReview)?.DisplayName} is {(MissingScenarioReview == caseDefinition.PrimaryModelThreatId ? "our main explanation" : "also a possible alternative")}. Use its Review button before recording your conclusion."
-                : "Both explanations reviewed. Long-line fishing is our main explanation; bottom trawling is a possible alternative. You can now record your conclusion.";
+                ? $"You reviewed {ScenarioChosenCause}. Use Compare again to examine {caseDefinition.FindThreat(MissingScenarioReview)?.DisplayName} before recording your conclusion."
+                : "Both models reviewed. Bottom trawling best fits: fewer tuna, more herring and coral not detected today. Long-line fishing predicts the opposite tuna and herring changes. Record your conclusion when ready.";
         private bool CanRecordScenarioConclusion
         {
             get
             {
-                string chosen = string.IsNullOrEmpty(state.FinalThreatId) ? state.ProvisionalThreatId : state.FinalThreatId;
+                string chosen = caseDefinition.PrimaryModelThreatId;
                 return recordModelConclusion != null && !scenarioEndingSubmitting
                     && new InvestigationConclusionEvaluator().CanRecordModelConclusion(caseDefinition, state, chosen);
             }
@@ -58,14 +59,14 @@ namespace EDNA.Investigation
             AddLayout(viewport, Mathf.Max(80f, contentScroll.viewport.rect.height - 1f), 0f);
             RectTransform root = CreateScenarioColumn("Scenario Investigation", viewport, Color.clear);
             root.anchorMin = root.anchorMax = root.pivot = new Vector2(.5f, 1f);
-            root.sizeDelta = new Vector2(Mathf.Max(1000f, contentScroll.viewport.rect.width), 0f);
+            root.sizeDelta = new Vector2(Mathf.Max(ScenarioMinimumWidth, contentScroll.viewport.rect.width), 0f);
             return root;
         }
 
-        private static void FitScenarioWorkspace(RectTransform root)
+        private void FitScenarioWorkspace(RectTransform root)
         {
             RectTransform viewport = (RectTransform)root.parent;
-            float width = Mathf.Max(1000f, viewport.rect.width);
+            float width = Mathf.Max(ScenarioMinimumWidth, viewport.rect.width);
             root.localScale = Vector3.one;
             root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
             LayoutRebuilder.ForceRebuildLayoutImmediate(root);
@@ -97,7 +98,7 @@ namespace EDNA.Investigation
         private void RenderScenarioEnding()
         {
             EnsureScenarioSession();
-            metricsText.text = $"FINDINGS {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)}\n{(ScenarioCaseClosed ? "INVESTIGATION COMPLETE" : $"REVIEWS {state.ReviewedModelThreatIds.Count}/{caseDefinition.SupportedModelThreatIds.Count}")}";
+            metricsText.text = $"FINDINGS {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)}\n{(ScenarioCaseClosed ? "INVESTIGATION COMPLETE" : $"REVIEWS {state.ReviewedModelThreatIds.Count}/{caseDefinition.RequiredModelReviewIds.Count}")}";
             RectTransform root = CreateScenarioWorkspace();
             RenderScenarioObservedPattern(root);
             RenderScenarioChosenModel(root);
@@ -113,18 +114,18 @@ namespace EDNA.Investigation
         {
             RectTransform model = CreatePanel("Scenario Chosen Model", root, InvestigationTheme.SurfaceRaised, InvestigationTheme.CardRadius);
             AddLayout(model, 60f, 0f);
-            Text selected = CreateText("Scenario Chosen Explanation", model, ((string.IsNullOrEmpty(state.FinalThreatId) ? state.ProvisionalThreatId : state.FinalThreatId) == caseDefinition.PrimaryModelThreatId
-                ? "MAIN EXPLANATION\n" : "POSSIBLE ALTERNATIVE\n") + ScenarioChosenCause, 15,
+            TextMeshProUGUI selected = CreateText("Scenario Chosen Explanation", model, ((string.IsNullOrEmpty(state.FinalThreatId) ? state.ProvisionalThreatId : state.FinalThreatId) == caseDefinition.PrimaryModelThreatId
+                ? "MAIN EXPLANATION\n" : "ALTERNATIVE CHECKED\n") + ScenarioChosenCause, 15,
                 FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(selected.rectTransform, 0f, 0f, .30f, 1f, 14f, 6f, -8f, -6f);
             string cause = string.IsNullOrEmpty(state.FinalThreatId) ? state.ProvisionalThreatId : state.FinalThreatId;
-            var ids = ScenarioSpecies();
+            var ids = ScenarioSpecies(cause);
             for (int i = 0; i < ids.Count; i++)
             {
                 var species = caseDefinition.FindSpecies(ids[i]);
                 RectTransform group = CreatePanel("Scenario Chosen Group " + ids[i], model, Color.clear, 0f);
                 Anchor(group, .30f + i * .70f / ids.Count, 0f, .30f + (i + 1) * .70f / ids.Count, 1f, 3f, 4f, -3f, -4f);
-                Text name = CreateText("Chosen Species", group, species.GameplayName, 11,
+                TextMeshProUGUI name = CreateText("Chosen Species", group, species.GameplayName, 11,
                     FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperCenter, InvestigationTheme.BodyFont);
                 Anchor(name.rectTransform, 0f, .62f, 1f, 1f, 0f, 0f, 0f, 0f);
                 int count = ScenarioPopulationCount(state.FindSimulation(cause)?.FindPrediction(ids[i])?.PredictedState ?? PredictionState.Unknown);
@@ -139,13 +140,16 @@ namespace EDNA.Investigation
 
         private void RenderScenarioConclusion(RectTransform panel)
         {
-            Text title = CreateText("Scenario Evidence Heading", panel, "WHAT OUR INVESTIGATION SHOWS", 17,
+            TextMeshProUGUI title = CreateText("Scenario Evidence Heading", panel, "WHAT OUR INVESTIGATION SHOWS", 17,
                 FontStyle.Bold, InvestigationTheme.Primary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(title.rectTransform, 0f, 1f, 1f, 1f, 18f, -36f, -18f, -6f);
-            CreateScenarioFindingSummary(panel, "survey", "What we found", "Shark was not detected. Tuna and krill appeared at more sites; herring and phytoplankton appeared at fewer sites.", 46f);
-            CreateScenarioReviewRow(panel, "controls", "Main explanation", "Long-line fishing matches the food-chain changes in our survey.", caseDefinition.PrimaryModelThreatId, 110f);
-            CreateScenarioReviewRow(panel, "model", "Possible alternative", "Bottom trawling produces a similar pattern, so it remains possible.", "bottom_trawling", 174f);
-            Text note = CreateText("Scenario Conclusion Limit", panel, "A model match is not proof of cause. Non-detection does not prove absence.", 13,
+            CreateScenarioFindingSummary(panel, "survey", "What we found", "Shark and tuna: fewer sites. Herring and krill: more sites. Coral: not detected. Phytoplankton: stable.", 46f);
+            CreateScenarioFindingSummary(panel, "controls", "Best fit", "Bottom trawling fits the fish changes and coral non-detection, with phytoplankton stable.", 110f);
+            CreateScenarioFindingSummary(panel, "model", "Other explanation",
+                "Long-line fishing predicts more tuna and fewer herring, unlike our records.", 174f);
+            AddScenarioReviewStatus(panel, "controls", caseDefinition.PrimaryModelThreatId);
+            AddScenarioReviewStatus(panel, "model", "longline");
+            TextMeshProUGUI note = CreateText("Scenario Conclusion Limit", panel, "A model match is not proof of cause. Non-detection does not prove absence.", 13,
                 FontStyle.Bold, InvestigationTheme.TextSecondary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(note.rectTransform, 0f, 0f, 1f, 0f, 18f, 5f, -18f, 31f);
         }
@@ -153,26 +157,32 @@ namespace EDNA.Investigation
         {
             RectTransform note = CreatePanel("Scenario Finding Summary " + evidenceId, panel, InvestigationTheme.Paper, InvestigationTheme.SmallRadius);
             Anchor(note, 0f, 1f, 1f, 1f, 18f, -top - 56f, -18f, -top);
-            Text label = CreateText("Summary Finding", note, heading, 16, FontStyle.Bold,
+            TextMeshProUGUI label = CreateText("Summary Finding", note, heading, 16, FontStyle.Bold,
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(label.rectTransform, 0f, 0f, .31f, 1f, 14f, 8f, -10f, -8f);
-            Text detail = CreateText("Summary Meaning", note, explanation, 14, FontStyle.Bold,
+            TextMeshProUGUI detail = CreateText("Summary Meaning", note, explanation, 14, FontStyle.Bold,
                 InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(detail.rectTransform, .32f, 0f, 1f, 1f, 0f, 8f, -14f, -8f);
         }
-        private void CreateScenarioReviewRow(RectTransform panel, string key, string title, string words, string id, float top)
+        private void AddScenarioReviewStatus(RectTransform panel, string key, string threatId)
         {
-            CreateScenarioFindingSummary(panel, key, title, words, top);
             RectTransform row = FindNamedRect(panel, "Scenario Finding Summary " + key);
-            var detail = row.Find("Summary Meaning").GetComponent<Text>();
-            detail.rectTransform.offsetMax = new Vector2(-128f, -8f);
-            bool reviewed = state.HasReviewedModel(id);
-            Button review = CreateButton("Review Conclusion " + id, row, reviewed ? "Reviewed ✓" : "Review →",
-                reviewed ? ButtonVisualStyle.PaperChoice : ButtonVisualStyle.PaperPrimary,
-                () => { if (!ScenarioCaseClosed) submitProvisional?.Invoke(id); }, out Text label);
-            label.fontSize = 13;
-            Anchor(review.GetComponent<RectTransform>(), 1f, 0f, 1f, 1f, -118f, 8f, -10f, -8f);
-            if (!reviewed) AddChoiceBorderCue("Review Other Explanation Cue", review.transform);
+            row.Find("Summary Meaning").GetComponent<RectTransform>().offsetMax = new Vector2(-164f, -8f);
+            bool reviewed = state.HasReviewedModel(threatId);
+            RectTransform badge = CreatePanel("Review Status Badge " + threatId, row,
+                reviewed ? InvestigationTheme.PaperSelected : InvestigationTheme.PaperRaised, InvestigationTheme.SmallRadius);
+            Anchor(badge, 1f, 0f, 1f, 1f, -152f, 8f, -12f, -8f);
+            badge.GetComponent<Image>().raycastTarget = false;
+            TextMeshProUGUI status = CreateText("Review Status " + threatId, badge,
+                reviewed ? "Reviewed" : "Awaiting review", 12, FontStyle.Bold,
+                reviewed ? InvestigationTheme.PaperSelectedBorder : InvestigationTheme.PaperMuted,
+                TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
+            Stretch(status.rectTransform, reviewed ? 24f : 6f, 2f, -6f, -2f);
+            if (reviewed)
+            {
+                Image check = CreateStatusIcon("Review Status Check", badge, InvestigationStatusIconLibrary.Check, InvestigationTheme.PaperSelectedBorder);
+                Anchor(check.rectTransform, 0f, .5f, 0f, .5f, 8f, -7f, 22f, 7f);
+            }
         }
 
         private void RenderScenarioClosed(RectTransform panel)
@@ -182,9 +192,9 @@ namespace EDNA.Investigation
             if (!InvestigationMotionSettings.ReducedMotion && scenarioClosedAt >= 0d && Time.unscaledTimeAsDouble - scenarioClosedAt < .55d)
                 stamp.gameObject.AddComponent<InvestigationScenarioPlayback>().Configure(scenarioClosedAt, .55f,
                     t => stamp.rectTransform.localScale = Vector3.one * (Mathf.Lerp(.6f, 1f, t) + Mathf.Sin(t * Mathf.PI) * .2f), null);
-            Text title = CreateText("Scenario Case Closed", panel, "CONCLUSION RECORDED", 26, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.DisplayFont);
+            TextMeshProUGUI title = CreateText("Scenario Case Closed", panel, "CONCLUSION RECORDED", 26, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.DisplayFont);
             Anchor(title.rectTransform, 0f, .36f, 1f, .59f, 16f, 0f, -16f, 0f);
-            Text summary = CreateText("Scenario Closed Summary", panel, "Main explanation: long-line fishing. Possible alternative: bottom trawling.", 18,
+            TextMeshProUGUI summary = CreateText("Scenario Closed Summary", panel, "Best fit: bottom trawling. Long-line fishing was checked; its tuna and herring predictions do not match our records.", 18,
                 FontStyle.Bold, InvestigationTheme.Primary, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
             Anchor(summary.rectTransform, 0f, .12f, 1f, .35f, 24f, 0f, -24f, 0f);
         }

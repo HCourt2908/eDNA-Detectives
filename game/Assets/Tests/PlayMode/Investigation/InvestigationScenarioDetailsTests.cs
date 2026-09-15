@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using System.Linq;
 using EDNA.Investigation.Domain;
@@ -24,8 +25,8 @@ namespace EDNA.Investigation.Tests
         }
         static void Enter(Button b) => ExecuteEvents.Execute(b.gameObject, new PointerEventData(EventSystem.current), ExecuteEvents.pointerEnterHandler);
         static void Leave(Button b) => ExecuteEvents.Execute(b.gameObject, new PointerEventData(EventSystem.current), ExecuteEvents.pointerExitHandler);
-        static string Body => GameObject.Find("Scenario Detail Body").GetComponent<Text>().text;
-        static string Tuna => Detail("longline", "tuna").GetComponentInParent<Text>().text;
+        static string Body => GameObject.Find("Scenario Detail Body").GetComponent<TextMeshProUGUI>().text;
+        static string Tuna => Detail("longline", "tuna").GetComponentInParent<TextMeshProUGUI>().text;
 
         [UnityTest] public IEnumerator Details_HoverIsOptionalNonBlockingAndDoesNotRevealUnplayedResults()
         {
@@ -34,14 +35,14 @@ namespace EDNA.Investigation.Tests
             Enter(cause); Leave(cause); yield return new WaitForSecondsRealtime(.6f);
             Assert.That(GameObject.Find("Scenario Detail Card"), Is.Null);
             Enter(cause); yield return new WaitForSecondsRealtime(.6f);
-            Assert.That(Body, Does.Contain("assuming fewer sharks").And.Not.Contain("main explanation"));
+            Assert.That(Body, Does.Contain("fewer sharks").And.Not.Contain("main explanation"));
             Assert.That(CurrentState.TriedThreatIds, Is.Empty);
             var play = CurrentButton("Run Scenario longline");
             Assert.That(ExecuteEvents.GetEventHandler<IPointerClickHandler>(CurrentPointerHit(play.GetComponent<RectTransform>())), Is.EqualTo(play.gameObject));
             Leave(cause);
             var prediction = Detail("longline", "tuna"); Enter(prediction); yield return new WaitForSecondsRealtime(.6f);
             Assert.That(Body, Does.StartWith("Baseline").And.Not.Contain("↑ Increase"));
-            Assert.That(Object.FindObjectsByType<InvestigationBorderGraphic>().Count(b => b.name == "Scenario Detail Highlight"), Is.EqualTo(4));
+            Assert.That(Object.FindObjectsByType<InvestigationBorderGraphic>().Count(b => b.name == "Scenario Detail Highlight"), Is.EqualTo(5));
             Leave(prediction); yield return null;
             Assert.That(GameObject.Find("Scenario Detail Card"), Is.Null);
             Assert.That(Object.FindObjectsByType<InvestigationBorderGraphic>().Count(b => b.name == "Scenario Detail Highlight"), Is.Zero);
@@ -56,7 +57,7 @@ namespace EDNA.Investigation.Tests
             var root = GameObject.Find("Scenario Results").GetComponent<RectTransform>(); var position = root.position; var size = root.rect.size;
             var prediction = Detail("longline", "tuna");
             CurrentPointerClick(prediction); yield return null;
-            Assert.That(GameObject.Find("Scenario Detail Status").GetComponent<Text>().text, Does.StartWith("Paused"));
+            Assert.That(GameObject.Find("Scenario Detail Status").GetComponent<TextMeshProUGUI>().text, Does.StartWith("Paused"));
             string before = Tuna;
             yield return new WaitForSecondsRealtime(2f);
             Assert.That(Tuna, Is.EqualTo(before));
@@ -111,7 +112,7 @@ namespace EDNA.Investigation.Tests
                     Assert.That(local.x, Is.InRange(root.rect.xMin, root.rect.xMax));
                     Assert.That(local.y, Is.InRange(root.rect.yMin, root.rect.yMax));
                 }
-                Assert.That(GameObject.Find("Scenario Detail Title").GetComponent<Text>().preferredHeight, Is.LessThanOrEqualTo(53f));
+                Assert.That(GameObject.Find("Scenario Detail Title").GetComponent<TextMeshProUGUI>().preferredHeight, Is.LessThanOrEqualTo(53f));
                 Assert.That(CurrentState.TriedThreatIds, Is.Empty);
                 Assert.That(CurrentView.ContentRoot.GetComponentInParent<ScrollRect>().vertical, Is.False);
                 CurrentPointerClick(CurrentButton("Close Scenario Details")); yield return null;
@@ -120,7 +121,7 @@ namespace EDNA.Investigation.Tests
             finally { canvas.scaleFactor = scale; scaler.enabled = enabled; }
         }
 
-        [UnityTest] public IEnumerator Ending_RequiresBothDistinctReviewsAndOffersTheOtherDirectly()
+        [UnityTest] public IEnumerator Ending_CompareAgainReturnsToModelsWithoutInlineReviewButtons()
         {
             foreach (string first in new[] { "longline", "bottom_trawling" })
             {
@@ -130,17 +131,21 @@ namespace EDNA.Investigation.Tests
                 Assert.That(CurrentButton("Complete Scenario Investigation").interactable, Is.False);
                 CurrentButton("Complete Scenario Investigation").onClick.Invoke();
                 Assert.That(CurrentState.FinalSubmissionAttemptCount, Is.Zero);
-                Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<Text>().text,
-                    Does.Contain(second == "longline" ? "Long-line fishing" : "Bottom trawling"));
-                CurrentPress("Review Conclusion " + first); yield return null;
+                Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<TextMeshProUGUI>().text,
+                    Does.Contain("Compare again").And.Contain(second == "longline" ? "Long-line fishing" : "Bottom trawling"));
+                Assert.That(GameObject.Find("Scenario Ending Panel").GetComponentsInChildren<Button>(true), Is.Empty);
+                Assert.That(GameObject.Find("Review Status " + first).GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Reviewed"));
+                Assert.That(GameObject.Find("Review Status " + second).GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Awaiting review"));
+                ReviewViaModels(first); yield return null;
                 Assert.That(CurrentButton("Complete Scenario Investigation").interactable, Is.False);
-                CurrentPress("Review Conclusion " + second); yield return null;
+                ReviewViaModels(second); yield return null;
                 Assert.That(CurrentState.ReviewedModelThreatIds, Is.EquivalentTo(new[] { first, second }));
+                Assert.That(GameObject.Find("Review Status " + second).GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Reviewed"));
                 Assert.That(CurrentButton("Complete Scenario Investigation").interactable, Is.True);
                 CurrentPress("Complete Scenario Investigation"); yield return null;
                 Assert.That(InvestigationSessionBridge.LastResult.reviewedHypothesisIds, Is.EquivalentTo(new[] { first, second }));
-                Assert.That(InvestigationSessionBridge.LastResult.selectedHypothesisId, Is.EqualTo(second));
-                Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
+                Assert.That(InvestigationSessionBridge.LastResult.selectedHypothesisId, Is.EqualTo("bottom_trawling"));
+                Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
                 CurrentPress("Restart Completed Case"); yield return null;
                 Assert.That(CurrentState.ReviewedModelThreatIds, Is.Empty);
             }

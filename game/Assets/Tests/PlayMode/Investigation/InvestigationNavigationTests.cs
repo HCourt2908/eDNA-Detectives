@@ -1,3 +1,4 @@
+using TMPro;
 using static EDNA.Investigation.Tests.InvestigationCurrentFlowTestActions;
 using static EDNA.Investigation.Tests.InvestigationWorkbenchTestActions;
 using System.Collections;
@@ -31,7 +32,7 @@ namespace EDNA.Investigation.Tests
             CurrentPress("Choose Scenario longline"); yield return null;
             Assert.That(CurrentState.Phase, Is.EqualTo(InvestigationPhase.Report));
             Assert.That(CurrentState.ConfirmationReviewed, Is.False);
-            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
         }
 
         [UnityTest]
@@ -39,11 +40,11 @@ namespace EDNA.Investigation.Tests
         {
             yield return LoadCurrent(); EnterCurrentModels(); yield return null; yield return null; SkipCurrentGuide();
             CurrentPress("Talk To Edna"); yield return null; yield return null;
-            string message = GameObject.Find("Scenario Briefing Message").GetComponent<Text>().text;
+            string message = GameObject.Find("Scenario Briefing Message").GetComponent<TextMeshProUGUI>().text;
             int discoveries = CurrentState.DiscoveredObservationIds.Count;
             CurrentPress("Toggle Notebook Drawer"); yield return null; CurrentPress("Close Notebook Drawer");
             yield return null; yield return null;
-            Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<Text>().text, Is.EqualTo(message));
+            Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<TextMeshProUGUI>().text, Is.EqualTo(message));
             Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(discoveries));
             var book = CurrentButton("Toggle Notebook Drawer");
             Assert.That(EventSystem.current.currentSelectedGameObject, Is.EqualTo(book.gameObject));

@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections.Generic;
 using EDNA.Investigation.Domain;
 using UnityEngine;
@@ -7,14 +8,25 @@ namespace EDNA.Investigation
 {
     public sealed partial class InvestigationRuntimeView
     {
+        private bool ScenarioUsesTwoColumns
+        {
+            get
+            {
+                var space = contentScroll.viewport.rect;
+                return space.width < 1200f && space.width <= space.height * 1.35f;
+            }
+        }
+
         private void RenderScenarioAlternatives(Transform parent)
         {
-            Text heading = CreateText("Scenario Comparison Heading", parent,
-                EveryScenarioViewed ? "Compare the predictions · Hover or tap for details" : "Play each prediction · Hover or tap for details", 18,
+            TextMeshProUGUI heading = CreateText("Scenario Comparison Heading", parent,
+                RequiredScenariosViewed ? "Compare the predictions · Hover or tap for details" : "Explore the predictions · Hover or tap for details", 18,
                 FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             AddLayout(heading.rectTransform, 26f, 0f);
             RectTransform cards = new GameObject("Scenario Results", typeof(RectTransform), typeof(InvestigationResponsiveGridLayout)).GetComponent<RectTransform>();
-            cards.SetParent(parent, false); cards.GetComponent<InvestigationResponsiveGridLayout>().Configure(3, 3, 1, 300f, 10f);
+            cards.SetParent(parent, false);
+            int columns = ScenarioUsesTwoColumns ? 2 : 4;
+            cards.GetComponent<InvestigationResponsiveGridLayout>().Configure(columns, columns, columns, 300f, 10f);
             foreach (var cause in caseDefinition.Threats)
             {
                 string id = cause.ThreatId;
@@ -22,17 +34,18 @@ namespace EDNA.Investigation
                 bool complete = viewedScenarios.Contains(id);
                 var simulation = playing || complete ? state.FindSimulation(id) : null;
                 RectTransform card = CreatePanel("Scenario Result " + id, cards, InvestigationTheme.SurfaceQuiet, InvestigationTheme.CardRadius);
+                var bloomParticles = IsBloomScenario(id) ? CreateBloomParticles(card) : null;
                 RectTransform header = CreatePanel("Scenario Card Header " + id, card, playing ? InvestigationTheme.SurfaceRaised : InvestigationTheme.Surface, InvestigationTheme.SmallRadius);
                 Anchor(header, 0f, 1f, 1f, 1f, 8f, -49f, -8f, -5f);
                 RectTransform icon = CreateThreatArtwork("Scenario Cause Icon " + id, header, cause);
                 Anchor(icon, 0f, 0f, 0f, 1f, 5f, 4f, 40f, -4f);
-                Text title = CreateText("Scenario Card Title " + id, header, cause.DisplayName, 14,
+                TextMeshProUGUI title = CreateText("Scenario Card Title " + id, header, cause.DisplayName, 14,
                     FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
                 Anchor(title.rectTransform, 0f, 0f, 1f, 1f, 47f, 2f, -94f, -2f);
                 AttachScenarioDetail(title.rectTransform, ScenarioDetailKind.Cause, id);
                 AttachScenarioDetail(icon, ScenarioDetailKind.Cause, id);
                 Button play = CreateButton((complete ? "Replay Scenario " : "Run Scenario ") + id, header,
-                    playing ? "Playing…" : complete ? "Replay" : "Play", ButtonVisualStyle.Primary, () => StartScenario(id), out Text playLabel);
+                    playing ? "Playing…" : complete ? "Replay" : "Play", ButtonVisualStyle.Primary, () => StartScenario(id), out TextMeshProUGUI playLabel);
                 play.GetComponent<LayoutElement>().ignoreLayout = true; playLabel.fontSize = 13;
                 Anchor(play.GetComponent<RectTransform>(), 1f, .5f, 1f, .5f, -88f, -18f, -4f, 18f);
                 play.interactable = !playing && !ScenarioCaseClosed;
@@ -40,8 +53,8 @@ namespace EDNA.Investigation
                 Anchor(track, 0f, 1f, 1f, 1f, 12f, -57f, -12f, -53f);
                 RectTransform fill = CreatePanel("Scenario Card Progress " + id, track, InvestigationTheme.Primary, 2f);
                 Anchor(fill, 0f, 0f, complete && !playing ? 1f : 0f, 1f, 0f, 0f, 0f, 0f);
-                var actors = new List<ScenarioActor>(); var links = new List<CanvasGroup>();
-                var ids = ScenarioSpecies();
+                var actors = new List<ScenarioActor>();
+                var ids = ScenarioSpecies(id);
                 for (int i = 0; i < ids.Count; i++)
                 {
                     var species = caseDefinition.FindSpecies(ids[i]);
@@ -49,11 +62,11 @@ namespace EDNA.Investigation
                     RectTransform row = CreatePanel("Scenario Result Species " + ids[i], card, Color.clear, 0f);
                     Anchor(row, 0f, 1f, 1f, 1f, 12f, -100f - i * 36f, -12f, -64f - i * 36f);
                     RectTransform halo = CreatePanel("Scenario Population Glow", row, Color.clear, 6f); Stretch(halo, 0f, 0f, 0f, 0f);
-                    Text name = CreateText("Result Species Name", row, species.GameplayName, 13,
+                    TextMeshProUGUI name = CreateText("Result Species Name", row, species.GameplayName, ids[i] == "phytoplankton" ? 11 : 13,
                         FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
-                    Anchor(name.rectTransform, 0f, 0f, .28f, 1f, 2f, 0f, -2f, 0f);
+                    Anchor(name.rectTransform, 0f, 0f, .35f, 1f, 2f, 0f, -2f, 0f);
                     RectTransform population = CreatePanel("Result Population " + ids[i], row, Color.clear, 0f);
-                    Anchor(population, .29f, 0f, .68f, 1f, 0f, 1f, 0f, -1f);
+                    Anchor(population, .36f, 0f, .68f, 1f, 0f, 1f, 0f, -1f);
                     var units = new Image[5];
                     for (int unit = 0; unit < units.Length; unit++)
                     {
@@ -61,22 +74,34 @@ namespace EDNA.Investigation
                         float x = ScenarioCardUnitSlots[unit].x;
                         Anchor(units[unit].rectTransform, x - .095f, .08f, x + .095f, .92f, 0f, 0f, 0f, 0f);
                     }
-                    Text value = CreateText("Result Prediction", row, "Baseline", 13, FontStyle.Bold,
+                    TextMeshProUGUI value = CreateText("Result Prediction", row, "Baseline", 13, FontStyle.Bold,
                         InvestigationTheme.TextSecondary, TextAnchor.MiddleRight, InvestigationTheme.BodyFont);
                     Anchor(value.rectTransform, .69f, 0f, 1f, 1f, 0f, 0f, -2f, 0f);
                     AttachScenarioDetail(name.rectTransform, ScenarioDetailKind.Species, id, ids[i]);
                     AttachScenarioDetail(value.rectTransform, ScenarioDetailKind.Prediction, id, ids[i]);
                     var border = CreateGraphic<InvestigationBorderGraphic>("Scenario Population Pulse", row);
                     border.Configure(6f, 1.5f); border.color = Color.clear; border.raycastTarget = false; Stretch(border.rectTransform, 0f, 0f, 0f, 0f);
-                    actors.Add(new ScenarioActor { Art = population, Result = value, Units = units, Halo = halo.GetComponent<Image>(), Border = border, Prediction = prediction, IsCardRow = true });
+                    Image[] food = null;
+                    if (ids[i] == "tree_bubblegum_coral")
+                    {
+                        name.text = "Coral · seabed";
+                        food = new Image[3];
+                        for (int particle = 0; particle < food.Length; particle++)
+                        {
+                            var mote = CreatePanel("Organic Matter Particle " + particle, population, Color.clear, 1f);
+                            mote.sizeDelta = new Vector2(2.5f, 2.5f); food[particle] = mote.GetComponent<Image>();
+                        }
+                    }
+                    actors.Add(new ScenarioActor { Art = population, Result = value, Units = units, FoodParticles = food,
+                        Halo = halo.GetComponent<Image>(), Border = border, Prediction = prediction });
                 }
-                SampleScenarioScene(actors, links, false, complete && !playing ? 1f : 0f);
+                SampleScenarioPopulations(actors, complete && !playing ? 1f : 0f);
                 if (!playing && !complete) foreach (var actor in actors) actor.Result.text = "Baseline";
                 if (playing)
                 {
                     int run = scenarioRun; var session = state; double began = scenarioStarted;
                     bindScenarioPlayback += () => card.gameObject.AddComponent<InvestigationScenarioPlayback>().Configure(began, ScenarioSeconds,
-                        progress => { SampleScenarioScene(actors, links, false, progress); fill.anchorMax = new Vector2(progress, 1f); },
+                        progress => { SampleScenarioPopulations(actors, ScenarioPopulationProgress(id, progress)); SampleBloomParticles(bloomParticles, progress); fill.anchorMax = new Vector2(progress, 1f); },
                         () => { if (run == scenarioRun && ReferenceEquals(session, state) && scenarioActiveId == id) FinishScenarioAnimation(); }, () => ScenarioPlaybackTime);
                 }
                 else
@@ -85,16 +110,17 @@ namespace EDNA.Investigation
                     // real dimensions, just like the animated rows.
                     bindScenarioPlayback += () =>
                     {
-                        SampleScenarioScene(actors, links, false, complete ? 1f : 0f);
+                        SampleScenarioPopulations(actors, complete ? 1f : 0f);
                         if (!complete) foreach (var actor in actors) actor.Result.text = "Baseline";
                         foreach (var actor in actors) foreach (var unit in actor.Units) unit.SetAllDirty();
                     };
                 }
-                Button choose = CreateButton("Choose Scenario " + id, card, state.HasReviewedModel(id) ? "Reviewed · Review again" : "Review this explanation", ButtonVisualStyle.Primary,
-                    () => ChooseScenarioExplanation(id), out Text label);
+                Button choose = CreateButton("Choose Scenario " + id, card, cause.OptionalExploration ? "Compare with survey" : state.HasReviewedModel(id) ? "Reviewed · Review again" : "Review this explanation", ButtonVisualStyle.Primary,
+                    () => ChooseScenarioExplanation(id), out TextMeshProUGUI label);
                 choose.GetComponent<LayoutElement>().ignoreLayout = true; label.fontSize = 14;
                 Anchor(choose.GetComponent<RectTransform>(), 0f, 0f, 1f, 0f, 8f, 8f, -8f, 48f);
-                choose.interactable = EveryScenarioViewed && scenarioStage == ScenarioStage.Comparing && !ScenarioCaseClosed;
+                choose.interactable = complete && scenarioStage != ScenarioStage.PlayingCause
+                    && (cause.OptionalExploration || RequiredScenariosViewed && scenarioStage == ScenarioStage.Comparing) && !ScenarioCaseClosed;
             }
         }
     }

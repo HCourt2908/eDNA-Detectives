@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using EDNA.Core;
 using EDNA.Investigation.Domain;
@@ -107,20 +108,20 @@ namespace EDNA.Investigation
             RectTransform save = CreatePanel("Observe Summary Save", parent, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
             AddLayout(save, 74f, 0f);
             Button notebook = CreateButton("Summary Notebook Destination", save, string.Empty,
-                ButtonVisualStyle.PaperChoice, ToggleNotebookDrawer, out Text notebookLabel);
+                ButtonVisualStyle.PaperChoice, ToggleNotebookDrawer, out TextMeshProUGUI notebookLabel);
             notebookLabel.gameObject.SetActive(false);
             notebook.interactable = observeSummarySaved;
             notebook.GetComponent<LayoutElement>().ignoreLayout = true;
             CreateNotebookButtonArtwork(notebook);
             Anchor(notebook.GetComponent<RectTransform>(), 0f, 0f, 0f, 1f, 12f, 8f, 64f, -8f);
-            Text status = CreateText("Observe Summary Status", save,
+            TextMeshProUGUI status = CreateText("Observe Summary Status", save,
                 observeSummarySaving ? "Adding our picture to the notebook…" : observeSummarySaved
                     ? "Saved in your notebook. What could explain these changes?" : "Our findings, in one picture. Keep it for the next investigation.",
                 14, FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(status.rectTransform, 0f, 0f, 1f, 1f, 76f, 8f, -218f, -8f);
             Button action = CreateButton(observeSummarySaving ? "Finish Saving Summary" : "Continue To Simulate", save,
                 observeSummarySaving ? "Finish saving →" : observeSummarySaved ? "Test possible causes →" : "Save summary →",
-                ButtonVisualStyle.PaperPrimary, observeSummarySaving ? CompleteObserveSummarySaving : SaveObserveSummary, out Text label);
+                ButtonVisualStyle.PaperPrimary, observeSummarySaving ? CompleteObserveSummarySaving : SaveObserveSummary, out TextMeshProUGUI label);
             label.fontSize = 13;
             action.interactable = !ObserveSummaryTransitioning;
             action.GetComponent<LayoutElement>().ignoreLayout = true;
@@ -131,7 +132,7 @@ namespace EDNA.Investigation
         private RectTransform CreateSurveyStory(Transform parent, string objectName)
         {
             RectTransform paper = CreatePanel(objectName, parent, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
-            Text title = CreateText("Survey Story Title", paper, "OUR SEAMOUNT · WHAT CHANGED?", 16, FontStyle.Bold,
+            TextMeshProUGUI title = CreateText("Survey Story Title", paper, "OUR SEAMOUNT · WHAT CHANGED?", 16, FontStyle.Bold,
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(title.rectTransform, 0f, 1f, 1f, 1f, 16f, -36f, -16f, -8f);
             bool notebook = objectName == "Notebook Survey Story";
@@ -163,14 +164,14 @@ namespace EDNA.Investigation
                 Anchor(before, 0f, .40f, .43f, 1f, 5f, 0f, 0f, -5f);
                 RectTransform after = CreateStorySymbols("Story After", change, species, SurveyEra.Current);
                 Anchor(after, .57f, .40f, 1f, 1f, 0f, 0f, -5f, -5f);
-                Text arrow = CreateText("Story Time Arrow", change, "→", 14, FontStyle.Bold,
+                TextMeshProUGUI arrow = CreateText("Story Time Arrow", change, "→", 14, FontStyle.Bold,
                     InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
                 Anchor(arrow.rectTransform, .42f, .40f, .58f, 1f, 0f, 0f, 0f, -5f);
-                Text result = CreateText("Story Change", change, SurveyChangeLabel(FindingChange(finding)), 11, FontStyle.Bold,
+                TextMeshProUGUI result = CreateText("Story Change", change, SurveyChangeLabel(FindingChange(finding)), 11, FontStyle.Bold,
                     InvestigationTheme.PaperInk, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
                 Anchor(result.rectTransform, 0f, 0f, 1f, .40f, 2f, 2f, -2f, 0f);
             }
-            Text note = CreateText("Survey Story Key", paper, "Pictures show detection patterns, not population counts.", 11, FontStyle.Bold,
+            TextMeshProUGUI note = CreateText("Survey Story Key", paper, "Pictures show detection patterns, not population counts.", 11, FontStyle.Bold,
                 InvestigationTheme.PaperMuted, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
             Anchor(note.rectTransform, 0f, 0f, 1f, 0f, 12f, 3f, -12f, 23f);
             return paper;
@@ -205,7 +206,7 @@ namespace EDNA.Investigation
             RectTransform terrain = CreatePanel("Story Terrain", sea, Color.clear, 0f);
             Stretch(terrain, 0f, 0f, 0f, -28f);
             CreateSeamountVisual(terrain);
-            Text date = CreateText("Story Date", sea, era == SurveyEra.Historical ? "20 YEARS AGO" : "TODAY", 14, FontStyle.Bold,
+            TextMeshProUGUI date = CreateText("Story Date", sea, era == SurveyEra.Historical ? "20 YEARS AGO" : "TODAY", 14, FontStyle.Bold,
                 InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
             Anchor(date.rectTransform, 0f, 1f, 1f, 1f, 8f, -28f, -8f, -3f);
             RectTransform plot = CreatePanel("Story Depth Plot", sea, Color.clear, 0f);
@@ -227,9 +228,10 @@ namespace EDNA.Investigation
                     float x = (i + .5f) * cell;
                     RectTransform slot = CreatePanel("Story " + key + " Slot " + species.SpeciesId, plot, Color.clear, 0f);
                     Anchor(slot, x - cell * .48f, y, x + cell * .48f, y, 0f, -31f, 0f, 23f);
-                    RectTransform art = CreateStorySymbols("Story " + key + " Species " + species.SpeciesId, slot, species, era);
+                    string artworkName = "Story " + key + " Species " + species.SpeciesId;
+                    RectTransform art = CreateStorySymbols(artworkName, slot, species, era);
                     Anchor(art, 0f, 0f, 1f, 1f, 2f, 30f, -2f, 0f);
-                    Text name = CreateText("Story Species Name", slot, species.GameplayName, 10,
+                    TextMeshProUGUI name = CreateText("Story Species Name", slot, species.GameplayName, 10,
                         FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperCenter, InvestigationTheme.BodyFont);
                     Anchor(name.rectTransform, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 30f);
                 }

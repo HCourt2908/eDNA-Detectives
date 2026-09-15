@@ -1,3 +1,4 @@
+using TMPro;
 using static EDNA.Investigation.Tests.InvestigationCurrentFlowTestActions;
 using static EDNA.Investigation.Tests.InvestigationWorkbenchTestActions;
 using System.Collections;
@@ -15,7 +16,7 @@ namespace EDNA.Investigation.Tests
     public sealed class InvestigationEdnaTests
     {
         private static Button Button(string name) => GameObject.Find(name)?.GetComponent<Button>();
-        private static Text Speech => GameObject.Find("Edna Speech Text")?.GetComponent<Text>();
+        private static TextMeshProUGUI Speech => GameObject.Find("Edna Speech TextMeshProUGUI")?.GetComponent<TextMeshProUGUI>();
 
         private static IEnumerator Load()
         {
@@ -54,7 +55,7 @@ namespace EDNA.Investigation.Tests
         {
             yield return Load();
             Canvas.ForceUpdateCanvases();
-            Text message = GameObject.Find("Observe Comparison Instruction").GetComponent<Text>();
+            TextMeshProUGUI message = GameObject.Find("Observe Comparison Instruction").GetComponent<TextMeshProUGUI>();
             Rect portrait = Bounds(GameObject.Find("Edna Introduction Portrait").GetComponent<RectTransform>());
             Assert.That(Bounds(message.rectTransform).xMin, Is.GreaterThan(portrait.xMax));
             Assert.That(message.rectTransform.rect.height + 1f, Is.GreaterThanOrEqualTo(message.preferredHeight));
@@ -117,8 +118,8 @@ namespace EDNA.Investigation.Tests
             CurrentPress("Close Notebook Drawer"); yield return null;
             Assert.That(CurrentButton("Talk To Edna").interactable, Is.True);
             CurrentPress("Finish Scenario Animation"); yield return null;
-            Assert.That(GameObject.Find("Metrics").GetComponent<Text>().text, Does.Contain("1/3"));
-            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(GameObject.Find("Metrics").GetComponent<TextMeshProUGUI>().text, Does.Contain("1/3"));
+            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
         }
 
     }

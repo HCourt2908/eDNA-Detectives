@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 namespace EDNA.Investigation
@@ -64,26 +65,24 @@ namespace EDNA.Investigation
         public const float SmallRadius = 8f;
         public const float ControlRadius = 10f;
 
-        private static Font bodyFont;
-        private static Font displayFont;
-        private static Font dataFont;
+        private static TMP_FontAsset bodyFont;
+        private static TMP_FontAsset displayFont;
+        private static TMP_FontAsset dataFont;
 
-        public static Font BodyFont => bodyFont != null ? bodyFont : bodyFont = LoadFont(
-            "Investigation/Fonts/NunitoSans-Variable");
+        public static TMP_FontAsset BodyFont => bodyFont != null ? bodyFont : bodyFont = LoadFont(
+            "Investigation/Fonts/NunitoSans SDF");
 
-        public static Font DisplayFont => displayFont != null ? displayFont : displayFont = LoadFont(
-            "Investigation/Fonts/NunitoSans-Variable");
+        public static TMP_FontAsset DisplayFont => displayFont != null ? displayFont : displayFont = LoadFont(
+            "Investigation/Fonts/NunitoSans SDF");
 
-        public static Font DataFont => dataFont != null ? dataFont : dataFont = LoadFont(
-            "Investigation/Fonts/FiraMono-Medium",
-            "Investigation/Fonts/FiraMono-Regular");
+        public static TMP_FontAsset DataFont => dataFont != null ? dataFont : dataFont = LoadFont(
+            "Investigation/Fonts/FiraMono SDF");
 
-        private static Font LoadFont(string preferredPath, string fallbackPath = null)
+        private static TMP_FontAsset LoadFont(string preferredPath)
         {
-            Font font = Resources.Load<Font>(preferredPath);
+            TMP_FontAsset font = Resources.Load<TMP_FontAsset>(preferredPath);
             if (font != null) return font;
-            if (!string.IsNullOrEmpty(fallbackPath)) font = Resources.Load<Font>(fallbackPath);
-            return font != null ? font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            return TMP_Settings.defaultFontAsset;
         }
     }
 }

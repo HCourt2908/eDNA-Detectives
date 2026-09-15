@@ -1,3 +1,4 @@
+using TMPro;
 using System;
 using UnityEngine;
 using UnityEngine.UI;
@@ -34,13 +35,14 @@ namespace EDNA.Investigation
             copy.localRotation = source.localRotation; copy.localScale = source.localScale;
             Graphic original = source.GetComponent<Graphic>();
             Graphic graphic = null;
-            if (original is Text text)
+            if (original is TextMeshProUGUI text)
             {
-                Text label = copy.gameObject.AddComponent<Text>();
+                TextMeshProUGUI label = copy.gameObject.AddComponent<TextMeshProUGUI>();
                 label.font = text.font; label.fontSize = text.fontSize; label.fontStyle = text.fontStyle;
                 label.text = text.text; label.alignment = text.alignment; label.lineSpacing = text.lineSpacing;
-                label.supportRichText = text.supportRichText; label.horizontalOverflow = text.horizontalOverflow;
-                label.verticalOverflow = text.verticalOverflow; graphic = label;
+                label.richText = text.richText; label.textWrappingMode = text.textWrappingMode;
+                label.overflowMode = text.overflowMode; label.enableAutoSizing = false;
+                label.fontSharedMaterial = text.fontSharedMaterial; graphic = label;
             }
             else if (original is RawImage raw)
             {
@@ -72,7 +74,7 @@ namespace EDNA.Investigation
             }
             if (source.GetComponent<RectMask2D>() != null) copy.gameObject.AddComponent<RectMask2D>();
             foreach (Transform child in source)
-                if (child.gameObject.activeSelf && child is RectTransform rect) CopyVisual(rect, copy, false);
+                if (child.gameObject.activeSelf && child.GetComponent<TMP_SubMeshUI>() == null && child is RectTransform rect) CopyVisual(rect, copy, false);
             return copy;
         }
         private void OnEnable() => pending = true;

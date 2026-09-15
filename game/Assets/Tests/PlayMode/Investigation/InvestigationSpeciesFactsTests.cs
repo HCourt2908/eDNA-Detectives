@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
@@ -23,18 +24,18 @@ namespace EDNA.Investigation.Tests
                 {
                     canvas.scaleFactor = Screen.width / width; yield return null; yield return null;
                     GameObject.Find("Survey Time Lens").GetComponent<Slider>().value = 1f;
-                    foreach (string id in new[] { "shark", "tuna", "atlantic_herring", "krill", "phytoplankton" })
+                    foreach (string id in new[] { "shark", "tuna", "atlantic_herring", "tree_bubblegum_coral", "phytoplankton" })
                     {
                         CurrentPress("Historical Species Marker " + id); Canvas.ForceUpdateCanvases();
-                        Assert.That(GameObject.Find("Tooltip Scientific Name").GetComponent<Text>().text, Is.Not.Empty);
-                        string description = GameObject.Find("Tooltip Description").GetComponent<Text>().text;
+                        Assert.That(GameObject.Find("Tooltip Scientific Name").GetComponent<TextMeshProUGUI>().text, Is.Not.Empty);
+                        string description = GameObject.Find("Tooltip Description").GetComponent<TextMeshProUGUI>().text;
                         Assert.That(description, Does.Not.Contain("Figma").And.Not.Contain("teaching assumption").And.Not.Contain("food-chain branch"));
-                        Assert.That(GameObject.Find("Tooltip Survey Heading").GetComponent<Text>().text, Is.EqualTo("THIS EXAMPLE SURVEY"));
-                        string details = GameObject.Find("Tooltip Details").GetComponent<Text>().text;
+                        Assert.That(GameObject.Find("Tooltip Survey Heading").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("THIS EXAMPLE SURVEY"));
+                        string details = GameObject.Find("Tooltip Details").GetComponent<TextMeshProUGUI>().text;
                         Assert.That(details, Does.Contain("Illustrative case record").And.Contain("Map layer:").And.Not.Contain("High confidence"));
                         var panel = GameObject.Find("Species Facts Tooltip").GetComponent<RectTransform>();
                         Assert.That(panel.rect.height, Is.LessThanOrEqualTo(canvas.GetComponent<RectTransform>().rect.height - 24f));
-                        foreach (Text text in panel.GetComponentsInChildren<Text>())
+                        foreach (TextMeshProUGUI text in panel.GetComponentsInChildren<TextMeshProUGUI>())
                             Assert.That(text.rectTransform.rect.height + 1f, Is.GreaterThanOrEqualTo(text.preferredHeight), id + "/" + text.name);
                         CurrentPress("Close Species Facts");
                     }

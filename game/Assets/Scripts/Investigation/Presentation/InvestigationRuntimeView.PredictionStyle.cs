@@ -1,9 +1,5 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using EDNA.Investigation.Domain;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace EDNA.Investigation
 {
@@ -11,6 +7,7 @@ namespace EDNA.Investigation
     {
         private static Color PredictionStateColor(PredictionState state)
         {
+            if (state == PredictionState.Absent) return InvestigationTheme.Accent;
             if (state == PredictionState.Increase || state == PredictionState.DepthShift) return InvestigationTheme.Primary;
             if (state == PredictionState.Decrease || state == PredictionState.Stable) return InvestigationTheme.TextSecondary;
             return InvestigationTheme.Unknown;
@@ -24,6 +21,7 @@ namespace EDNA.Investigation
                 case PredictionState.Decrease: return "↓";
                 case PredictionState.DepthShift: return "↕";
                 case PredictionState.Unknown: return "?";
+                case PredictionState.Absent: return string.Empty;
                 default: return "—";
             }
         }

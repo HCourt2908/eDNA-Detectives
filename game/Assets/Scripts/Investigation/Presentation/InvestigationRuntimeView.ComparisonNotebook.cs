@@ -1,3 +1,4 @@
+using TMPro;
 using EDNA.Investigation.Domain;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,8 +8,8 @@ namespace EDNA.Investigation
     public sealed partial class InvestigationRuntimeView
     {
         private float comparisonNotebookScrollOffset;
+        private const float ComparisonRecordRowHeight = 32f;
         private bool ComparisonWorkspaceVisible => state != null && state.Phase == InvestigationPhase.Observe && !ObserveArrivalActive;
-        private bool ComparisonNotebookVisible => ComparisonWorkspaceVisible && !observeMapOpen;
 
         private void SaveComparisonNotebookScroll()
         {
@@ -46,7 +47,7 @@ namespace EDNA.Investigation
         {
             if (ComparisonBriefingActive) return;
             Button button = CreateButton("Toggle Comparison View", panel, observeMapOpen ? "Notebook view" : "Seamount view",
-                ButtonVisualStyle.PaperChoice, () => SetComparisonReferenceView(!observeMapOpen), out Text label);
+                ButtonVisualStyle.PaperChoice, () => SetComparisonReferenceView(!observeMapOpen), out TextMeshProUGUI label);
             label.fontSize = 13;
             button.GetComponent<LayoutElement>().ignoreLayout = true;
             Anchor(button.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -168f, -52f, -12f, -8f);
@@ -55,7 +56,7 @@ namespace EDNA.Investigation
         private void RenderComparisonSeamount(Transform parent)
         {
             RectTransform panel = CreatePanel("Comparison Seamount", parent, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
-            Text title = CreateText("Comparison Seamount Title", panel, "SEAMOUNT", 16, FontStyle.Bold,
+            TextMeshProUGUI title = CreateText("Comparison Seamount Title", panel, "SEAMOUNT", 16, FontStyle.Bold,
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(title.rectTransform, 0f, 1f, 1f, 1f, 14f, -52f, -175f, -8f);
             CreateComparisonViewSwitch(panel);
@@ -68,7 +69,7 @@ namespace EDNA.Investigation
         {
             RectTransform paper = CreatePanel("Comparison Notebook", parent, InvestigationTheme.Paper, InvestigationTheme.CardRadius);
             CreateNotebookBinding(paper);
-            Text title = CreateText("Comparison Notebook Title", paper, "MY NOTEBOOK", 16, FontStyle.Bold,
+            TextMeshProUGUI title = CreateText("Comparison Notebook Title", paper, "MY NOTEBOOK", 16, FontStyle.Bold,
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(title.rectTransform, 0f, 1f, 1f, 1f, 42f, -52f, -175f, -8f);
             CreateComparisonViewSwitch(paper);
@@ -84,7 +85,7 @@ namespace EDNA.Investigation
             RectTransform dates = new GameObject("Comparison Notebook Dates", typeof(RectTransform), typeof(InvestigationResponsiveSplitLayout)).GetComponent<RectTransform>();
             dates.SetParent(entries, false);
             dates.GetComponent<InvestigationResponsiveSplitLayout>().Configure(.5f, 10f, 440f,
-                30f + historical.Count * 40f, 30f + current.Count * 40f);
+                30f + historical.Count * ComparisonRecordRowHeight, 30f + current.Count * ComparisonRecordRowHeight);
             RenderComparisonNotebookDate(dates, SurveyEra.Historical);
             RenderComparisonNotebookDate(dates, SurveyEra.Current);
             // The classified tokens show findings; keep these pages as visual survey records.
@@ -96,14 +97,18 @@ namespace EDNA.Investigation
             VerticalLayoutGroup layout = page.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 0f; layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandWidth = true; layout.childForceExpandHeight = false;
-            Text date = CreateText(era == SurveyEra.Current ? "Today Survey Notes Title" : "Historical Survey Notes Title", page,
+            TextMeshProUGUI date = CreateText(era == SurveyEra.Current ? "Today Survey Notes Title" : "Historical Survey Notes Title", page,
                 era == SurveyEra.Current ? "TODAY" : "20 YEARS AGO", 14, FontStyle.Bold,
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             AddLayout(date.rectTransform, 30f, 0f);
             foreach (var species in RecordedSurveySpecies(era))
             {
                 RectTransform row = CreateSurveyRecordRow(page, species, era, true);
-                FindNamedRect(row, "Today Notebook Result").GetComponent<Text>().text = "Detected";
+                AddLayout(row, ComparisonRecordRowHeight, 0f);
+                // The dated picture already represents a detection. One full-height
+                // species label stays readable while leaving room for references.
+                FindNamedRect(row, "Today Notebook Result").gameObject.SetActive(false);
+                Stretch(FindNamedRect(row, "Today Notebook Species"), 86f, 0f, -6f, 0f);
                 if (selectedComparisonSpecies == species.SpeciesId)
                 {
                     InvestigationBorderGraphic border = CreateGraphic<InvestigationBorderGraphic>("Selected Record Border", row);

@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using EDNA.Investigation.Domain;
 using NUnit.Framework;
@@ -23,7 +24,7 @@ namespace EDNA.Investigation.Tests
             controller.ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
             InvestigationWorkbenchTestActions.EnterSimulate("Stage Simulate"); yield return null; yield return null;
         }
-        private static string Actor(string id) => GameObject.Find("Scenario Result " + Object.FindAnyObjectByType<InvestigationController>().State.ActiveThreatId).transform.Find("Scenario Result Species " + id + "/Result Prediction").GetComponent<Text>().text;
+        private static string Actor(string id) => GameObject.Find("Scenario Result " + Object.FindAnyObjectByType<InvestigationController>().State.ActiveThreatId).transform.Find("Scenario Result Species " + id + "/Result Prediction").GetComponent<TextMeshProUGUI>().text;
         private static void TryAll()
         {
             if (GameObject.Find("Finish Scenario Animation") != null) Press("Finish Scenario Animation");
@@ -63,7 +64,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(controller.State.CompletedObjectiveCount, Is.Zero);
             Press("Choose Scenario plastic"); yield return null;
             Assert.That(controller.State.ProvisionalThreatId, Is.Empty);
-            Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<Text>().text, Does.Contain("Tuna"));
+            Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<TextMeshProUGUI>().text, Does.Contain("Tuna"));
             Assert.That(controller.State.ComparisonRecords.Count, Is.Zero);
             Press("Choose Scenario longline"); yield return null;
             Assert.That(controller.State.Phase, Is.EqualTo(InvestigationPhase.Report));
@@ -92,13 +93,13 @@ namespace EDNA.Investigation.Tests
             yield return Start(); Press("Finish Scenario Animation"); Press("Run Scenario longline");
             var record = GameObject.Find("Scenario Observed tuna").transform.Find("Observed Today Artwork");
             int count = 0; foreach (var img in record.GetComponentsInChildren<Image>()) if (img.sprite != null) count++;
-            Assert.That(count, Is.EqualTo(3));
+            Assert.That(count, Is.EqualTo(1));
             Press("Toggle Notebook Drawer"); yield return new WaitForSecondsRealtime(.3f);
             Press("Close Notebook Drawer"); InvestigationCurrentFlowTestActions.ToggleGuidanceForTests(); yield return null;
             Press("Finish Scenario Animation");
             Assert.That(Actor("tuna"), Does.Contain("Increase"));
-            Assert.That(GameObject.Find("Scenario Observed shark").transform.Find("Observed Today Absence"), Is.Not.Null);
-            Assert.That(GameObject.Find("Scenario Observed tuna").transform.Find("Observed Change").GetComponent<Text>().text, Does.Contain("More sites"));
+            Assert.That(GameObject.Find("Scenario Observed tree_bubblegum_coral").transform.Find("Observed Today Absence"), Is.Not.Null);
+            Assert.That(GameObject.Find("Scenario Observed tuna").transform.Find("Observed Change").GetComponent<TextMeshProUGUI>().text, Does.Contain("Fewer sites"));
         }
         [UnityTest] public IEnumerator Scenario_ChosenExplanationCanFinishTheExistingReport()
         {
@@ -116,8 +117,8 @@ namespace EDNA.Investigation.Tests
             Press("Stage Simulate"); yield return null;
             if (GameObject.Find("Finish Scenario Animation") != null) Press("Finish Scenario Animation");
             Assert.That(Actor("tuna"), Does.Contain("Increase"));
-            Assert.That(GameObject.Find("Metrics").GetComponent<Text>().text, Does.Contain("1/3"));
-            Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(GameObject.Find("Metrics").GetComponent<TextMeshProUGUI>().text, Does.Contain("1/3"));
+            Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds.Count, Is.EqualTo(6));
         }
         [UnityTest] public IEnumerator Scenario_LabelsRemainReadableOnANarrowCanvas()
         {
@@ -129,10 +130,10 @@ namespace EDNA.Investigation.Tests
                 scaler.enabled = false; canvas.scaleFactor = Screen.width / 720f;
                 yield return null; yield return null; Canvas.ForceUpdateCanvases();
                 foreach (string panel in new[] { "Scenario Survey Target", "Scenario Results" })
-                    foreach (Text text in GameObject.Find(panel).GetComponentsInChildren<Text>())
+                    foreach (TextMeshProUGUI text in GameObject.Find(panel).GetComponentsInChildren<TextMeshProUGUI>())
                         Assert.That(text.rectTransform.rect.height + 1f, Is.GreaterThanOrEqualTo(text.preferredHeight), text.name + ": " + text.text);
                 TryAll(); yield return null; Canvas.ForceUpdateCanvases();
-                foreach (Text text in GameObject.Find("Scenario Results").GetComponentsInChildren<Text>())
+                foreach (TextMeshProUGUI text in GameObject.Find("Scenario Results").GetComponentsInChildren<TextMeshProUGUI>())
                     Assert.That(text.rectTransform.rect.height + 1f, Is.GreaterThanOrEqualTo(text.preferredHeight), text.name + ": " + text.text);
             }
             finally { canvas.scaleFactor = scale; scaler.enabled = enabled; }

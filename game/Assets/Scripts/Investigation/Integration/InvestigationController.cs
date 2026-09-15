@@ -65,6 +65,10 @@ namespace EDNA.Investigation
             HandleRestart();
         }
 
+        // Callable from an external end-screen button while this scene is loaded.
+        // Retains the incoming survey, just like the investigation's own restart.
+        public void RestartInvestigation() => HandleRestart();
+
         private void HandleRestart()
         {
             if (updater == null || view == null) return;
@@ -187,11 +191,13 @@ namespace EDNA.Investigation
         private void HandleRecordModelConclusion()
         {
             if (!HasActiveSession || state.ConclusionStatus == InvestigationConclusionStatus.Correct) return;
-            string chosen = string.IsNullOrEmpty(state.FinalThreatId) ? state.ProvisionalThreatId : state.FinalThreatId;
+            string chosen = caseDefinition.PrimaryModelThreatId;
             InvestigationConclusionResult result = updater.SubmitModelConclusion(state, chosen);
-            if (result.Status != InvestigationConclusionStatus.InsufficientEvidence) PublishInvestigationResult(result.Status);
             view.Refresh(state, result.Feedback, result.Status == InvestigationConclusionStatus.Correct
                 ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);
+            // Finish our UI before an external completion handler opens its screen
+            // or switches scenes. LastResult is set before that handler is invoked.
+            if (result.Status != InvestigationConclusionStatus.InsufficientEvidence) PublishInvestigationResult(result.Status);
         }
 
         private void PublishInvestigationResult(InvestigationConclusionStatus status)
@@ -224,7 +230,7 @@ namespace EDNA.Investigation
             switch (phase)
             {
                 case InvestigationPhase.Observe: return "Compare the baseline and current survey, then record unusual results.";
-                case InvestigationPhase.Simulate: return "Run the overlapping causes and compare model predictions with your observations.";
+                case InvestigationPhase.Simulate: return "Run the scenario models and compare model predictions with your observations.";
                 case InvestigationPhase.Report: return "Summarise your findings and record the best-fitting model.";
                 default: return string.Empty;
             }
@@ -240,8 +246,8 @@ namespace EDNA.Investigation
             updater.SetDifficulty(state, difficulty);
             InvestigationSessionBridge.ClearResult();
             view.ResetPresentationState();
-            if (state.ConclusionStatus == InvestigationConclusionStatus.Correct) PublishInvestigationResult(state.ConclusionStatus);
             view.Refresh(state, $"QA checkpoint loaded: {checkpoint}.", InvestigationStatusTone.Guide);
+            if (state.ConclusionStatus == InvestigationConclusionStatus.Correct) PublishInvestigationResult(state.ConclusionStatus);
         }
 
 #endif

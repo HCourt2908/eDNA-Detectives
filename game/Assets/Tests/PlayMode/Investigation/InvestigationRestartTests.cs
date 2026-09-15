@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using EDNA.Investigation.Domain;
 using NUnit.Framework;
@@ -17,7 +18,7 @@ namespace EDNA.Investigation.Tests
             yield return LoadCurrent();
             Assert.That(GameObject.Find("Difficulty Toggle"), Is.Null);
             Assert.That(GameObject.Find("Motion Toggle"), Is.Null);
-            Assert.That(CurrentButton("Restart Case").GetComponentInChildren<Text>().text, Is.Empty);
+            Assert.That(CurrentButton("Restart Case").GetComponentInChildren<TextMeshProUGUI>().text, Is.Empty);
             Assert.That(CurrentButton("Restart Case").GetComponent<RectTransform>().rect.height, Is.GreaterThanOrEqualTo(44f));
             CurrentPointerClick(CurrentButton("Restart Case"));
             yield return null;
@@ -32,7 +33,7 @@ namespace EDNA.Investigation.Tests
             yield return null;
             CurrentPointerClick(CurrentButton("Cancel Restart Case"));
             Assert.That(CurrentState, Is.SameAs(original));
-            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
         }
 
         [UnityTest]

@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
@@ -37,7 +38,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Scenario Findings In Flight"), Is.Null);
             var visibleSheet = GameObject.Find("Scenario Survey Target");
             Assert.That(visibleSheet.GetComponent<CanvasGroup>().alpha, Is.EqualTo(1f));
-            Assert.That(GameObject.Find("Scenario Survey Target Title").GetComponent<Text>().text, Does.Contain("NOTEBOOK"));
+            Assert.That(GameObject.Find("Scenario Survey Target Title").GetComponent<TextMeshProUGUI>().text, Does.Contain("NOTEBOOK"));
             if (GameObject.Find("Finish Scenario Animation") != null) Press("Finish Scenario Animation"); yield return null; yield return null; Press("Scenario Briefing Skip");
             yield return null; yield return null;
             Assert.That(GameObject.Find("Scenario EDNA Dock"), Is.Not.Null);

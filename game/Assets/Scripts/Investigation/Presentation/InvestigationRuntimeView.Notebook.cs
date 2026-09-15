@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using EDNA.Investigation.Domain;
 using UnityEngine;
@@ -90,7 +91,7 @@ namespace EDNA.Investigation
                 string.Empty,
                 ButtonVisualStyle.Tertiary,
                 CloseNotebookDrawer,
-                out Text scrimLabel);
+                out TextMeshProUGUI scrimLabel);
             scrimLabel.gameObject.SetActive(false);
             scrim.navigation = new Navigation { mode = Navigation.Mode.None };
             scrim.GetComponent<Image>().color = new Color(0f, 0.05f, 0.08f, 0.42f);
@@ -120,7 +121,7 @@ namespace EDNA.Investigation
             shadow.useGraphicAlpha = true;
             CreateNotebookBinding(drawer);
 
-            Text title = CreateText(
+            TextMeshProUGUI title = CreateText(
                 "Notebook Drawer Title",
                 drawer,
                 $"MY NOTEBOOK · {NotebookFindingCount}",
@@ -131,7 +132,7 @@ namespace EDNA.Investigation
                 InvestigationTheme.DataFont);
             Anchor(title.rectTransform, 0f, 0.89f, 0.72f, 1f, 42f, 0f, -4f, -8f);
 
-            Text description = CreateText(
+            TextMeshProUGUI description = CreateText(
                 "Notebook Drawer Description",
                 drawer,
                 state.Phase == InvestigationPhase.Observe || ScenarioWorkspaceActive ? "Our survey records · 20 years ago → Today"
@@ -149,7 +150,7 @@ namespace EDNA.Investigation
                 state.Phase == InvestigationPhase.Observe && !ObserveComplete ? "Seamount view" : "Close",
                 ButtonVisualStyle.PaperChoice,
                 () => { if (state.Phase == InvestigationPhase.Observe && !ObserveComplete) ReturnToComparisonSeamount(); else CloseNotebookDrawer(); },
-                out Text closeLabel);
+                out TextMeshProUGUI closeLabel);
             closeLabel.fontSize = 12;
             close.GetComponent<LayoutElement>().ignoreLayout = true;
             Anchor(close.GetComponent<RectTransform>(), 0.74f, 1f, 1f, 1f, 0f, -52f, -12f, -8f);
@@ -246,7 +247,7 @@ namespace EDNA.Investigation
             column.childControlWidth = column.childControlHeight = true;
             column.childForceExpandWidth = true;
             column.childForceExpandHeight = false;
-            Text name = CreateText("Notebook Edna Name", words, "EDNA", 11, FontStyle.Bold,
+            TextMeshProUGUI name = CreateText("Notebook Edna Name", words, "EDNA", 11, FontStyle.Bold,
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
             ConfigureContentDrivenText(name);
             string instruction = state.Phase == InvestigationPhase.Observe
@@ -254,7 +255,7 @@ namespace EDNA.Investigation
                 : hypothesisSummaryExpanded
                 ? "Select a cause with recorded checks, then a check to reopen it in the model. Close the notebook to continue investigating."
                 : "Scroll below to revisit your survey findings. Use Compare causes to review the checks you save while testing models.";
-            Text message = CreateText("Notebook Edna Instructions", words, instruction, 13, FontStyle.Normal,
+            TextMeshProUGUI message = CreateText("Notebook Edna Instructions", words, instruction, 13, FontStyle.Normal,
                 InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(message);
             EnsureEdnaArtwork();
@@ -304,7 +305,7 @@ namespace EDNA.Investigation
                 string.Empty,
                 ButtonVisualStyle.Tertiary,
                 ToggleNotebookDrawer,
-                out Text label);
+                out TextMeshProUGUI label);
             label.gameObject.SetActive(false);
             LayoutElement size = button.GetComponent<LayoutElement>();
             size.minWidth = size.preferredWidth = 62f;
@@ -316,13 +317,13 @@ namespace EDNA.Investigation
             RectTransform badge = CreatePanel("Notebook Finding Count", button.transform, InvestigationTheme.Primary, 9f);
             Anchor(badge, 1f, 1f, 1f, 1f, -20f, -19f, -1f, 0f);
             badge.gameObject.SetActive(NotebookFindingCount > 0);
-            Text count = CreateText("Notebook Finding Count Text", badge, NotebookFindingCount.ToString(),
+            TextMeshProUGUI count = CreateText("Notebook Finding Count TextMeshProUGUI", badge, NotebookFindingCount.ToString(),
                 11, FontStyle.Bold, InvestigationTheme.OnPrimary, TextAnchor.MiddleCenter, InvestigationTheme.DataFont);
             Stretch(count.rectTransform, 1f, 1f, -1f, -1f);
 
             RectTransform tooltip = CreatePanel("Notebook Button Tooltip", button.transform, InvestigationTheme.Deep, InvestigationTheme.SmallRadius);
             Anchor(tooltip, 0.5f, 1f, 0.5f, 1f, -78f, 6f, 78f, 36f);
-            Text hint = CreateText("Notebook Button Hint", tooltip, notebookDrawerOpen ? "Close notebook" : "Open notebook",
+            TextMeshProUGUI hint = CreateText("Notebook Button Hint", tooltip, notebookDrawerOpen ? "Close notebook" : "Open notebook",
                 12, FontStyle.Normal, InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
             Stretch(hint.rectTransform, 6f, 2f, -6f, -2f);
             tooltip.gameObject.SetActive(false);
@@ -416,12 +417,12 @@ namespace EDNA.Investigation
                     hypothesisSummaryExpanded = !hypothesisSummaryExpanded;
                     notebookFocusTargetAfterRender = "Toggle Hypothesis Summary";
                     RefreshPresentationOnly();
-                }, out Text toggleLabel);
+                }, out TextMeshProUGUI toggleLabel);
             ConfigureWrappingChoice(toggle, toggleLabel);
             toggle.GetComponent<InvestigationFocusRing>().KeepVisibleOnKeyboardFocus = true;
             if (!hypothesisSummaryExpanded) return;
 
-            Text explanation = CreateText("Hypothesis Summary Explanation", parent,
+            TextMeshProUGUI explanation = CreateText("Hypothesis Summary Explanation", parent,
                 "Recorded checks, not probabilities. Tap a cause for details.",
                 11, FontStyle.Normal, InvestigationTheme.PaperMuted, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(explanation);
@@ -435,7 +436,7 @@ namespace EDNA.Investigation
                         expandedHypothesisId = expandedHypothesisId == threat.ThreatId ? string.Empty : threat.ThreatId;
                         notebookFocusTargetAfterRender = $"Hypothesis Card {threat.ThreatId}";
                         RefreshPresentationOnly();
-                    }, out Text hidden);
+                    }, out TextMeshProUGUI hidden);
                 hidden.gameObject.SetActive(false);
                 AddLayout(card.GetComponent<RectTransform>(), 72f, 1f);
                 card.interactable = summary.Records.Count > 0;
@@ -445,13 +446,13 @@ namespace EDNA.Investigation
                     threat.Icon != null ? threat.Icon : InvestigationStatusIconLibrary.Question,
                     threat.Icon != null ? Color.white : InvestigationTheme.PaperMuted);
                 Anchor(icon.rectTransform, 0f, 0.5f, 0f, 0.5f, 10f, -15f, 40f, 15f);
-                Text name = CreateText($"Hypothesis Name {threat.ThreatId}", card.transform, threat.DisplayName,
+                TextMeshProUGUI name = CreateText($"Hypothesis Name {threat.ThreatId}", card.transform, threat.DisplayName,
                     14, FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
                 Anchor(name.rectTransform, 0f, 0.5f, 1f, 1f, 48f, 0f, -12f, -6f);
                 string counts = summary.Records.Count > 0
                     ? $"SUPPORT {summary.SupportCount} · CHALLENGE {summary.ChallengeCount} · OPEN {summary.OpenCount}"
                     : state.HasTriedThreat(threat.ThreatId) ? "NO CHECKS YET" : "NOT TESTED";
-                Text stats = CreateText($"Hypothesis Summary {threat.ThreatId}", card.transform, counts,
+                TextMeshProUGUI stats = CreateText($"Hypothesis Summary {threat.ThreatId}", card.transform, counts,
                     10, FontStyle.Normal, InvestigationTheme.PaperMuted, TextAnchor.MiddleLeft, InvestigationTheme.DataFont);
                 Anchor(stats.rectTransform, 0f, 0f, 1f, 0.5f, 48f, 6f, -12f, 0f);
                 if (!expanded) continue;
@@ -463,7 +464,7 @@ namespace EDNA.Investigation
                     string target = caseDefinition.FindSpecies(record.TargetId)?.GameplayName ?? record.TargetId;
                     Button check = CreateButton($"Revisit Comparison {record.ThreatId} {record.TargetId}", parent,
                         $"{target} · {label}", ButtonVisualStyle.PaperChoice,
-                        () => RevisitComparison(record), out Text checkLabel);
+                        () => RevisitComparison(record), out TextMeshProUGUI checkLabel);
                     checkLabel.fontSize = 13;
                     ConfigureWrappingChoice(check, checkLabel);
                     check.GetComponent<InvestigationFocusRing>().KeepVisibleOnKeyboardFocus = true;
