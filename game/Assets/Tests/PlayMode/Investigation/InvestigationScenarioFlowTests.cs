@@ -93,13 +93,13 @@ namespace EDNA.Investigation.Tests
             yield return Start(); Press("Finish Scenario Animation"); Press("Run Scenario longline");
             var record = GameObject.Find("Scenario Observed tuna").transform.Find("Observed Today Artwork");
             int count = 0; foreach (var img in record.GetComponentsInChildren<Image>()) if (img.sprite != null) count++;
-            Assert.That(count, Is.EqualTo(3));
+            Assert.That(count, Is.EqualTo(1));
             Press("Toggle Notebook Drawer"); yield return new WaitForSecondsRealtime(.3f);
             Press("Close Notebook Drawer"); InvestigationCurrentFlowTestActions.ToggleGuidanceForTests(); yield return null;
             Press("Finish Scenario Animation");
             Assert.That(Actor("tuna"), Does.Contain("Increase"));
-            Assert.That(GameObject.Find("Scenario Observed shark").transform.Find("Observed Today Absence"), Is.Not.Null);
-            Assert.That(GameObject.Find("Scenario Observed tuna").transform.Find("Observed Change").GetComponent<TextMeshProUGUI>().text, Does.Contain("More sites"));
+            Assert.That(GameObject.Find("Scenario Observed tree_bubblegum_coral").transform.Find("Observed Today Absence"), Is.Not.Null);
+            Assert.That(GameObject.Find("Scenario Observed tuna").transform.Find("Observed Change").GetComponent<TextMeshProUGUI>().text, Does.Contain("Fewer sites"));
         }
         [UnityTest] public IEnumerator Scenario_ChosenExplanationCanFinishTheExistingReport()
         {
@@ -118,7 +118,7 @@ namespace EDNA.Investigation.Tests
             if (GameObject.Find("Finish Scenario Animation") != null) Press("Finish Scenario Animation");
             Assert.That(Actor("tuna"), Does.Contain("Increase"));
             Assert.That(GameObject.Find("Metrics").GetComponent<TextMeshProUGUI>().text, Does.Contain("1/3"));
-            Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds.Count, Is.EqualTo(6));
         }
         [UnityTest] public IEnumerator Scenario_LabelsRemainReadableOnANarrowCanvas()
         {

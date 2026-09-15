@@ -317,7 +317,7 @@ namespace EDNA.Investigation
             RectTransform badge = CreatePanel("Notebook Finding Count", button.transform, InvestigationTheme.Primary, 9f);
             Anchor(badge, 1f, 1f, 1f, 1f, -20f, -19f, -1f, 0f);
             badge.gameObject.SetActive(NotebookFindingCount > 0);
-            TextMeshProUGUI count = CreateText("Notebook Finding Count Text", badge, NotebookFindingCount.ToString(),
+            TextMeshProUGUI count = CreateText("Notebook Finding Count TextMeshProUGUI", badge, NotebookFindingCount.ToString(),
                 11, FontStyle.Bold, InvestigationTheme.OnPrimary, TextAnchor.MiddleCenter, InvestigationTheme.DataFont);
             Stretch(count.rectTransform, 1f, 1f, -1f, -1f);
 

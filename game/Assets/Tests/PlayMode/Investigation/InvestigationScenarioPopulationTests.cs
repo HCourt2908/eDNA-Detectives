@@ -36,7 +36,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Scenario Result longline").transform.Find("Scenario Result Species shark/Scenario Population Glow").GetComponent<Image>().color.a, Is.GreaterThan(0f));
             yield return new WaitForSecondsRealtime(4.65f);
             AssertPopulation("shark", 1); AssertPopulation("tuna", 5); AssertPopulation("krill", 5);
-            AssertPopulation("atlantic_herring", 1); AssertPopulation("phytoplankton", 1);
+            AssertPopulation("atlantic_herring", 1); AssertPopulation("phytoplankton", 3);
             Assert.That(GameObject.Find("Metrics").GetComponent<TextMeshProUGUI>().text, Does.Contain("0/3"), "Final pattern stays visible before the trial completes");
             yield return new WaitForSecondsRealtime(1.2f);
             Assert.That(GameObject.Find("Metrics").GetComponent<TextMeshProUGUI>().text, Does.Contain("1/3"));
@@ -50,14 +50,15 @@ namespace EDNA.Investigation.Tests
         {
             yield return Start();
             foreach (string id in new[] { "plastic", "longline", "bottom_trawling" }) { Press("Run Scenario " + id); Press("Finish Scenario Animation"); }
-            int[][] expected = { new[] {0,3,1,0,0}, new[] {1,5,5,1,1}, new[] {1,5,5,1,1} };
+            int[][] expected = { new[] {0,3,1,0,0}, new[] {1,5,5,1,3}, new[] {1,1,0,5,3} };
             string[] causes = { "plastic", "longline", "bottom_trawling" };
             for (int cause = 0; cause < causes.Length; cause++)
             {
                 Transform card = GameObject.Find("Scenario Result " + causes[cause]).transform;
                 for (int species = 0; species < Species.Length; species++)
                 {
-                    Transform population = card.Find("Scenario Result Species " + Species[species] + "/Result Population " + Species[species]);
+                    string rowId = causes[cause] == "bottom_trawling" && Species[species] == "krill" ? "tree_bubblegum_coral" : Species[species];
+                    Transform population = card.Find("Scenario Result Species " + rowId + "/Result Population " + rowId);
                     int visible = 0; foreach (var image in population.GetComponentsInChildren<Image>()) if (image.name.StartsWith("Result Specimen ") && image.color.a > .99f) visible++;
                     Assert.That(visible, Is.EqualTo(expected[cause][species]), causes[cause] + " " + Species[species]);
                 }

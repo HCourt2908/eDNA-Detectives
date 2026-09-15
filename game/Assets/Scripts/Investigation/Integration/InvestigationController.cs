@@ -191,7 +191,7 @@ namespace EDNA.Investigation
         private void HandleRecordModelConclusion()
         {
             if (!HasActiveSession || state.ConclusionStatus == InvestigationConclusionStatus.Correct) return;
-            string chosen = string.IsNullOrEmpty(state.FinalThreatId) ? state.ProvisionalThreatId : state.FinalThreatId;
+            string chosen = caseDefinition.PrimaryModelThreatId;
             InvestigationConclusionResult result = updater.SubmitModelConclusion(state, chosen);
             view.Refresh(state, result.Feedback, result.Status == InvestigationConclusionStatus.Correct
                 ? InvestigationStatusTone.Success : InvestigationStatusTone.Warning);

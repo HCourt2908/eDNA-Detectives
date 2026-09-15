@@ -15,7 +15,7 @@ namespace EDNA.Investigation.Domain
             }
 
             if (string.IsNullOrWhiteSpace(caseDefinition.CaseId)) errors.Add("Case ID is missing.");
-            if (caseDefinition.Species.Count != 5) errors.Add("The investigation vertical slice requires exactly five species.");
+            if (caseDefinition.Species.Count < 2) errors.Add("The investigation requires at least two survey species.");
             if (caseDefinition.Threats.Count < 2) errors.Add("The investigation requires at least two threats to compare.");
 
             HashSet<string> speciesIds = new HashSet<string>(StringComparer.Ordinal);
@@ -111,7 +111,7 @@ namespace EDNA.Investigation.Domain
             ValidatePresentationSpeciesList(
                 "food-web chain",
                 caseDefinition.FoodWebChainSpeciesIds,
-                speciesIds,
+                catalogSpeciesIds,
                 presentationSpeciesIds,
                 2,
                 errors);
@@ -127,6 +127,11 @@ namespace EDNA.Investigation.Domain
             if (string.IsNullOrWhiteSpace(caseDefinition.SimulationFoodWebId))
                 errors.Add("The case requires a simulation food-web network ID.");
             ValidateFoodWebEdges(caseDefinition, errors);
+            // Survey species and model species need not be identical. A model
+            // can include an unmeasured organism without inventing a finding.
+            foreach (var threat in caseDefinition.Threats)
+                if (threat != null)
+                    foreach (string id in threat.DisplaySpeciesIds) presentationSpeciesIds.Add(id);
             foreach (string speciesId in speciesIds)
             {
                 if (!presentationSpeciesIds.Contains(speciesId))
@@ -157,8 +162,21 @@ namespace EDNA.Investigation.Domain
                 }
                 if (!threatIds.Add(threat.ThreatId)) errors.Add($"Duplicate threat ID: {threat.ThreatId}.");
                 var effective = new EcosystemSimulatorEvaluator().Evaluate(caseDefinition, threat.ThreatId);
-                if (effective.Predictions.Count != caseDefinition.Species.Count)
+                if (effective.Predictions.Count < caseDefinition.Species.Count)
                     errors.Add($"Threat {threat.ThreatId} does not resolve the complete prediction matrix.");
+                var predictedIds = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var prediction in effective.Predictions)
+                    if (!predictedIds.Add(prediction.SpeciesId) || caseDefinition.FindSpecies(prediction.SpeciesId) == null)
+                        errors.Add($"Threat {threat.ThreatId} contains a duplicate or unknown prediction: {prediction.SpeciesId}.");
+                var displayIds = new HashSet<string>(StringComparer.Ordinal);
+                foreach (string id in threat.DisplaySpeciesIds)
+                    if (!displayIds.Add(id) || !predictedIds.Contains(id))
+                        errors.Add($"Threat {threat.ThreatId} displays a duplicate species or one without a prediction: {id}.");
+                foreach (var link in threat.FoodSupplyLinks)
+                    if (link == null || caseDefinition.FindSpecies(link.SourceSpeciesId) == null
+                        || caseDefinition.FindSpecies(link.ConsumerSpeciesId) == null
+                        || !Enum.IsDefined(typeof(ScenarioFoodLinkKind), link.Kind))
+                        errors.Add($"Threat {threat.ThreatId} has an invalid food-supply link.");
                 foreach (string speciesId in speciesIds)
                 {
                     if (effective.FindPrediction(speciesId) == null)
@@ -232,6 +250,12 @@ namespace EDNA.Investigation.Domain
                 }
             }
 
+            var reviewIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string id in caseDefinition.RequiredModelReviewIds)
+            {
+                if (!threatIds.Contains(id) || !reviewIds.Add(id)) errors.Add($"Required model review is unknown or duplicated: {id}.");
+                if (caseDefinition.FindThreat(id)?.OptionalExploration == true) errors.Add($"Optional model {id} cannot require a review.");
+            }
             var supported = new HashSet<string>(StringComparer.Ordinal);
             foreach (string id in caseDefinition.SupportedModelThreatIds)
                 if (!threatIds.Contains(id) || !supported.Add(id))
@@ -242,14 +266,18 @@ namespace EDNA.Investigation.Domain
                 foreach (string id in threatIds)
                 {
                     bool matchesEveryFinding = true;
+                    int comparableFindings = 0;
+                    var model = new EcosystemSimulatorEvaluator().Evaluate(caseDefinition, id);
                     foreach (var finding in caseDefinition.Observations)
                     {
                         if (!InvestigationObserveEvaluator.IsInitialFinding(finding) || string.IsNullOrEmpty(finding.RelatedSpeciesId)) continue;
+                        if (model.FindPrediction(finding.RelatedSpeciesId)?.PredictedState == PredictionState.Unknown) continue;
+                        comparableFindings++;
                         var match = caseDefinition.FindComparisonRule(id, finding.RelatedSpeciesId)
                             ?.FindOption(finding.EvidenceId)?.FindResolution(ComparisonJudgement.Match);
                         if (match == null || match.Outcome == ComparisonEvaluationOutcome.Incorrect) matchesEveryFinding = false;
                     }
-                    if (supported.Contains(id) != matchesEveryFinding)
+                    if (supported.Contains(id) != (matchesEveryFinding && comparableFindings >= 2))
                         errors.Add($"Supported model list does not reflect the complete survey comparison for {id}.");
                 }
             }
@@ -267,6 +295,8 @@ namespace EDNA.Investigation.Domain
             for (int index = 0; index < caseDefinition.RequiredComparedThreatIds.Count; index++)
             {
                 string requiredThreatId = caseDefinition.RequiredComparedThreatIds[index];
+                if (caseDefinition.FindThreat(requiredThreatId)?.OptionalExploration == true)
+                    errors.Add($"Optional model {requiredThreatId} cannot require a comparison.");
                 if (!threatIds.Contains(requiredThreatId))
                     errors.Add($"Required comparison threat is unknown: {requiredThreatId}.");
                 InvestigationRequiredComparisonSpeciesDefinition requiredSpecies = caseDefinition.FindRequiredComparisonSpecies(requiredThreatId);
@@ -290,7 +320,7 @@ namespace EDNA.Investigation.Domain
                 }
             }
             if (!threatIds.Contains(caseDefinition.CorrectThreatId)) errors.Add("Correct threat ID is not available.");
-            if (caseDefinition.RequiredComparedThreatIds.Count < 2) errors.Add("At least two overlapping threats must be required for comparison.");
+            if (caseDefinition.RequiredComparedThreatIds.Count < 2) errors.Add("At least two threat models must be required for comparison.");
             if (caseDefinition.MinimumCompletedComparisons < caseDefinition.RequiredComparisonsPerThreat * caseDefinition.RequiredComparedThreatIds.Count)
                 errors.Add("Minimum completed comparisons cannot be lower than the required per-threat total.");
 
@@ -311,6 +341,8 @@ namespace EDNA.Investigation.Domain
                         errors.Add($"Duplicate investigation objective ID: {objective.ObjectiveId}.");
                     if (objective.Required)
                     {
+                        if (caseDefinition.FindThreat(objective.ThreatId)?.OptionalExploration == true)
+                            errors.Add($"Optional model {objective.ThreatId} cannot have a required objective.");
                         if (objective.ProgressRole == ComparisonProgressRole.BenthicDiscriminator) followUpObjectiveCount++;
                         else provisionalObjectiveCount++;
                     }
@@ -360,8 +392,8 @@ namespace EDNA.Investigation.Domain
                 errors.Add("Investigation requires data-driven investigation objectives.");
             }
 
-            if (caseDefinition.MinimumObserveDiscoveries < 5)
-                errors.Add("The Long-line vertical slice must require all five Observe findings before Simulate.");
+            if (caseDefinition.MinimumObserveDiscoveries < caseDefinition.Species.Count)
+                errors.Add("The case must require all survey findings before Simulate.");
 
             int minimumCategoryTotal = 0;
             HashSet<EvidenceCategory> requiredCategories = new HashSet<EvidenceCategory>();

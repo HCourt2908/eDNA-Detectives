@@ -48,26 +48,24 @@ public class sampleController : MonoBehaviour
         StartCoroutine(LoadPuzzles());
     }
 
+    // Include every detected species before shuffling. A list-size cutoff here
+    // can silently omit later species from the identification activity.
+    private static List<Species> BuildSampleQueue(List<Species> speciesList, Dictionary<Species, SpeciesFrequency> frequencyMap)
+    {
+        var samplesFound = new List<Species>();
+        foreach (var species in speciesList)
+        {
+            SpeciesFrequency frequency = frequencyMap[species];
+            if (frequency == SpeciesFrequency.Missing) continue;
+            samplesFound.Add(species);
+            if (frequency == SpeciesFrequency.MoreFrequent) samplesFound.Add(species);
+        }
+        return samplesFound;
+    }
+
     public IEnumerator LoadPuzzles()
     {
-
-        List<Species> samplesFound = new List<Species>();
-        for (int i = 0; i < speciesList.Count; i++)
-        {
-            if (frequencyMap[speciesList[i]] == SpeciesFrequency.MoreFrequent)
-            {
-                samplesFound.Add(speciesList[i]);
-                samplesFound.Add(speciesList[i]);
-            }
-            else if (frequencyMap[speciesList[i]] == SpeciesFrequency.SameFrequent)
-            {
-                samplesFound.Add(speciesList[i]);
-            }
-            else if (frequencyMap[speciesList[i]] == SpeciesFrequency.LessFrequent && samplesFound.Count < 5)
-            {
-                samplesFound.Add(speciesList[i]);
-            }
-        }
+        List<Species> samplesFound = BuildSampleQueue(speciesList, frequencyMap);
 
         samplesFound = samplesFound.OrderBy(x => Random.value).ToList();
 

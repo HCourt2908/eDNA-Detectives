@@ -100,6 +100,7 @@ namespace EDNA.Investigation.Domain
         [SerializeField, Min(1)] private int requiredComparisonsPerThreat = 2;
         [SerializeField, Min(1)] private int minimumCompletedComparisons = 4;
         [SerializeField] private string correctThreatId = string.Empty;
+        [SerializeField] private List<string> requiredModelReviewIds = new List<string>();
         [SerializeField] private List<string> supportedModelThreatIds = new List<string>();
         [SerializeField] private List<string> confirmationEvidenceIds = new List<string>();
         [SerializeField, Min(1)] private int minimumReportEvidence = 2;
@@ -135,6 +136,9 @@ namespace EDNA.Investigation.Domain
         public string CorrectThreatId => correctThreatId;
         // Authored case priority, separate from which models fit the same pattern.
         public string PrimaryModelThreatId => correctThreatId;
+        public IReadOnlyList<string> RequiredModelReviewIds => requiredModelReviewIds.Count > 0 ? requiredModelReviewIds : supportedModelThreatIds;
+        public bool CanReviewModel(string id) => RequiredModelReviewIds.Count > 0
+            ? (requiredModelReviewIds.Count > 0 ? requiredModelReviewIds.Contains(id) : supportedModelThreatIds.Contains(id)) : SupportsModelConclusion(id);
         public IReadOnlyList<string> SupportedModelThreatIds => supportedModelThreatIds;
         public bool HasAmbiguousModelConclusion => supportedModelThreatIds.Count > 1;
         public bool SupportsModelConclusion(string id) => supportedModelThreatIds.Count > 0

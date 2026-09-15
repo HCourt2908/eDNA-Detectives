@@ -146,7 +146,7 @@ namespace EDNA.Investigation.Domain
                 InvestigationReadiness readiness = conclusionEvaluator.EvaluateReadiness(caseDefinition, state);
                 if (!readiness.CanEnterProvisional)
                 {
-                    feedback = "Compare the required overlapping causes before entering the report stage.";
+                    feedback = "Compare the required models before entering the report stage.";
                     return false;
                 }
                 if (string.IsNullOrEmpty(state.ProvisionalThreatId))
@@ -350,20 +350,20 @@ namespace EDNA.Investigation.Domain
 
         public bool TryReviewModelExplanation(InvestigationState state, string threatId, out string feedback)
         {
-            feedback = "Complete the survey and all model trials before reviewing an explanation.";
+            feedback = "Complete the survey and required model trials before reviewing an explanation.";
             if (state == null || state.ConclusionStatus == InvestigationConclusionStatus.Correct
                 || (state.Phase != InvestigationPhase.Simulate && state.Phase != InvestigationPhase.Report)
                 || !InvestigationObserveEvaluator.IsComplete(caseDefinition, state)) return false;
             foreach (var threat in caseDefinition.Threats)
-                if (!state.HasTriedThreat(threat.ThreatId)) return false;
-            if (!caseDefinition.SupportsModelConclusion(threatId))
+                if (!threat.OptionalExploration && !state.HasTriedThreat(threat.ThreatId)) return false;
+            if (!caseDefinition.CanReviewModel(threatId))
             {
                 feedback = "This model does not match the whole survey pattern. Compare the other explanations.";
                 return false;
             }
             if (!TrySubmitProvisional(state, threatId, out feedback)) return false;
             state.RecordModelReview(threatId);
-            feedback = "Explanation reviewed. Review both the main explanation and possible alternative before recording your conclusion.";
+            feedback = "Explanation reviewed. Review the trawling explanation and the long-line alternative before recording your conclusion.";
             return true;
         }
 

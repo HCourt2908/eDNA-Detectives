@@ -74,7 +74,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(lens.interactable, Is.True);
             lens.value = 0f; yield return null;
             Assert.That(GameObject.Find("Lens Today Label").activeInHierarchy, Is.True);
-            Assert.That(GameObject.Find("Historical Notebook Row shark"), Is.Not.Null);
+            Assert.That(GameObject.Find("Historical Notebook Row tree_bubblegum_coral"), Is.Not.Null);
             Assert.That(GameObject.Find("Today Recording Status").GetComponent<TextMeshProUGUI>().text, Does.Contain("20 years ago"));
             lens.value = .4f;
             InvestigationCurrentFlowTestActions.ToggleGuidanceForTests(); yield return null;
@@ -85,7 +85,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Compare Recorded Surveys").GetComponent<Button>().interactable, Is.True);
             Press("Compare Recorded Surveys"); yield return null;
             Assert.That(GameObject.Find("Comparison Briefing Overlay"), Is.Not.Null);
-            Assert.That(GameObject.Find("Historical Notebook Row shark"), Is.Not.Null);
+            Assert.That(GameObject.Find("Historical Notebook Row tree_bubblegum_coral"), Is.Not.Null);
         }
 
         [UnityTest]
@@ -98,8 +98,8 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Observe Answer Choices"), Is.Null);
             Assert.That(GameObject.Find("Toggle Notebook Drawer"), Is.Null);
             InvestigationWorkbenchTestActions.BeginTodayRecording(); yield return null; yield return null;
-            Assert.That(GameObject.Find("Today Notebook Row shark"), Is.Null);
-            Assert.That(GameObject.Find("Today Notebook Row krill"), Is.Not.Null);
+            Assert.That(GameObject.Find("Today Notebook Row tree_bubblegum_coral"), Is.Null);
+            Assert.That(GameObject.Find("Today Notebook Row shark"), Is.Not.Null);
             Assert.That(GameObject.Find("Today Negative Survey Record"), Is.Null);
             GameObject flight = GameObject.Find("Today Record In Flight");
             Assert.That(flight, Is.Not.Null);
@@ -111,16 +111,16 @@ namespace EDNA.Investigation.Tests
             while (GameObject.Find("Compare With History") == null && Time.realtimeSinceStartup < deadline)
             {
                 Assert.That(GameObject.Find("Observe Answer Choices"), Is.Null);
-                Assert.That(GameObject.Find("Species Marker shark"), Is.Null);
-                Assert.That(GameObject.Find("Species Marker krill"), Is.Not.Null);
+                Assert.That(GameObject.Find("Species Marker tree_bubblegum_coral"), Is.Null);
+                Assert.That(GameObject.Find("Species Marker shark"), Is.Not.Null);
                 yield return null;
             }
             Assert.That(GameObject.Find("Today Record In Flight"), Is.Null);
             Assert.That(GameObject.Find("Compare With History"), Is.Not.Null);
             Assert.That(controller.State.DiscoveredObservationIds, Is.Empty, "Saving current survey records must not answer the historical comparison questions.");
-            Assert.That(GameObject.Find("Today Notebook Row shark"), Is.Null);
-            Assert.That(GameObject.Find("Today Notebook Row krill"), Is.Not.Null);
-            Assert.That(GameObject.Find("Today Recording Status").GetComponent<TextMeshProUGUI>().text, Does.Contain("4/4"));
+            Assert.That(GameObject.Find("Today Notebook Row tree_bubblegum_coral"), Is.Null);
+            Assert.That(GameObject.Find("Today Notebook Row shark"), Is.Not.Null);
+            Assert.That(GameObject.Find("Today Recording Status").GetComponent<TextMeshProUGUI>().text, Does.Contain("5/5"));
             Assert.That(EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Compare With History"));
             Press("Compare With History"); Press("History Lens Briefing Next"); yield return null;
             Assert.That(GameObject.Find("Observe Answer Choices"), Is.Null);
@@ -134,13 +134,13 @@ namespace EDNA.Investigation.Tests
             Assert.That(history.interactable, Is.False);
             lens.value = 1f;
             Assert.That(history.interactable, Is.True);
-            Assert.That(GameObject.Find("Historical Notebook Row shark"), Is.Null, "Historical records require another explicit recording action.");
+            Assert.That(GameObject.Find("Historical Notebook Row tree_bubblegum_coral"), Is.Null, "Historical records require another explicit recording action.");
             Press("Start Recording History"); yield return null; yield return null;
             Assert.That(GameObject.Find("Today Record In Flight"), Is.Not.Null);
             deadline = Time.realtimeSinceStartup + 6f;
             while (GameObject.Find("Compare Recorded Surveys") == null && Time.realtimeSinceStartup < deadline) yield return null;
-            Assert.That(GameObject.Find("Historical Notebook Row shark").transform.Find("Today Notebook Result").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Detected 20 years ago"));
-            Assert.That(GameObject.Find("Historical Notebook Row krill"), Is.Not.Null);
+            Assert.That(GameObject.Find("Historical Notebook Row tree_bubblegum_coral").transform.Find("Today Notebook Result").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Detected 20 years ago"));
+            Assert.That(GameObject.Find("Historical Notebook Row shark"), Is.Not.Null);
             Assert.That(EventSystem.current.currentSelectedGameObject.name, Is.EqualTo("Survey Time Lens"));
             Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
             Press("Compare Recorded Surveys");
@@ -150,10 +150,10 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Comparison Notebook"), Is.Not.Null);
             Assert.That(GameObject.Find("Today Survey Notes Title"), Is.Not.Null);
             Assert.That(GameObject.Find("Historical Survey Notes Title"), Is.Not.Null);
-            Assert.That(GameObject.Find("Today Notebook Row shark"), Is.Null);
-            Assert.That(GameObject.Find("Historical Notebook Row shark"), Is.Not.Null);
+            Assert.That(GameObject.Find("Today Notebook Row tree_bubblegum_coral"), Is.Null);
+            Assert.That(GameObject.Find("Historical Notebook Row tree_bubblegum_coral"), Is.Not.Null);
 
-            InvestigationWorkbenchTestActions.Record("Species Marker shark");
+            InvestigationWorkbenchTestActions.Record("Species Marker tree_bubblegum_coral");
             Assert.That(controller.State.DiscoveredObservationIds.Count, Is.EqualTo(1));
         }
         [UnityTest]

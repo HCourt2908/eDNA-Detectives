@@ -44,9 +44,9 @@ namespace EDNA.Investigation.Tests
         }
         public static void RecordAllFindings()
         {
-            foreach (string species in new[] { "shark", "tuna", "krill", "atlantic_herring", "phytoplankton" })
+            foreach (string species in new[] { "shark", "tuna", "tree_bubblegum_coral", "atlantic_herring", "phytoplankton", "krill" })
                 InvestigationWorkbenchTestActions.Record("Species Marker " + species);
-            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
         }
         public static void EnterCurrentModels()
         {

@@ -36,7 +36,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(Alpha("Comparison Changes Page"),Is.Zero);
             Assert.That(GameObject.Find("Toggle Comparison View"),Is.Null);
             Assert.That(GameObject.Find("Comparison Briefing Dimmer").GetComponent<Image>().raycastTarget,Is.True);
-            Press("Compare Species tuna");Press("Compare Change More");
+            Press("Compare Species tuna");Press("Compare Change Fewer");
             Assert.That(controller.State.DiscoveredObservationIds,Is.Empty,"Introduction must not record an answer.");
             var oldNext=GameObject.Find("Comparison Briefing Next").GetComponent<Button>().onClick;
             Press("Comparison Briefing Next");yield return null;
@@ -57,8 +57,8 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Investigation Content").GetComponent<ScrollRect>().enabled,Is.True);
             InvestigationCurrentFlowTestActions.ToggleGuidanceForTests();Press("Toggle Comparison View");Press("Toggle Comparison View");
             Assert.That(GameObject.Find("Comparison Briefing Overlay"),Is.Null,"Returning to the reference or changing mode must not replay the briefing.");
-            Press("Compare Species tuna");Press("Compare Change More");
-            Assert.That(controller.State.HasDiscoveredObservation("E02_TUNA_WIDER_DETECTION"),Is.True);
+            Press("Compare Species tuna");Press("Compare Change Fewer");
+            Assert.That(controller.State.HasDiscoveredObservation("E02_TUNA_FEWER_SITES"),Is.True);
         }
         [UnityTest] public IEnumerator Briefing_CompactLayoutKeepsTheSpotlightAndNextVisibleAcrossRefreshes()
         {

@@ -33,7 +33,7 @@ namespace EDNA.Investigation.Tests
             yield return null;
             CurrentPointerClick(CurrentButton("Cancel Restart Case"));
             Assert.That(CurrentState, Is.SameAs(original));
-            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
         }
 
         [UnityTest]

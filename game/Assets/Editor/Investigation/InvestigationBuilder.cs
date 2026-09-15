@@ -266,7 +266,7 @@ namespace EDNA.Investigation.Editor
         {
             foreach (string file in new[] { "great-hammerhead-shark.png", "reef-manta-ray.png", "bone-eating-worm.png" })
                 ConfigureSpriteImporter($"{TeamArtRoot}/{file}");
-            foreach (string file in new[] { "hammerhead.png", "tuna.png", "atlantic-herring.png", "krill.png", "phytoplankton.png" })
+            foreach (string file in new[] { "hammerhead.png", "tuna.png", "atlantic-herring.png", "krill.png", "phytoplankton.png", "tree-bubblegum-coral.png" })
                 ConfigureSpriteImporter($"{FieldGuideArtRoot}/{file}");
             string[] artworkFiles =
             {
@@ -326,9 +326,9 @@ namespace EDNA.Investigation.Editor
             AssetDatabase.Refresh();
             foreach (string file in new[] { "great-hammerhead-shark.png", "reef-manta-ray.png", "bone-eating-worm.png" })
                 ConfigureSpriteImporter($"{TeamArtRoot}/{file}");
-            string[] ids = { "shark", "tuna", "atlantic_herring", "krill", "phytoplankton" };
-            string[] names = { "Shark", "Tuna", "AtlanticHerring", "Krill", "Phytoplankton" };
-            string[] files = { "hammerhead", "tuna", "atlantic-herring", "krill", "phytoplankton" };
+            string[] ids = { "shark", "tuna", "atlantic_herring", "krill", "phytoplankton", "tree_bubblegum_coral" };
+            string[] names = { "Shark", "Tuna", "AtlanticHerring", "Krill", "Phytoplankton", "TreeBubblegumCoral" };
+            string[] files = { "hammerhead", "tuna", "atlantic-herring", "krill", "phytoplankton", "tree-bubblegum-coral" };
             for (int index = 0; index < ids.Length; index++)
             {
                 ConfigureSpriteImporter($"{FieldGuideArtRoot}/{files[index]}.png");
@@ -539,7 +539,7 @@ namespace EDNA.Investigation.Editor
         {
             SerializedProperty options = caseObject.FindProperty("reasoningOptions");
             options.arraySize = 3;
-            SetReasoning(options.GetArrayElementAtIndex(0), "food_web_cascade", "Shark ↓ → Tuna ↑ → Herring ↓ → Krill ↑ → Phytoplankton ↓", "The illustrative response follows each link; the matching pattern does not distinguish the two fishing causes.");
+            SetReasoning(options.GetArrayElementAtIndex(0), "food_web_cascade", "Shark ↓ · Tuna ↓ · Herring ↑ · Coral not detected · Phytoplankton —", "The trawling model fits fewer tuna, more herring and missing coral. Long-line fishing predicts the opposite tuna and herring changes.");
             SetReasoning(options.GetArrayElementAtIndex(1), "shared_habitat_shift", "The species moved when their habitat shifted", "A shared habitat shift would need a coherent environmental or depth pattern.");
             SetReasoning(options.GetArrayElementAtIndex(2), "direct_fishing_loss", "Fishing directly removed every species", "The food-chain model distinguishes a direct premise from the subsequent inferred responses.");
         }

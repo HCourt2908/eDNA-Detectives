@@ -14,12 +14,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.ThreatSimulationDefinition
   threatId: longline
   displayName: Long-line fishing
-  summary: Main explanation for this case. Its predator-removal model follows the five-species food chain.
+  summary: 'A contrasting fishing model: predator removal increases tuna and reduces
+    herring, unlike this survey.'
   icon: {fileID: 21300000, guid: e87ddd70309fd4872b88f255da948cd6, type: 3}
   glyphKind: 2
   speciesPredictions:
   - speciesId: shark
     predictedState: 1
     rationale: Assume fewer predators in this teaching trial.
+  - speciesId: phytoplankton
+    predictedState: 2
+    rationale: Surface phytoplankton remains unaffected in this teaching scenario.
+  - speciesId: tree_bubblegum_coral
+    predictedState: 4
+    rationale: The team has not specified a coral response for this long-line model.
+  useFoodWebCascade: 1
+  optionalExploration: 0
+  displaySpeciesIds:
+  - shark
+  - tuna
+  - atlantic_herring
+  - krill
+  - phytoplankton
+  foodSupplyLinks: []
   seafloorPrediction: No seabed observation supplied by this example.
   physicalConfirmation: No physical observation is used in this activity.

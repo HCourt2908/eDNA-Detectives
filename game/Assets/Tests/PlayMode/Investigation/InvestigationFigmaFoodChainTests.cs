@@ -23,23 +23,22 @@ namespace EDNA.Investigation.Tests
             yield return null;
             Assert.That(GameObject.Find("Compare Species sea_star"), Is.Null);
             Assert.That(GameObject.Find("Compare Species mussel"), Is.Null);
-            foreach (string id in new[] { "atlantic_herring", "phytoplankton" })
-            {
-                Assert.That(Specimens(GameObject.Find("Historical Notebook Row " + id).transform), Is.EqualTo(3), id);
-                Assert.That(Specimens(GameObject.Find("Today Notebook Row " + id).transform), Is.EqualTo(1), id);
-            }
-            Assert.That(Specimens(GameObject.Find("Historical Notebook Row krill").transform), Is.EqualTo(1));
-            Assert.That(Specimens(GameObject.Find("Today Notebook Row krill").transform), Is.EqualTo(3));
+            Assert.That(Specimens(GameObject.Find("Historical Notebook Row atlantic_herring").transform), Is.EqualTo(1));
+            Assert.That(Specimens(GameObject.Find("Today Notebook Row atlantic_herring").transform), Is.EqualTo(3));
+            Assert.That(Specimens(GameObject.Find("Historical Notebook Row phytoplankton").transform), Is.EqualTo(1));
+            Assert.That(Specimens(GameObject.Find("Today Notebook Row phytoplankton").transform), Is.EqualTo(1));
+            Assert.That(Specimens(GameObject.Find("Historical Notebook Row tree_bubblegum_coral").transform), Is.EqualTo(1));
+            Assert.That(GameObject.Find("Today Notebook Row tree_bubblegum_coral"), Is.Null);
             CurrentPress("Compare Species atlantic_herring"); CurrentPress("Compare Change Same");
-            Assert.That(CurrentState.HasDiscoveredObservation("E03_HERRING_FEWER_SITES"), Is.False);
-            CurrentPress("Compare Change Fewer");
-            Assert.That(CurrentState.HasDiscoveredObservation("E03_HERRING_FEWER_SITES"), Is.True);
-            CurrentPress("Compare Species krill"); CurrentPress("Compare Change More");
-            Assert.That(CurrentState.HasDiscoveredObservation("E04_KRILL_WIDER_DETECTION"), Is.True);
+            Assert.That(CurrentState.HasDiscoveredObservation("E03_HERRING_WIDER_DETECTION"), Is.False);
+            CurrentPress("Compare Change More");
+            Assert.That(CurrentState.HasDiscoveredObservation("E03_HERRING_WIDER_DETECTION"), Is.True);
+            CurrentPress("Compare Species tree_bubblegum_coral"); CurrentPress("Compare Change NotDetected");
+            Assert.That(CurrentState.HasDiscoveredObservation("E04_CORAL_NONDETECTION"), Is.True);
         }
 
         [UnityTest]
-        public IEnumerator FigmaConclusion_ExportsMainAndAlternativeRegardlessOfTheReviewedModel()
+        public IEnumerator FigmaConclusion_ExportsOnlyTheMatchingModelRegardlessOfReviewOrder()
         {
             foreach (string id in new[] { "longline", "bottom_trawling" })
             {
@@ -47,21 +46,21 @@ namespace EDNA.Investigation.Tests
                 CurrentPress("Choose Scenario " + id); yield return null;
                 Assert.That(CurrentState.Phase, Is.EqualTo(InvestigationPhase.Report));
                 string words = string.Join(" ", GameObject.Find("Scenario Ending Panel").GetComponentsInChildren<TextMeshProUGUI>().Select(t => t.text));
-                Assert.That(words, Does.Contain("Main explanation").And.Contain("Possible alternative"));
+                Assert.That(words, Does.Contain("Best fit").And.Contain("Other explanation"));
                 Assert.That(words, Does.Not.Contain("independent evidence"));
                 Assert.That(GameObject.Find("Scenario Chosen Explanation").GetComponent<TextMeshProUGUI>().text,
-                    Does.Contain(id == "longline" ? "MAIN EXPLANATION" : "POSSIBLE ALTERNATIVE"));
+                    Does.Contain(id == "bottom_trawling" ? "MAIN EXPLANATION" : "ALTERNATIVE CHECKED"));
                 Assert.That(words, Does.Not.Contain("sea star").And.Not.Contain("mussel"));
                 InvestigationCurrentFlowTestActions.ReviewRemainingExplanations(); CurrentPress("Complete Scenario Investigation"); yield return null;
                 var result = InvestigationSessionBridge.LastResult;
                 Assert.That(result.completed, Is.True);
-                Assert.That(result.selectedHypothesisId, Is.EqualTo(id));
-                Assert.That(result.compatibleHypothesisIds, Is.EquivalentTo(new[] { "longline", "bottom_trawling" }));
-                Assert.That(result.primaryHypothesisId, Is.EqualTo("longline"));
-                Assert.That(result.alternativeHypothesisIds, Is.EquivalentTo(new[] { "bottom_trawling" }));
+                Assert.That(result.selectedHypothesisId, Is.EqualTo("bottom_trawling"));
+                Assert.That(result.compatibleHypothesisIds, Is.EquivalentTo(new[] { "bottom_trawling" }));
+                Assert.That(result.primaryHypothesisId, Is.EqualTo("bottom_trawling"));
+                Assert.That(result.alternativeHypothesisIds, Is.Empty);
                 Assert.That(GameObject.Find("Scenario Closed Summary").GetComponent<TextMeshProUGUI>().text,
-                    Does.Contain("Main explanation").And.Contain("Possible alternative").And.Not.Contain("independent evidence"));
-                Assert.That(result.evidenceIds.Count, Is.EqualTo(5));
+                    Does.Contain("Best fit").And.Contain("Long-line fishing was checked").And.Not.Contain("independent evidence"));
+                Assert.That(result.evidenceIds.Count, Is.EqualTo(6));
                 Assert.That(CurrentState.ConfirmationReviewed, Is.False);
             }
         }
