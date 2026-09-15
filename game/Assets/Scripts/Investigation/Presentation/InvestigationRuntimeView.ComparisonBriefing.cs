@@ -156,7 +156,7 @@ namespace EDNA.Investigation
                 FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(message);
             float textWidth = width - portraitWidth - 40f;
-            float textHeight = message.GetPreferredValues(message.text, textWidth, Mathf.Infinity).y;
+            float textHeight = message.GetPreferredValues(message.text, textWidth, 0f).y;
             float height = Mathf.Max(compact ? 150f : 196f, textHeight + 116f);
             float x = compact || onLeft ? screen.xMin + margin : screen.xMax - margin - width;
             PositionBriefingElement(speech, new Rect(x, screen.yMin + margin, width, height));

@@ -19,50 +19,34 @@ namespace EDNA.Investigation
         private string scenarioFeedback = string.Empty;
         private string scenarioConflictSpecies = string.Empty;
         private bool scenarioSubmitting;
+        private const float ChainArrivalSeconds = 1.8f;
         private const float ScenarioRecordsRevealSeconds = .85f;
         private double scenarioRecordsRevealStarted = -100d;
         private const float ScenarioSeconds = 7.2f;
         private bool ScenarioModeActive => state != null && state.Phase == InvestigationPhase.Simulate;
         private bool ScenarioWorkspaceActive => state != null && (state.Phase == InvestigationPhase.Simulate || state.Phase == InvestigationPhase.Report);
-        private bool RequiredScenariosViewed
+        private bool EveryScenarioViewed
         {
             get
             {
                 if (caseDefinition == null || caseDefinition.Threats.Count == 0) return false;
-                foreach (var cause in caseDefinition.Threats) if (!cause.OptionalExploration && !viewedScenarios.Contains(cause.ThreatId)) return false;
+                foreach (var cause in caseDefinition.Threats) if (!viewedScenarios.Contains(cause.ThreatId)) return false;
                 return true;
             }
         }
-        private int RequiredScenarioCount
-        {
-            get { int count = 0; foreach (var model in caseDefinition.Threats) if (!model.OptionalExploration) count++; return count; }
-        }
-        private int RequiredScenariosTried
-        {
-            get { int count = 0; foreach (var model in caseDefinition.Threats) if (!model.OptionalExploration && state.HasTriedThreat(model.ThreatId)) count++; return count; }
-        }
-        private int RequiredScenariosViewedCount
-        {
-            get { int count = 0; foreach (var model in caseDefinition.Threats) if (!model.OptionalExploration && viewedScenarios.Contains(model.ThreatId)) count++; return count; }
-        }
-
         private string ScenarioEdnaMessage
         {
             get
             {
                 if (scenarioSession != state || scenarioStage == ScenarioStage.BuildingChain)
-                    return "Our notebook is opening. Use Play on any card to test its prediction, then compare the results.";
+                    return "Our notebook is opening. Use Play on any card to test its prediction, then compare the three results.";
                 if (!string.IsNullOrEmpty(scenarioFeedback)) return scenarioFeedback;
                 if (!string.IsNullOrEmpty(state.ProvisionalThreatId)) return "Your explanation is saved. Replay any model, then return to your summary.";
                 if (scenarioStage == ScenarioStage.Comparing)
-                    return "Compare the shared species with our survey. Look closely at tuna and herring before recording your conclusion.";
+                    return "Compare all five species with our example survey. More than one model can fit the same pattern.";
                 if (scenarioStage == ScenarioStage.PlayingCause)
-                {
-                    if (IsBloomScenario(scenarioActiveId))
-                        return "Extreme trial: watch the bloom spread, then the model organisms disappear. This is not the outcome of every algal bloom.";
                     return "Watch the highlighted groups: more organisms join, or some leave. Every trial starts with the same groups; these symbols show relative change, not actual population counts.";
-                }
-                return "Use Play on each card. Watch the groups change, then review how the explanations compare with our survey.";
+                return "Use Play on each card. Watch the groups change, then choose the explanation that best fits our survey.";
             }
         }
 
@@ -73,7 +57,7 @@ namespace EDNA.Investigation
             viewedScenarios.Clear();
             foreach (var cause in caseDefinition.Threats) if (state.HasTriedThreat(cause.ThreatId)) viewedScenarios.Add(cause.ThreatId);
             scenarioStage = viewedScenarios.Count == 0 ? ScenarioStage.BuildingChain
-                : RequiredScenariosViewed ? ScenarioStage.Comparing : ScenarioStage.TryingCauses;
+                : EveryScenarioViewed ? ScenarioStage.Comparing : ScenarioStage.TryingCauses;
             scenarioStarted = Time.unscaledTimeAsDouble;
             scenarioRecordsRevealStarted = viewedScenarios.Count == 0 && !InvestigationMotionSettings.ReducedMotion ? scenarioStarted : -100d;
             if (scenarioRecordsRevealStarted >= 0d) scenarioStarted += ScenarioRecordsRevealSeconds;
@@ -117,7 +101,7 @@ namespace EDNA.Investigation
             {
                 if (state.FindSimulation(scenarioActiveId) == null) return;
                 viewedScenarios.Add(scenarioActiveId);
-                scenarioStage = RequiredScenariosViewed ? ScenarioStage.Comparing : ScenarioStage.TryingCauses;
+                scenarioStage = EveryScenarioViewed ? ScenarioStage.Comparing : ScenarioStage.TryingCauses;
             }
             else return;
             scenarioRun++;
@@ -126,46 +110,26 @@ namespace EDNA.Investigation
 
         private void ChooseScenarioExplanation(string id)
         {
-            if (!ScenarioModeActive || scenarioSubmitting || scenarioStage == ScenarioStage.PlayingCause
-                || caseDefinition.FindThreat(id) == null || !viewedScenarios.Contains(id)) return;
-            if (IsBloomScenario(id))
-            {
-                CloseScenarioBriefingForAction(); scenarioBriefedConflict = string.Empty;
-                scenarioSubmitting = true;
-                try
-                {
-                    foreach (string species in new[] { "atlantic_herring", "phytoplankton" })
-                    {
-                        var finding = FindObserveObservationForSpecies(species);
-                        if (finding != null) compareEvidence?.Invoke(id, PredictionTargetKind.Species, species, finding.EvidenceId);
-                    }
-                }
-                finally { scenarioSubmitting = false; }
-                scenarioConflictSpecies = "atlantic_herring";
-                scenarioFeedback = "This extreme trial predicts widespread losses. But our herring increased and phytoplankton stayed stable, so it does not match our survey. You can continue with the three required models.";
-                RefreshPresentationOnly(); return;
-            }
-            if (!RequiredScenariosViewed || scenarioStage != ScenarioStage.Comparing) return;
+            if (!ScenarioModeActive || scenarioSubmitting || !EveryScenarioViewed
+                || scenarioStage != ScenarioStage.Comparing
+                || caseDefinition.FindThreat(id) == null) return;
             CloseScenarioBriefingForAction();
             scenarioBriefedConflict = string.Empty;
-            if (!caseDefinition.CanReviewModel(id))
+            var evaluator = new PredictionComparisonEvaluator();
+            foreach (var finding in caseDefinition.Observations)
             {
-                var evaluator = new PredictionComparisonEvaluator();
-                foreach (var finding in caseDefinition.Observations)
-                {
-                    if (!InvestigationObserveEvaluator.IsInitialFinding(finding) || string.IsNullOrEmpty(finding.RelatedSpeciesId)) continue;
-                    var mismatch = evaluator.Evaluate(caseDefinition, id, finding.RelatedSpeciesId, finding.EvidenceId, ComparisonJudgement.Mismatch);
-                    var match = evaluator.Evaluate(caseDefinition, id, finding.RelatedSpeciesId, finding.EvidenceId, ComparisonJudgement.Match);
-                    if (!mismatch.IsAccepted || match.IsAccepted) continue;
-                    scenarioConflictSpecies = finding.RelatedSpeciesId;
-                    var species = caseDefinition.FindSpecies(finding.RelatedSpeciesId);
-                    var predicted = state.FindSimulation(id)?.FindPrediction(finding.RelatedSpeciesId);
-                    scenarioFeedback = $"{caseDefinition.FindThreat(id).DisplayName}: look at {species?.GameplayName ?? finding.RelatedSpeciesId}. This model predicts {PredictionLabel(predicted?.PredictedState ?? PredictionState.Unknown).ToLowerInvariant()}, but our finding is '{finding.DisplayName}'. Try another explanation.";
-                    RefreshPresentationOnly(); return;
-                }
+                if (!InvestigationObserveEvaluator.IsInitialFinding(finding) || string.IsNullOrEmpty(finding.RelatedSpeciesId)) continue;
+                var mismatch = evaluator.Evaluate(caseDefinition, id, finding.RelatedSpeciesId, finding.EvidenceId, ComparisonJudgement.Mismatch);
+                var match = evaluator.Evaluate(caseDefinition, id, finding.RelatedSpeciesId, finding.EvidenceId, ComparisonJudgement.Match);
+                if (!mismatch.IsAccepted || match.IsAccepted) continue;
+                scenarioConflictSpecies = finding.RelatedSpeciesId;
+                var species = caseDefinition.FindSpecies(finding.RelatedSpeciesId);
+                var predicted = state.FindSimulation(id)?.FindPrediction(finding.RelatedSpeciesId);
+                scenarioFeedback = $"{caseDefinition.FindThreat(id).DisplayName}: look at {species?.GameplayName ?? finding.RelatedSpeciesId}. This model predicts {PredictionLabel(predicted?.PredictedState ?? PredictionState.Unknown).ToLowerInvariant()}, but our finding is '{finding.DisplayName}'. Try another explanation.";
+                RefreshPresentationOnly(); return;
             }
             // Record all authored comparisons before opening the conclusion.
-            // Reviewing an alternative is separate from supporting it as the conclusion.
+            // Matching this example does not identify a unique cause.
             foreach (var objective in caseDefinition.InvestigationObjectives)
                 if (objective.Required && (!state.HasTriedThreat(objective.ThreatId) || !state.HasDiscoveredObservation(objective.RequiredEvidenceId)))
                 {
@@ -191,12 +155,9 @@ namespace EDNA.Investigation
             submitProvisional?.Invoke(id);
         }
 
-        private List<string> ScenarioSpecies(string threatId = null)
+        private List<string> ScenarioSpecies()
         {
-            var model = caseDefinition.FindThreat(threatId);
-            if (model != null && model.DisplaySpeciesIds.Count > 0) return new List<string>(model.DisplaySpeciesIds);
-            var ids = new List<string>();
-            foreach (var species in caseDefinition.Species) ids.Add(species.SpeciesId);
+            var ids = new List<string>(caseDefinition.FoodWebChainSpeciesIds);
             foreach (string id in caseDefinition.BenthicIndicatorSpeciesIds) if (!ids.Contains(id)) ids.Add(id);
             return ids;
         }
@@ -208,13 +169,13 @@ namespace EDNA.Investigation
             PrepareScenarioBriefing();
             // Override only this act's chrome; Observe's metrics and navigation
             // are rebuilt normally when the player returns to their records.
-            metricsText.text = $"FINDINGS {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)}\nREQUIRED MODELS {RequiredScenariosViewedCount}/{RequiredScenarioCount}";
+            metricsText.text = $"FINDINGS {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)}\nEXPLANATIONS TRIED {viewedScenarios.Count}/{caseDefinition.Threats.Count}";
             var report = stageRoot.Find("Stage Report")?.GetComponent<Button>();
             if (report != null) report.interactable = !string.IsNullOrEmpty(state.ProvisionalThreatId);
             RectTransform root = CreateScenarioWorkspace();
             RenderScenarioObservedPattern(root);
             TextMeshProUGUI chain = CreateText("Scenario Food Chain", root,
-                "Food chains vary by scenario · Hover or tap a title to explore its links.",
+                "Food-chain example · Shark → Tuna → Herring → Krill → Phytoplankton   (arrows: eats)",
                 13, FontStyle.Bold, InvestigationTheme.Primary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             AddLayout(chain.rectTransform, 24f, 0f);
             RenderScenarioAlternatives(root);

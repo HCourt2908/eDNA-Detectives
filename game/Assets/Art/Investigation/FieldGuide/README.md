@@ -1,7 +1,7 @@
 # Investigation field-guide illustrations
 
 The active Figma food-chain case uses `tuna.png`, `krill.png`,
-`atlantic-herring.png`, `phytoplankton.png` and `tree-bubblegum-coral.png` from this folder. Its hammerhead
+`atlantic-herring.png` and `phytoplankton.png` from this folder. Its hammerhead
 uses the newer [team artwork](../TeamSpecies/README.md).
 
 Herring and phytoplankton were generated with the built-in `image_gen` tool on
@@ -17,12 +17,5 @@ have been removed; neither animal belongs to the approved case catalog.
 All PNGs preserve their generated alpha channels. Unity uses single sprites,
 a 512-pixel maximum texture size, clamped wrapping and no mipmaps. The original
 resolution is retained on disk. `Update Visual Artwork` maintains the current
-six case references and supplied catalog illustrations. Biology and prediction
+five case references and supplied catalog illustrations. Biology and prediction
 assumptions are defined in the case data, not inferred from these drawings.
-
-The historical survey and trawling model both use `tree-bubblegum-coral.png`,
-a generated illustrative cutout of *Paragorgia arborea*. Its absence from Today
-is part of the authored case; the image is not a field photograph.
-The built-in image-generation prompt and provenance are in
-[GENERATION-CORAL.json](GENERATION-CORAL.json). The original 1254 × 1254 RGBA
-image retains genuine transparency; Unity imports it at up to 512 pixels.

@@ -95,12 +95,10 @@ namespace EDNA.Investigation
                 switch (scenarioBriefingStep)
                 {
                     case ScenarioBriefingStep.Survey: return "I took our findings out of the notebook. Each pair compares 20 years ago with Today. Open the notebook beside me to revisit the full picture.";
-                    case ScenarioBriefingStep.Model: return "Each group starts with three symbols. More means an increase; fewer means a decrease. A group can disappear completely. These are model symbols, not population counts.";
-                    case ScenarioBriefingStep.Causes: return "Use the Play button on any card. Its groups change right here. Explore the cards and compare their predictions with your notebook. Replay lets you watch a result again.";
-                    case ScenarioBriefingStep.Result: return IsBloomScenario(scenarioActiveId)
-                        ? "This trial shows an extreme outcome. Use Compare with survey to explore whether it fits our records, or continue with the three required models."
-                        : "Compare tuna, herring and coral with your notebook. We recorded coral in the historical survey, but not today. Model pictures are predictions, not additional survey records.";
-                    case ScenarioBriefingStep.Compare: return "Compare the predictions with the six survey records. Review how each explanation fits, then record the case conclusion.";
+                    case ScenarioBriefingStep.Model: return "Each group starts with three symbols. More symbols mean an increase; fewer mean a decrease. They are not population counts. Follow all five links in the food-chain example.";
+                    case ScenarioBriefingStep.Causes: return "Use the Play button on any card. Its groups change right here. Play all three, then choose the best fit. Replay lets you watch a result again.";
+                    case ScenarioBriefingStep.Result: return "This is what that cause predicts. Compare the changes with our recorded survey, including herring and phytoplankton. Try the other causes to see how they differ.";
+                    case ScenarioBriefingStep.Compare: return "Compare the three predictions with the five survey records. Review how each explanation fits, then record the case conclusion.";
                     case ScenarioBriefingStep.Conflict: return scenarioFeedback;
                     case ScenarioBriefingStep.Ending: return ScenarioEndingMessage;
                     default: return string.Empty;

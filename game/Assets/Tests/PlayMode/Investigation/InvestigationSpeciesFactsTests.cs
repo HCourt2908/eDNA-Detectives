@@ -24,7 +24,7 @@ namespace EDNA.Investigation.Tests
                 {
                     canvas.scaleFactor = Screen.width / width; yield return null; yield return null;
                     GameObject.Find("Survey Time Lens").GetComponent<Slider>().value = 1f;
-                    foreach (string id in new[] { "shark", "tuna", "atlantic_herring", "tree_bubblegum_coral", "phytoplankton" })
+                    foreach (string id in new[] { "shark", "tuna", "atlantic_herring", "krill", "phytoplankton" })
                     {
                         CurrentPress("Historical Species Marker " + id); Canvas.ForceUpdateCanvases();
                         Assert.That(GameObject.Find("Tooltip Scientific Name").GetComponent<TextMeshProUGUI>().text, Is.Not.Empty);

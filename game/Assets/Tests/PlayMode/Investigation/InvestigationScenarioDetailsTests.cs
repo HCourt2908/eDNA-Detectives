@@ -35,14 +35,14 @@ namespace EDNA.Investigation.Tests
             Enter(cause); Leave(cause); yield return new WaitForSecondsRealtime(.6f);
             Assert.That(GameObject.Find("Scenario Detail Card"), Is.Null);
             Enter(cause); yield return new WaitForSecondsRealtime(.6f);
-            Assert.That(Body, Does.Contain("fewer sharks").And.Not.Contain("main explanation"));
+            Assert.That(Body, Does.Contain("assuming fewer sharks").And.Not.Contain("main explanation"));
             Assert.That(CurrentState.TriedThreatIds, Is.Empty);
             var play = CurrentButton("Run Scenario longline");
             Assert.That(ExecuteEvents.GetEventHandler<IPointerClickHandler>(CurrentPointerHit(play.GetComponent<RectTransform>())), Is.EqualTo(play.gameObject));
             Leave(cause);
             var prediction = Detail("longline", "tuna"); Enter(prediction); yield return new WaitForSecondsRealtime(.6f);
             Assert.That(Body, Does.StartWith("Baseline").And.Not.Contain("↑ Increase"));
-            Assert.That(Object.FindObjectsByType<InvestigationBorderGraphic>().Count(b => b.name == "Scenario Detail Highlight"), Is.EqualTo(5));
+            Assert.That(Object.FindObjectsByType<InvestigationBorderGraphic>().Count(b => b.name == "Scenario Detail Highlight"), Is.EqualTo(4));
             Leave(prediction); yield return null;
             Assert.That(GameObject.Find("Scenario Detail Card"), Is.Null);
             Assert.That(Object.FindObjectsByType<InvestigationBorderGraphic>().Count(b => b.name == "Scenario Detail Highlight"), Is.Zero);
@@ -121,7 +121,7 @@ namespace EDNA.Investigation.Tests
             finally { canvas.scaleFactor = scale; scaler.enabled = enabled; }
         }
 
-        [UnityTest] public IEnumerator Ending_CompareAgainReturnsToModelsWithoutInlineReviewButtons()
+        [UnityTest] public IEnumerator Ending_RequiresBothReviewsAndShowsPassiveStatuses()
         {
             foreach (string first in new[] { "longline", "bottom_trawling" })
             {
@@ -132,20 +132,20 @@ namespace EDNA.Investigation.Tests
                 CurrentButton("Complete Scenario Investigation").onClick.Invoke();
                 Assert.That(CurrentState.FinalSubmissionAttemptCount, Is.Zero);
                 Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<TextMeshProUGUI>().text,
-                    Does.Contain("Compare again").And.Contain(second == "longline" ? "Long-line fishing" : "Bottom trawling"));
-                Assert.That(GameObject.Find("Scenario Ending Panel").GetComponentsInChildren<Button>(true), Is.Empty);
+                    Does.Contain(second == "longline" ? "Long-line fishing" : "Bottom trawling"));
+                Assert.That(GameObject.Find("Review Conclusion " + second), Is.Null);
                 Assert.That(GameObject.Find("Review Status " + first).GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Reviewed"));
                 Assert.That(GameObject.Find("Review Status " + second).GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Awaiting review"));
                 ReviewViaModels(first); yield return null;
                 Assert.That(CurrentButton("Complete Scenario Investigation").interactable, Is.False);
                 ReviewViaModels(second); yield return null;
                 Assert.That(CurrentState.ReviewedModelThreatIds, Is.EquivalentTo(new[] { first, second }));
-                Assert.That(GameObject.Find("Review Status " + second).GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Reviewed"));
                 Assert.That(CurrentButton("Complete Scenario Investigation").interactable, Is.True);
+                Assert.That(GameObject.Find("Review Status " + second).GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Reviewed"));
                 CurrentPress("Complete Scenario Investigation"); yield return null;
                 Assert.That(InvestigationSessionBridge.LastResult.reviewedHypothesisIds, Is.EquivalentTo(new[] { first, second }));
-                Assert.That(InvestigationSessionBridge.LastResult.selectedHypothesisId, Is.EqualTo("bottom_trawling"));
-                Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
+                Assert.That(InvestigationSessionBridge.LastResult.selectedHypothesisId, Is.EqualTo(second));
+                Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
                 CurrentPress("Restart Completed Case"); yield return null;
                 Assert.That(CurrentState.ReviewedModelThreatIds, Is.Empty);
             }

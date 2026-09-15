@@ -26,7 +26,7 @@ namespace EDNA.Investigation.Tests
             CurrentPress("Return To Scenario Report"); yield return null; yield return null;
             Assert.That(CurrentState.ProvisionalThreatId, Is.EqualTo("longline"));
             Assert.That(GameObject.Find("Scenario Chosen Explanation").GetComponent<TextMeshProUGUI>().text, Does.Contain("Long-line fishing"));
-            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
+            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
             Assert.That(CurrentState.ConfirmationReviewed, Is.False);
             Assert.That(CurrentState.FinalSubmissionAttemptCount, Is.Zero);
         }

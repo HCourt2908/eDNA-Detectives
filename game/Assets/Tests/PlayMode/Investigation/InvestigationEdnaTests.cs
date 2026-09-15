@@ -16,7 +16,7 @@ namespace EDNA.Investigation.Tests
     public sealed class InvestigationEdnaTests
     {
         private static Button Button(string name) => GameObject.Find(name)?.GetComponent<Button>();
-        private static TextMeshProUGUI Speech => GameObject.Find("Edna Speech TextMeshProUGUI")?.GetComponent<TextMeshProUGUI>();
+        private static TextMeshProUGUI Speech => GameObject.Find("Edna Speech Text")?.GetComponent<TextMeshProUGUI>();
 
         private static IEnumerator Load()
         {
@@ -119,7 +119,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(CurrentButton("Talk To Edna").interactable, Is.True);
             CurrentPress("Finish Scenario Animation"); yield return null;
             Assert.That(GameObject.Find("Metrics").GetComponent<TextMeshProUGUI>().text, Does.Contain("1/3"));
-            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
+            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
         }
 
     }

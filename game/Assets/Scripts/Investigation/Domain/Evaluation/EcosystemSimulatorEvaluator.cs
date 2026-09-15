@@ -22,7 +22,7 @@ namespace EDNA.Investigation.Domain
                     definition.PredictedState,
                     definition.Rationale));
             }
-            if (threat.UseFoodWebCascade) new FoodWebCascadeEvaluator().FillMissingPredictions(
+            new FoodWebCascadeEvaluator().FillMissingPredictions(
                 caseDefinition,
                 caseDefinition.SimulationFoodWebId,
                 predictions);

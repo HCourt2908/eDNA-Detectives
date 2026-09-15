@@ -32,7 +32,7 @@ namespace EDNA.Investigation.Tests
             CurrentPress("Choose Scenario longline"); yield return null;
             Assert.That(CurrentState.Phase, Is.EqualTo(InvestigationPhase.Report));
             Assert.That(CurrentState.ConfirmationReviewed, Is.False);
-            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
+            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
         }
 
         [UnityTest]

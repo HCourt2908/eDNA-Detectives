@@ -8,8 +8,8 @@ namespace EDNA.Investigation
     public sealed partial class InvestigationRuntimeView
     {
         private float comparisonNotebookScrollOffset;
-        private const float ComparisonRecordRowHeight = 32f;
         private bool ComparisonWorkspaceVisible => state != null && state.Phase == InvestigationPhase.Observe && !ObserveArrivalActive;
+        private bool ComparisonNotebookVisible => ComparisonWorkspaceVisible && !observeMapOpen;
 
         private void SaveComparisonNotebookScroll()
         {
@@ -85,7 +85,7 @@ namespace EDNA.Investigation
             RectTransform dates = new GameObject("Comparison Notebook Dates", typeof(RectTransform), typeof(InvestigationResponsiveSplitLayout)).GetComponent<RectTransform>();
             dates.SetParent(entries, false);
             dates.GetComponent<InvestigationResponsiveSplitLayout>().Configure(.5f, 10f, 440f,
-                30f + historical.Count * ComparisonRecordRowHeight, 30f + current.Count * ComparisonRecordRowHeight);
+                30f + historical.Count * 40f, 30f + current.Count * 40f);
             RenderComparisonNotebookDate(dates, SurveyEra.Historical);
             RenderComparisonNotebookDate(dates, SurveyEra.Current);
             // The classified tokens show findings; keep these pages as visual survey records.
@@ -104,11 +104,7 @@ namespace EDNA.Investigation
             foreach (var species in RecordedSurveySpecies(era))
             {
                 RectTransform row = CreateSurveyRecordRow(page, species, era, true);
-                AddLayout(row, ComparisonRecordRowHeight, 0f);
-                // The dated picture already represents a detection. One full-height
-                // species label stays readable while leaving room for references.
-                FindNamedRect(row, "Today Notebook Result").gameObject.SetActive(false);
-                Stretch(FindNamedRect(row, "Today Notebook Species"), 86f, 0f, -6f, 0f);
+                FindNamedRect(row, "Today Notebook Result").GetComponent<TextMeshProUGUI>().text = "Detected";
                 if (selectedComparisonSpecies == species.SpeciesId)
                 {
                     InvestigationBorderGraphic border = CreateGraphic<InvestigationBorderGraphic>("Selected Record Border", row);

@@ -13,8 +13,8 @@ namespace EDNA.Investigation.Domain
                 || string.IsNullOrEmpty(state.ProvisionalThreatId) || caseDefinition.FindThreat(selectedThreatId) == null
                 || !InvestigationObserveEvaluator.IsComplete(caseDefinition, state)
                 || !EvaluateReadiness(caseDefinition, state).RequiredObjectivesComplete) return false;
-            foreach (var threat in caseDefinition.Threats) if (!threat.OptionalExploration && !state.HasTriedThreat(threat.ThreatId)) return false;
-            foreach (string id in caseDefinition.RequiredModelReviewIds)
+            foreach (var threat in caseDefinition.Threats) if (!state.HasTriedThreat(threat.ThreatId)) return false;
+            foreach (string id in caseDefinition.SupportedModelThreatIds)
                 if (!state.HasReviewedModel(id)) return false;
             return true;
         }
@@ -23,12 +23,14 @@ namespace EDNA.Investigation.Domain
         {
             if (!CanRecordModelConclusion(caseDefinition, state, selectedThreatId))
                 return new InvestigationConclusionResult(InvestigationConclusionStatus.InsufficientEvidence,
-                    "Record the survey, play the three required models, and review the trawling model and the long-line alternative before recording a conclusion.");
+                    "Record the survey, play all three models, and review both explanations before recording a conclusion.");
             if (!caseDefinition.SupportsModelConclusion(selectedThreatId))
                 return new InvestigationConclusionResult(InvestigationConclusionStatus.Incorrect,
                     "This model does not explain the whole survey pattern. Compare every link in the food chain.");
             return new InvestigationConclusionResult(InvestigationConclusionStatus.Correct,
-                "Bottom trawling best fits our survey: fewer sharks and tuna, more herring, coral not detected and stable phytoplankton. Long-line fishing predicts the opposite tuna and herring changes. A model match is not proof of cause.");
+                caseDefinition.HasAmbiguousModelConclusion
+                    ? "Conclusion recorded. Long-line fishing is the main explanation for this case; bottom trawling remains a possible alternative."
+                    : "Conclusion recorded from your survey and model comparisons. This is the best fit among the tested models, not proof of cause.");
         }
 
         public InvestigationReadiness EvaluateReadiness(

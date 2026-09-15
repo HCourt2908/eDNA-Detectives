@@ -34,17 +34,5 @@ MonoBehaviour:
   - speciesId: phytoplankton
     predictedState: 4
     rationale: A response has not been supplied for this species.
-  - speciesId: tree_bubblegum_coral
-    predictedState: 4
-    rationale: A coral response has not been supplied for this provisional model.
-  useFoodWebCascade: 1
-  optionalExploration: 0
-  displaySpeciesIds:
-  - shark
-  - tuna
-  - atlantic_herring
-  - krill
-  - phytoplankton
-  foodSupplyLinks: []
   seafloorPrediction: No seabed observation supplied by this example.
-  physicalConfirmation: The team is reviewing the plastic-pollution scenario.
+  physicalConfirmation: The team is reviewing the third scenario.

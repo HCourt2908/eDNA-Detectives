@@ -41,14 +41,14 @@ namespace EDNA.Investigation
 
             foreach (var threat in caseDefinition.Threats)
             {
-                if (!threat.OptionalExploration) Run(updater, state, threat.ThreatId);
+                Run(updater, state, threat.ThreatId);
             }
             foreach (var objective in caseDefinition.InvestigationObjectives)
                 if (objective.Required) Compare(updater, state, objective.ThreatId, objective.TargetKind,
                     objective.TargetId, objective.RequiredEvidenceId, objective.RequiredJudgement);
             if (checkpoint == InvestigationQaCheckpoint.SimulateComplete) return state;
 
-            foreach (string id in caseDefinition.RequiredModelReviewIds)
+            foreach (string id in caseDefinition.SupportedModelThreatIds)
                 Require(updater.TryReviewModelExplanation(state, id, out string reviewFeedback), reviewFeedback);
             Require(updater.TryReviewModelExplanation(state, caseDefinition.PrimaryModelThreatId, out string provisionalFeedback), provisionalFeedback);
             if (checkpoint == InvestigationQaCheckpoint.ConclusionReady) return state;

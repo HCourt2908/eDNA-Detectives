@@ -228,8 +228,7 @@ namespace EDNA.Investigation
                     float x = (i + .5f) * cell;
                     RectTransform slot = CreatePanel("Story " + key + " Slot " + species.SpeciesId, plot, Color.clear, 0f);
                     Anchor(slot, x - cell * .48f, y, x + cell * .48f, y, 0f, -31f, 0f, 23f);
-                    string artworkName = "Story " + key + " Species " + species.SpeciesId;
-                    RectTransform art = CreateStorySymbols(artworkName, slot, species, era);
+                    RectTransform art = CreateStorySymbols("Story " + key + " Species " + species.SpeciesId, slot, species, era);
                     Anchor(art, 0f, 0f, 1f, 1f, 2f, 30f, -2f, 0f);
                     TextMeshProUGUI name = CreateText("Story Species Name", slot, species.GameplayName, 10,
                         FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperCenter, InvestigationTheme.BodyFont);

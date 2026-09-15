@@ -245,7 +245,7 @@ namespace EDNA.Investigation
                 InvestigationSpeciesDefinition species = caseDefinition.SpeciesCatalog[index];
                 if (species != null
                     && includedIds.Add(species.SpeciesId)
-                    && (state.HasSurveySpecies(species.SpeciesId)))
+                    && state.HasSurveySpecies(species.SpeciesId))
                 {
                     visible.Add(species);
                 }
@@ -356,6 +356,8 @@ namespace EDNA.Investigation
             bool historical = era == SurveyEra.Historical;
             InvestigationSurveySummary survey = ResolveSurveySummary(species, era);
             bool notDetected = survey?.Detection == SpeciesDetectionState.NotDetected;
+            bool anomaly = !historical
+                && ((observation != null && observation.ClaimType != ObservationClaimType.MatchesBaseline) || notDetected);
 
             RectTransform rect = null;
             Button marker = CreateButton(
@@ -363,7 +365,7 @@ namespace EDNA.Investigation
                 map,
                 string.Empty,
                 ButtonVisualStyle.Choice,
-                () => ActivateSpeciesMarker(rect, species, era),
+                () => ActivateSpeciesMarker(rect, species, era, observation),
                 out TextMeshProUGUI emptyLabel);
             emptyLabel.gameObject.SetActive(false);
             marker.interactable = true;
@@ -438,7 +440,8 @@ namespace EDNA.Investigation
         private void ActivateSpeciesMarker(
             RectTransform marker,
             InvestigationSpeciesDefinition species,
-            SurveyEra era)
+            SurveyEra era,
+            InvestigationObservationDefinition observation)
         {
             if (era == SurveyEra.Historical) ShowReferenceSurveyNotice();
             ShowSpeciesTooltip(marker, species, era, true);
@@ -551,7 +554,7 @@ namespace EDNA.Investigation
             RectTransform statusBadge = CreatePanel("Evidence Status", item, badgeColor, 7f);
             Anchor(statusBadge, 1f, 0.5f, 1f, 0.5f, -68f, -12f, -8f, 12f);
             TextMeshProUGUI statusText = CreateText(
-                "Evidence Status TextMeshProUGUI",
+                "Evidence Status Text",
                 statusBadge,
                 NotebookStatusLabel(status),
                 9,

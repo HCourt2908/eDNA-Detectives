@@ -547,7 +547,7 @@ namespace EDNA.Investigation
                 CreateStageButton("1 · Observe", InvestigationPhase.Observe);
                 CreateStageButton("2 · Investigate", InvestigationPhase.Simulate);
                 string revisions = state.MisstepCount > 0 ? $"    REVISIONS {state.MisstepCount}" : string.Empty;
-                metricsText.text = $"FINDINGS {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)} · MODELS {RequiredScenariosTried}/{RequiredScenarioCount}\nCHECKS {VisibleCompletedObjectiveCount()}/{VisibleRequiredObjectiveCount()}{revisions}";
+                metricsText.text = $"FINDINGS {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)} · MODELS {state.TriedThreatIds.Count}/{caseDefinition.Threats.Count}\nCHECKS {VisibleCompletedObjectiveCount()}/{VisibleRequiredObjectiveCount()}{revisions}";
                 caseSubtitleText.text = $"{caseDefinition.DisplayName} · {state.SiteDisplayName} · {state.SurveyDisplayName}";
             }
             else
@@ -917,19 +917,6 @@ namespace EDNA.Investigation
 
         private RectTransform CreateThreatArtwork(string name, Transform parent, ThreatSimulationDefinition threat)
         {
-            if (threat != null && threat.GlyphKind == ThreatGlyphKind.AlgalBloom && threat.Icon != null)
-            {
-                var cluster = CreatePanel(name, parent, Color.clear, 0f);
-                cluster.GetComponent<Image>().raycastTarget = false;
-                for (int i = 0; i < 3; i++)
-                {
-                    var cell = CreateStatusIcon("Bloom Icon Cell " + i, cluster, threat.Icon, new Color(.9f, .92f, .45f));
-                    float x = i == 0 ? .05f : i == 1 ? .45f : .25f;
-                    float y = i == 2 ? .40f : .02f;
-                    Anchor(cell.rectTransform, x, y, x + .52f, y + .55f, 0f, 0f, 0f, 0f);
-                }
-                return cluster;
-            }
             if (threat != null && threat.Icon != null)
             {
                 Image image = CreateGraphic<Image>(name, parent);
@@ -1149,7 +1136,6 @@ namespace EDNA.Investigation
                 case PredictionState.Stable: return "Stable";
                 case PredictionState.DepthShift: return "Depth shift";
                 case PredictionState.Unknown: return "Unknown";
-                case PredictionState.Absent: return "Not present";
                 default: return state.ToString();
             }
         }

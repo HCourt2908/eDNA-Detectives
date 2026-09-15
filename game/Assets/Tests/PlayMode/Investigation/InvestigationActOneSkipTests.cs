@@ -88,7 +88,7 @@ namespace EDNA.Investigation.Tests
                 }
                 Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
                 Assert.That(GameObject.Find("Summarize Findings"), Is.Null);
-                Press("Compare Species shark"); Press("Compare Change Fewer");
+                Press("Compare Species shark"); Press("Compare Change NotDetected");
                 Assert.That(controller.State.DiscoveredObservationIds.Count, Is.EqualTo(1));
                 InvestigationCurrentFlowTestActions.ToggleGuidanceForTests();
                 Assert.That(GameObject.Find("Comparison Briefing Overlay"), Is.Null);

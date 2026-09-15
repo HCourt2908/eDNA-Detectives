@@ -36,7 +36,7 @@ namespace EDNA.Investigation
         {
             TextMeshProUGUI text = CreateText(objectName, speciesTooltip, value, size, style, color, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             float width = speciesTooltip.sizeDelta.x - 32f;
-            float height = Mathf.Max(minimumHeight, Mathf.Ceil(text.GetPreferredValues(value, width, Mathf.Infinity).y) + 2f);
+            float height = Mathf.Max(minimumHeight, Mathf.Ceil(text.GetPreferredValues(value, width, 0f).y) + 2f);
             Anchor(text.rectTransform, 0f, 1f, 1f, 1f, 16f, -top - height, -16f, -top);
             top += height + 4f;
         }

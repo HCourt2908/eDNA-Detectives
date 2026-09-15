@@ -53,12 +53,12 @@ namespace EDNA.Investigation.Tests
             BeginObserveQuestions();
             string id = name.Replace("Species Marker ", "");
             var controller = Object.FindAnyObjectByType<InvestigationController>();
-            string evidence = id == "krill" ? "E09_KRILL_WIDER_DETECTION" : id == "shark" ? "E01_SHARK_FEWER_SITES" : id == "tuna" ? "E02_TUNA_FEWER_SITES"
-                : id == "tree_bubblegum_coral" ? "E04_CORAL_NONDETECTION" : id == "atlantic_herring" ? "E03_HERRING_WIDER_DETECTION" : "E05_PHYTOPLANKTON_STABLE";
+            string evidence = id == "shark" ? "E01_SHARK_NONDETECTION" : id == "tuna" ? "E02_TUNA_WIDER_DETECTION"
+                : id == "krill" ? "E04_KRILL_WIDER_DETECTION" : id == "atlantic_herring" ? "E03_HERRING_FEWER_SITES" : "E05_PHYTOPLANKTON_FEWER_SITES";
             if (controller.State.HasDiscoveredObservation(evidence)) return;
             if (GameObject.Find("Comparison Seamount") != null) Press("Toggle Comparison View");
             Press("Compare Species " + id);
-            Press("Compare Change " + (id == "tree_bubblegum_coral" ? "NotDetected" : id == "atlantic_herring" || id == "krill" ? "More" : id == "phytoplankton" ? "Same" : "Fewer"));
+            Press("Compare Change " + (id == "shark" ? "NotDetected" : id == "tuna" || id == "krill" ? "More" : "Fewer"));
             Assert.That(controller.State.HasDiscoveredObservation(evidence), Is.True, "Classify the saved survey record: " + id);
         }
         public static void ShowSurveySummary()
