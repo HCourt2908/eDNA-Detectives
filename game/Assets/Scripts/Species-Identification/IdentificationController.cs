@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using System.ComponentModel.Design;
 
 public class sampleController : MonoBehaviour
 {
@@ -82,6 +83,8 @@ public class sampleController : MonoBehaviour
             yield return new WaitUntil(() => puzzleCorrect);
             puzzleCorrect = false;
         }
+
+        yield return new WaitForSeconds(3f);
 
         SceneLoader.Instance.LoadScene("InvestigationScene");
         //SceneLoader.Instance.UnloadScene("Species-Identification");

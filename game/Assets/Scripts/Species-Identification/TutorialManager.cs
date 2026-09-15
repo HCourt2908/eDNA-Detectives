@@ -23,11 +23,12 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private Button redoTutorialButton;
 
     bool nextButtonPressed = false;
+    bool typing = false;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        leftTutorialButton.onClick.AddListener(() => { nextButtonPressed = true; });
-        rightTutorialButton.onClick.AddListener(() => { nextButtonPressed = true; });
+        leftTutorialButton.onClick.AddListener(() => { if (!typing) nextButtonPressed = true; });
+        rightTutorialButton.onClick.AddListener(() => { if (!typing) nextButtonPressed = true; });
         redoTutorialButton.onClick.AddListener(() => { StartCoroutine(GameTutorial()); });
         StartCoroutine(GameTutorial());
     }
@@ -40,7 +41,9 @@ public class TutorialManager : MonoBehaviour
         redoTutorialButton.gameObject.SetActive(false);
         tutorialBlocker.SetActive(true);
 
-        rightTutorialText.text = "Now that we've collected the eDNA samples, we need to identify the species present around the seamount. \nFirst, let's take a look at the information we received from a sample.";
+        typing = true;
+        yield return TextTyper.TypeText(rightTutorialText, "We now need to identify which species our eDNA samples are from. First, let's take a look at the information we received from a sample.");
+        typing = false;
 
         yield return new WaitUntil(() => nextButtonPressed);
         nextButtonPressed = false;
@@ -49,7 +52,9 @@ public class TutorialManager : MonoBehaviour
 
         (Transform, int) ednaHighlight = HighlightElement(ednaPanel, highlightedUI.transform);
 
-        rightTutorialText.text = "Here is this particular sample's symbol combination.\nThis may not always be complete, but it will always give us enough information to determine the species present!";
+        typing = true;
+        yield return TextTyper.TypeText(rightTutorialText, "Each sample has a symbol combination. This may not always be complete, but it will always give us enough information to determine the species present!");
+        typing = false;
 
         yield return new WaitUntil(() => nextButtonPressed);
         nextButtonPressed = false;
@@ -59,13 +64,17 @@ public class TutorialManager : MonoBehaviour
         (Transform, int) posterHighlight = HighlightElement(poster, highlightedUI.transform);
         (Transform, int) posterOverlayHighlight = HighlightElement(posterOverlay, highlightedUI.transform);
 
-        rightTutorialText.text = "You'll notice that this sample's symbols also appear on this handy poster here. \nFollowing the symbol sequence will help you identify the species!";
+        typing = true;
+        yield return TextTyper.TypeText(rightTutorialText, "Following the symbol sequence on this poster here will help you identify the species!");
+        typing = false;
 
         yield return new WaitUntil(() => nextButtonPressed);
         nextButtonPressed = false;
         yield return new WaitForSeconds(0.2f);
 
-        rightTutorialText.text = "Click on the poster to take a closer look, then click again anywhere to put it back. \nTry to follow the sequence now and figure out our first species!";
+        typing = true;
+        yield return TextTyper.TypeText(rightTutorialText, "Click on the poster to take a closer look, then click again anywhere to put it back.");
+        typing = false;
 
         yield return new WaitUntil(() => nextButtonPressed);
         nextButtonPressed = false;
@@ -81,7 +90,9 @@ public class TutorialManager : MonoBehaviour
 
         (Transform, int) computerHighlight = HighlightElement(computer, highlightedUI.transform);
 
-        leftTutorialText.text = "When you figure out the species, find it in the list on the computer and click that button to check your answer.\nIf you get it right, you'll move on to the next sample";
+        typing = true;
+        yield return TextTyper.TypeText(leftTutorialText, "When you figure out the species, find and click on it's silhouette on the computer.\nIf you get it right, you'll move on to the next sample");
+        typing = false;
 
         yield return new WaitUntil(() => nextButtonPressed);
         nextButtonPressed = false;
@@ -89,7 +100,9 @@ public class TutorialManager : MonoBehaviour
 
         RestoreElement(computer, computerHighlight.Item1, computerHighlight.Item2);
         
-        leftTutorialText.text = "That's it! Now you can begin identifying species.\nI'll enable the computer for you now. If you need a refresher, just hit the tutorial button and we'll go through this again.";
+        typing = true;
+        yield return TextTyper.TypeText(leftTutorialText, "That's it! Now you can begin identifying species. I'll enable the computer for you now, good luck!");
+        typing = false;
 
         yield return new WaitUntil(() => nextButtonPressed);
         nextButtonPressed = false;
@@ -112,7 +125,6 @@ public class TutorialManager : MonoBehaviour
 
 void RestoreElement(GameObject uiElement, Transform originalParent, int originalSiblingIndex) 
 {
-    // 3. Move back to original place
     uiElement.transform.SetParent(originalParent, worldPositionStays: true);
     uiElement.transform.SetSiblingIndex(originalSiblingIndex);
 }
