@@ -42,6 +42,7 @@ public class CTDGameManager : MonoBehaviour
 
     [Header("Completion")]
     public RectTransform recoveryRosette;
+    public RecoveryCableController recoveryCable;
     [Header("Recovery animation")]
     public Vector2 recoveryStartPosition = new Vector2(0f, -220f);
     public Vector2 recoveryEndPosition = new Vector2(0f, 210f);
@@ -52,7 +53,7 @@ public class CTDGameManager : MonoBehaviour
     public TMP_Text completionSummaryText;
     public Button replayButton;
     public Button continueButton;
-    public string dnaSceneName = "Petri-Dish-Game";
+    public string dnaSceneName = "Species-Identification";
 
     public CTDGameState CurrentState { get; private set; }
 
@@ -76,6 +77,10 @@ public class CTDGameManager : MonoBehaviour
         rosetteEntrySequence.Configure(transitionStatusText);
         rosetteEntrySequence.ReadyPressed += BeginSampling;
         samplingController.SamplingCompleted += BeginRecovery;
+        if (recoveryCable == null && recoveryPanel != null)
+        {
+            recoveryCable = recoveryPanel.GetComponentInChildren<RecoveryCableController>(true);
+        }
         replayButton.onClick.AddListener(Replay);
         continueButton.onClick.AddListener(ContinueToDNA);
     }
@@ -133,6 +138,11 @@ public class CTDGameManager : MonoBehaviour
     {
         recoveryRosette.anchoredPosition = recoveryStartPosition;
         recoveryRosette.localScale = recoveryStartScale;
+        if (recoveryCable != null)
+        {
+            recoveryCable.Begin(recoveryRosette);
+        }
+
         float elapsed = 0f;
 
         while (elapsed < recoveryDuration)
@@ -141,11 +151,19 @@ public class CTDGameManager : MonoBehaviour
             float progress = recoveryMotion.Evaluate(Mathf.Clamp01(elapsed / recoveryDuration));
             recoveryRosette.anchoredPosition = Vector2.LerpUnclamped(recoveryStartPosition, recoveryEndPosition, progress);
             recoveryRosette.localScale = Vector3.LerpUnclamped(recoveryStartScale, recoveryEndScale, progress);
+            if (recoveryCable != null)
+            {
+                recoveryCable.SetTarget(recoveryRosette, progress);
+            }
             yield return null;
         }
 
         recoveryRosette.anchoredPosition = recoveryEndPosition;
         recoveryRosette.localScale = recoveryEndScale;
+        if (recoveryCable != null)
+        {
+            recoveryCable.SetTarget(recoveryRosette, 1f);
+        }
 
         ShowCompletion();
     }
@@ -168,14 +186,16 @@ public class CTDGameManager : MonoBehaviour
 
     private void Replay()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        SceneLoader.Instance.UnloadScene("CTD-Minigame");
+        SceneLoader.Instance.LoadSceneAdditive("CTD-Minigame");
     }
 
     private void ContinueToDNA()
     {
         if (Application.CanStreamedLevelBeLoaded(dnaSceneName))
         {
-            SceneManager.LoadScene(dnaSceneName);
+            SceneLoader.Instance.LoadSceneAdditive(dnaSceneName);
+            SceneLoader.Instance.UnloadScene("CTD-Minigame");
         }
         else
         {
