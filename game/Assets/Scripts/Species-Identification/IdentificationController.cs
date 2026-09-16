@@ -337,8 +337,6 @@ public class sampleController : MonoBehaviour
         // Reset the coloured image alpha
         CanvasGroup colourGroup = colouredImage.GetComponent<CanvasGroup>();
         colourGroup.alpha = 0f;
-        CanvasGroup silhouetteGroup = silhouetteImage.GetComponent<CanvasGroup>();
-        silhouetteGroup.alpha = 1f;
 
         // Make sure the UI has updated before starting
         yield return new WaitForSeconds(0.5f);
@@ -351,13 +349,11 @@ public class sampleController : MonoBehaviour
             elapsed += Time.deltaTime;
 
             colourGroup.alpha = Mathf.Clamp01(elapsed / duration);
-            silhouetteGroup.alpha = Mathf.Clamp01(1 - (elapsed / duration));
 
             yield return null;
         }
 
         colourGroup.alpha = 1f;
-        silhouetteGroup.alpha = 0f;
         colourFadeCoroutine = null;
     }
 }
