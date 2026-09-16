@@ -2216,6 +2216,8 @@ MonoBehaviour:
   animationSurface: {fileID: 507578737}
   readyLabel: {fileID: 1051113694}
   readyButton: {fileID: 1051113692}
+  streamingVideoPath: RosetteDeployment/Launch/rosette_entry_ocean_animation.mp4
+  useStreamingUrl: 1
 --- !u!114 &141855555
 MonoBehaviour:
   m_ObjectHideFlags: 0
