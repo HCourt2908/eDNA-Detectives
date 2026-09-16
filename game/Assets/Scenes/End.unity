@@ -365,7 +365,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -64}
+  m_AnchoredPosition: {x: 0, y: -100}
   m_SizeDelta: {x: 1113, y: 311.99}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &480992603
@@ -390,16 +390,18 @@ MonoBehaviour:
       m_Calls: []
   m_text: 'Credits:
 
-    Henry Court - Game Developer
+    Henry Court - Project Manager, Game Developer
 
-    Ray Wang - Game Developer
+    Ray Wang
+    - Game Developer
 
-    Frederick
-    Zou - Game Developer
+    Frederick Zou - Game Developer
 
-    Harshitha Hebbar - Science
+    Harshitha Hebbar -
+    Game Designer, Science Communication Consultant and Illustrator
 
-    Amicie Lavault - Science'
+    Amicie Lavault
+    - Game Designer, Science Communication Consultant and Illustrator'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 53ab9dced62f18b4584bc1c1e77f7401, type: 2}
   m_sharedMaterial: {fileID: 1451522315497341876, guid: 53ab9dced62f18b4584bc1c1e77f7401, type: 2}
@@ -426,8 +428,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 40
-  m_fontSizeBase: 40
+  m_fontSize: 25
+  m_fontSizeBase: 25
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -465,7 +467,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0.0000009744305, y: 0, z: -1.0300293, w: 0}
+  m_margin: {x: 0.0000009744305, y: 0, z: -1.0300293, w: 123.99787}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0

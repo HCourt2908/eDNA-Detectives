@@ -14,7 +14,9 @@ public static class SpeciesDatabase
                 SymbolType.Purple,
                 SymbolType.Green,
                 SymbolType.Green
-            }
+            },
+            silhouetteImagePath="Silhouettes/GreenSeaUrchinShape",
+            colouredImagePath="Colours/GreenSeaUrchin"
         },
 
         new Species
@@ -27,7 +29,9 @@ public static class SpeciesDatabase
                 SymbolType.Green,
                 SymbolType.Yellow,
                 SymbolType.Blue
-            }
+            },
+            silhouetteImagePath="Silhouettes/MantaRayShape",
+            colouredImagePath="Colours/MantaRay"
         },
 
         new Species
@@ -40,7 +44,9 @@ public static class SpeciesDatabase
                 SymbolType.Green,
                 SymbolType.Purple,
                 SymbolType.Yellow
-            }
+            },
+            silhouetteImagePath="Silhouettes/KitefinSharkShape",
+            colouredImagePath="Colours/KitefinShark"
         },
 
         new Species
@@ -53,7 +59,9 @@ public static class SpeciesDatabase
                 SymbolType.Blue,
                 SymbolType.Red,
                 SymbolType.Red
-            }
+            },
+            silhouetteImagePath="Silhouettes/HammerheadSharkShape",
+            colouredImagePath="Colours/HammerheadShark"
         },
 
         new Species
@@ -66,7 +74,9 @@ public static class SpeciesDatabase
                 SymbolType.Blue,
                 SymbolType.Green,
                 SymbolType.Purple
-            }
+            },
+            silhouetteImagePath="Silhouettes/OrangeRoughyShape",
+            colouredImagePath="Colours/OrangeRoughy"
         },
 
         new Species
@@ -79,7 +89,9 @@ public static class SpeciesDatabase
                 SymbolType.Yellow,
                 SymbolType.Red,
                 SymbolType.Green
-            }
+            },
+            silhouetteImagePath="Silhouettes/PineconeFishShape",
+            colouredImagePath="Colours/PineconeFish"
         },
 
         new Species
@@ -92,7 +104,9 @@ public static class SpeciesDatabase
                 SymbolType.Yellow,
                 SymbolType.Green,
                 SymbolType.Purple
-            }
+            },
+            silhouetteImagePath="Silhouettes/AtlanticBluefinTunaShape",
+            colouredImagePath="Colours/AtlanticBluefinTuna"
         },
 
         new Species
@@ -105,7 +119,9 @@ public static class SpeciesDatabase
                 SymbolType.Purple,
                 SymbolType.Purple,
                 SymbolType.Blue
-            }
+            },
+            silhouetteImagePath="Silhouettes/AtlanticHerringShape",
+            colouredImagePath="Colours/AtlanticHerring"
         },
 
         new Species
@@ -118,7 +134,9 @@ public static class SpeciesDatabase
                 SymbolType.Red,
                 SymbolType.Purple,
                 SymbolType.Red
-            }
+            },
+            silhouetteImagePath="Silhouettes/LanternfishShape",
+            colouredImagePath="Colours/Lanternfish"
         },
 
         new Species
@@ -131,7 +149,9 @@ public static class SpeciesDatabase
                 SymbolType.Purple,
                 SymbolType.Red,
                 SymbolType.Yellow
-            }
+            },
+            silhouetteImagePath="Silhouettes/NorthernKrillShape",
+            colouredImagePath="Colours/NorthernKrill"
         },
 
         new Species
@@ -144,7 +164,9 @@ public static class SpeciesDatabase
                 SymbolType.Blue,
                 SymbolType.Blue,
                 SymbolType.Blue
-            }
+            },
+            silhouetteImagePath="Silhouettes/KingCrabShape",
+            colouredImagePath="Colours/KingCrab"
         },
 
         new Species
@@ -157,7 +179,9 @@ public static class SpeciesDatabase
                 SymbolType.Blue,
                 SymbolType.Red,
                 SymbolType.Purple
-            }
+            },
+            silhouetteImagePath="Silhouettes/WartySquidShape",
+            colouredImagePath="Colours/WartySquid"
         },
 
         new Species
@@ -170,7 +194,9 @@ public static class SpeciesDatabase
                 SymbolType.Blue,
                 SymbolType.Yellow,
                 SymbolType.Green
-            }
+            },
+            silhouetteImagePath="Silhouettes/FlapjackOctopusShape",
+            colouredImagePath="Colours/FlapjackOctopus"
         },
 
         new Species
@@ -183,7 +209,9 @@ public static class SpeciesDatabase
                 SymbolType.Purple,
                 SymbolType.Blue,
                 SymbolType.Red
-            }
+            },
+            silhouetteImagePath="Silhouettes/GiantOctopusShape",
+            colouredImagePath="Colours/GiantOctopus"
         },
 
         new Species
@@ -196,7 +224,9 @@ public static class SpeciesDatabase
                 SymbolType.Red,
                 SymbolType.Green,
                 SymbolType.Blue
-            }
+            },
+            silhouetteImagePath="Silhouettes/BoneEatingWormShape",
+            colouredImagePath="Colours/BoneEatingWorm"
         },
 
         new Species
@@ -209,7 +239,9 @@ public static class SpeciesDatabase
                 SymbolType.Yellow,
                 SymbolType.Purple,
                 SymbolType.Purple
-            }
+            },
+            silhouetteImagePath="Silhouettes/TreeBubblegumCoralShape",
+            colouredImagePath="Colours/TreeBubblegumCoral"
         },
 
         new Species
@@ -222,7 +254,9 @@ public static class SpeciesDatabase
                 SymbolType.Green,
                 SymbolType.Blue,
                 SymbolType.Purple
-            }
+            },
+            silhouetteImagePath="Silhouettes/PreciousCoralShape",
+            colouredImagePath="Colours/PreciousCoral"
         },
 
         new Species
@@ -235,7 +269,9 @@ public static class SpeciesDatabase
                 SymbolType.Green,
                 SymbolType.Yellow,
                 SymbolType.Red
-            }
+            },
+            silhouetteImagePath="Silhouettes/ZigzagCoralShape",
+            colouredImagePath="Colours/ZigzagCoral"
         },
 
         new Species
@@ -248,7 +284,9 @@ public static class SpeciesDatabase
                 SymbolType.Yellow,
                 SymbolType.Green,
                 SymbolType.Yellow
-            }
+            },
+            silhouetteImagePath="Silhouettes/MoonJellyfishShape",
+            colouredImagePath="Colours/MoonJellyfish"
         },
 
         new Species
@@ -261,7 +299,9 @@ public static class SpeciesDatabase
                 SymbolType.Blue,
                 SymbolType.Purple,
                 SymbolType.Green
-            }
+            },
+            silhouetteImagePath="Silhouettes/PhytoplanktonShape",
+            colouredImagePath="Colours/Phytoplankton"
         }
     };
 

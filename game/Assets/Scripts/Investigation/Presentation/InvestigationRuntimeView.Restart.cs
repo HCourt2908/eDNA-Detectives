@@ -46,6 +46,7 @@ namespace EDNA.Investigation
             restartButton.interactable = false;
             if (detailsPaused) RefreshPresentationOnly();
             else RenderRestartDialog();
+            PhaseChanged?.Invoke(state.Phase);
         }
 
         private void RemoveRestartDialog()
@@ -109,6 +110,7 @@ namespace EDNA.Investigation
             RefreshPresentationOnly();
             restartButton.interactable = state != null;
             EventSystem.current?.SetSelectedGameObject(restartButton.gameObject);
+            PhaseChanged?.Invoke(state.Phase);
         }
 
         private void ConfirmRestart()

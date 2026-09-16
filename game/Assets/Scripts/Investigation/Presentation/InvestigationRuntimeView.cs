@@ -81,6 +81,8 @@ namespace EDNA.Investigation
         public InvestigationState State => state;
         public RectTransform ContentRoot => contentRoot;
         public Sprite SeamountSprite => seamountSprite;
+        public bool RestartConfirmationPending => restartConfirmationPending;
+        public event Action<InvestigationPhase> PhaseChanged;
 
         public void Bind(
             InvestigationCaseDefinition definition,
@@ -451,6 +453,7 @@ namespace EDNA.Investigation
                 lastRenderedPhase = state.Phase;
                 lastRenderedConclusionStatus = state.ConclusionStatus;
                 hasRenderedPhase = true;
+                PhaseChanged?.Invoke(state.Phase);
             }
             if (!string.IsNullOrEmpty(navigationRevealTarget))
             {
