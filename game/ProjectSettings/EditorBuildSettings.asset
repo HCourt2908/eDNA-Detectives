@@ -9,6 +9,9 @@ EditorBuildSettings:
     path: Assets/Scenes/CoreScene.unity
     guid: 4f183f264ef11814185dd86ba7c1cc86
   - enabled: 1
+    path: Assets/Scenes/Introduction.unity
+    guid: f5391ebaae8775748bf8d7b7163cab11
+  - enabled: 1
     path: Assets/Scenes/CTD-Minigame.unity
     guid: 16192fb42bdac4914ad61910147c135c
   - enabled: 1
@@ -17,5 +20,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/InvestigationScene.unity
     guid: 076caa30fb8c546e4af3296dcfeb7879
+  - enabled: 1
+    path: Assets/Scenes/End.unity
+    guid: 075901bec2df6aa4184c46dcb4a8d595
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}

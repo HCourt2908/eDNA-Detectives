@@ -18,7 +18,7 @@ public class SceneLoader : MonoBehaviour
 
         DontDestroyOnLoad(gameObject);
 
-        LoadSceneAdditive("CTD-Minigame");
+        LoadSceneAdditive("Introduction");
     }
 
     public void LoadScene(string sceneName)
@@ -48,5 +48,29 @@ public class SceneLoader : MonoBehaviour
         {
             SceneManager.UnloadSceneAsync(sceneName);
         }
+    }
+
+    public void FullRestart()
+    {
+        StartCoroutine(RestartCoroutine());
+    }
+
+    public IEnumerator RestartCoroutine()
+    {
+        GameObject[] allObjects = FindObjectsByType<GameObject>(FindObjectsInactive.Include);
+
+        foreach (GameObject obj in allObjects)
+        {
+            if (obj != gameObject && obj.scene.name == null)
+            {
+                Destroy(obj);
+            }
+        }
+        yield return null;
+
+        Instance = null;
+        Destroy(gameObject);
+
+        SceneManager.LoadScene("CoreScene");
     }
 }
