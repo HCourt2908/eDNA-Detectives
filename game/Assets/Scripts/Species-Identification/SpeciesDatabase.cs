@@ -61,7 +61,8 @@ public static class SpeciesDatabase
                 SymbolType.Red
             },
             silhouetteImagePath="Silhouettes/HammerheadSharkShape",
-            colouredImagePath="Colours/HammerheadShark"
+            colouredImagePath="Colours/HammerheadShark",
+            colouredImageIndex = 1
         },
 
         new Species

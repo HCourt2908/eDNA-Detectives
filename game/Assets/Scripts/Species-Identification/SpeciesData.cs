@@ -27,6 +27,7 @@ public class Species
 
     public string silhouetteImagePath;
     public string colouredImagePath;
+    public int colouredImageIndex = 0;
 
     public Sprite GetSilhouetteImage()
     {
@@ -35,6 +36,8 @@ public class Species
 
     public Sprite GetColouredImage()
     {
-        return Resources.Load<Sprite>(colouredImagePath);
+        Sprite[] sprites = Resources.LoadAll<Sprite>(colouredImagePath);
+
+        return sprites[colouredImageIndex];
     }
 }
