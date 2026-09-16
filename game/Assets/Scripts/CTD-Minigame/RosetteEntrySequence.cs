@@ -11,13 +11,18 @@ using UnityEngine.Video;
 /// </summary>
 public class RosetteEntrySequence : MonoBehaviour
 {
-    private const string VideoResourcePath = "RosetteDeployment/Launch/rosette_entry_ocean_animation";
+    private const string StreamingVideoPath = "RosetteDeployment/Launch/rosette_entry_ocean_animation.mp4";
 
     [Header("Scene UI")]
     public SamplingCockpitView cockpit;
     public RawImage animationSurface;
     public TMP_Text readyLabel;
     public Button readyButton;
+    [Header("WebGL video")]
+    [Tooltip("The path is relative to Assets/StreamingAssets and is served beside the WebGL build.")]
+    public string streamingVideoPath = StreamingVideoPath;
+    [Tooltip("Use the browser-safe URL source. Keep enabled for WebGL builds.")]
+    public bool useStreamingUrl = true;
 
     public event Action ReadyPressed;
 
@@ -78,6 +83,7 @@ public class RosetteEntrySequence : MonoBehaviour
         videoPlayer.aspectRatio = VideoAspectRatio.FitInside;
         videoPlayer.prepareCompleted += HandlePrepared;
         videoPlayer.loopPointReached += HandleAnimationCompleted;
+        videoPlayer.errorReceived += HandleVideoError;
         readyButton.onClick.AddListener(() => ReadyPressed?.Invoke());
     }
 
@@ -99,23 +105,35 @@ public class RosetteEntrySequence : MonoBehaviour
             panelImage.enabled = false;
         }
 
-        VideoClip clip = Resources.Load<VideoClip>(VideoResourcePath);
-        if (clip == null)
+        if (useStreamingUrl)
         {
-            Debug.LogError($"Rosette entry video is missing from Resources/{VideoResourcePath}.");
-            ShowReadyButton();
+            videoPlayer.source = VideoSource.Url;
+            videoPlayer.clip = null;
+            videoPlayer.url = BuildStreamingVideoUrl();
+            videoPlayer.Prepare();
             return;
         }
 
-        videoPlayer.clip = clip;
-        videoPlayer.frame = 0;
+        Debug.LogWarning("Rosette entry video URL playback is disabled; enable Use Streaming Url for WebGL builds.");
+        ShowReadyButton();
+    }
+
+    private string BuildStreamingVideoUrl()
+    {
+        string relativePath = string.IsNullOrWhiteSpace(streamingVideoPath)
+            ? StreamingVideoPath
+            : streamingVideoPath.TrimStart('/', '\\');
+        return Application.streamingAssetsPath.TrimEnd('/', '\\') + "/" + relativePath.Replace('\\', '/');
+    }
+
+    private void HandleVideoError(VideoPlayer failedPlayer, string message)
+    {
+        Debug.LogError($"Rosette entry video could not be loaded from '{failedPlayer.url}': {message}");
         if (animationSurface != null)
         {
             animationSurface.texture = null;
-            animationSurface.enabled = true;
         }
-
-        videoPlayer.Prepare();
+        ShowReadyButton();
     }
 
     private void HandlePrepared(VideoPlayer preparedPlayer)
