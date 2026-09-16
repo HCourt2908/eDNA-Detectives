@@ -24,4 +24,17 @@ public class Species
 {
     public string name;
     public List<SymbolType> sequence;
+
+    public string silhouetteImagePath;
+    public string colouredImagePath;
+
+    public Sprite GetSilhouetteImage()
+    {
+        return Resources.Load<Sprite>(silhouetteImagePath);
+    }
+
+    public Sprite GetColouredImage()
+    {
+        return Resources.Load<Sprite>(colouredImagePath);
+    }
 }

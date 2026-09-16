@@ -32,7 +32,9 @@ public class sampleController : MonoBehaviour
     List<Species> speciesList;
     Dictionary<Species, SpeciesFrequency> frequencyMap;
 
-    [SerializeField] Image speciesIdentifiedImage;
+    [SerializeField] Image silhouetteImage;
+    [SerializeField] Image colouredImage;
+    private Coroutine colourFadeCoroutine;
     [SerializeField] TMPro.TMP_Text speciesIdentifiedText;
     [SerializeField] Button identifiedContinueButton;
     [SerializeField] GameObject speciesIdentifiedPanel;
@@ -49,8 +51,6 @@ public class sampleController : MonoBehaviour
         StartCoroutine(LoadPuzzles());
     }
 
-    // Include every detected species before shuffling. A list-size cutoff here
-    // can silently omit later species from the identification activity.
     private static List<Species> BuildSampleQueue(List<Species> speciesList, Dictionary<Species, SpeciesFrequency> frequencyMap)
     {
         var samplesFound = new List<Species>();
@@ -198,13 +198,18 @@ public class sampleController : MonoBehaviour
 
         buttons.Clear();
 
-        foreach (string buttonText in buttonTexts)
+        foreach (Species species in SpeciesDatabase.AllSpecies)
         {
             Button button = Instantiate(buttonPrefab, buttonContent);
 
-            button.GetComponentInChildren<TMPro.TMP_Text>().text = buttonText;
+            button.GetComponentInChildren<TMPro.TMP_Text>().text = "";
+            
+            Image silhouetteImage = button.transform.Find("SilhouetteImage").GetComponent<Image>();
+            silhouetteImage.sprite = species.GetSilhouetteImage();
+            silhouetteImage.preserveAspect = true;
+            silhouetteImage.type = Image.Type.Simple;
 
-            button.onClick.AddListener(() => CheckCorrectness(button, buttonText));
+            button.onClick.AddListener(() => CheckCorrectness(button, species.name));
 
             buttons.Add(button);
         }
@@ -229,39 +234,47 @@ public class sampleController : MonoBehaviour
     public IEnumerator flashCorrect(Button button)
     {
         float duration = 0.5f;
-        ColorBlock originalColors = button.colors;
-        ColorBlock flashColors = button.colors;
-        flashColors.normalColor = Color.green;
-        flashColors.highlightedColor = Color.green;
-        flashColors.pressedColor = Color.green;
-        flashColors.selectedColor = Color.green;
-        button.colors = flashColors;
-        
+
+        Image image = button.GetComponent<Image>();
+        Color originalColor = image.color;
+
+        image.color = Color.green;
+
         yield return new WaitForSeconds(duration);
 
-        button.colors = originalColors;
+        image.color = originalColor;
+
         puzzleCorrect = true;
-    }
+        }
 
     public IEnumerator flashIncorrect(Button button)
     {
         float duration = 0.5f;
-        ColorBlock originalColors = button.colors;
-        ColorBlock flashColors = button.colors;
-        flashColors.normalColor = Color.red;
-        flashColors.highlightedColor = Color.red;
-        flashColors.pressedColor = Color.red;
-        flashColors.selectedColor = Color.red;
-        button.colors = flashColors;
+
+        Image image = button.GetComponent<Image>();
+        Color originalColor = image.color;
+
+        image.color = Color.red;
 
         yield return new WaitForSeconds(duration);
 
-        button.colors = originalColors;
-    }
+        image.color = originalColor;
+        }
 
     public IEnumerator SpeciesIdentified(string name)
     {
         identifiedContinuePressed = false;
+        speciesIdentifiedText.text = name;
+
+        Species species = SpeciesDatabase.AllSpecies.Find(s => s.name == name);
+        Sprite silhouette = species.GetSilhouetteImage();
+        Sprite colour = species.GetColouredImage();
+
+        silhouetteImage.sprite = silhouette;
+        colouredImage.sprite = colour;
+        CanvasGroup colourGroup = colouredImage.GetComponent<CanvasGroup>();
+        colourGroup.alpha = 0f;
+
         speciesIdentifiedPanel.SetActive(true);
 
         CanvasGroup canvasGroup = speciesIdentifiedPanel.GetComponent<CanvasGroup>();
@@ -276,8 +289,10 @@ public class sampleController : MonoBehaviour
             yield return null;
         }
         canvasGroup.alpha = 1f;
-        // speciesIdentifiedImage
-        speciesIdentifiedText.text = name;
+        
+        StartCoroutine(FadeInColour(silhouette, colour));
+
+
         yield return new WaitUntil(() => identifiedContinuePressed);
         identifiedContinuePressed = false;
 
@@ -297,5 +312,52 @@ public class sampleController : MonoBehaviour
     public GameObject GetSymbol(SymbolType type)
     {
         return symbolPrefabs.Find(x => x.type == type).prefab;
+    }
+
+    private IEnumerator FadeInColour(Sprite silhouette, Sprite colour)
+    {
+        // Stop any existing fade
+        if (colourFadeCoroutine != null)
+        {
+            StopCoroutine(colourFadeCoroutine);
+            colourFadeCoroutine = null;
+        }
+
+        // Set both sprites immediately
+        silhouetteImage.sprite = silhouette;
+        colouredImage.sprite = colour;
+
+        silhouetteImage.preserveAspect = true;
+        colouredImage.preserveAspect = true;
+
+        // Ensure both images are visible
+        silhouetteImage.gameObject.SetActive(true);
+        colouredImage.gameObject.SetActive(true);
+
+        // Reset the coloured image alpha
+        CanvasGroup colourGroup = colouredImage.GetComponent<CanvasGroup>();
+        colourGroup.alpha = 0f;
+        CanvasGroup silhouetteGroup = silhouetteImage.GetComponent<CanvasGroup>();
+        silhouetteGroup.alpha = 1f;
+
+        // Make sure the UI has updated before starting
+        yield return new WaitForSeconds(0.5f);
+
+        float duration = 0.5f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+
+            colourGroup.alpha = Mathf.Clamp01(elapsed / duration);
+            silhouetteGroup.alpha = Mathf.Clamp01(1 - (elapsed / duration));
+
+            yield return null;
+        }
+
+        colourGroup.alpha = 1f;
+        silhouetteGroup.alpha = 0f;
+        colourFadeCoroutine = null;
     }
 }

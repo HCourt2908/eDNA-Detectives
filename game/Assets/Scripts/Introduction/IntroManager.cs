@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,6 +18,7 @@ public class IntroManager : MonoBehaviour
     public Sprite basicBackground;
     public Sprite handUpBackground;
     public GameObject seamountMap;
+    [SerializeField] List<GameObject> animals;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -32,6 +35,7 @@ public class IntroManager : MonoBehaviour
     public IEnumerator Introduction()
     {
         yield return new WaitUntil(() => buttonPressed);
+        foreach (GameObject animal in animals) animal.SetActive(false);
         buttonPressed = false;
 
         yield return StartCoroutine(TitleFade());
