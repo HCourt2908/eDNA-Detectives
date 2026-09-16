@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using EDNA.Investigation.Domain;
 using NUnit.Framework;
@@ -42,7 +43,7 @@ namespace EDNA.Investigation.Tests
         {
             yield return Start(); var controller = Object.FindAnyObjectByType<InvestigationController>();
             AssertSpotlight("Scenario Survey Target");
-            Assert.That(GameObject.Find("Scenario Briefing Speaker").GetComponent<Text>().text, Does.Contain("1/2"));
+            Assert.That(GameObject.Find("Scenario Briefing Speaker").GetComponent<TextMeshProUGUI>().text, Does.Contain("1/2"));
             var old = GameObject.Find("Scenario Briefing Next").GetComponent<Button>().onClick;
             Rect before = Bounds(GameObject.Find("Scenario Results").GetComponent<RectTransform>());
             yield return Next(); AssertSpotlight("Scenario Results");
@@ -51,7 +52,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(Vector2.Distance(before.size, after.size), Is.LessThan(.5f));
             Rect focused = Bounds(GameObject.Find("Scenario Briefing Focus Scenario Results").GetComponent<RectTransform>());
             Assert.That(Vector2.Distance(after.center, focused.center), Is.LessThan(.5f), "Spotlight must stay aligned with the real model");
-            old.Invoke(); Assert.That(GameObject.Find("Scenario Briefing Speaker").GetComponent<Text>().text, Does.Contain("2/2"));
+            old.Invoke(); Assert.That(GameObject.Find("Scenario Briefing Speaker").GetComponent<TextMeshProUGUI>().text, Does.Contain("2/2"));
             AssertSpotlight("Scenario Results");
             var cause = GameObject.Find("Run Scenario longline").GetComponent<Button>();
             var pointer = new PointerEventData(EventSystem.current) { position = cause.transform.position };
@@ -81,7 +82,7 @@ namespace EDNA.Investigation.Tests
             AssertSpotlight("Scenario Results"); yield return Next();
             Press("Choose Scenario plastic"); yield return null; yield return null;
             AssertSpotlight("Scenario Observed tuna");
-            Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<Text>().text, Does.Contain("Tuna"));
+            Assert.That(GameObject.Find("Scenario Briefing Message").GetComponent<TextMeshProUGUI>().text, Does.Contain("Tuna"));
             yield return Next(); Press("Choose Scenario longline"); yield return null;
             Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.Phase, Is.EqualTo(InvestigationPhase.Report));
             Assert.That(GameObject.Find("Scenario Briefing Overlay"), Is.Null);
@@ -91,12 +92,12 @@ namespace EDNA.Investigation.Tests
             yield return Start(); Press("Scenario Briefing Skip"); Press("Run Scenario longline");
             yield return new WaitForSecondsRealtime(.2f); Press("Talk To Edna"); yield return null; yield return null;
             AssertSpotlight("Scenario Result longline");
-            string value = GameObject.Find("Scenario Result longline").transform.Find("Scenario Result Species tuna/Result Prediction").GetComponent<Text>().text;
+            string value = GameObject.Find("Scenario Result longline").transform.Find("Scenario Result Species tuna/Result Prediction").GetComponent<TextMeshProUGUI>().text;
             yield return new WaitForSecondsRealtime(7.5f);
-            Assert.That(GameObject.Find("Scenario Result longline").transform.Find("Scenario Result Species tuna/Result Prediction").GetComponent<Text>().text, Is.EqualTo(value));
-            Assert.That(GameObject.Find("Metrics").GetComponent<Text>().text, Does.Contain("0/3"));
+            Assert.That(GameObject.Find("Scenario Result longline").transform.Find("Scenario Result Species tuna/Result Prediction").GetComponent<TextMeshProUGUI>().text, Is.EqualTo(value));
+            Assert.That(GameObject.Find("Metrics").GetComponent<TextMeshProUGUI>().text, Does.Contain("0/3"));
             yield return Next(); Press("Finish Scenario Animation"); yield return null;
-            Assert.That(GameObject.Find("Metrics").GetComponent<Text>().text, Does.Contain("1/3"));
+            Assert.That(GameObject.Find("Metrics").GetComponent<TextMeshProUGUI>().text, Does.Contain("1/3"));
         }
         [UnityTest] public IEnumerator Guide_CompactLayoutReceivesPointerInputAndCleansUpOnObserve()
         {
@@ -115,7 +116,7 @@ namespace EDNA.Investigation.Tests
                     Rect light = Bounds(GameObject.Find("Scenario Briefing Spotlight").GetComponent<RectTransform>());
                     Assert.That(speech.xMin, Is.GreaterThanOrEqualTo(screen.xMin)); Assert.That(speech.xMax, Is.LessThanOrEqualTo(screen.xMax));
                     Assert.That(speech.yMin, Is.GreaterThanOrEqualTo(screen.yMin)); Assert.That(speech.yMax, Is.LessThanOrEqualTo(screen.yMax));
-                    foreach (Text text in GameObject.Find("Scenario EDNA Dock").GetComponentsInChildren<Text>())
+                    foreach (TextMeshProUGUI text in GameObject.Find("Scenario EDNA Dock").GetComponentsInChildren<TextMeshProUGUI>())
                         Assert.That(text.rectTransform.rect.height + 1f, Is.GreaterThanOrEqualTo(text.preferredHeight), text.name);
                     var b = GameObject.Find("Scenario Briefing Next").GetComponent<Button>();
                     var pointer = new PointerEventData(EventSystem.current) { position = b.transform.position };

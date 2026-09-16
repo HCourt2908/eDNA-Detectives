@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
@@ -27,7 +28,7 @@ namespace EDNA.Investigation.Tests
                 Assert.That(GameObject.Find("Scenario Cause Icon " + id), Is.Not.Null);
                 Assert.That(GameObject.Find("Scenario Card Header " + id).GetComponent<Button>(), Is.Null);
                 Assert.That(GameObject.Find("Scenario Result " + id).GetComponent<Button>(), Is.Null);
-                Assert.That(GameObject.Find("Run Scenario " + id).GetComponentInChildren<Text>().text, Is.EqualTo("Play"));
+                Assert.That(GameObject.Find("Run Scenario " + id).GetComponentInChildren<TextMeshProUGUI>().text, Is.EqualTo("Play"));
                 Assert.That(GameObject.Find("Choose Scenario " + id).GetComponent<Button>().interactable, Is.False);
             }
             var title = GameObject.Find("Detail Cause longline");
@@ -46,17 +47,17 @@ namespace EDNA.Investigation.Tests
             Assert.That(Vector3.Distance(position, card.position), Is.LessThan(.5f)); Assert.That(card.rect.size, Is.EqualTo(size));
             Assert.That(GameObject.Find("Scenario Model"), Is.Null);
             Assert.That(GameObject.Find("Run Scenario longline").GetComponent<Button>().interactable, Is.False);
-            Assert.That(GameObject.Find("Scenario Result plastic").transform.Find("Scenario Result Species tuna/Result Prediction").GetComponent<Text>().text, Is.EqualTo("Baseline"));
+            Assert.That(GameObject.Find("Scenario Result plastic").transform.Find("Scenario Result Species tuna/Result Prediction").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Baseline"));
             Press("Finish Scenario Animation"); yield return null; yield return null; Press("Scenario Briefing Next");
-            Assert.That(GameObject.Find("Replay Scenario longline").GetComponentInChildren<Text>().text, Is.EqualTo("Replay"));
+            Assert.That(GameObject.Find("Replay Scenario longline").GetComponentInChildren<TextMeshProUGUI>().text, Is.EqualTo("Replay"));
             Press("Replay Scenario longline"); yield return null;
-            Assert.That(GameObject.Find("Scenario Result longline").transform.Find("Scenario Result Species tuna/Result Prediction").GetComponent<Text>().text, Does.Contain("Stable"));
+            Assert.That(GameObject.Find("Scenario Result longline").transform.Find("Scenario Result Species tuna/Result Prediction").GetComponent<TextMeshProUGUI>().text, Does.Contain("Stable"));
         }
         [UnityTest] public IEnumerator Cards_InterruptedPredictionDoesNotRevealUnfinishedResultsOrUnlockChoice()
         {
             yield return Start(); Press("Run Scenario plastic"); yield return new WaitForSecondsRealtime(.2f);
             Press("Run Scenario longline");
-            Assert.That(GameObject.Find("Scenario Result plastic").transform.Find("Scenario Result Species phytoplankton/Result Prediction").GetComponent<Text>().text, Is.EqualTo("Baseline"));
+            Assert.That(GameObject.Find("Scenario Result plastic").transform.Find("Scenario Result Species phytoplankton/Result Prediction").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Baseline"));
             Press("Finish Scenario Animation"); Press("Run Scenario bottom_trawling"); Press("Finish Scenario Animation");
             Assert.That(GameObject.Find("Choose Scenario longline").GetComponent<Button>().interactable, Is.False);
             Press("Run Scenario plastic"); Press("Finish Scenario Animation");

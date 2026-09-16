@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -29,13 +30,13 @@ namespace EDNA.Investigation
             return normalized.Substring(0, Mathf.Max(1, maximumCharacters - 1)).TrimEnd() + "…";
         }
 
-        private static void ConfigureContentDrivenText(Text text)
+        private static void ConfigureContentDrivenText(TextMeshProUGUI text)
         {
-            text.horizontalOverflow = HorizontalWrapMode.Wrap;
-            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.textWrappingMode = TextWrappingModes.Normal;
+            text.overflowMode = TextOverflowModes.Overflow;
         }
 
-        private static void ConfigureWrappingChoice(Button button, Text label)
+        private static void ConfigureWrappingChoice(Button button, TextMeshProUGUI label)
         {
             ConfigureContentDrivenText(label);
             button.GetComponent<InvestigationFocusRing>().KeepVisibleOnKeyboardFocus = true;

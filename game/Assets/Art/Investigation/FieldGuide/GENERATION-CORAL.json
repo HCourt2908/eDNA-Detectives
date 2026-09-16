@@ -1,0 +1,8 @@
+{
+  "date": "2026-09-14",
+  "tool": "Built-in image_gen",
+  "asset": "tree-bubblegum-coral.png",
+  "species": "Paragorgia arborea",
+  "purpose": "Illustrative sprite for the authored historical survey and trawling model; not a real field observation or specimen photograph.",
+  "prompt": "Scientific educational game sprite: a single whole tree bubblegum coral colony (Paragorgia arborea), upright branching sea-fan-like octocoral with thick rounded pink and coral-red branches, bulbous rounded branch tips and tiny pale polyps, naturally irregular open branching silhouette. Softly painted natural-history field-guide illustration, restrained fine dark navy contours, light gouache texture, readable at small sizes, subtle upper-left light. This is a deep-sea animal, not a plant or tropical hard coral. Show the complete colony with small basal attachment, no large rock. Center on a genuinely transparent alpha background, small even clear margins, square canvas. No water, seabed, scenery, labels, lettering, border, cast shadow, or painted checkerboard. One colony only, no sea urchin. Designed for a Unity comparison card beside existing natural-history fish sprites."
+}

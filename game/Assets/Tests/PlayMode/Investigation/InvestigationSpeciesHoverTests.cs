@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
@@ -30,7 +31,7 @@ namespace EDNA.Investigation.Tests
                 var pointer = new PointerEventData(EventSystem.current);
                 ExecuteEvents.Execute(marker.gameObject, pointer, ExecuteEvents.pointerEnterHandler);
                 yield return new WaitForSecondsRealtime(.3f);
-                Assert.That(GameObject.Find("Tooltip Title").GetComponent<Text>().text, Is.EqualTo("Atlantic Bluefin Tuna"));
+                Assert.That(GameObject.Find("Tooltip Title").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Atlantic Bluefin Tuna"));
                 Assert.That(GameObject.Find("Close Species Facts"), Is.Null);
                 foreach (var graphic in GameObject.Find("Species Facts Tooltip").GetComponentsInChildren<Graphic>())
                     Assert.That(graphic.raycastTarget, Is.False, "Hover previews must not steal map or slider input.");

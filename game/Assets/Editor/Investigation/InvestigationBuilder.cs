@@ -62,67 +62,6 @@ namespace EDNA.Investigation.Editor
             UpdateFigmaFoodChainCase();
         }
 
-        [MenuItem("eDNA Detectives/Remove Warming Scenario")]
-        public static void RemoveWarmingScenario()
-        {
-            InvestigationCaseDefinition caseDefinition = AssetDatabase.LoadAssetAtPath<InvestigationCaseDefinition>($"{DataRoot}/InvestigationCase_LongLine.asset");
-            if (caseDefinition == null) throw new InvalidOperationException("The investigation case is missing.");
-
-            SerializedObject caseObject = new SerializedObject(caseDefinition);
-            SerializedProperty threats = caseObject.FindProperty("threats");
-            for (int index = threats.arraySize - 1; index >= 0; index--)
-            {
-                SerializedProperty entry = threats.GetArrayElementAtIndex(index);
-                ThreatSimulationDefinition threat = entry.objectReferenceValue as ThreatSimulationDefinition;
-                if (threat == null || threat.ThreatId != "warming") continue;
-                entry.objectReferenceValue = null;
-                threats.DeleteArrayElementAtIndex(index);
-            }
-            foreach (string propertyName in new[] { "comparisonRules", "investigationObjectives" })
-            {
-                SerializedProperty entries = caseObject.FindProperty(propertyName);
-                for (int index = entries.arraySize - 1; index >= 0; index--)
-                {
-                    SerializedProperty entry = entries.GetArrayElementAtIndex(index);
-                    // Target ID 1 belonged to the retired temperature prediction.
-                    if (entry.FindPropertyRelative("threatId").stringValue == "warming"
-                        || entry.FindPropertyRelative("targetKind").intValue == 1)
-                        entries.DeleteArrayElementAtIndex(index);
-                }
-            }
-            SerializedProperty objectives = caseObject.FindProperty("investigationObjectives");
-            int requiredCount = 0;
-            for (int index = 0; index < objectives.arraySize; index++)
-                if (objectives.GetArrayElementAtIndex(index).FindPropertyRelative("required").boolValue) requiredCount++;
-            SetInteger(caseObject, "minimumCompletedComparisons", requiredCount);
-            caseObject.ApplyModifiedProperties();
-
-            var migratedPaths = new List<string> { AssetDatabase.GetAssetPath(caseDefinition) };
-            foreach (string guid in AssetDatabase.FindAssets("t:InvestigationSpeciesDefinition", new[] { DataRoot }))
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                migratedPaths.Add(path);
-                InvestigationSpeciesDefinition species = AssetDatabase.LoadAssetAtPath<InvestigationSpeciesDefinition>(path);
-                SerializedObject speciesObject = new SerializedObject(species);
-                SerializedProperty tags = speciesObject.FindProperty("sensitivityTags");
-                for (int index = tags.arraySize - 1; index >= 0; index--)
-                    if (tags.GetArrayElementAtIndex(index).stringValue == "WarmAffinity") tags.DeleteArrayElementAtIndex(index);
-                speciesObject.ApplyModifiedProperties();
-            }
-            foreach (ThreatSimulationDefinition threat in caseDefinition.Threats)
-                migratedPaths.Add(AssetDatabase.GetAssetPath(threat));
-            AssetDatabase.SaveAssets();
-            // Reserialize only the affected definitions to remove retired fields.
-            AssetDatabase.ForceReserializeAssets(migratedPaths, ForceReserializeAssetsOptions.ReserializeAssets);
-            AssetDatabase.DeleteAsset($"{DataRoot}/Threat_Warming.asset");
-            AssetDatabase.DeleteAsset($"{ArtRoot}/warming.png");
-            AssetDatabase.SaveAssets();
-
-            List<string> errors = new InvestigationCaseValidator().Validate(caseDefinition);
-            if (errors.Count > 0) throw new InvalidOperationException(string.Join("\n", errors));
-            Debug.Log($"Warming removed: {caseDefinition.Threats.Count} models and {requiredCount} required comparisons remain.");
-        }
-
         [MenuItem("eDNA Detectives/Update Case Evidence")]
         public static void UpdateCaseEvidence() => UpdateFigmaFoodChainCase();
 
@@ -327,7 +266,7 @@ namespace EDNA.Investigation.Editor
         {
             foreach (string file in new[] { "great-hammerhead-shark.png", "reef-manta-ray.png", "bone-eating-worm.png" })
                 ConfigureSpriteImporter($"{TeamArtRoot}/{file}");
-            foreach (string file in new[] { "hammerhead.png", "tuna.png", "atlantic-herring.png", "krill.png", "phytoplankton.png" })
+            foreach (string file in new[] { "hammerhead.png", "tuna.png", "atlantic-herring.png", "krill.png", "phytoplankton.png", "tree-bubblegum-coral.png" })
                 ConfigureSpriteImporter($"{FieldGuideArtRoot}/{file}");
             string[] artworkFiles =
             {
@@ -387,9 +326,9 @@ namespace EDNA.Investigation.Editor
             AssetDatabase.Refresh();
             foreach (string file in new[] { "great-hammerhead-shark.png", "reef-manta-ray.png", "bone-eating-worm.png" })
                 ConfigureSpriteImporter($"{TeamArtRoot}/{file}");
-            string[] ids = { "shark", "tuna", "atlantic_herring", "krill", "phytoplankton" };
-            string[] names = { "Shark", "Tuna", "AtlanticHerring", "Krill", "Phytoplankton" };
-            string[] files = { "hammerhead", "tuna", "atlantic-herring", "krill", "phytoplankton" };
+            string[] ids = { "shark", "tuna", "atlantic_herring", "krill", "phytoplankton", "tree_bubblegum_coral" };
+            string[] names = { "Shark", "Tuna", "AtlanticHerring", "Krill", "Phytoplankton", "TreeBubblegumCoral" };
+            string[] files = { "hammerhead", "tuna", "atlantic-herring", "krill", "phytoplankton", "tree-bubblegum-coral" };
             for (int index = 0; index < ids.Length; index++)
             {
                 ConfigureSpriteImporter($"{FieldGuideArtRoot}/{files[index]}.png");
@@ -600,7 +539,7 @@ namespace EDNA.Investigation.Editor
         {
             SerializedProperty options = caseObject.FindProperty("reasoningOptions");
             options.arraySize = 3;
-            SetReasoning(options.GetArrayElementAtIndex(0), "food_web_cascade", "Shark ↓ → Tuna ↑ → Herring ↓ → Krill ↑ → Phytoplankton ↓", "The illustrative response follows each link; the matching pattern does not distinguish the two fishing causes.");
+            SetReasoning(options.GetArrayElementAtIndex(0), "food_web_cascade", "Shark ↓ · Tuna ↓ · Herring ↑ · Coral not detected · Phytoplankton —", "The trawling model fits fewer tuna, more herring and missing coral. Long-line fishing predicts the opposite tuna and herring changes.");
             SetReasoning(options.GetArrayElementAtIndex(1), "shared_habitat_shift", "The species moved when their habitat shifted", "A shared habitat shift would need a coherent environmental or depth pattern.");
             SetReasoning(options.GetArrayElementAtIndex(2), "direct_fishing_loss", "Fishing directly removed every species", "The food-chain model distinguishes a direct premise from the subsequent inferred responses.");
         }

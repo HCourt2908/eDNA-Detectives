@@ -1,3 +1,4 @@
+using TMPro;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -31,7 +32,7 @@ namespace EDNA.Investigation
             string processedSummary = string.IsNullOrWhiteSpace(state.ProcessedSampleSummary)
                 ? "Processed survey results"
                 : state.ProcessedSampleSummary;
-            Text observeHeading = CreateHeading(
+            TextMeshProUGUI observeHeading = CreateHeading(
                 "What changed on this seamount?",
                 $"{processedSummary}. Begin with today, then look back 20 years.");
 
@@ -125,7 +126,7 @@ namespace EDNA.Investigation
                 historical ? InvestigationTheme.MapSurfaceHistorical : InvestigationTheme.MapSurface,
                 InvestigationTheme.CardRadius);
 
-            Text title = CreateText(
+            TextMeshProUGUI title = CreateText(
                 "Survey Title",
                 map,
                 historical ? "20 years ago" : "Today",
@@ -244,7 +245,7 @@ namespace EDNA.Investigation
                 InvestigationSpeciesDefinition species = caseDefinition.SpeciesCatalog[index];
                 if (species != null
                     && includedIds.Add(species.SpeciesId)
-                    && state.HasSurveySpecies(species.SpeciesId))
+                    && (state.HasSurveySpecies(species.SpeciesId)))
                 {
                     visible.Add(species);
                 }
@@ -332,7 +333,7 @@ namespace EDNA.Investigation
 
         private void CreateDepthLabel(RectTransform map, string value, float normalizedY)
         {
-            Text label = CreateText($"Depth {value}", map, value, 11, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
+            TextMeshProUGUI label = CreateText($"Depth {value}", map, value, 11, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
             label.rectTransform.anchorMin = new Vector2(0f, normalizedY + 0.08f);
             label.rectTransform.anchorMax = new Vector2(1f, normalizedY + 0.08f);
             label.rectTransform.pivot = new Vector2(0f, 1f);
@@ -355,8 +356,6 @@ namespace EDNA.Investigation
             bool historical = era == SurveyEra.Historical;
             InvestigationSurveySummary survey = ResolveSurveySummary(species, era);
             bool notDetected = survey?.Detection == SpeciesDetectionState.NotDetected;
-            bool anomaly = !historical
-                && ((observation != null && observation.ClaimType != ObservationClaimType.MatchesBaseline) || notDetected);
 
             RectTransform rect = null;
             Button marker = CreateButton(
@@ -364,8 +363,8 @@ namespace EDNA.Investigation
                 map,
                 string.Empty,
                 ButtonVisualStyle.Choice,
-                () => ActivateSpeciesMarker(rect, species, era, observation),
-                out Text emptyLabel);
+                () => ActivateSpeciesMarker(rect, species, era),
+                out TextMeshProUGUI emptyLabel);
             emptyLabel.gameObject.SetActive(false);
             marker.interactable = true;
             rect = marker.GetComponent<RectTransform>();
@@ -439,8 +438,7 @@ namespace EDNA.Investigation
         private void ActivateSpeciesMarker(
             RectTransform marker,
             InvestigationSpeciesDefinition species,
-            SurveyEra era,
-            InvestigationObservationDefinition observation)
+            SurveyEra era)
         {
             if (era == SurveyEra.Historical) ShowReferenceSurveyNotice();
             ShowSpeciesTooltip(marker, species, era, true);
@@ -485,7 +483,7 @@ namespace EDNA.Investigation
                         && (observation.Category == EvidenceCategory.Benthic || observation.Category == EvidenceCategory.Alternative)));
             if (shown == 0)
             {
-                Text empty = CreateText("Notebook Empty", parent, "Your recorded findings will appear here.", 14, FontStyle.Normal, InvestigationTheme.PaperMuted, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
+                TextMeshProUGUI empty = CreateText("Notebook Empty", parent, "Your recorded findings will appear here.", 14, FontStyle.Normal, InvestigationTheme.PaperMuted, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
                 AddLayout(empty.rectTransform, 92f, 1f);
             }
         }
@@ -507,7 +505,7 @@ namespace EDNA.Investigation
             }
             if (!hasEntries) return 0;
 
-            Text heading = CreateText($"Notebook Group {groupName}", parent, groupName, 10, FontStyle.Bold, InvestigationTheme.PaperSelectedBorder, TextAnchor.LowerLeft, InvestigationTheme.DataFont);
+            TextMeshProUGUI heading = CreateText($"Notebook Group {groupName}", parent, groupName, 10, FontStyle.Bold, InvestigationTheme.PaperSelectedBorder, TextAnchor.LowerLeft, InvestigationTheme.DataFont);
             AddLayout(heading.rectTransform, 22f, 1f);
             int shown = 0;
             for (int index = 0; index < state.DiscoveredObservationIds.Count; index++)
@@ -534,7 +532,7 @@ namespace EDNA.Investigation
             InvestigationSpeciesDefinition species = caseDefinition.FindSpecies(observation.RelatedSpeciesId);
             string stateLabel = NotebookStateLabel(observation.ClaimType);
             string stateColor = ColorUtility.ToHtmlStringRGB(evidenceColor);
-            Text title = CreateText(
+            TextMeshProUGUI title = CreateText(
                 "Observation",
                 item,
                 $"{species?.GameplayName ?? observation.DisplayName} <b><color=#{stateColor}>{stateLabel}</color></b>",
@@ -543,17 +541,17 @@ namespace EDNA.Investigation
                 InvestigationTheme.PaperInk,
                 TextAnchor.LowerLeft,
                 InvestigationTheme.DisplayFont);
-            title.supportRichText = true;
+            title.richText = true;
             Anchor(title.rectTransform, 0f, 0.43f, 1f, 1f, 24f, 0f, -76f, 0f);
-            Text source = CreateText("Source", item, $"{ObservationSourceDisplayName(observation.Source)} · {observation.Confidence} confidence", 10, FontStyle.Normal, InvestigationTheme.PaperMuted, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
+            TextMeshProUGUI source = CreateText("Source", item, $"{ObservationSourceDisplayName(observation.Source)} · {observation.Confidence} confidence", 10, FontStyle.Normal, InvestigationTheme.PaperMuted, TextAnchor.UpperLeft, InvestigationTheme.DataFont);
             Anchor(source.rectTransform, 0f, 0f, 1f, 0.46f, 24f, 0f, -76f, 0f);
 
             NotebookEvidenceStatus status = NotebookStatusFor(observation.EvidenceId);
             Color badgeColor = NotebookStatusColor(status);
             RectTransform statusBadge = CreatePanel("Evidence Status", item, badgeColor, 7f);
             Anchor(statusBadge, 1f, 0.5f, 1f, 0.5f, -68f, -12f, -8f, 12f);
-            Text statusText = CreateText(
-                "Evidence Status Text",
+            TextMeshProUGUI statusText = CreateText(
+                "Evidence Status TextMeshProUGUI",
                 statusBadge,
                 NotebookStatusLabel(status),
                 9,

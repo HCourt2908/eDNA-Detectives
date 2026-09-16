@@ -1,9 +1,9 @@
 ﻿<Solution>
+  <Project Path="EDNA.Investigation.PlayModeTests.csproj" />
   <Project Path="EDNA.Investigation.Domain.csproj" />
   <Project Path="EDNA.Investigation.Runtime.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
   <Project Path="EDNA.Core.csproj" />
-  <Project Path="EDNA.Investigation.PlayModeTests.csproj" />
   <Project Path="EDNA.Investigation.EditModeTests.csproj" />
 </Solution>

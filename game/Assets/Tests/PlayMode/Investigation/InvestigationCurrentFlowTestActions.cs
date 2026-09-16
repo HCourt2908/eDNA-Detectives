@@ -44,9 +44,9 @@ namespace EDNA.Investigation.Tests
         }
         public static void RecordAllFindings()
         {
-            foreach (string species in new[] { "shark", "tuna", "krill", "atlantic_herring", "phytoplankton" })
+            foreach (string species in new[] { "shark", "tuna", "tree_bubblegum_coral", "atlantic_herring", "phytoplankton", "krill" })
                 InvestigationWorkbenchTestActions.Record("Species Marker " + species);
-            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
         }
         public static void EnterCurrentModels()
         {
@@ -64,13 +64,18 @@ namespace EDNA.Investigation.Tests
                 if (GameObject.Find("Finish Scenario Animation") != null) CurrentPress("Finish Scenario Animation");
             }
         }
+        public static void ReviewViaModels(string id)
+        {
+            if (CurrentState.Phase == InvestigationPhase.Report) CurrentPress("Scenario Compare Again");
+            CurrentPress("Choose Scenario " + id);
+        }
         public static void ReviewRemainingExplanations()
         {
             string selected = CurrentState.ProvisionalThreatId;
             foreach (string id in new[] { "longline", "bottom_trawling" })
-                if (!CurrentState.HasReviewedModel(id)) CurrentPress("Review Conclusion " + id);
+                if (!CurrentState.HasReviewedModel(id)) ReviewViaModels(id);
             if (!string.IsNullOrEmpty(selected) && CurrentState.ProvisionalThreatId != selected)
-                CurrentPress("Review Conclusion " + selected);
+                ReviewViaModels(selected);
         }
         public static void OpenCurrentSummary()
         {

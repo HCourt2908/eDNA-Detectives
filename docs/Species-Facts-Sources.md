@@ -136,3 +136,9 @@ A cold-water stony coral that grows into branching colonies. Its skeleton adds s
 A jellyfish with a translucent bell and four horseshoe-shaped reproductive organs. Its short tentacles help capture planktonic food.
 
 [Source 1](https://www.marlin.ac.uk/species/detail/2089).
+
+### Optional toxic algal bloom trial
+
+The optional trial assumes local loss of its five model species as an extreme teaching scenario. It is not a claim that every harmful bloom eliminates all organisms. The phytoplankton row refers to the representative Prochlorococcus species, not bloom-forming algae or all phytoplankton; coral response is unspecified. Toxins and oxygen depletion are distinct possible harmful-bloom mechanisms.
+
+[NOAA: Impacts of harmful algal blooms](https://oceanservice.noaa.gov/education/tutorial-coastal/harmful-algal-blooms/habs02.html).

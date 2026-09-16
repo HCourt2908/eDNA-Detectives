@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,12 +11,12 @@ namespace EDNA.Investigation
     [DisallowMultipleComponent]
     public sealed class InvestigationContentHeightLayoutElement : MonoBehaviour, ILayoutElement
     {
-        [SerializeField] private Text content;
+        [SerializeField] private TextMeshProUGUI content;
         [SerializeField, Min(0f)] private float minimumHeight = 52f;
         [SerializeField, Min(0f)] private float horizontalPadding = 20f;
         [SerializeField, Min(0f)] private float verticalPadding = 16f;
 
-        public void Configure(Text contentText, float minHeight, float horizontalInset, float verticalInset)
+        public void Configure(TextMeshProUGUI contentText, float minHeight, float horizontalInset, float verticalInset)
         {
             content = contentText;
             minimumHeight = Mathf.Max(0f, minHeight);
@@ -44,9 +45,7 @@ namespace EDNA.Investigation
                 if (content == null) return minimumHeight;
                 RectTransform rect = transform as RectTransform;
                 float availableWidth = Mathf.Max(1f, (rect == null ? 0f : rect.rect.width) - horizontalPadding);
-                TextGenerationSettings settings = content.GetGenerationSettings(new Vector2(availableWidth, 0f));
-                float textHeight = content.cachedTextGeneratorForLayout.GetPreferredHeight(content.text, settings)
-                    / content.pixelsPerUnit;
+                float textHeight = content.GetPreferredValues(content.text, availableWidth, Mathf.Infinity).y;
                 return Mathf.Ceil(Mathf.Max(minimumHeight, textHeight + verticalPadding));
             }
         }

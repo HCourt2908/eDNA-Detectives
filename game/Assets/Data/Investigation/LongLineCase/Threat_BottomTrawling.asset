@@ -14,12 +14,52 @@ MonoBehaviour:
   m_EditorClassIdentifier: EDNA.Investigation.Domain::EDNA.Investigation.Domain.ThreatSimulationDefinition
   threatId: bottom_trawling
   displayName: Bottom trawling
-  summary: Possible alternative. Its model can also produce a similar five-species food-chain pattern.
+  summary: 'Best-fitting model for this case: targeted tuna and shark bycatch decline,
+    herring increases, seabed coral is lost, and surface phytoplankton stays stable.'
   icon: {fileID: 21300000, guid: 96abde5153d644294879228d46d96b2a, type: 3}
   glyphKind: 3
   speciesPredictions:
   - speciesId: shark
     predictedState: 1
-    rationale: Use the same predator-removal premise to compare the two fishing models.
-  seafloorPrediction: No seabed observation supplied by this example.
-  physicalConfirmation: No physical observation is used in this activity.
+    rationale: Hammerheads decrease through bycatch in this scenario.
+  - speciesId: tuna
+    predictedState: 1
+    rationale: Tuna decreases because it is targeted by the trawling scenario.
+  - speciesId: atlantic_herring
+    predictedState: 0
+    rationale: This scenario assumes reduced predation allows a herring population
+      boom, despite the loss of coral-spawn food.
+  - speciesId: krill
+    predictedState: 4
+    rationale: Krill is not included in this trawling food-supply model.
+  - speciesId: phytoplankton
+    predictedState: 2
+    rationale: Surface phytoplankton remains unaffected; dead organic material still
+      sinks.
+  - speciesId: tree_bubblegum_coral
+    predictedState: 5
+    rationale: The scenario assumes seabed damage removes coral. This is a prediction
+      of habitat loss.
+  useFoodWebCascade: 0
+  optionalExploration: 0
+  displaySpeciesIds:
+  - shark
+  - tuna
+  - atlantic_herring
+  - tree_bubblegum_coral
+  - phytoplankton
+  foodSupplyLinks:
+  - sourceSpeciesId: phytoplankton
+    consumerSpeciesId: tree_bubblegum_coral
+    kind: 1
+  - sourceSpeciesId: tree_bubblegum_coral
+    consumerSpeciesId: atlantic_herring
+    kind: 2
+  - sourceSpeciesId: atlantic_herring
+    consumerSpeciesId: tuna
+    kind: 0
+  - sourceSpeciesId: tuna
+    consumerSpeciesId: shark
+    kind: 0
+  seafloorPrediction: Seabed damage removes coral in this teaching trial.
+  physicalConfirmation: Model-only response; no new field observation is supplied.

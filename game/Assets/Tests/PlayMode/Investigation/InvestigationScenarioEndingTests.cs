@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using EDNA.Investigation.Domain;
 using NUnit.Framework;
@@ -56,28 +57,28 @@ namespace EDNA.Investigation.Tests
             Assert.That(Controller.State.ConfirmationReviewed, Is.False);
             Assert.That(Controller.State.HasDiscoveredObservation("E07_FISHING_LINE"), Is.False);
             Assert.That(Controller.State.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.NotSubmitted));
-            foreach (Text text in GameObject.Find("Scenario Investigation").GetComponentsInChildren<Text>())
+            foreach (TextMeshProUGUI text in GameObject.Find("Scenario Investigation").GetComponentsInChildren<TextMeshProUGUI>())
             {
                 Assert.That(text.text, Does.Not.Contain("ROV"));
                 Assert.That(text.text, Does.Not.Contain("Fishing line"));
                 Assert.That(text.text, Does.Not.Contain("seabed"));
             }
-            Assert.That(GameObject.Find("Scenario Conclusion Limit").GetComponent<Text>().text, Does.Contain("does not prove"));
+            Assert.That(GameObject.Find("Scenario Conclusion Limit").GetComponent<TextMeshProUGUI>().text, Does.Contain("does not prove"));
             var button = GameObject.Find("Complete Scenario Investigation").GetComponent<Button>();
-            Assert.That(button.GetComponentInChildren<Text>().text, Is.EqualTo("Record conclusion"));
+            Assert.That(button.GetComponentInChildren<TextMeshProUGUI>().text, Is.EqualTo("Record conclusion"));
             var submit = button.onClick;
             Press("Complete Scenario Investigation"); yield return null; yield return null;
             Assert.That(Controller.State.ConfirmationReviewed, Is.False);
             Assert.That(Controller.State.HasDiscoveredObservation("E07_FISHING_LINE"), Is.False);
             Assert.That(Controller.State.HasDiscoveredObservation("E08_SEAFLOOR_INTACT"), Is.False);
-            Assert.That(Controller.State.DiscoveredObservationIds.Count, Is.EqualTo(5));
-            Assert.That(InvestigationSessionBridge.LastResult.evidenceIds.Count, Is.EqualTo(5));
+            Assert.That(Controller.State.DiscoveredObservationIds.Count, Is.EqualTo(6));
+            Assert.That(InvestigationSessionBridge.LastResult.evidenceIds.Count, Is.EqualTo(6));
             Assert.That(InvestigationSessionBridge.LastResult.evidenceIds, Does.Not.Contain("E07_FISHING_LINE"));
             Assert.That(InvestigationSessionBridge.LastResult.evidenceIds, Does.Not.Contain("E08_SEAFLOOR_INTACT"));
             Assert.That(Controller.State.FinalSubmissionAttemptCount, Is.EqualTo(1));
             submit.Invoke(); Assert.That(Controller.State.FinalSubmissionAttemptCount, Is.EqualTo(1));
             Assert.That(Controller.State.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.Correct));
-            Assert.That(GameObject.Find("Scenario Case Closed").GetComponent<Text>().text, Is.EqualTo("CONCLUSION RECORDED")); AssertFits();
+            Assert.That(GameObject.Find("Scenario Case Closed").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("CONCLUSION RECORDED")); AssertFits();
             Press("Stage Observe"); Press("Stage Simulate"); yield return null;
             Assert.That(GameObject.Find("Scenario Case Closed"), Is.Not.Null);
         }
@@ -90,7 +91,7 @@ namespace EDNA.Investigation.Tests
             Press("Replay Scenario plastic"); Press("Finish Scenario Animation");
             Press("Choose Scenario longline"); InvestigationCurrentFlowTestActions.ReviewRemainingExplanations(); yield return null; yield return null;
             Assert.That(Controller.State.ComparisonRecords.Count, Is.EqualTo(comparisons));
-            Assert.That(Controller.State.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(Controller.State.DiscoveredObservationIds.Count, Is.EqualTo(6));
             Assert.That(Controller.State.FinalSubmissionAttemptCount, Is.Zero);
             Assert.That(GameObject.Find("Complete Scenario Investigation").GetComponent<Button>().interactable, Is.True);
             Press("Complete Scenario Investigation"); yield return null;
@@ -108,7 +109,7 @@ namespace EDNA.Investigation.Tests
                 Press("Replay Scenario longline"); yield return null; yield return null; AssertFits();
                 Press("Finish Scenario Animation"); yield return null; yield return null;
                 Press("Return To Scenario Report"); yield return null; yield return null; AssertFits();
-                foreach (Text text in GameObject.Find("Scenario EDNA Dock").GetComponentsInChildren<Text>())
+                foreach (TextMeshProUGUI text in GameObject.Find("Scenario EDNA Dock").GetComponentsInChildren<TextMeshProUGUI>())
                     Assert.That(text.rectTransform.rect.height + 1f, Is.GreaterThanOrEqualTo(text.preferredHeight), text.name);
             }
             finally { canvas.scaleFactor = scale; scaler.enabled = enabled; }

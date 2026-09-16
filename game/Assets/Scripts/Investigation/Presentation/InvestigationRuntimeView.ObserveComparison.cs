@@ -1,3 +1,4 @@
+using TMPro;
 using System;
 using System.Collections.Generic;
 using EDNA.Investigation.Domain;
@@ -110,7 +111,7 @@ namespace EDNA.Investigation
             layout.padding = new RectOffset(12, 12, 8, 8); layout.spacing = 5f;
             layout.childControlWidth = layout.childControlHeight = true;
             layout.childForceExpandWidth = true; layout.childForceExpandHeight = false;
-            Text label = CreateText(objectName + " Title", panel, title, 16, FontStyle.Bold,
+            TextMeshProUGUI label = CreateText(objectName + " Title", panel, title, 16, FontStyle.Bold,
                 InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             AddLayout(label.rectTransform, 24f, 0f);
             return panel;
@@ -128,10 +129,10 @@ namespace EDNA.Investigation
             Image portrait = CreateStatusIcon("Edna Introduction Portrait", edna, ednaPortrait, Color.white);
             Anchor(portrait.rectTransform, 0f, 0f, 0f, 1f, 4f, 0f, 78f, 2f);
             string heading = ObserveSummaryVisible ? "OUR FINDINGS" : "FIND WHAT CHANGED";
-            Text title = CreateText("Edna Name", edna, $"EDNA · {heading} · {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)}", 13,
+            TextMeshProUGUI title = CreateText("Edna Name", edna, $"EDNA · {heading} · {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)}", 13,
                 FontStyle.Bold, InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(title.rectTransform, 0f, .57f, 1f, 1f, 92f, 0f, -14f, -4f);
-            Text message = CreateText("Observe Comparison Instruction", edna,
+            TextMeshProUGUI message = CreateText("Observe Comparison Instruction", edna,
                 InvestigationObserveEvaluator.IsComplete(caseDefinition, state)
                     ? (ObserveSummaryVisible ? "Here is the change across 20 years. Keep this picture in your notebook as we investigate the cause."
                         : "All species compared! Click 'Summarise our findings' below Species to make our picture.")
@@ -144,7 +145,7 @@ namespace EDNA.Investigation
             columns.SetParent(board, false);
             var split = columns.GetComponent<InvestigationComparisonLayout>();
             RectTransform speciesPage = CreateComparisonColumn(columns, "Comparison Species Page", "1 · SPECIES");
-            Text speciesHint = CreateText("Select Species Instruction", speciesPage,
+            TextMeshProUGUI speciesHint = CreateText("Select Species Instruction", speciesPage,
                 InvestigationObserveEvaluator.IsComplete(caseDefinition, state) ? "All compared"
                     : string.IsNullOrEmpty(selectedComparisonSpecies) ? "Click one to select" : "Selected: " + ComparisonSelectedName,
                 12, FontStyle.Bold, InvestigationTheme.PaperSelectedBorder, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
@@ -158,13 +159,13 @@ namespace EDNA.Investigation
             }
             if (remaining == 0)
             {
-                Text done = CreateText("Species Sorting Complete", speciesPage, "All species compared.\nYour choices are saved.", 17,
+                TextMeshProUGUI done = CreateText("Species Sorting Complete", speciesPage, "All species compared.\nYour choices are saved.", 17,
                     FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
                 ConfigureContentDrivenText(done);
                 if (ObserveComplete) RenderComparisonTools(speciesPage);
             }
             RectTransform changes = CreateComparisonColumn(columns, "Comparison Changes Page", "2 · COMPARE");
-            Text changeHint = CreateText("Choose Change Instruction", changes,
+            TextMeshProUGUI changeHint = CreateText("Choose Change Instruction", changes,
                 InvestigationObserveEvaluator.IsComplete(caseDefinition, state) ? "All changes recorded"
                     : string.IsNullOrEmpty(selectedComparisonSpecies) ? "Choose a species first" : "Now click its change", 12,
                 FontStyle.Bold, InvestigationTheme.PaperSelectedBorder, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
@@ -176,7 +177,7 @@ namespace EDNA.Investigation
             if (observeMapOpen) RenderComparisonSeamount(columns);
             else RenderComparisonNotebook(columns);
             split.Configure(ObserveComplete ? 236f : Mathf.Max(160f, 63f + remaining * 53f), 268f, Mathf.Clamp(contentPanel.rect.height - 184f, 330f, 480f));
-            Text feedback = CreateText("Observe Comparison Feedback", board, string.IsNullOrEmpty(observeComparisonFeedback)
+            TextMeshProUGUI feedback = CreateText("Observe Comparison Feedback", board, string.IsNullOrEmpty(observeComparisonFeedback)
                 ? "Drag a species into a change, or select the species and then the change." : observeComparisonFeedback,
                 14, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(feedback);
@@ -190,13 +191,13 @@ namespace EDNA.Investigation
             var species = caseDefinition.FindSpecies(finding.RelatedSpeciesId);
             if (species == null)
             {
-                Text note = CreateText("Additional Comparison Record", parent, finding.DisplayName, 14, FontStyle.Bold,
+                TextMeshProUGUI note = CreateText("Additional Comparison Record", parent, finding.DisplayName, 14, FontStyle.Bold,
                     InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
                 ConfigureContentDrivenText(note); return;
             }
             string id = species.SpeciesId;
             Button card = CreateButton("Compare Species " + id, parent, string.Empty, ButtonVisualStyle.PaperChoice,
-                () => SelectComparisonSpecies(id), out Text hidden);
+                () => SelectComparisonSpecies(id), out TextMeshProUGUI hidden);
             hidden.gameObject.SetActive(false);
             card.GetComponent<InvestigationFocusRing>().KeepVisibleOnKeyboardFocus = true;
             card.GetComponent<LayoutElement>().minHeight = card.GetComponent<LayoutElement>().preferredHeight = 48f;
@@ -204,7 +205,7 @@ namespace EDNA.Investigation
             // remain in the notebook, so the player must make the comparison.
             RectTransform art = CreateSpeciesArtwork("Comparison Species Artwork", card.transform, species, InvestigationTheme.Primary);
             Anchor(art, 0f, 0f, 0f, 1f, 6f, 4f, 62f, -4f);
-            Text name = CreateText("Comparison Species Name", card.transform, species.GameplayName, 15,
+            TextMeshProUGUI name = CreateText("Comparison Species Name", card.transform, species.GameplayName, 15,
                 FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(name.rectTransform, 0f, 0f, 1f, 1f, 70f, 4f, -6f, -4f);
             if (selectedComparisonSpecies == id) card.targetGraphic.color = InvestigationTheme.PaperSelected;
@@ -217,14 +218,14 @@ namespace EDNA.Investigation
         private void CreateSurveyChangeZone(Transform parent, SurveyChange change, List<InvestigationObservationDefinition> findings)
         {
             Button zone = CreateButton("Compare Change " + change, parent, string.Empty, ButtonVisualStyle.PaperChoice,
-                () => SortComparisonSpecies(selectedComparisonSpecies, change), out Text hidden);
+                () => SortComparisonSpecies(selectedComparisonSpecies, change), out TextMeshProUGUI hidden);
             hidden.gameObject.SetActive(false);
             zone.GetComponent<InvestigationFocusRing>().KeepVisibleOnKeyboardFocus = true;
             zone.interactable = !InvestigationObserveEvaluator.IsComplete(caseDefinition, state);
             if (!ComparisonBriefingActive && !string.IsNullOrEmpty(selectedComparisonSpecies) && zone.interactable && state.Difficulty == InvestigationDifficulty.Easy)
                 AddChoiceBorderCue("Choose Change Cue", zone.transform);
             zone.gameObject.AddComponent<InvestigationWorkbenchDrop>().Configure("survey-species", id => SortComparisonSpecies(id, change));
-            Text title = CreateText("Comparison Change Label", zone.transform, SurveyChangeLabel(change), 14, FontStyle.Bold,
+            TextMeshProUGUI title = CreateText("Comparison Change Label", zone.transform, SurveyChangeLabel(change), 14, FontStyle.Bold,
                 InvestigationTheme.PaperInk, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
             var sorted = new List<InvestigationSpeciesDefinition>();
             foreach (var finding in findings)
@@ -244,7 +245,7 @@ namespace EDNA.Investigation
                     Anchor(token, i / (float)sorted.Count, 0f, (i + 1f) / sorted.Count, .66f, 4f, 5f, -4f, 0f);
                     RectTransform art = CreateSpeciesArtwork("Sorted Species Artwork", token, species, InvestigationTheme.Primary);
                     Anchor(art, .15f, .27f, .85f, 1f, 0f, 0f, 0f, -2f);
-                    Text name = CreateText("Sorted Species Name", token, species.GameplayName, 11,
+                    TextMeshProUGUI name = CreateText("Sorted Species Name", token, species.GameplayName, 11,
                         FontStyle.Bold, InvestigationTheme.PaperMuted, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
                     Anchor(name.rectTransform, 0f, 0f, 1f, .30f, 0f, 0f, 0f, 0f);
                 }
@@ -265,7 +266,7 @@ namespace EDNA.Investigation
             if (!ObserveComplete) return;
             Button summarize = CreateButton("Summarize Findings", parent,
                 ObserveSummaryTransitioning ? "Bringing our findings together…" : "Summarise our findings →", ButtonVisualStyle.Primary,
-                BeginObserveSummary, out Text label);
+                BeginObserveSummary, out TextMeshProUGUI label);
             label.fontSize = 14;
             ConfigureWrappingChoice(summarize, label);
             LayoutElement size = summarize.GetComponent<LayoutElement>();

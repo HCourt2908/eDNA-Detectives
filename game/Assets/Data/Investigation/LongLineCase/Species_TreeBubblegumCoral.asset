@@ -15,10 +15,11 @@ MonoBehaviour:
   speciesId: tree_bubblegum_coral
   canonicalSpeciesId: tree_bubblegum_coral
   displayName: Tree Bubblegum Coral
-  shortDisplayName:
+  shortDisplayName: Coral
   scientificName: Paragorgia arborea
-  description: "A deep-water coral that forms branching colonies attached to hard surfaces. Large colonies can be very old and provide structure on the seafloor."
-  icon: {fileID: 0}
+  description: A deep-water coral that forms branching colonies attached to hard
+    surfaces. Large colonies can be very old and provide structure on the seafloor.
+  icon: {fileID: 21300000, guid: a6c4c8756bca4a31ae8214e16a5f3a3a, type: 3}
   glyphKind: 5
   trophicRole: 8
   aliases:

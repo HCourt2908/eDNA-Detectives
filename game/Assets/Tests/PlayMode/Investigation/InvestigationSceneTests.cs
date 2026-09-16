@@ -1,3 +1,4 @@
+using TMPro;
 using static EDNA.Investigation.Tests.InvestigationCurrentFlowTestActions;
 using static EDNA.Investigation.Tests.InvestigationWorkbenchTestActions;
 using System;
@@ -93,17 +94,17 @@ namespace EDNA.Investigation.Tests
                 Assert.That(GameObject.Find("Fatal Error"), Is.Null, checkpoint.ToString());
             }
             CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.ObserveReady);
-            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
             CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.SimulateComplete); yield return null; yield return null;
             Assert.That(GameObject.Find("Scenario Results"), Is.Not.Null);
             Assert.That(CurrentState.CompletedObjectiveCount, Is.EqualTo(7));
             CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.ConclusionReady); yield return null;
             Assert.That(CurrentButton("Complete Scenario Investigation").interactable, Is.True);
             Assert.That(CurrentState.ConfirmationReviewed, Is.False);
-            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(CurrentState.DiscoveredObservationIds.Count, Is.EqualTo(6));
             CurrentController.ApplyQaCheckpoint(InvestigationQaCheckpoint.CaseClosed); yield return null;
             Assert.That(InvestigationSessionBridge.LastResult.completed, Is.True);
-            Assert.That(InvestigationSessionBridge.LastResult.evidenceIds.Count, Is.EqualTo(5));
+            Assert.That(InvestigationSessionBridge.LastResult.evidenceIds.Count, Is.EqualTo(6));
             Assert.That(GameObject.Find("Stage Report"), Is.Null);
         }
 
@@ -123,17 +124,17 @@ namespace EDNA.Investigation.Tests
 
                 Assert.That(GameObject.Find("Comparison Notebook"), Is.Not.Null);
                 Assert.That(GameObject.Find("Historical Notebook Row shark"), Is.Not.Null);
-                Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.HasDiscoveredObservation("E01_SHARK_NONDETECTION"), Is.True);
+                Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.HasDiscoveredObservation("E01_SHARK_FEWER_SITES"), Is.True);
 
                 Assert.That(FindButton("Compare Species tuna").interactable, Is.True);
                 InvestigationGameInput input = new InvestigationGameInput();
-                input.discoveredObservationIds.Add("E03_HERRING_FEWER_SITES");
+                input.discoveredObservationIds.Add("E03_HERRING_WIDER_DETECTION");
                 InvestigationSessionBridge.SetInput(input); yield return LoadInvestigationScene();
                 Assert.That(FindButton("Compare Species shark").interactable, Is.True);
 
                 Assert.That(GameObject.Find("Historical Notebook Row atlantic_herring"), Is.Not.Null);
 
-                Record("Species Marker shark"); Record("Species Marker tuna"); Record("Species Marker krill");
+                Record("Species Marker shark"); Record("Species Marker tuna"); Record("Species Marker tree_bubblegum_coral");
                 Assert.That(FindButton("Compare Species phytoplankton").interactable, Is.True);
             }
             finally { InvestigationSessionBridge.Clear(); }
@@ -275,7 +276,7 @@ namespace EDNA.Investigation.Tests
         {
             InvestigationGameInput validInput = new InvestigationGameInput
             {
-                caseId = "investigation_foodchain_02",
+                caseId = "investigation_foodchain_05",
                 surveyContext = new InvestigationSurveyContextData
                 {
                     surveyId = "survey_from_ctd",
@@ -284,24 +285,24 @@ namespace EDNA.Investigation.Tests
                     siteDisplayName = "Waypoint B"
                 }
             };
-            validInput.discoveredObservationIds.Add("E01_SHARK_NONDETECTION");
+            validInput.discoveredObservationIds.Add("E01_SHARK_FEWER_SITES");
 
             try
             {
                 InvestigationSessionBridge.SetInput(validInput);
                 yield return LoadInvestigationScene();
                 InvestigationController controller = Object.FindAnyObjectByType<InvestigationController>();
-                Assert.That(controller.State.HasDiscoveredObservation("E01_SHARK_NONDETECTION"), Is.True);
+                Assert.That(controller.State.HasDiscoveredObservation("E01_SHARK_FEWER_SITES"), Is.True);
                 Assert.That(controller.State.SurveyId, Is.EqualTo("survey_from_ctd"));
                 GameObject notice = FindGameObject("Status Toast");
                 Assert.That(notice.activeSelf, Is.True);
-                Assert.That(notice.transform.Find("Status Message").GetComponent<Text>().text, Does.Contain("Imported 1 observation"));
+                Assert.That(notice.transform.Find("Status Message").GetComponent<TextMeshProUGUI>().text, Does.Contain("Imported 1 observation"));
                 Assert.That(notice.transform.Find("Status Accent").GetComponent<Image>().color,
                     Is.EqualTo((Color)InvestigationTheme.Primary));
 
                 InvestigationSessionBridge.SetInput(new InvestigationGameInput { caseId = "wrong_case" });
                 yield return LoadInvestigationScene();
-                Assert.That(FindGameObject("Fatal Error").GetComponent<Text>().text,
+                Assert.That(FindGameObject("Fatal Error").GetComponent<TextMeshProUGUI>().text,
                     Does.Contain("External input targets case wrong_case"));
                 Assert.That(Object.FindAnyObjectByType<InvestigationController>().State, Is.Null);
             }
@@ -314,7 +315,7 @@ namespace EDNA.Investigation.Tests
         [UnityTest]
         public IEnumerator InvestigationScene_ImportedSpeciesWithoutArtworkUsesItsNameInsteadOfAWrongGlyph()
         {
-            InvestigationGameInput input = new InvestigationGameInput { caseId = "investigation_foodchain_02" };
+            InvestigationGameInput input = new InvestigationGameInput { caseId = "investigation_foodchain_05" };
             EDNAResultData result = new EDNAResultData();
             result.detectedSpeciesIds.Add("moon_jellyfish");
             input.ednaResults.Add(result);
@@ -326,7 +327,7 @@ namespace EDNA.Investigation.Tests
                 Button marker = FindButton("Species Marker moon_jellyfish");
                 Assert.That(marker, Is.Not.Null);
                 Assert.That(FindButton("Historical Species Marker moon_jellyfish"), Is.Null);
-                Text fallback = marker.transform.Find("Species Artwork").GetComponentInChildren<Text>();
+                TextMeshProUGUI fallback = marker.transform.Find("Species Artwork").GetComponentInChildren<TextMeshProUGUI>();
                 Assert.That(fallback, Is.Not.Null);
                 Assert.That(fallback.text, Is.EqualTo("Moon Jellyfish"));
                 Assert.That(marker.transform.Find("Species Artwork").GetComponent<InvestigationGlyphGraphic>(), Is.Null);
@@ -340,7 +341,7 @@ namespace EDNA.Investigation.Tests
         [UnityTest]
         public IEnumerator InvestigationScene_DetailedUpstreamObservationControlsEraDepthAndGhostState()
         {
-            InvestigationGameInput input = new InvestigationGameInput { caseId = "investigation_foodchain_02" };
+            InvestigationGameInput input = new InvestigationGameInput { caseId = "investigation_foodchain_05" };
             EDNAResultData result = new EDNAResultData { sampleId = "deep-sample", siteId = "ridge" };
             result.speciesObservations.Add(new EDNASpeciesObservationData
             {
@@ -379,7 +380,7 @@ namespace EDNA.Investigation.Tests
             yield return LoadCurrent();
             Assert.That(CurrentState.Phase, Is.EqualTo(InvestigationPhase.Observe));
             Assert.That(CurrentButton("Stage Observe"), Is.Not.Null);
-            Assert.That(CurrentButton("Stage Simulate").GetComponentInChildren<Text>().text, Is.EqualTo("2 · Investigate"));
+            Assert.That(CurrentButton("Stage Simulate").GetComponentInChildren<TextMeshProUGUI>().text, Is.EqualTo("2 · Investigate"));
             Assert.That(GameObject.Find("Stage Report"), Is.Null);
             Assert.That(CurrentView.GetComponent<CanvasScaler>().referenceResolution, Is.EqualTo(Screen.height > Screen.width ? new Vector2(720f, 1280f) : new Vector2(1280f, 720f)));
             Assert.That(CurrentView.GetComponent<Canvas>().pixelPerfect, Is.True);
@@ -397,9 +398,9 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Observe Comparison Instruction"), Is.Not.Null);
             InvestigationCurrentFlowTestActions.ToggleGuidanceForTests();
             Assert.That(GameObject.Find("Comparison Notebook"), Is.Not.Null); yield return null;
-            Click("Compare Change More");
-            Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.HasDiscoveredObservation("E02_TUNA_WIDER_DETECTION"), Is.True);
-            Record("Species Marker krill"); Record("Species Marker atlantic_herring"); Record("Species Marker phytoplankton");
+            Click("Compare Change Fewer");
+            Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.HasDiscoveredObservation("E02_TUNA_FEWER_SITES"), Is.True);
+            Record("Species Marker tree_bubblegum_coral"); Record("Species Marker atlantic_herring"); Record("Species Marker phytoplankton"); Record("Species Marker krill");
             Assert.That(FindButton("Summarize Findings"), Is.Not.Null);
             Assert.That(GameObject.Find("Observe Comparison Board"), Is.Not.Null);
         }
@@ -483,13 +484,13 @@ namespace EDNA.Investigation.Tests
             foreach (string name in new[] { "Historical Species Marker tuna", "Species Marker tuna" })
             {
                 ClickThroughPointer(FindButton(name)); yield return null;
-                Assert.That(GameObject.Find("Tooltip Title").GetComponent<Text>().text, Is.EqualTo("Atlantic Bluefin Tuna"));
+                Assert.That(GameObject.Find("Tooltip Title").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("Atlantic Bluefin Tuna"));
                 Assert.That(controller.State.DiscoveredObservationIds, Is.Empty, "Facts are optional; answering records evidence.");
                 Click("Close Species Facts"); yield return null;
             }
             Record("Species Marker shark"); Record("Species Marker tuna");
             Click("Species Marker tuna"); yield return null;
-            Assert.That(GameObject.Find("Tooltip Details").GetComponent<Text>().text, Does.Contain("RECORDED IN NOTEBOOK"));
+            Assert.That(GameObject.Find("Tooltip Details").GetComponent<TextMeshProUGUI>().text, Does.Contain("RECORDED IN NOTEBOOK"));
         }
 
         [UnityTest]
@@ -508,8 +509,8 @@ namespace EDNA.Investigation.Tests
             CurrentPointerClick(CurrentButton("Complete Scenario Investigation")); yield return null;
             Assert.That(CurrentState.ConclusionStatus, Is.EqualTo(InvestigationConclusionStatus.Correct));
             Assert.That(InvestigationSessionBridge.LastResult.completed, Is.True);
-            Assert.That(InvestigationSessionBridge.LastResult.selectedHypothesisId, Is.EqualTo("longline"));
-            Assert.That(InvestigationSessionBridge.LastResult.evidenceIds.Count, Is.EqualTo(5));
+            Assert.That(InvestigationSessionBridge.LastResult.selectedHypothesisId, Is.EqualTo("bottom_trawling"));
+            Assert.That(InvestigationSessionBridge.LastResult.evidenceIds.Count, Is.EqualTo(6));
             Assert.That(CurrentState.ConfirmationReviewed, Is.False);
             Assert.That(CurrentState.MisstepCount, Is.Zero);
         }
@@ -533,16 +534,16 @@ namespace EDNA.Investigation.Tests
         public IEnumerator InvestigationScene_ConflictingInputCanRecoverToAnExplicitStandaloneCase()
         {
             InvestigationGameInput input = new InvestigationGameInput();
-            input.ednaResults.Add(new EDNAResultData { detectedSpeciesIds = new System.Collections.Generic.List<string> { "shark" } });
+            input.ednaResults.Add(new EDNAResultData { detectedSpeciesIds = new System.Collections.Generic.List<string> { "tree_bubblegum_coral" } });
             try
             {
                 InvestigationSessionBridge.SetInput(input);
                 yield return LoadInvestigationScene();
-                Assert.That(FindGameObject("Fatal Error").GetComponent<Text>().text, Does.Contain("fixed case"));
+                Assert.That(FindGameObject("Fatal Error").GetComponent<TextMeshProUGUI>().text, Does.Contain("fixed case"));
                 Click("Start Standalone Case");
                 yield return null;
                 Assert.That(FindGameObject("Fatal Error"), Is.Null);
-                Assert.That(FindButton("Species Marker shark"), Is.Null);
+                Assert.That(FindButton("Species Marker tree_bubblegum_coral"), Is.Null);
                 Assert.That(InvestigationSessionBridge.PendingInput, Is.SameAs(input));
                 Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds, Is.Empty);
             }
@@ -553,17 +554,17 @@ namespace EDNA.Investigation.Tests
         public IEnumerator InvestigationScene_ObserveProgressAndStageGateUseOnlyCoreFindings()
         {
             InvestigationGameInput input = new InvestigationGameInput();
-            input.discoveredObservationIds.AddRange(new[] { "E01_SHARK_NONDETECTION", "E02_TUNA_WIDER_DETECTION",
-                "E04_KRILL_WIDER_DETECTION", "E03_HERRING_FEWER_SITES", "L01_NONDETECTION_LIMITATION" });
+            input.discoveredObservationIds.AddRange(new[] { "E01_SHARK_FEWER_SITES", "E02_TUNA_FEWER_SITES",
+                "E04_CORAL_NONDETECTION", "E03_HERRING_WIDER_DETECTION", "L01_NONDETECTION_LIMITATION" });
             try
             {
                 InvestigationSessionBridge.SetInput(input);
                 yield return LoadInvestigationScene();
-                Assert.That(FindGameObject("Edna Name").GetComponent<Text>().text, Does.Contain("4/5"));
+                Assert.That(FindGameObject("Edna Name").GetComponent<TextMeshProUGUI>().text, Does.Contain("4/6"));
                 Assert.That(FindButton("Continue To Simulate"), Is.Null);
                 EnterSimulate("Stage Simulate");
                 Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.Phase, Is.EqualTo(InvestigationPhase.Observe));
-                Record("Species Marker phytoplankton");
+                Record("Species Marker phytoplankton"); Record("Species Marker krill");
                 EnterSimulate("Continue To Simulate");
                 Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.Phase, Is.EqualTo(InvestigationPhase.Simulate));
             }
@@ -575,7 +576,7 @@ namespace EDNA.Investigation.Tests
         {
             yield return LoadInvestigationScene();
             Record("Species Marker shark");
-            Assert.That(FindButton("Species Marker shark"), Is.Null);
+            Assert.That(FindButton("Species Marker tree_bubblegum_coral"), Is.Null);
             foreach (string name in new[] { "Species Marker tuna", "Historical Species Marker tuna" })
                 Assert.That(FindButton(name).transform.Find("Paired Species Focus").gameObject.activeSelf, Is.True);
             Record("Species Marker tuna"); yield return null;
@@ -599,8 +600,8 @@ namespace EDNA.Investigation.Tests
                 Assert.That(FindButton("Species Marker moon_jellyfish"), Is.Null);
                 Assert.That(FindButton("Historical Species Marker moon_jellyfish").transform.Find("Missing Signal"), Is.Not.Null);
                 Click("Historical Species Marker moon_jellyfish");
-                Assert.That(FindGameObject("Tooltip Details").GetComponent<Text>().text, Does.Contain("Not detected"));
-                Assert.That(FindGameObject("Tooltip Details").GetComponent<Text>().text, Does.Contain("read only"));
+                Assert.That(FindGameObject("Tooltip Details").GetComponent<TextMeshProUGUI>().text, Does.Contain("Not detected"));
+                Assert.That(FindGameObject("Tooltip Details").GetComponent<TextMeshProUGUI>().text, Does.Contain("read only"));
                 Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds, Is.Empty);
             }
             finally { InvestigationSessionBridge.Clear(); }
@@ -610,12 +611,12 @@ namespace EDNA.Investigation.Tests
         public IEnumerator InvestigationScene_EdnaAsksOneQuestionAtATimeAndExplainsNonDetection()
         {
             yield return LoadInvestigationScene();
-            Assert.That(FindButton("Compare Species shark").interactable, Is.True);
-            Record("Species Marker shark");
-            Assert.That(GameObject.Find("Observe Comparison Feedback").GetComponent<Text>().text, Does.Contain("Not detected"));
+            Assert.That(FindButton("Compare Species tree_bubblegum_coral").interactable, Is.True);
+            Record("Species Marker tree_bubblegum_coral");
+            Assert.That(GameObject.Find("Observe Comparison Feedback").GetComponent<TextMeshProUGUI>().text, Does.Contain("Not detected"));
             Assert.That(GameObject.Find("Comparison Notebook"), Is.Not.Null);
             Record("Species Marker tuna");
-            Assert.That(FindButton("Compare Species krill").interactable, Is.True);
+            Assert.That(FindButton("Compare Species shark").interactable, Is.True);
             Assert.That(GameObject.Find("Observe Inspection"), Is.Null);
         }
 
@@ -787,7 +788,7 @@ namespace EDNA.Investigation.Tests
 
                 GameObject error = GameObject.Find("Fatal Error");
                 Assert.That(error, Is.Not.Null);
-                Assert.That(error.GetComponent<Text>().text, Does.Contain("wrong_case"));
+                Assert.That(error.GetComponent<TextMeshProUGUI>().text, Does.Contain("wrong_case"));
                 Assert.That(controller.State, Is.Null);
                 Assert.That(view.State, Is.Null);
                 AssertActiveNotebookCount(view, 0);
@@ -827,11 +828,13 @@ namespace EDNA.Investigation.Tests
         public IEnumerator InvestigationScene_SharedStartupIsPreservedAndInvestigationLoadsByName()
         {
             InvestigationSessionBridge.Clear();
-            Assert.That(SceneUtility.GetScenePathByBuildIndex(0), Is.EqualTo("Assets/Scenes/SampleScene.unity"));
+            string sharedEntry = SceneUtility.GetScenePathByBuildIndex(0);
+            Assert.That(sharedEntry, Is.Not.Empty);
+            Assert.That(sharedEntry, Is.Not.EqualTo("Assets/Scenes/InvestigationScene.unity"));
             yield return SceneManager.LoadSceneAsync(0, LoadSceneMode.Single);
             yield return null;
             yield return null;
-            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("SampleScene"));
+            Assert.That(SceneManager.GetActiveScene().path, Is.EqualTo(sharedEntry));
             Assert.That(Object.FindAnyObjectByType<InvestigationController>(), Is.Null);
             yield return SceneManager.LoadSceneAsync("InvestigationScene", LoadSceneMode.Single);
             yield return null; yield return null;
@@ -888,7 +891,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Species Facts Tooltip"), Is.Not.Null);
             Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
             Record("Species Marker shark");
-            Assert.That(controller.State.HasDiscoveredObservation("E01_SHARK_NONDETECTION"), Is.True);
+            Assert.That(controller.State.HasDiscoveredObservation("E01_SHARK_FEWER_SITES"), Is.True);
         }
 
         [UnityTest]
@@ -949,7 +952,7 @@ namespace EDNA.Investigation.Tests
 
 #if UNITY_EDITOR
         [UnityTest]
-        public IEnumerator InvestigationScene_SixthCoreFindingUpdatesAllObserveProgressAndGates()
+        public IEnumerator InvestigationScene_SeventhCoreFindingUpdatesAllObserveProgressAndGates()
         {
             InvestigationSessionBridge.Clear();
             yield return LoadInvestigationScene();
@@ -963,7 +966,7 @@ namespace EDNA.Investigation.Tests
                 UnityEditor.SerializedProperty observations = serialized.FindProperty("observations");
                 int addedIndex = observations.arraySize++;
                 UnityEditor.SerializedProperty added = observations.GetArrayElementAtIndex(addedIndex);
-                added.FindPropertyRelative("evidenceId").stringValue = "E_TEST_SIXTH_FINDING";
+                added.FindPropertyRelative("evidenceId").stringValue = "E_TEST_SEVENTH_FINDING";
                 added.FindPropertyRelative("displayName").stringValue = "Additional survey reading";
                 added.FindPropertyRelative("relatedSpeciesId").stringValue = string.Empty;
                 added.FindPropertyRelative("source").enumValueIndex = (int)ObservationSource.CTDLog;
@@ -971,30 +974,30 @@ namespace EDNA.Investigation.Tests
                 added.FindPropertyRelative("claimType").enumValueIndex = (int)ObservationClaimType.EnvironmentalReading;
                 added.FindPropertyRelative("category").enumValueIndex = (int)EvidenceCategory.Environmental;
                 serialized.ApplyModifiedPropertiesWithoutUndo();
-                Assert.That(definition.MinimumObserveDiscoveries, Is.EqualTo(5));
-                Assert.That(InvestigationObserveEvaluator.RequiredCount(definition), Is.EqualTo(6));
+                Assert.That(definition.MinimumObserveDiscoveries, Is.EqualTo(6));
+                Assert.That(InvestigationObserveEvaluator.RequiredCount(definition), Is.EqualTo(7));
 
                 controller.Initialize(definition, view);
                 InvestigationStateUpdater updater = new InvestigationStateUpdater(definition);
                 InvestigationState state = controller.State;
-                foreach (string id in new[] { "E01_SHARK_NONDETECTION", "E02_TUNA_WIDER_DETECTION", "E04_KRILL_WIDER_DETECTION",
-                    "E03_HERRING_FEWER_SITES", "E05_PHYTOPLANKTON_FEWER_SITES" })
+                foreach (string id in new[] { "E01_SHARK_FEWER_SITES", "E02_TUNA_FEWER_SITES", "E04_CORAL_NONDETECTION",
+                    "E03_HERRING_WIDER_DETECTION", "E05_PHYTOPLANKTON_STABLE", "E09_KRILL_WIDER_DETECTION" })
                     Assert.That(updater.TryDiscoverObservation(state, id, out _), Is.True);
                 view.Refresh(state, string.Empty, InvestigationStatusTone.Guide);
 
-                Assert.That(FindGameObject("Edna Name").GetComponent<Text>().text, Does.Contain("5/6"));
-                Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Contain("FINDINGS 5/6"));
+                Assert.That(FindGameObject("Edna Name").GetComponent<TextMeshProUGUI>().text, Does.Contain("6/7"));
+                Assert.That(FindGameObject("Metrics").GetComponent<TextMeshProUGUI>().text, Does.Contain("FINDINGS 6/7"));
                 Assert.That(FindButton("Talk To Edna"), Is.Null);
-                Assert.That(FindGameObject("Additional Comparison Record").GetComponent<Text>().text, Does.Contain("Additional survey reading"));
+                Assert.That(FindGameObject("Additional Comparison Record").GetComponent<TextMeshProUGUI>().text, Does.Contain("Additional survey reading"));
                 Assert.That(FindButton("Continue To Simulate"), Is.Null);
                 Assert.That(updater.TrySetPhase(state, InvestigationPhase.Simulate, out string phaseFeedback), Is.False);
-                Assert.That(phaseFeedback, Does.Contain("at least 6 observations"));
+                Assert.That(phaseFeedback, Does.Contain("at least 7 observations"));
                 Assert.That(updater.TryRunThreat(state, "longline", out _, out string modelFeedback), Is.False);
-                Assert.That(modelFeedback, Does.Contain("at least 6 observations"));
+                Assert.That(modelFeedback, Does.Contain("at least 7 observations"));
 
-                Assert.That(updater.TryDiscoverObservation(state, "E_TEST_SIXTH_FINDING", out _), Is.True);
+                Assert.That(updater.TryDiscoverObservation(state, "E_TEST_SEVENTH_FINDING", out _), Is.True);
                 view.Refresh(state, string.Empty, InvestigationStatusTone.Guide);
-                Assert.That(FindGameObject("Metrics").GetComponent<Text>().text, Does.Contain("FINDINGS 6/6"));
+                Assert.That(FindGameObject("Metrics").GetComponent<TextMeshProUGUI>().text, Does.Contain("FINDINGS 7/7"));
                 Assert.That(FindButton("Summarize Findings"), Is.Not.Null);
                 Assert.That(updater.TrySetPhase(state, InvestigationPhase.Simulate, out _), Is.True);
                 Assert.That(updater.TryRunThreat(state, "longline", out _, out _), Is.True);
@@ -1036,7 +1039,7 @@ namespace EDNA.Investigation.Tests
             Click($"Observation {evidenceId}");
             Assert.That(controller.State.CompletedObjectiveCount, Is.EqualTo(before + 1),
                 "Choosing the relevant finding must complete the comparison immediately.");
-            Assert.That(FindGameObject("Comparison Saved Text").GetComponent<Text>().text,
+            Assert.That(FindGameObject("Comparison Saved TextMeshProUGUI").GetComponent<TextMeshProUGUI>().text,
                 Does.Contain(expectedRelationship == ComparisonJudgement.Match ? "supports the model" : "challenges the model"));
             Assert.That(GameObject.Find("Judgement Row"), Is.Null);
         }

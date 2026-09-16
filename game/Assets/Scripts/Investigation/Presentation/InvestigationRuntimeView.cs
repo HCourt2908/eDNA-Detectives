@@ -1,3 +1,4 @@
+using TMPro;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -45,10 +46,10 @@ namespace EDNA.Investigation
         private Action restart;
 
         private RectTransform stageRoot;
-        private Text caseSubtitleText;
-        private Text metricsText;
+        private TextMeshProUGUI caseSubtitleText;
+        private TextMeshProUGUI metricsText;
         private RectTransform statusPanelRoot;
-        private Text statusText;
+        private TextMeshProUGUI statusText;
         private Image statusAccent;
         private RectTransform contentPanel;
         private RectTransform contentRoot;
@@ -75,7 +76,6 @@ namespace EDNA.Investigation
         private bool restartConfirmationPending;
         private bool hasRenderedPhase;
         private InvestigationPhase lastRenderedPhase;
-        private bool lastRenderedConfirmationReviewed;
         private InvestigationConclusionStatus lastRenderedConclusionStatus = InvestigationConclusionStatus.NotSubmitted;
 
         public InvestigationState State => state;
@@ -132,7 +132,6 @@ namespace EDNA.Investigation
             notebookFocusTargetAfterRender = string.Empty;
             restartConfirmationPending = false;
             hasRenderedPhase = false;
-            lastRenderedConfirmationReviewed = false;
             lastRenderedConclusionStatus = InvestigationConclusionStatus.NotSubmitted;
             contentScroll?.StopMovement();
             if (contentScroll != null) contentScroll.verticalNormalizedPosition = 1f;
@@ -165,7 +164,7 @@ namespace EDNA.Investigation
             statusTone = InvestigationStatusTone.Warning;
             RenderChrome();
             Clear(contentRoot);
-            Text error = CreateText("Fatal Error", contentRoot, statusMessage, 21, FontStyle.Bold, InvestigationTheme.Danger, TextAnchor.UpperLeft, InvestigationTheme.DisplayFont);
+            TextMeshProUGUI error = CreateText("Fatal Error", contentRoot, statusMessage, 21, FontStyle.Bold, InvestigationTheme.Danger, TextAnchor.UpperLeft, InvestigationTheme.DisplayFont);
             AddLayout(error.rectTransform, 120f, 1f);
             Clear(footerLeft);
             Clear(footerRight);
@@ -274,7 +273,7 @@ namespace EDNA.Investigation
             RectTransform header = CreatePanel("Investigation Header", safeAreaRoot, InvestigationTheme.Deep, InvestigationTheme.SmallRadius);
             Anchor(header, 0f, 1f, 1f, 1f, OuterMargin, -112f, -OuterMargin, -OuterMargin);
 
-            Text brand = CreateText("Brand", header, "Ecosystem Detective", 22, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperLeft, InvestigationTheme.DisplayFont);
+            TextMeshProUGUI brand = CreateText("Brand", header, "Ecosystem Detective", 22, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.UpperLeft, InvestigationTheme.DisplayFont);
             Anchor(brand.rectTransform, 0f, 1f, 0.58f, 1f, 16f, -36f, 0f, -2f);
             caseSubtitleText = CreateText("Case Subtitle", header, string.Empty, 11, FontStyle.Normal, InvestigationTheme.TextMuted, TextAnchor.LowerLeft, InvestigationTheme.DataFont);
             Anchor(caseSubtitleText.rectTransform, 0f, 1f, 0.68f, 1f, 16f, -58f, 0f, -41f);
@@ -450,7 +449,6 @@ namespace EDNA.Investigation
             if (state != null)
             {
                 lastRenderedPhase = state.Phase;
-                lastRenderedConfirmationReviewed = state.ConfirmationReviewed;
                 lastRenderedConclusionStatus = state.ConclusionStatus;
                 hasRenderedPhase = true;
             }
@@ -549,7 +547,7 @@ namespace EDNA.Investigation
                 CreateStageButton("1 · Observe", InvestigationPhase.Observe);
                 CreateStageButton("2 · Investigate", InvestigationPhase.Simulate);
                 string revisions = state.MisstepCount > 0 ? $"    REVISIONS {state.MisstepCount}" : string.Empty;
-                metricsText.text = $"FINDINGS {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)} · MODELS {state.TriedThreatIds.Count}/{caseDefinition.Threats.Count}\nCHECKS {VisibleCompletedObjectiveCount()}/{VisibleRequiredObjectiveCount()}{revisions}";
+                metricsText.text = $"FINDINGS {CountInitialFindings()}/{InvestigationObserveEvaluator.RequiredCount(caseDefinition)} · MODELS {RequiredScenariosTried}/{RequiredScenarioCount}\nCHECKS {VisibleCompletedObjectiveCount()}/{VisibleRequiredObjectiveCount()}{revisions}";
                 caseSubtitleText.text = $"{caseDefinition.DisplayName} · {state.SiteDisplayName} · {state.SurveyDisplayName}";
             }
             else
@@ -588,7 +586,7 @@ namespace EDNA.Investigation
             if (state.Phase == phase || (phase == InvestigationPhase.Simulate && state.Phase == InvestigationPhase.Report))
             {
                 image.color = InvestigationTheme.SurfaceRaised;
-                button.GetComponentInChildren<Text>().color = InvestigationTheme.TextPrimary;
+                button.GetComponentInChildren<TextMeshProUGUI>().color = InvestigationTheme.TextPrimary;
                 RectTransform accent = CreatePanel("Active Stage Accent", button.transform, InvestigationTheme.Primary, 0f);
                 Anchor(accent, 0.12f, 0f, 0.88f, 0f, 0f, 0f, 0f, 2f);
             }
@@ -663,7 +661,7 @@ namespace EDNA.Investigation
             RenderAll();
         }
 
-        private Text CreateHeading(string title, string description, bool compact = false)
+        private TextMeshProUGUI CreateHeading(string title, string description, bool compact = false)
         {
             float blockHeight = compact ? 28f : 42f;
             int titleFontSize = compact ? 12 : 18;
@@ -680,9 +678,9 @@ namespace EDNA.Investigation
             layout.childForceExpandWidth = false;
             layout.childForceExpandHeight = true;
 
-            Text heading = CreateText("Heading", block, title, titleFontSize, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.DisplayFont);
-            heading.horizontalOverflow = HorizontalWrapMode.Overflow;
-            heading.verticalOverflow = VerticalWrapMode.Overflow;
+            TextMeshProUGUI heading = CreateText("Heading", block, title, titleFontSize, FontStyle.Bold, InvestigationTheme.TextPrimary, TextAnchor.MiddleLeft, InvestigationTheme.DisplayFont);
+            heading.textWrappingMode = TextWrappingModes.NoWrap;
+            heading.overflowMode = TextOverflowModes.Overflow;
             LayoutElement headingLayout = heading.gameObject.AddComponent<LayoutElement>();
             headingLayout.minWidth = compact
                 ? Mathf.Clamp(heading.preferredWidth + 4f, 100f, 220f)
@@ -697,9 +695,9 @@ namespace EDNA.Investigation
             dividerLayout.minHeight = compact ? 16f : 22f;
             dividerLayout.preferredHeight = dividerLayout.minHeight;
 
-            Text sub = CreateText("Description", block, description, descriptionFontSize, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
-            sub.horizontalOverflow = HorizontalWrapMode.Wrap;
-            sub.verticalOverflow = VerticalWrapMode.Overflow;
+            TextMeshProUGUI sub = CreateText("Description", block, description, descriptionFontSize, FontStyle.Normal, InvestigationTheme.TextSecondary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
+            sub.textWrappingMode = TextWrappingModes.Normal;
+            sub.overflowMode = TextOverflowModes.Overflow;
             LayoutElement subLayout = sub.gameObject.AddComponent<LayoutElement>();
             subLayout.minWidth = compact ? 180f : 220f;
             subLayout.preferredHeight = childHeight;
@@ -707,7 +705,7 @@ namespace EDNA.Investigation
             return heading;
         }
 
-        private Button CreateButton(string name, Transform parent, string label, ButtonVisualStyle style, UnityEngine.Events.UnityAction action, out Text labelText)
+        private Button CreateButton(string name, Transform parent, string label, ButtonVisualStyle style, UnityEngine.Events.UnityAction action, out TextMeshProUGUI labelText)
         {
             GameObject buttonObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button), typeof(InvestigationRoundedCorners));
             buttonObject.transform.SetParent(parent, false);
@@ -755,8 +753,8 @@ namespace EDNA.Investigation
             bool primaryAction = style == ButtonVisualStyle.Primary || style == ButtonVisualStyle.PaperPrimary;
             labelText = CreateText("Label", buttonObject.transform, label, primaryAction ? 17 : 15, FontStyle.Bold, foreground, TextAnchor.MiddleCenter, InvestigationTheme.DisplayFont);
             Stretch(labelText.rectTransform, 10f, 4f, -10f, -4f);
-            labelText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            labelText.verticalOverflow = VerticalWrapMode.Overflow;
+            labelText.textWrappingMode = TextWrappingModes.Normal;
+            labelText.overflowMode = TextOverflowModes.Overflow;
             labelText.raycastTarget = false;
             LayoutElement layout = buttonObject.AddComponent<LayoutElement>();
             layout.minHeight = 48f;
@@ -831,23 +829,40 @@ namespace EDNA.Investigation
             return outline;
         }
 
-        private static Text CreateText(string name, Transform parent, string value, int fontSize, FontStyle style, Color color, TextAnchor alignment, Font font)
+        private static TextAlignmentOptions TmpAlignment(TextAnchor alignment)
         {
-            GameObject textObject = new GameObject(name, typeof(RectTransform), typeof(Text));
+            switch (alignment)
+            {
+                case TextAnchor.UpperLeft: return TextAlignmentOptions.TopLeft;
+                case TextAnchor.UpperCenter: return TextAlignmentOptions.Top;
+                case TextAnchor.UpperRight: return TextAlignmentOptions.TopRight;
+                case TextAnchor.MiddleLeft: return TextAlignmentOptions.MidlineLeft;
+                case TextAnchor.MiddleCenter: return TextAlignmentOptions.Midline;
+                case TextAnchor.MiddleRight: return TextAlignmentOptions.MidlineRight;
+                case TextAnchor.LowerLeft: return TextAlignmentOptions.BottomLeft;
+                case TextAnchor.LowerCenter: return TextAlignmentOptions.Bottom;
+                default: return TextAlignmentOptions.BottomRight;
+            }
+        }
+
+        private static TextMeshProUGUI CreateText(string name, Transform parent, string value, int fontSize, FontStyle style, Color color, TextAnchor alignment, TMP_FontAsset font)
+        {
+            GameObject textObject = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
             textObject.transform.SetParent(parent, false);
-            Text text = textObject.GetComponent<Text>();
+            TextMeshProUGUI text = textObject.GetComponent<TextMeshProUGUI>();
             text.font = font;
             text.text = value;
             int minimumFontSize = font == InvestigationTheme.DataFont ? 10 : 11;
             text.fontSize = Mathf.Max(fontSize, minimumFontSize);
-            text.fontStyle = style;
+            text.fontStyle = style == FontStyle.Bold ? FontStyles.Bold : style == FontStyle.Italic ? FontStyles.Italic
+                : style == FontStyle.BoldAndItalic ? FontStyles.Bold | FontStyles.Italic : FontStyles.Normal;
             text.color = color;
-            text.alignment = alignment;
-            text.supportRichText = false;
-            text.lineSpacing = 1.05f;
-            text.resizeTextForBestFit = false;
-            text.horizontalOverflow = HorizontalWrapMode.Wrap;
-            text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.alignment = TmpAlignment(alignment);
+            text.richText = false;
+            text.lineSpacing = 0f;
+            text.enableAutoSizing = false;
+            text.textWrappingMode = TextWrappingModes.Normal;
+            text.overflowMode = TextOverflowModes.Truncate;
             text.raycastTarget = false;
             return text;
         }
@@ -886,7 +901,7 @@ namespace EDNA.Investigation
                 return image.rectTransform;
             }
 
-            Text fallback = CreateText(
+            TextMeshProUGUI fallback = CreateText(
                 name,
                 parent,
                 species == null ? "Unknown species" : species.DisplayName,
@@ -895,13 +910,26 @@ namespace EDNA.Investigation
                 new Color(fallbackColor.r, fallbackColor.g, fallbackColor.b, ghost ? 0.38f : 1f),
                 TextAnchor.MiddleCenter,
                 InvestigationTheme.DisplayFont);
-            fallback.horizontalOverflow = HorizontalWrapMode.Wrap;
-            fallback.verticalOverflow = VerticalWrapMode.Truncate;
+            fallback.textWrappingMode = TextWrappingModes.Normal;
+            fallback.overflowMode = TextOverflowModes.Truncate;
             return fallback.rectTransform;
         }
 
         private RectTransform CreateThreatArtwork(string name, Transform parent, ThreatSimulationDefinition threat)
         {
+            if (threat != null && threat.GlyphKind == ThreatGlyphKind.AlgalBloom && threat.Icon != null)
+            {
+                var cluster = CreatePanel(name, parent, Color.clear, 0f);
+                cluster.GetComponent<Image>().raycastTarget = false;
+                for (int i = 0; i < 3; i++)
+                {
+                    var cell = CreateStatusIcon("Bloom Icon Cell " + i, cluster, threat.Icon, new Color(.9f, .92f, .45f));
+                    float x = i == 0 ? .05f : i == 1 ? .45f : .25f;
+                    float y = i == 2 ? .40f : .02f;
+                    Anchor(cell.rectTransform, x, y, x + .52f, y + .55f, 0f, 0f, 0f, 0f);
+                }
+                return cluster;
+            }
             if (threat != null && threat.Icon != null)
             {
                 Image image = CreateGraphic<Image>(name, parent);
@@ -1121,6 +1149,7 @@ namespace EDNA.Investigation
                 case PredictionState.Stable: return "Stable";
                 case PredictionState.DepthShift: return "Depth shift";
                 case PredictionState.Unknown: return "Unknown";
+                case PredictionState.Absent: return "Not present";
                 default: return state.ToString();
             }
         }

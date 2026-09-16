@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using EDNA.Investigation.Domain;
 using NUnit.Framework;
@@ -44,23 +45,24 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Observe Comparison Board"), Is.Not.Null);
             Assert.That(GameObject.Find("Historical Record Page"), Is.Null);
             Assert.That(GameObject.Find("Today Record Page"), Is.Null);
-            Press("Compare Change More");
+            Press("Compare Change Fewer");
             Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
             Drop("Compare Species shark","Compare Change More");
             Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
             Assert.That(GameObject.Find("Compare Species shark"), Is.Not.Null);
-            Assert.That(GameObject.Find("Observe Comparison Feedback").GetComponent<Text>().text, Does.Contain("notebook"));
-            Assert.That(GameObject.Find("Observe Comparison Feedback").GetComponent<Text>().text, Does.Not.Contain("Not detected"));
-            Drop("Compare Species tuna","Compare Change Fewer");
-            Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
-            Drop("Compare Species shark","Compare Change NotDetected");
-            Drop("Compare Species phytoplankton","Compare Change Fewer");
+            Assert.That(GameObject.Find("Observe Comparison Feedback").GetComponent<TextMeshProUGUI>().text, Does.Contain("notebook"));
+            Assert.That(GameObject.Find("Observe Comparison Feedback").GetComponent<TextMeshProUGUI>().text, Does.Not.Contain("Not detected"));
             Drop("Compare Species tuna","Compare Change More");
+            Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
+            Drop("Compare Species shark","Compare Change Fewer");
+            Drop("Compare Species phytoplankton","Compare Change Same");
+            Drop("Compare Species tuna","Compare Change Fewer");
             Assert.That(GameObject.Find("Compare Species tuna"), Is.Null);
-            Assert.That(GameObject.Find("Sorted Species tuna").transform.parent.name, Is.EqualTo("Compare Change More"));
-            Drop("Compare Species krill","Compare Change More");
-            Press("Compare Species atlantic_herring"); Press("Compare Change Fewer");
-            Assert.That(controller.State.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Assert.That(GameObject.Find("Sorted Species tuna").transform.parent.name, Is.EqualTo("Compare Change Fewer"));
+            Drop("Compare Species tree_bubblegum_coral","Compare Change NotDetected");
+            Press("Compare Species atlantic_herring"); Press("Compare Change More");
+            InvestigationWorkbenchTestActions.Record("Species Marker krill");
+            Assert.That(controller.State.DiscoveredObservationIds.Count, Is.EqualTo(6));
             Assert.That(controller.State.MisstepCount, Is.Zero);
             Assert.That(GameObject.Find("Summarize Findings"), Is.Not.Null);
             Assert.That(GameObject.Find("Observe Survey Story"), Is.Null);
@@ -71,8 +73,8 @@ namespace EDNA.Investigation.Tests
         [UnityTest] public IEnumerator Comparison_GroupedDetectionsSurviveTheMapFlightAndBothNotebookPages()
         {
             yield return Load(false);
-            Assert.That(Specimens(GameObject.Find("Species Marker tuna").transform.Find("Species Artwork").gameObject), Is.EqualTo(3));
-            Assert.That(Specimens(GameObject.Find("Historical Species Marker tuna").transform.Find("Species Artwork").gameObject), Is.EqualTo(1));
+            Assert.That(Specimens(GameObject.Find("Species Marker tuna").transform.Find("Species Artwork").gameObject), Is.EqualTo(1));
+            Assert.That(Specimens(GameObject.Find("Historical Species Marker tuna").transform.Find("Species Artwork").gameObject), Is.EqualTo(3));
             InvestigationWorkbenchTestActions.BeginTodayRecording();
             float deadline=Time.realtimeSinceStartup+4f; bool groupFlew=false;
             while(GameObject.Find("Compare With History")==null && Time.realtimeSinceStartup<deadline)
@@ -82,7 +84,7 @@ namespace EDNA.Investigation.Tests
                 yield return null;
             }
             Assert.That(groupFlew, Is.True);
-            Assert.That(Specimens(GameObject.Find("Today Notebook Icon tuna")), Is.EqualTo(3));
+            Assert.That(Specimens(GameObject.Find("Today Notebook Icon tuna")), Is.EqualTo(1));
             InvestigationWorkbenchTestActions.BeginObserveQuestions(); yield return null;
             Assert.That(Specimens(GameObject.Find("Compare Species tuna").transform.Find("Comparison Species Artwork").gameObject), Is.EqualTo(1), "The sorting card is a neutral species token; the dated group stays in the notebook.");
             var from=GameObject.Find("Compare Species tuna");
@@ -91,8 +93,8 @@ namespace EDNA.Investigation.Tests
             Assert.That(Specimens(GameObject.Find("Dragged Species Token")), Is.EqualTo(1));
             ExecuteEvents.Execute(from,pointer,ExecuteEvents.endDragHandler);
             Assert.That(GameObject.Find("Comparison Notebook"), Is.Not.Null);
-            Assert.That(Specimens(GameObject.Find("Today Notebook Icon tuna")), Is.EqualTo(3));
-            Assert.That(Specimens(GameObject.Find("Historical Notebook Icon tuna")), Is.EqualTo(1));
+            Assert.That(Specimens(GameObject.Find("Today Notebook Icon tuna")), Is.EqualTo(1));
+            Assert.That(Specimens(GameObject.Find("Historical Notebook Icon tuna")), Is.EqualTo(3));
         }
         [UnityTest] public IEnumerator Comparison_NotebookStaysOpenAndPreservesReadingPositionWhenReturningFromSeamount()
         {
@@ -101,7 +103,7 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Notebook Drawer"), Is.Null);
             Assert.That(GameObject.Find("Notebook Drawer Scrim"), Is.Null);
             Assert.That(GameObject.Find("Toggle Notebook Drawer"), Is.Null);
-            foreach(string id in new[]{"shark","krill","atlantic_herring","tuna"}) InvestigationWorkbenchTestActions.Record("Species Marker "+id);
+            foreach(string id in new[]{"shark","tree_bubblegum_coral","atlantic_herring","tuna","krill"}) InvestigationWorkbenchTestActions.Record("Species Marker "+id);
             yield return null; Canvas.ForceUpdateCanvases();
             ScrollRect scroll=GameObject.Find("Comparison Notebook Scroll").GetComponent<ScrollRect>();
             // With prose removed the notes may fit without scrolling.
@@ -119,8 +121,8 @@ namespace EDNA.Investigation.Tests
             Assert.That(GameObject.Find("Comparison Notebook"), Is.Not.Null);
             Assert.That(GameObject.Find("Comparison Notebook Scroll").GetComponent<ScrollRect>().content.anchoredPosition.y, Is.EqualTo(offset).Within(.5f));
             Assert.That(GameObject.Find("Compare Species phytoplankton").GetComponent<Button>().targetGraphic.color, Is.EqualTo((Color)InvestigationTheme.PaperSelected));
-            Press("Compare Change Fewer");
-            Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds.Count, Is.EqualTo(5));
+            Press("Compare Change Same");
+            Assert.That(Object.FindAnyObjectByType<InvestigationController>().State.DiscoveredObservationIds.Count, Is.EqualTo(6));
         }
 
         [UnityTest] public IEnumerator Comparison_CompactControlsLeaveSpaceForTheNotebookAndStayClickable()
@@ -139,7 +141,7 @@ namespace EDNA.Investigation.Tests
                 Assert.That(changes.rect.width, Is.LessThanOrEqualTo(330f));
                 Assert.That(notebook.rect.width, Is.GreaterThan(changes.rect.width));
                 Assert.That(notebook.position.x, Is.GreaterThan(changes.position.x));
-                foreach(string name in new[]{"Compare Species tuna","Compare Change More"})
+                foreach(string name in new[]{"Compare Species tuna","Compare Change Fewer"})
                 {
                     var rect=GameObject.Find(name).GetComponent<RectTransform>();
                     var pointer=new PointerEventData(EventSystem.current){position=RectTransformUtility.WorldToScreenPoint(null,rect.TransformPoint(rect.rect.center))};
@@ -147,13 +149,13 @@ namespace EDNA.Investigation.Tests
                     Assert.That(hits,Is.Not.Empty,name);
                     Assert.That(ExecuteEvents.GetEventHandler<IPointerClickHandler>(hits[0].gameObject),Is.EqualTo(rect.gameObject),name);
                 }
-                Assert.That(GameObject.Find("Compare Change More").GetComponent<RectTransform>().rect.height, Is.LessThanOrEqualTo(100f));
-                Drop("Compare Species tuna","Compare Change More");
+                Assert.That(GameObject.Find("Compare Change Fewer").GetComponent<RectTransform>().rect.height, Is.LessThanOrEqualTo(100f));
+                Drop("Compare Species tuna","Compare Change Fewer");
                 Assert.That(GameObject.Find("Comparison Notebook"), Is.Not.Null);
                 canvas.scaleFactor=Screen.width/900f; yield return null; yield return null;
-                Drop("Compare Species atlantic_herring","Compare Change Same");Drop("Compare Species phytoplankton","Compare Change Fewer");
+                Drop("Compare Species atlantic_herring","Compare Change Same");Drop("Compare Species phytoplankton","Compare Change Same");
                 yield return null;Canvas.ForceUpdateCanvases();
-                foreach(Text text in GameObject.Find("Observe Comparison Board").GetComponentsInChildren<Text>())
+                foreach(TextMeshProUGUI text in GameObject.Find("Observe Comparison Board").GetComponentsInChildren<TextMeshProUGUI>())
                     Assert.That(text.rectTransform.rect.height+1f,Is.GreaterThanOrEqualTo(text.preferredHeight),text.name+": "+text.text);
             }
             finally{canvas.scaleFactor=scale;scaler.enabled=enabled;}
@@ -163,33 +165,33 @@ namespace EDNA.Investigation.Tests
             yield return Load();
             var controller=Object.FindAnyObjectByType<InvestigationController>();
             Assert.That(GameObject.Find("Comparison Historical Notes").transform.GetSiblingIndex(), Is.LessThan(GameObject.Find("Comparison Today Notes").transform.GetSiblingIndex()));
-            Assert.That(GameObject.Find("Toggle Comparison View").GetComponentInChildren<Text>().text, Is.EqualTo("Seamount view"));
-            Assert.That(GameObject.Find("Select Species Instruction").GetComponent<Text>().text, Does.Contain("Click one"));
-            Assert.That(GameObject.Find("Comparison Species Page").GetComponentsInChildren<InvestigationGuidancePulse>().Length, Is.EqualTo(5));
+            Assert.That(GameObject.Find("Toggle Comparison View").GetComponentInChildren<TextMeshProUGUI>().text, Is.EqualTo("Seamount view"));
+            Assert.That(GameObject.Find("Select Species Instruction").GetComponent<TextMeshProUGUI>().text, Does.Contain("Click one"));
+            Assert.That(GameObject.Find("Comparison Species Page").GetComponentsInChildren<InvestigationGuidancePulse>().Length, Is.EqualTo(6));
             Assert.That(GameObject.Find("Comparison Changes Page").GetComponentsInChildren<InvestigationGuidancePulse>(), Is.Empty);
             Press("Compare Species tuna"); yield return null; Canvas.ForceUpdateCanvases();
-            Assert.That(GameObject.Find("Observe Comparison Instruction").GetComponent<Text>().text, Does.Contain("Tuna selected"));
-            Assert.That(GameObject.Find("Choose Change Instruction").GetComponent<Text>().text, Does.Contain("click its change"));
+            Assert.That(GameObject.Find("Observe Comparison Instruction").GetComponent<TextMeshProUGUI>().text, Does.Contain("Tuna selected"));
+            Assert.That(GameObject.Find("Choose Change Instruction").GetComponent<TextMeshProUGUI>().text, Does.Contain("click its change"));
             Assert.That(GameObject.Find("Comparison Species Page").GetComponentsInChildren<InvestigationGuidancePulse>(), Is.Empty);
             Assert.That(GameObject.Find("Comparison Changes Page").GetComponentsInChildren<InvestigationGuidancePulse>().Length, Is.EqualTo(4));
             Assert.That(GameObject.Find("Historical Notebook Row tuna").transform.Find("Selected Record Border"), Is.Not.Null);
             Assert.That(GameObject.Find("Today Notebook Row tuna").transform.Find("Selected Record Border"), Is.Not.Null);
             Vector3 speciesPosition=GameObject.Find("Compare Species tuna").transform.position;
-            Vector3 changePosition=GameObject.Find("Compare Change More").transform.position;
-            Vector2 changeSize=GameObject.Find("Compare Change More").GetComponent<RectTransform>().rect.size;
+            Vector3 changePosition=GameObject.Find("Compare Change Fewer").transform.position;
+            Vector2 changeSize=GameObject.Find("Compare Change Fewer").GetComponent<RectTransform>().rect.size;
             Press("Toggle Comparison View"); yield return null; Canvas.ForceUpdateCanvases();
             Assert.That(GameObject.Find("Comparison Seamount"), Is.Not.Null);
             Assert.That(GameObject.Find("Observe Comparison Board"), Is.Not.Null);
-            Assert.That(GameObject.Find("Toggle Comparison View").GetComponentInChildren<Text>().text, Is.EqualTo("Notebook view"));
+            Assert.That(GameObject.Find("Toggle Comparison View").GetComponentInChildren<TextMeshProUGUI>().text, Is.EqualTo("Notebook view"));
             Assert.That(Vector3.Distance(speciesPosition,GameObject.Find("Compare Species tuna").transform.position), Is.LessThan(.5f));
-            Assert.That(Vector3.Distance(changePosition,GameObject.Find("Compare Change More").transform.position), Is.LessThan(.5f));
-            Assert.That(GameObject.Find("Compare Change More").GetComponent<RectTransform>().rect.size, Is.EqualTo(changeSize));
-            Press("Compare Change More"); yield return null;
-            Assert.That(controller.State.HasDiscoveredObservation("E02_TUNA_WIDER_DETECTION"), Is.True);
+            Assert.That(Vector3.Distance(changePosition,GameObject.Find("Compare Change Fewer").transform.position), Is.LessThan(.5f));
+            Assert.That(GameObject.Find("Compare Change Fewer").GetComponent<RectTransform>().rect.size, Is.EqualTo(changeSize));
+            Press("Compare Change Fewer"); yield return null;
+            Assert.That(controller.State.HasDiscoveredObservation("E02_TUNA_FEWER_SITES"), Is.True);
             Assert.That(GameObject.Find("Comparison Seamount"), Is.Not.Null, "Sorting must remain playable with the map open.");
             Press("Toggle Comparison View"); yield return null;
             Assert.That(GameObject.Find("Comparison Notebook"), Is.Not.Null);
-            Assert.That(GameObject.Find("Notebook E02_TUNA_WIDER_DETECTION"), Is.Null, "The reference pane no longer repeats prose findings.");
+            Assert.That(GameObject.Find("Notebook E02_TUNA_FEWER_SITES"), Is.Null, "The reference pane no longer repeats prose findings.");
             Assert.That(GameObject.Find("Today Notebook Icon tuna"), Is.Not.Null);
         }
 

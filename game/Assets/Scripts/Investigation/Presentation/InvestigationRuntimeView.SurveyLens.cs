@@ -1,3 +1,4 @@
+using TMPro;
 using System;
 using System.Collections.Generic;
 using EDNA.Investigation.Domain;
@@ -72,11 +73,11 @@ namespace EDNA.Investigation
             current.gameObject.AddComponent<InvestigationLensRaycastFilter>().Configure(slider);
             historical.gameObject.AddComponent<InvestigationLensRaycastFilter>().Configure(slider, true);
             FindNamedRect(current, "Survey Title").gameObject.SetActive(false);
-            Text today = CreateText("Lens Today Label", maps, "Today", 18, FontStyle.Bold, InvestigationTheme.Primary,
+            TextMeshProUGUI today = CreateText("Lens Today Label", maps, "Today", 18, FontStyle.Bold, InvestigationTheme.Primary,
                 TextAnchor.UpperRight, InvestigationTheme.DisplayFont);
             Anchor(today.rectTransform, .7f, 1f, 1f, 1f, 0f, -44f, -14f, -10f);
             today.gameObject.SetActive(surveyLensValue < .99f);
-            Text historyTitle = FindNamedRect(historical, "Survey Title").GetComponent<Text>();
+            TextMeshProUGUI historyTitle = FindNamedRect(historical, "Survey Title").GetComponent<TextMeshProUGUI>();
             historyTitle.gameObject.SetActive(surveyLensValue > .01f);
             slider.onValueChanged.AddListener(v =>
             {
@@ -100,7 +101,7 @@ namespace EDNA.Investigation
             RectTransform handleArea = FindNamedRect(slider.transform, "Handle Area");
             Stretch(handleArea, 20f, 18f, -20f, -2f);
             Anchor(FindNamedRect(slider.transform, "Track"), 0f, .66f, 1f, .66f, 16f, -2f, -16f, 2f);
-            Text caption = CreateText("Survey Lens Caption", slider.transform, CanSlideSurveyLens ? "Today  ←  slide to compare  →  20 years ago"
+            TextMeshProUGUI caption = CreateText("Survey Lens Caption", slider.transform, CanSlideSurveyLens ? "Today  ←  slide to compare  →  20 years ago"
                 : RecordingEra == SurveyEra.Historical ? "20 YEARS AGO · Record this survey" : "TODAY · Record this survey before comparing", 12, FontStyle.Bold,
                 InvestigationTheme.TextPrimary, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
             Anchor(caption.rectTransform, 0f, 0f, 1f, 0f, 42f, 0f, -42f, 18f);

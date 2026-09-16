@@ -1,3 +1,4 @@
+using TMPro;
 using System;
 using System.Collections.Generic;
 using EDNA.Core;
@@ -39,10 +40,10 @@ namespace EDNA.Investigation
         {
             if (scenarioStage != ScenarioStage.PlayingCause || scenarioActiveId != threat)
                 return viewedScenarios.Contains(threat);
-            var ids = ScenarioSpecies();
+            var ids = ScenarioSpecies(threat);
             int index = ids.IndexOf(species);
             float begin = .10f + index * (.54f / Mathf.Max(1, ids.Count - 1));
-            return index >= 0 && (ScenarioPlaybackTime - scenarioStarted) / ScenarioSeconds > begin;
+            return index >= 0 && ScenarioPopulationProgress(threat, (float)((ScenarioPlaybackTime - scenarioStarted) / ScenarioSeconds)) > begin;
         }
 
         private string ScenarioDetailTitle(ScenarioDetailKind kind, string threat, string species)
@@ -58,17 +59,20 @@ namespace EDNA.Investigation
             {
                 switch (threat)
                 {
-                    case "longline": return "Long-line fishing uses a fishing line with baited hooks. This trial starts by assuming fewer sharks, then follows the effects through our five-species food chain.\n\nUse Play to see the prediction; compare it with your recorded survey.";
-                    case "bottom_trawling": return "Bottom trawling pulls fishing gear along the seabed. This simplified trial starts with fewer sharks and follows the same food chain.\n\nThe animation models food-chain changes; it does not provide a seabed observation.";
+                    case "toxic_algal_bloom": return "Extreme trial. Toxic algae can harm marine life, and some blooms also deplete oxygen as they decay. For comparison, this trial assumes the five model species disappear locally; this is not the outcome of every bloom.\n\nThe phytoplankton row represents Prochlorococcus marinus, not all phytoplankton or the bloom-forming algae. Coral response: unknown.\n\nYour survey has more herring and stable phytoplankton. Compare this prediction with your notebook.";
+                    case "longline": return "Long-line fishing uses baited hooks. This trial starts with fewer sharks and follows the food chain. Surface phytoplankton remains stable in the model.\n\nUse Play to see the prediction; compare it with your recorded survey.";
+                    case "bottom_trawling": return "This trial models targeted tuna catch, hammerhead bycatch and seabed disturbance. Surface phytoplankton is held stable. The krill response is not specified in this model. Use Play to reveal the responses.\n\nNormal food supply:\n" + ScenarioFoodLinks(threat);
                     default: return "This provisional pollution trial specifies some species responses and leaves others unknown. The team is reviewing this scenario.\n\nUnknown means the model does not provide a prediction; it does not mean stable or absent.";
                 }
             }
             var species = caseDefinition.FindSpecies(speciesId);
             if (species == null) return string.Empty;
             if (kind == ScenarioDetailKind.Species)
-                return species.DisplayName + "\n" + species.ScientificName + "\n\n" + species.Description;
+                return species.DisplayName + "\n" + species.ScientificName + "\n\n" + species.Description
+                    + (speciesId == "tree_bubblegum_coral" ? "\n\nNormal food supply in this teaching model:\n" + ScenarioFoodLinks("bottom_trawling") : string.Empty);
             var finding = FindObserveObservationForSpecies(speciesId);
-            string survey = finding?.DisplayName ?? "See the dated records in your notebook.";
+            string survey = finding?.DisplayName ?? ResolveSurveySummary(species, SurveyEra.Current)?.Result
+                ?? "No observation of this species was collected in this case";
             if (kind == ScenarioDetailKind.Survey)
             {
                 var past = ResolveSurveySummary(species, SurveyEra.Historical);
@@ -81,9 +85,11 @@ namespace EDNA.Investigation
             var prediction = simulation?.FindPrediction(speciesId);
             if (prediction == null || prediction.PredictedState == PredictionState.Unknown)
                 return "? Unknown\n\nThis model does not specify a response for this species. Unknown does not mean stable, absent or disproven.\n\nYour survey: " + survey + ".";
-            string words = PredictionStateSymbol(prediction.PredictedState) + " " + PredictionLabel(prediction.PredictedState) + "\n\n";
+            string words = (PredictionStateSymbol(prediction.PredictedState) + " " + PredictionLabel(prediction.PredictedState)).Trim() + "\n\n";
             int i = new List<string>(caseDefinition.FoodWebChainSpeciesIds).IndexOf(speciesId);
-            if (threat == "plastic")
+            var explicitPrediction = caseDefinition.FindThreat(threat)?.FindPrediction(speciesId);
+            if (explicitPrediction != null) words += explicitPrediction.Rationale;
+            else if (threat == "plastic")
                 words += "This is an explicit assumption of the provisional pollution trial. The team has not supplied a complete food-chain response for it.";
             else if (i == 0)
                 words += "This trial starts by assuming fewer sharks. The model then follows the predator–prey links to predict the other species' responses.";
@@ -99,6 +105,27 @@ namespace EDNA.Investigation
                     + species.GameplayName + " " + PredictionStateSymbol(prediction.PredictedState);
             }
             return words + "\n\nYour survey: " + survey + ".";
+        }
+
+        private string ScenarioFoodLinks(string threatId)
+        {
+            var model = caseDefinition.FindThreat(threatId);
+            var lines = new List<string>();
+            if (model == null) return string.Empty;
+            foreach (var link in model.FoodSupplyLinks)
+            {
+                string source = caseDefinition.FindSpecies(link.SourceSpeciesId)?.GameplayName;
+                string consumer = caseDefinition.FindSpecies(link.ConsumerSpeciesId)?.GameplayName;
+                switch (link.Kind)
+                {
+                    case ScenarioFoodLinkKind.SinkingOrganicMatter:
+                        lines.Add(source + " at the surface → dead organic matter sinks → seabed " + consumer.ToLowerInvariant()); break;
+                    case ScenarioFoodLinkKind.CoralSpawn:
+                        lines.Add(source + " spawn → food for " + consumer.ToLowerInvariant()); break;
+                    default: lines.Add(consumer + " eats " + source.ToLowerInvariant()); break;
+                }
+            }
+            return string.Join("\n\n", lines);
         }
 
         private void ShowScenarioDetail(RectTransform owner, ScenarioDetailKind kind, string threat, string species, bool pinned)
@@ -132,7 +159,7 @@ namespace EDNA.Investigation
                 blocker.navigation = new Navigation { mode = Navigation.Mode.None };
             }
             float width = Mathf.Min(360f, canvas.rect.width - 24f);
-            Text title = CreateText("Scenario Detail Title", panel, ScenarioDetailTitle(kind, threat, species), 18,
+            TextMeshProUGUI title = CreateText("Scenario Detail Title", panel, ScenarioDetailTitle(kind, threat, species), 18,
                 FontStyle.Bold, InvestigationTheme.Primary, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             Anchor(title.rectTransform, 0f, 1f, 1f, 1f, 16f, -64f, pinned ? -86f : -16f, -12f);
             RectTransform viewport = CreatePanel("Scenario Detail Viewport", panel, Color.clear, 0f);
@@ -140,14 +167,13 @@ namespace EDNA.Investigation
             var scroll = viewport.gameObject.AddComponent<ScrollRect>(); scroll.horizontal = false; scroll.vertical = pinned;
             scroll.viewport = viewport; scroll.movementType = ScrollRect.MovementType.Clamped;
             viewport.GetComponent<Image>().raycastTarget = pinned;
-            Text body = CreateText("Scenario Detail Body", viewport, scenarioDetailShown, 14,
+            TextMeshProUGUI body = CreateText("Scenario Detail Body", viewport, scenarioDetailShown, 14,
                 FontStyle.Normal, InvestigationTheme.TextPrimary, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             body.rectTransform.anchorMin = new Vector2(0f, 1f); body.rectTransform.anchorMax = Vector2.one;
             body.rectTransform.pivot = new Vector2(.5f, 1f); body.rectTransform.offsetMin = body.rectTransform.offsetMax = Vector2.zero;
             body.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             scroll.content = body.rectTransform;
-            float bodyHeight = body.cachedTextGeneratorForLayout.GetPreferredHeight(body.text,
-                body.GetGenerationSettings(new Vector2(width - 32f, 0f))) / body.pixelsPerUnit;
+            float bodyHeight = body.GetPreferredValues(body.text, width - 32f, Mathf.Infinity).y;
             float height = Mathf.Min(Mathf.Max(180f, bodyHeight + 112f), canvas.rect.height - 24f);
             Rect source = ScenarioGuideBounds(owner, canvas), screen = canvas.rect;
             float x = source.center.x < screen.center.x ? source.xMax + 12f : source.xMin - width - 12f;
@@ -155,13 +181,13 @@ namespace EDNA.Investigation
             float y = Mathf.Clamp(source.center.y - height * .5f, screen.yMin + 12f, screen.yMax - height - 12f);
             PositionScenarioGuide(panel, new Rect(x, y, width, height));
             EnsureOutline(panel.gameObject, InvestigationTheme.Primary, new Vector2(1f, -1f));
-            Text foot = CreateText("Scenario Detail Status", panel, pinned
+            TextMeshProUGUI foot = CreateText("Scenario Detail Status", panel, pinned
                 ? (scenarioDetailPausedAt >= 0d ? "Paused · close to continue" : (bodyHeight > height - 106f ? "Scroll for more · Close to return" : "Click outside or Close to return")) : "Click or tap to keep open", 11,
                 FontStyle.Bold, InvestigationTheme.Primary, TextAnchor.MiddleLeft, InvestigationTheme.BodyFont);
             Anchor(foot.rectTransform, 0f, 0f, 1f, 0f, 16f, 6f, -16f, 30f);
             if (pinned)
             {
-                Button close = CreateButton("Close Scenario Details", panel, "Close", ButtonVisualStyle.Secondary, () => CloseScenarioDetail(true), out Text closeLabel);
+                Button close = CreateButton("Close Scenario Details", panel, "Close", ButtonVisualStyle.Secondary, () => CloseScenarioDetail(true), out TextMeshProUGUI closeLabel);
                 closeLabel.fontSize = 13;
                 Anchor(close.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -78f, -54f, -10f, -10f);
                 close.navigation = new Navigation { mode = Navigation.Mode.Explicit, selectOnLeft = close, selectOnRight = close, selectOnUp = close, selectOnDown = close };

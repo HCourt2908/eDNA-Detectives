@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
@@ -87,7 +88,7 @@ namespace EDNA.Investigation.Tests
                 }
                 Assert.That(controller.State.DiscoveredObservationIds, Is.Empty);
                 Assert.That(GameObject.Find("Summarize Findings"), Is.Null);
-                Press("Compare Species shark"); Press("Compare Change NotDetected");
+                Press("Compare Species shark"); Press("Compare Change Fewer");
                 Assert.That(controller.State.DiscoveredObservationIds.Count, Is.EqualTo(1));
                 InvestigationCurrentFlowTestActions.ToggleGuidanceForTests();
                 Assert.That(GameObject.Find("Comparison Briefing Overlay"), Is.Null);
@@ -118,7 +119,7 @@ namespace EDNA.Investigation.Tests
                         var bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(speech, button.transform);
                         Assert.That(bounds.max.x, Is.LessThanOrEqualTo(speech.rect.xMax + 1f));
                         Assert.That(bounds.min.y, Is.GreaterThanOrEqualTo(speech.rect.yMin - 1f));
-                        var text = button.GetComponentInChildren<Text>();
+                        var text = button.GetComponentInChildren<TextMeshProUGUI>();
                         Assert.That(text.rectTransform.rect.height + 1f, Is.GreaterThanOrEqualTo(text.preferredHeight));
                     }
                     var pointer = new PointerEventData(EventSystem.current) { position = RectTransformUtility.WorldToScreenPoint(null, skip.transform.position) };

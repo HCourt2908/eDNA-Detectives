@@ -61,7 +61,8 @@ namespace EDNA.Investigation.Domain
         Decrease = 1,
         Stable = 2,
         DepthShift = 3,
-        Unknown = 4
+        Unknown = 4,
+        Absent = 5
     }
 
     public enum ComparisonJudgement
@@ -141,6 +142,7 @@ namespace EDNA.Investigation.Domain
         // Value 0 is retired; keep the remaining serialized glyph IDs stable.
         Plastic = 1,
         LongLine = 2,
-        BottomTrawling = 3
+        BottomTrawling = 3,
+        AlgalBloom = 4
     }
 }

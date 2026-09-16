@@ -1,3 +1,4 @@
+using TMPro;
 using EDNA.Investigation.Domain;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,7 +14,7 @@ namespace EDNA.Investigation
             y = Mathf.Max(y, 46f);
             if (pinned)
             {
-                Button close = CreateButton("Close Species Facts", speciesTooltip, "Close", ButtonVisualStyle.Tertiary, HideSpeciesTooltip, out Text label);
+                Button close = CreateButton("Close Species Facts", speciesTooltip, "Close", ButtonVisualStyle.Tertiary, HideSpeciesTooltip, out TextMeshProUGUI label);
                 close.GetComponent<LayoutElement>().ignoreLayout = true;
                 label.fontSize = 12;
                 Anchor(close.GetComponent<RectTransform>(), 1f, 1f, 1f, 1f, -72f, -42f, -8f, -4f);
@@ -33,10 +34,9 @@ namespace EDNA.Investigation
 
         private void AddSpeciesFactsText(string objectName, string value, int size, FontStyle style, Color color, ref float top, float minimumHeight = 0f)
         {
-            Text text = CreateText(objectName, speciesTooltip, value, size, style, color, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
+            TextMeshProUGUI text = CreateText(objectName, speciesTooltip, value, size, style, color, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             float width = speciesTooltip.sizeDelta.x - 32f;
-            float height = Mathf.Max(minimumHeight, Mathf.Ceil(text.cachedTextGeneratorForLayout.GetPreferredHeight(value,
-                text.GetGenerationSettings(new Vector2(width, 0f))) / text.pixelsPerUnit) + 2f);
+            float height = Mathf.Max(minimumHeight, Mathf.Ceil(text.GetPreferredValues(value, width, Mathf.Infinity).y) + 2f);
             Anchor(text.rectTransform, 0f, 1f, 1f, 1f, 16f, -top - height, -16f, -top);
             top += height + 4f;
         }

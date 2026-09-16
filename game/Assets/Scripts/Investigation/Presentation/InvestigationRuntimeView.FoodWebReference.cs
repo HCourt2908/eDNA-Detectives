@@ -1,3 +1,4 @@
+using TMPro;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,7 +21,7 @@ namespace EDNA.Investigation
                 }, out _);
             AddLayout(toggle.GetComponent<RectTransform>(), 44f, 0f);
             if (!notebookFoodWebReferenceOpen) return;
-            Text note = CreateText("Food Web Reference Note", parent,
+            TextMeshProUGUI note = CreateText("Food Web Reference Note", parent,
                 "Arrows mean eats. These are illustrative food webs, not additional survey findings. Organisms are not to scale.",
                 12, FontStyle.Normal, InvestigationTheme.PaperInk, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
             ConfigureContentDrivenText(note);
@@ -39,7 +40,7 @@ namespace EDNA.Investigation
                 RectTransform row = CreatePanel("Food Web Reference " + networks[n], parent,
                     InvestigationTheme.PaperRaised, InvestigationTheme.SmallRadius);
                 AddLayout(row, 106f, 0f);
-                Text heading = CreateText("Reference Network Name", row, labels[n], 12,
+                TextMeshProUGUI heading = CreateText("Reference Network Name", row, labels[n], 12,
                     FontStyle.Bold, InvestigationTheme.PaperSelectedBorder, TextAnchor.UpperLeft, InvestigationTheme.BodyFont);
                 Anchor(heading.rectTransform, 0f, 1f, 1f, 1f, 8f, -22f, -8f, -3f);
                 for (int i = 0; i < ids.Count; i++)
@@ -51,11 +52,11 @@ namespace EDNA.Investigation
                         var art = CreateStatusIcon("Reference Species " + ids[i], row, species.Icon, Color.white);
                         Anchor(art.rectTransform, i / (float)ids.Count, .42f, (i + 1f) / ids.Count, .78f, 5f, 0f, -8f, 0f);
                     }
-                    Text name = CreateText("Reference Species Name", row, species.GameplayName, 10,
+                    TextMeshProUGUI name = CreateText("Reference Species Name", row, species.GameplayName, 10,
                         FontStyle.Bold, InvestigationTheme.PaperInk, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
                     Anchor(name.rectTransform, i / (float)ids.Count, .02f, (i + 1f) / ids.Count, species.Icon != null ? .43f : .78f, 2f, 0f, -6f, 0f);
                     if (i == ids.Count - 1) continue;
-                    Text arrow = CreateText("Reference Feeding Arrow", row, "→", 14, FontStyle.Bold,
+                    TextMeshProUGUI arrow = CreateText("Reference Feeding Arrow", row, "→", 14, FontStyle.Bold,
                         InvestigationTheme.PaperSelectedBorder, TextAnchor.MiddleCenter, InvestigationTheme.BodyFont);
                     Anchor(arrow.rectTransform, (i + 1f) / ids.Count, .46f, (i + 1f) / ids.Count, .70f, -9f, 0f, 7f, 0f);
                 }
